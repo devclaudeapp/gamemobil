@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 // Le Fournil : les points de boulanger (src/game.js), ce que classe le classement en ligne.
-// 1. Le barème, règle par règle : journée complète 10, défi de la semaine 30, événements 2 chacun (20 au plus par jour), Atelier
-//    (meilleur score de la semaine de chaque mini-jeu → 0 à 20), améliorations (1 point par tranche d'achats valant 10 min de ses
-//    propres gains, + 5 par palier ×2 franchi, 30 au plus par jour) ; jours et semaines à l'heure de Paris ; sauvegardes abîmées ;
-//    triche par la console bornée par les plafonds.
+// 1. Le barème du lot 7, règle par règle : le socle d'avant (journée complète 10, défi de la semaine 30, événements 2 chacun, 20 au plus
+//    par jour, améliorations : 1 point par tranche d'achats valant 10 min de ses propres gains, + 5 par palier ×2, 30 au plus par jour),
+//    et les sources nouvelles : chaque objectif réclamé 2 (6/jour), la présence (pétrissage 4/48, descente 4/48, client mystère 1/80,
+//    grosse commande 4/48), les paliers d'événement 3 (12/jour) ; la dégressivité du jour (plein jusqu'à 60, moitié jusqu'à 160, quart
+//    jusqu'à 220 : 125 au plus), l'Atelier DU JOUR hors dégressivité (0 à 4 par mini-jeu, 12 par jour ; avant le lot 7 : 0 à 20 sur la
+//    semaine), d'où 137 par jour et 989 par semaine ; jours et semaines à l'heure de Paris ; la migration d'une vieille sauvegarde (la
+//    semaine en cours garde ses points au point près) ; carnets abîmés ; triche par la console bornée par les plafonds.
+//    Les attentes d'avant le lot 7 (60 par jour, 510 par semaine, Atelier 20) ont changé avec la règle (validée par le joueur).
 // 2. L'équité : un débutant et un joueur en fin de boutique 3 qui jouent pareil (mêmes sessions, mêmes décisions : test/longevite.js)
-//    marquent à peu près autant, sur quatre semaines de l'année et pour les trois profils.
+//    marquent à peu près autant, sur quatre semaines de l'année et pour les trois profils (bornes inchangées).
+// 4. Les profils du lot 7 (la conception LOT7/bareme.js, ici sur le vrai carnet) : 4 h / 1 h ≥ ×1,40 ; écran allumé 12 h / 1 h ≤ ×1,06.
 // Lancer : TZ=Europe/Paris node test/fournil-points.test.js
 'use strict';
 const G = require('../src/game.js');
@@ -26,22 +31,36 @@ function boutique(t) {
 }
 
 titre('le barème');
-check(P.journee === 10 && P.defi === 30 && P.evenement === 2 && P.evenementsJour === 20 && P.atelier === 20 && P.tranche === 600 && P.palier === 5 && P.ameliorationsJour === 30, 'les chiffres du barème : 10, 30, 2 (20/jour), Atelier 20 par mini-jeu, 10 min de gains par point, +5 par palier, 30/jour');
-check(P.jour === 60 && P.semaine === 510, `au plus ${P.jour} points par jour et ${P.semaine} par semaine (7 × 60 + 30 + 3 × 20)`);
+check(P.journee === 10 && P.defi === 30 && P.evenement === 2 && P.evenementsJour === 20 && P.tranche === 600 && P.palier === 5 && P.ameliorationsJour === 30 && P.semaines === 12, 'le socle d’avant, inchangé : journée 10, défi 30, événements 2 (20/jour), 10 min de gains par point, +5 par palier, 30/jour, 12 semaines d’historique');
+check(P.objectif === 2 && P.palierEvt === 3 && P.paliersEvtJour === 12 && P.atelier === 4 && JSON.stringify(P.presence) === JSON.stringify({ petrissage: [4, 48], descente: [4, 48], mystere: [1, 80], commande: [4, 48] }), 'les sources nouvelles : objectif 2, présence (pétrissage 4/48, descente 4/48, client mystère 1/80, grosse commande 4/48), palier d’événement 3 (12/jour), Atelier 4 par mini-jeu (et non plus 20)');
+check(JSON.stringify(P.bandes) === '[[60,1],[160,0.5],[220,0.25]]' && P.jourCompte === 125 && P.atelierJour === 12 && P.jour === 137 && P.semaine === 989 && P.serie[3] === 10 && P.serie[7] === 20, `dégressivité 60 / 160 / 220 → ${P.jourCompte} comptés au plus par jour + Atelier ${P.atelierJour} = ${P.jour} ; semaine 7 × 137 + 30 = ${P.semaine} ; série (serveur) +10 au 3e jour, +20 au 7e`);
+check(P.semaine + 30 === 1019, 'le maximum honnête d’une semaine, série comprise : 1 019 (le serveur v6.7 borne le tricheur au même chiffre)');
 { const st = G.newState(LUNDI + 9 * H); const d = G.detailPoints(st);
-  check(d.total === 0 && d.cumul === 0 && d.semaine === '2026-10-12' && d.jour === '2026-10-12' && d.atelier.length === 3 && d.atelier.every((a) => a.points === 0), 'une partie neuve : 0 point, semaine du lundi 12 octobre'); }
+  check(d.total === 0 && d.cumul === 0 && d.semaine === '2026-10-12' && d.jour === '2026-10-12' && d.atelier.length === 3 && d.atelier.every((a) => a.points === 0) && st.points.v === 2, 'une partie neuve : 0 point, semaine du lundi 12 octobre, carnet version 2'); }
 
-titre('journée complète : 10 points, une fois par jour');
+titre('la dégressivité du jour : plein jusqu’à 60, moitié jusqu’à 160, quart jusqu’à 220');
+{ const D = G.degressif, cas = [[0, 0], [1, 1], [59, 59], [60, 60], [61, 60], [62, 61], [100, 80], [159, 109], [160, 110], [161, 110], [164, 111], [200, 120], [219, 124], [220, 125], [221, 125], [1e9, 125], [-5, 0], [NaN, 0]];
+  const faux = cas.filter(([b, c]) => D(b) !== c);
+  check(!faux.length, `brut → compté aux bornes : ${cas.map(([b, c]) => `${b}→${c}`).join(', ')}${faux.length ? ' ; FAUX : ' + faux.map(([b]) => `${b}→${D(b)}`).join(', ') : ''}`);
+  let mono = true; for (let b = 1; b <= 300; b++) if (D(b) < D(b - 1) || D(b) - D(b - 1) > 1) mono = false;
+  check(mono, 'le compté ne baisse jamais quand le brut monte, et jamais plus d’un point par point brut');
+  const B = G.bandeDuJour;
+  check(JSON.stringify([B(0), B(59), B(60), B(159), B(160), B(219), B(220), B(500)]) === JSON.stringify([{ taux: 1, reste: 60 }, { taux: 1, reste: 1 }, { taux: 0.5, reste: 100 }, { taux: 0.5, reste: 1 }, { taux: 0.25, reste: 60 }, { taux: 0.25, reste: 1 }, { taux: 0, reste: 0 }, { taux: 0, reste: 0 }]), 'la bande du prochain point : plein (encore 60), moitié à 60, quart à 160, plus rien à 220'); }
+
+titre('journée complète : 10 points, une fois par jour ; chaque objectif réclamé : 2 points');
 { const t = LUNDI + 10 * H, st = boutique(t);
   st.jour.objectifs.forEach((o) => { o.fait = true; o.progres = o.cible; });
   const r1 = G.reclamer(st, 0), r2 = G.reclamer(st, 1), r3 = G.reclamer(st, 2);
-  check(r1.points === 0 && r2.points === 0 && r3.points === 10 && r3.etoile && G.pointsSemaine(st) === 10, `les deux premiers objectifs ne marquent rien, le troisième fait la journée : +10 (${G.pointsSemaine(st)})`);
-  st.jour.etoileDonnee = false; // une étoile qui se redonnerait (sauvegarde bricolée) ne remarque pas la journée
+  check(r1.points === 2 && r2.points === 2 && r3.points === 12 && r3.etoile && G.pointsSemaine(st) === 16, `les deux premiers objectifs : +2 chacun ; le troisième fait la journée : +2 +10 (${G.pointsSemaine(st)})`);
+  st.jour.etoileDonnee = false; // une étoile qui se redonnerait (sauvegarde bricolée) ne remarque ni la journée ni les objectifs
   st.jour.objectifs.forEach((o) => { o.reclame = false; }); G.reclamer(st, 0); G.reclamer(st, 1); G.reclamer(st, 2);
-  check(G.pointsSemaine(st) === 10, 'la même journée ne compte qu’une fois');
+  check(G.pointsSemaine(st) === 16 && G.detailPoints(st).aujourdhui.objectifs === 6, 'la même journée ne compte qu’une fois, les objectifs 6 au plus par jour');
+  for (let k = 0; k < 50; k++) G.marquerObjectif(st);
+  check(G.pointsSemaine(st) === 16, 'marquerObjectif répété à la console : toujours 6 par jour');
   st.now = LUNDI + 34 * H; G.objectifsDuJour(st, st.now); st.jour.objectifs.forEach((o) => { o.fait = true; });
   [0, 1, 2].forEach((k) => G.reclamer(st, k));
-  check(G.pointsSemaine(st) === 20 && G.detailPoints(st).journees === 20, 'le lendemain : encore 10 (20 dans la semaine)'); }
+  const d = G.detailPoints(st);
+  check(G.pointsSemaine(st) === 32 && d.journees === 20 && d.objectifs === 12, 'le lendemain : encore 16 (32 dans la semaine : journées 20, objectifs 12)'); }
 
 titre('défi de la semaine : 30 points');
 { const st = boutique(LUNDI + 10 * H); st.semaine.fait = true;
@@ -49,41 +68,75 @@ titre('défi de la semaine : 30 points');
   check(r.ok && !r2.ok && G.pointsSemaine(st) === 30 && G.detailPoints(st).defi === 30, 'réclamé : +30, une fois');
   G.marquerDefi(st); check(G.pointsSemaine(st) === 30, 'marqué deux fois (console) : toujours 30'); }
 
-titre('événements réussis : 2 chacun, 20 au plus par jour');
-{ const st = boutique(LUNDI + 11 * H), rnd = () => 0.3;
+titre('événements réussis : 2 chacun (20 au plus par jour), et la présence par-dessus');
+{ const st = boutique(LUNDI + 11 * H), rnd = () => 0.3, brut = () => G.detailPoints(st).aujourdhui.brut;
   G.lancerPetrissage(st); for (let k = 0; k < G.PETRISSAGE.n; k++) G.petrir(st);
-  check(G.pointsSemaine(st) === 2, 'pétrissage gagné : +2');
+  check(G.pointsSemaine(st) === 6 && G.detailPoints(st).aujourdhui.presence.petrissage === 4, 'pétrissage gagné : +2 (événement) +4 (présence)');
   G.lancerPetrissage(st); for (let k = 0; k < 5; k++) G.petrir(st); st.ev = null;
-  check(G.pointsSemaine(st) === 2, 'pétrissage abandonné : rien');
+  check(G.pointsSemaine(st) === 6, 'pétrissage abandonné : rien');
   G.lancerCommande(st, rnd); st.ev.fait = st.ev.n; G.livrer(st);
-  check(G.pointsSemaine(st) === 4, 'commande livrée : +2');
+  check(G.pointsSemaine(st) === 12 && G.detailPoints(st).aujourdhui.presence.commande === 4, 'commande livrée : +2 +4 (grosse commande)');
   G.lancerPanne(st, rnd); for (let k = 0; k < G.PANNE.n; k++) G.reparer(st);
-  check(G.pointsSemaine(st) === 6, 'four réparé : +2');
+  check(G.pointsSemaine(st) === 14, 'four réparé : +2');
   st.stations[3].niv = 1; st.stations[2].niv = 2; G.lancerCritique(st, rnd); [...st.ev.restants].forEach((i) => G.servir(st, i));
-  check(G.pointsSemaine(st) === 8, 'bonne critique : +2');
+  check(G.pointsSemaine(st) === 16, 'bonne critique : +2');
   G.encaisserPourboire(st);
-  check(G.pointsSemaine(st) === 10, 'client mystère (pourboire) : +2');
+  check(G.pointsSemaine(st) === 19 && G.detailPoints(st).aujourdhui.presence.mystere === 1, 'client mystère (pourboire) : +2 +1');
   G.lancerRush(st); G.lancerMeunier(st); G.lancerAnniversaire(st, rnd);
-  check(G.pointsSemaine(st) === 10, 'coup de feu, meunier, anniversaire (rien à réussir) : rien');
+  check(G.pointsSemaine(st) === 19, 'coup de feu, meunier, anniversaire (rien à réussir) : rien');
   for (let k = 0; k < 30; k++) G.encaisserPourboire(st);
-  check(G.detailPoints(st).evenements === 20 && G.detailPoints(st).aujourdhui.evenements === 20, `trente pourboires de plus : plafonné à 20 dans la journée (${G.detailPoints(st).evenements})`);
+  const d = G.detailPoints(st);
+  check(d.evenements === 20 && d.aujourdhui.evenements === 20 && d.aujourdhui.presence.mystere === 31 && brut() === 59 && d.total === 59, `trente pourboires de plus : les événements plafonnés à 20 dans la journée, le client mystère continue (+1 chacun) : brut ${brut()}`);
   st.now = LUNDI + 24 * H + 60e3; G.encaisserPourboire(st);
-  check(G.detailPoints(st).evenements === 22 && G.detailPoints(st).aujourdhui.evenements === 2, 'minuit passé à Paris : le plafond repart (22 dans la semaine)'); }
+  check(G.detailPoints(st).evenements === 22 && G.detailPoints(st).aujourdhui.evenements === 2 && G.pointsSemaine(st) === 62, 'minuit passé à Paris : le plafond repart (22 dans la semaine, 62 points)'); }
 
-titre('Atelier : le meilleur score de la semaine de chaque mini-jeu → 0 à 20');
+titre('la présence : chaque source plafonnée par jour');
+{ const st = boutique(LUNDI + 9 * H), r = {};
+  for (const t of ['petrissage', 'descente', 'mystere', 'commande']) { r[t] = 0; for (let k = 0; k < 500; k++) r[t] += G.marquerPresence(st, t); }
+  check(r.petrissage === 48 && r.descente === 48 && r.mystere === 80 && r.commande === 48, `500 fois chacune : pétrissage ${r.petrissage}, descente ${r.descente}, client mystère ${r.mystere}, grosse commande ${r.commande} (plafonds 48, 48, 80, 48)`);
+  check(['autre', '__proto__', 'toString', 'constructor', '', null, undefined, 3].every((t) => G.marquerPresence(st, t) === 0) && !('autre' in G.detailPoints(st).presence), 'un type inconnu (ou piégé) : 0, rien d’ajouté au carnet');
+  const d = G.detailPoints(st);
+  check(d.aujourdhui.brut === 224 && d.aujourdhui.compte === 125 && d.total === 125, `brut 224 de présence → ${d.aujourdhui.compte} comptés (dégressivité : 60 + 50 + 15)`);
+  st.now += 24 * H; check(G.marquerPresence(st, 'descente') === 4 && G.detailPoints(st).presence.descente === 52, 'le lendemain : ça repart (52 dans la semaine)'); }
+
+titre('paliers d’événement franchis : 3 chacun, 12 par jour');
+{ const st = boutique(LUNDI + 9 * H), r = [1, 2, 3, 4, 5].map(() => G.marquerPalierEvt(st));
+  check(r.join(',') === '3,3,3,3,0' && G.pointsSemaine(st) === 12 && G.detailPoints(st).paliers === 12, `cinq paliers le même jour : ${r.join(', ')} (12 au plus)`);
+  st.now += 24 * H; check(G.marquerPalierEvt(st) === 3 && G.pointsSemaine(st) === 15, 'le lendemain : +3'); }
+
+titre('la dégressivité dans la journée, puis le jour fini rangé');
+{ const st = boutique(LUNDI + 9 * H);
+  for (let k = 0; k < 80; k++) G.marquerPresence(st, 'mystere'); for (let k = 0; k < 10; k++) G.marquerPresence(st, 'petrissage');
+  let d = G.detailPoints(st);
+  check(d.aujourdhui.brut === 120 && d.aujourdhui.compte === 90 && d.total === 90 && d.aujourdhui.bande.taux === 0.5 && d.aujourdhui.bande.reste === 40, `brut 120 → 90 comptés (60 + 60 / 2) ; les prochains points comptent pour moitié, encore 40 avant le quart`);
+  st.now = LUNDI + 33 * H; d = G.detailPoints(st);
+  check(d.total === 90 && st.points.comptes === 90 && d.aujourdhui.brut === 0 && d.aujourdhui.bande.taux === 1, 'mardi : la journée de lundi est rangée avec sa dégressivité (90), la nouvelle repart en plein');
+  for (let k = 0; k < 61; k++) G.marquerPresence(st, 'mystere');
+  check(G.pointsSemaine(st) === 150, `mardi, brut 61 → 60 (le 61e ne vaut qu’un demi-point, arrondi en dessous) : 150 dans la semaine (${G.pointsSemaine(st)})`); }
+
+titre('Atelier : le meilleur score DU JOUR de chaque mini-jeu → 0 à 4, chaque jour, hors dégressivité');
 { const st = boutique(LUNDI + 12 * H);
-  check(G.JEUX_ATELIER.every((j) => G.pointsAtelier(j.id, j.plein) === 20 && G.pointsAtelier(j.id, j.max) === 20 && G.pointsAtelier(j.id, 0) === 0 && G.pointsAtelier(j.id, j.plein / 2) === 10), 'au score « plein » du jeu (game.js) : 20 ; au-delà, 20 ; à mi-chemin, 10 ; à zéro, 0');
+  check(G.JEUX_ATELIER.every((j) => G.pointsAtelier(j.id, j.plein) === 4 && G.pointsAtelier(j.id, j.max) === 4 && G.pointsAtelier(j.id, 0) === 0 && G.pointsAtelier(j.id, j.plein / 2) === 2), 'au score « plein » du jeu (game.js) : 4 ; au-delà, 4 ; à mi-chemin, 2 ; à zéro, 0');
   check(G.pointsAtelier('inconnu', 1e9) === 0 && G.pointsAtelier('four', NaN) === 0 && G.pointsAtelier('four', -5) === 0, 'un jeu inconnu, un score absurde : 0');
   let r = G.finirAtelier(st, 'four', 225);
-  check(r.points === 10 && G.pointsSemaine(st) === 10, `enfournement à 225 (plein 450) : +10 (${r.points})`);
+  check(r.points === 2 && G.pointsSemaine(st) === 2, `enfournement à 225 (plein 450) : +2 (${r.points})`);
   r = G.finirAtelier(st, 'four', 100);
-  check(r.points === 0 && G.pointsSemaine(st) === 10, 'une partie moins bonne ne retire rien');
+  check(r.points === 0 && G.pointsSemaine(st) === 2, 'une partie moins bonne ne retire rien');
   for (let k = 0; k < 4; k++) G.finirAtelier(st, 'memoire', 25);
-  check(G.atelierDuJour(st).payees.memoire === 3 && G.detailPoints(st).atelier.find((a) => a.id === 'memoire').points === 20 && G.pointsSemaine(st) === 30, 'mémoire au score plein, quatre fois (la quatrième ne paie plus) : 20 points, pas 80');
+  check(G.atelierDuJour(st).payees.memoire === 3 && G.detailPoints(st).atelier.find((a) => a.id === 'memoire').points === 4 && G.pointsSemaine(st) === 6, 'mémoire au score plein, quatre fois (la quatrième ne paie plus) : 4 points, pas 16');
   G.finirAtelier(st, 'four', 20000); G.finirAtelier(st, 'faconnage', 300);
-  check(G.pointsSemaine(st) === 60, 'les trois mini-jeux au plus haut : 60 points d’Atelier, pas plus');
-  st.now = LUNDI + 7 * 24 * H + H; G.finirAtelier(st, 'four', 45);
-  check(G.pointsSemaine(st) === 2 && G.atelierDuJour(st).records.four === 20000, 'lundi suivant : les meilleurs scores de la semaine repartent de zéro (les records, eux, restent)'); }
+  check(G.pointsSemaine(st) === 12 && G.detailPoints(st).aujourdhui.atelier === 12, 'les trois mini-jeux au plus haut : 12 points d’Atelier dans la journée, pas plus');
+  for (let k = 0; k < 400; k++) G.marquerPresence(st, ['petrissage', 'descente', 'mystere', 'commande'][k % 4]);
+  check(G.pointsSemaine(st) === 137 && G.detailPoints(st).aujourdhui.total === 137, 'l’Atelier ne passe pas par la dégressivité : 125 comptés + 12 = 137, le maximum d’un jour');
+  st.now = LUNDI + 36 * H; let d = G.detailPoints(st);
+  check(d.atelier.every((a) => a.points === 0 && a.score === 0) && d.atelierSemaine === 12 && d.total === 137 && G.atelierDuJour(st).records.four === 20000, 'mardi : l’Atelier du jour repart de zéro (les 12 d’hier restent dans la semaine, les records aussi)');
+  r = G.finirAtelier(st, 'four', 450);
+  check(r.points === 4 && G.pointsSemaine(st) === 141 && G.detailPoints(st).atelierSemaine === 16, 'mardi, enfournement au score plein : +4 de nouveau (141)');
+  st.now = LUNDI + 7 * 24 * H + H; G.finirAtelier(st, 'four', 225);
+  check(G.pointsSemaine(st) === 2 && G.atelierDuJour(st).records.four === 20000, 'lundi suivant : la semaine repart de zéro (les records, eux, restent)'); }
+{ const st = boutique(LUNDI + 9 * H);
+  for (let j = 0; j < 7; j++) { st.now = LUNDI + j * 24 * H + 9 * H; G.JEUX_ATELIER.forEach((x) => G.marquerAtelier(st, x.id, x.plein)); }
+  check(G.detailPoints(st).atelierSemaine === 84 && G.pointsSemaine(st) === 84, 'l’Atelier parfait sept jours : 84 dans la semaine (12 par jour ; 60 avant le lot 7)'); }
 
 titre('améliorations : 1 point par tranche de 10 min de ses propres gains, + 5 par palier, 30 au plus par jour');
 { const st = boutique(LUNDI + 13 * H), r = G.rythme(st);
@@ -140,14 +193,41 @@ titre('sauvegardes abîmées, anciennes sauvegardes, triche par la console');
   check(G.pointsSemaine(st) === 0 && G.detailPoints(st).semaine === '2026-10-12', 'une sauvegarde d’avant les points : le carnet se crée');
   st.points = { semaine: 'n’importe quoi', jour: 12, journees: '9999', evenements: -4, ameliorations: NaN, defi: 1e9, atelier: { four: 1e99, memoire: 'x' }, avant: -1, reste: 7, semaines: 'non' };
   const d = G.detailPoints(st);
-  check(d.journees === 70 && d.evenements === 0 && d.ameliorations === 0 && d.defi === 30 && d.atelier.find((a) => a.id === 'four').points === 20 && d.atelier.find((a) => a.id === 'memoire').points === 0 && d.cumul === d.total && Array.isArray(d.semaines), `champs absurdes remis d’aplomb, bornés par le barème (${d.total} points)`);
+  check(d.journees === 70 && d.evenements === 0 && d.ameliorations === 0 && d.defi === 30 && d.atelierSemaine === 20 && d.atelier.every((a) => a.points === 0) && d.total === 70 + 20 + 30 && d.cumul === d.total && Array.isArray(d.semaines) && st.points.v === 2, `un vieux carnet (sans version) aux champs absurdes : remis d’aplomb, borné par le barème d’avant, passé en version 2 (${d.total} points)`);
   check(d.total <= P.semaine, `la semaine ne dépasse jamais ${P.semaine}`);
+  st.points = { v: 2, semaine: 'x', jour: 3, comptes: 1e9, atelierSemaine: -5, presence: 'non', jPresence: { mystere: 1e9, autre: 7 }, jObjectifs: 99, jPaliers: -1, objectifs: 1e9, paliers: '12', atelier: { four: 1e99 }, defi: 1e9, semaines: [] };
+  const d2 = G.detailPoints(st);
+  check(d2.total <= P.semaine && st.points.comptes === 7 * P.jourCompte && d2.atelierSemaine === 4 && d2.aujourdhui.presence.mystere === 80 && d2.aujourdhui.objectifs === 6 && d2.aujourdhui.paliers === 0 && d2.objectifs === 42 && d2.paliers === 12 && d2.presence.mystere === 0, `un carnet version 2 abîmé : chaque champ borné par le barème (${d2.total} points, au plus ${P.semaine})`);
+  st.points = { v: 2, presence: [], jPresence: [1, 2] }; const d3 = G.detailPoints(st);
+  check(d3.total === 0 && Object.keys(d3.presence).join() === 'petrissage,descente,mystere,commande' && Object.values(d3.aujourdhui.presence).every((v) => v === 0), 'des tableaux à la place de la présence : remis à zéro');
   st.points = 'cassé'; check(G.pointsSemaine(st) === 0, 'un carnet illisible repart de zéro'); }
-{ const st = boutique(LUNDI + 9 * H);
-  for (let k = 0; k < 500; k++) { G.marquerEvenement(st); G.marquerJournee(st); G.marquerDefi(st); G.marquerAmelioration(st, 1e40, 1, 50); G.marquerAtelier(st, 'four', 1e9); G.marquerAtelier(st, 'faconnage', 1e9); G.marquerAtelier(st, 'memoire', 1e9); }
-  check(G.pointsSemaine(st) === 60 + 30 + 60, `la console, 500 fois chaque règle, le lundi : ${G.pointsSemaine(st)} points (60 du jour + défi + Atelier : les plafonds tiennent)`);
-  for (let j = 1; j < 7; j++) { st.now = LUNDI + j * 24 * H + 9 * H; for (let k = 0; k < 100; k++) { G.marquerEvenement(st); G.marquerJournee(st); G.marquerAmelioration(st, 1e40, 1, 50); } }
-  check(G.pointsSemaine(st) === P.semaine, `toute la semaine : ${G.pointsSemaine(st)}, le maximum du barème (${P.semaine}) — le serveur applique les mêmes plafonds, jour par jour`); }
+
+titre('une vieille sauvegarde (le carnet d’avant le lot 7) garde sa semaine au point près');
+{ // le carnet tel que l'écrivait le jeu d'avant (master 0412cc0) : lundi 19 octobre, journée complète, 14 événements (20 au plafond),
+  // 30 d'améliorations, le défi, l'Atelier (enfournement 400, mémoire 12) ; mardi, journée complète, 7 événements, 18 d'améliorations ;
+  // mercredi matin, 3 événements et 5 d'améliorations. L'ancien total : 20 + 40 + 53 + 30 + Atelier (round(20 × 400/450) = 18, round(20 × 12/25) = 10) = 171.
+  const L = Date.UTC(2026, 9, 18, 22), J = 24 * H, st = boutique(L + 2 * J + 10 * H);
+  st.points = { semaine: '2026-10-19', jour: '2026-10-21', journees: 20, evenements: 40, ameliorations: 53, defi: 30, atelier: { four: 400, faconnage: 0, memoire: 12 },
+    jJournee: 0, jEvenements: 6, jAmeliorations: 5, reste: 0.4, avant: 512, semaines: [{ semaine: '2026-10-12', points: 512 }] };
+  const ancien = 20 + 40 + 53 + 30 + Math.round(20 * 400 / 450) + Math.round(20 * 12 / 25);
+  const d = G.detailPoints(st);
+  check(ancien === 171 && d.total === 171 && st.points.v === 2 && st.points.comptes === 102 && d.aujourdhui.brut === 11 && d.atelierSemaine === 28 && d.atelier.every((a) => a.score === 0), `le passage au carnet version 2 : ${d.total} points (avant : ${ancien}) = jours finis ${st.points.comptes} + aujourd’hui ${d.aujourdhui.brut} + Atelier de la semaine ${d.atelierSemaine} + défi ${d.defi}`);
+  check(d.cumul === 512 + 171 && d.semaines.length === 1 && Math.abs(st.points.reste - 0.4) < 1e-9 && d.journees === 20 && d.evenements === 40 && d.ameliorations === 53, 'l’historique, le cumul, le reste d’améliorations et les compteurs de la semaine sont gardés');
+  // elle continue : mercredi après-midi, de la présence au-delà de 60 ; jeudi, le jour fini est compté avec dégressivité ; puis une nouvelle semaine
+  st.now = L + 2 * J + 15 * H; for (let k = 0; k < 40; k++) G.marquerPresence(st, 'mystere'); for (let k = 0; k < 6; k++) G.marquerPresence(st, 'petrissage'); G.marquerAtelier(st, 'four', 450);
+  const mer = G.detailPoints(st);
+  check(mer.aujourdhui.brut === 75 && mer.aujourdhui.compte === 67 && mer.aujourdhui.atelier === 4 && mer.total === 102 + 67 + 28 + 4 + 30, `mercredi : ${mer.aujourdhui.brut} brut → ${mer.aujourdhui.compte} comptés + Atelier ${mer.aujourdhui.atelier} : ${mer.total}`);
+  st.now = L + 3 * J + 9 * H; const jeu = G.detailPoints(st);
+  check(jeu.total === mer.total && st.points.comptes === 169 && jeu.atelierSemaine === 32, `jeudi matin : la semaine vaut toujours ${jeu.total} (mercredi rangé sans rien perdre)`);
+  st.now = L + 7 * J + 9 * H; const lun = G.detailPoints(st);
+  check(lun.total === 0 && lun.semaines.length === 2 && lun.semaines[1].points === jeu.total && lun.cumul === 512 + jeu.total, `le lundi suivant : 0, la semaine finie (${jeu.total}) rejoint l’historique`); }
+{ const st = boutique(LUNDI + 9 * H), toutes = () => { G.marquerEvenement(st); G.marquerJournee(st); G.marquerDefi(st); G.marquerObjectif(st); G.marquerPalierEvt(st); G.marquerAmelioration(st, 1e40, 1, 50); for (const t of Object.keys(P.presence)) G.marquerPresence(st, t); G.JEUX_ATELIER.forEach((j) => G.marquerAtelier(st, j.id, 1e9)); };
+  for (let k = 0; k < 500; k++) toutes();
+  check(G.pointsSemaine(st) === 125 + 12 + 30, `la console, 500 fois chaque règle, le lundi : ${G.pointsSemaine(st)} points (125 comptés + Atelier 12 + défi 30 : les plafonds tiennent)`);
+  for (let j = 1; j < 7; j++) { st.now = LUNDI + j * 24 * H + 9 * H; for (let k = 0; k < 500; k++) toutes(); }
+  check(G.pointsSemaine(st) === P.semaine && P.semaine === 989, `toute la semaine : ${G.pointsSemaine(st)}, le maximum du barème (${P.semaine}) — le serveur v6.7 borne de même, jour par jour (137 × jours + 50), et ajoute la série`);
+  st.now = LUNDI + 7 * 24 * H + 9 * H; const d = G.detailPoints(st);
+  check(d.total === 0 && d.semaines[d.semaines.length - 1].points === 989, 'le lundi suivant : 989 dans l’historique'); }
 
 titre('les objectifs du jour à la portée de tous (les points du classement en dépendent)');
 { const st = boutique(LUNDI + 9 * H); const r = G.rythme(st);
@@ -242,6 +322,56 @@ for (const b of bilan) {
 }
 console.log('  bilan « comme le joueur » (points par semaine, 4 semaines) : ' + bilanJoueur.join(' ; '));
 console.log('  bilan (points par semaine, moyenne de 4 semaines ; l’Atelier, identique pour tous, en plus) : ' + bilan.map((b) => `${b.profil} débutant ${b.debutant.toFixed(0)} · fin B3 ${b.fin.toFixed(0)} · fin B3 qui avance ${b.finNormal.toFixed(0)}${b.b3 != null ? ` · B3 à 81 M€/s ${b.b3.toFixed(0)}` : ''}`).join(' ; '));
+
+// ─── 4. les profils du lot 7 : une heure, quatre heures, l'écran allumé douze heures sans toucher ───
+// La boucle de test/longevite.js reprise telle quelle (lue dans le fichier, adaptée par remplacements de texte : un remplacement manqué
+// lève une erreur), avec un mode « écran allumé sans toucher » par session : le jeu tourne, la scène sert ses clients, mais personne ne
+// touche rien (ni achat, ni événement, ni client mystère, ni objectif réclamé). Le VRAI carnet de points (G.detailPoints) fait le compte ;
+// l'Atelier se joue une fois par jour à une qualité donnée (G.marquerAtelier, sans prime) ; la série du serveur (30 pour qui joue les
+// sept jours) s'ajoute à tous. Une partie avancée (21 jours de régulier), la semaine du lundi 26 octobre 2026.
+titre('les profils : 4 h nettement devant 1 h, l’écran allumé sans jouer presque rien de plus');
+const simulerIdle = (() => {
+  const fs = require('fs'), pathm = require('path');
+  let src = fs.readFileSync(pathm.join(__dirname, 'longevite.js'), 'utf8');
+  src = src.slice(src.indexOf('function simuler('), src.indexOf('function rapport('));
+  const R = (a, b) => { if (!src.includes(a)) throw new Error('remplacement manqué dans test/longevite.js : ' + a); src = src.replace(a, b); };
+  R('for (const [h, minutes] of prof.sessions) {', 'for (const [h, minutes, mode] of prof.sessions) { const idle = mode === \'idle\';');
+  R('G.absence(st, debut); now = debut;', 'G.absence(st, debut); now = debut; if (opts.session) opts.session(st, j, idle);');
+  R('const envie = opts.prestige !== false &&', 'const envie = !idle && opts.prestige !== false &&');
+  R('let lances = 0;', 'let lances = 0; if (!idle)');
+  R('if (st.saison && st.saison.niv > 0 && !st.saison.actif) G.lancerSaison(st);', 'if (!idle && st.saison && st.saison.niv > 0 && !st.saison.actif) G.lancerSaison(st);');
+  R('const out = G.tick(st, 1, now, rnd);', 'const out = G.tick(st, 1, now, rnd); if (idle) { if (s % 4 === 0 && (G.tauxParSeconde(st) > 0 || st.stats.ventes > 0)) { st.stats.clients++; G.noter(st, \'clients\', 1); } M.actif++; dayInfo.actif++; continue; }');
+  R('M.attenteDerniere = attenteSession / (minutes * 60);', 'if (idle) st.lastSeen = now + 1000; M.attenteDerniere = attenteSession / (minutes * 60);');
+  // eslint-disable-next-line no-new-func
+  return new Function('G', 'PRODUITS', 'AMELIORATIONS', 'seeded', 'H', 'PROFILS', 'T0_DEFAUT', `let t0 = T0_DEFAUT; ${src}; return simuler;`)(G, G.PRODUITS, G.AMELIORATIONS, (a) => { let s = a; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }, H, LG.PROFILS, LG.T0);
+})();
+const PROFILS7 = {
+  h1: { nom: '1 h/jour', sessions: [[8, 15], [12.5, 15], [19, 30]], q: 0.6 },
+  h4: { nom: '4 h/jour', sessions: [[8, 60], [12.5, 60], [17, 60], [20.5, 60]], q: 0.8 },
+  afk: { nom: 'écran allumé 12 h sans toucher (+1 h de jeu)', sessions: [[8, 15], [8.25, 720, 'idle'], [20.25, 45]], q: 0.6 },
+};
+const LUNDI7 = LG.T0 + 21 * 864e5, avancee = LG.simuler('regulier', 21).st;
+function semaine7(id, seed) { // une semaine du profil (partie avancée) : les points du vrai carnet, jour par jour, + la série
+  const p = PROFILS7[id], nom = '__lot7_' + id, st = clone(avancee); st.lastSeen = LUNDI7; st.now = LUNDI7; st.created = LUNDI7;
+  LG.PROFILS[nom] = { sessions: p.sessions };
+  const jours = [];
+  try {
+    simulerIdle(nom, 7, { t0: LUNDI7, st, seed, session: (s, j, idle) => {
+      if (!idle) G.JEUX_ATELIER.forEach((x) => G.marquerAtelier(s, x.id, Math.round(p.q * x.plein)));
+      jours[j] = G.detailPoints(s).aujourdhui; } });
+  } finally { delete LG.PROFILS[nom]; }
+  const d = G.detailPoints(st); // le dimanche soir, après la dernière session
+  return { total: d.total + P.serie[3] + P.serie[7], jeu: d.total, d, auj: d.aujourdhui };
+}
+{ const t0 = Date.now(), R = {};
+  for (const id of Object.keys(PROFILS7)) { R[id] = semaine7(id, 7); const x = R[id]; console.log(`    ${PROFILS7[id].nom.padEnd(46)} ${String(x.total).padStart(4)} (jeu ${x.jeu} + série 30 ; journées ${x.d.journees}, objectifs ${x.d.objectifs}, événements ${x.d.evenements}, présence ${Object.values(x.d.presence).reduce((a, b) => a + b, 0)}, améliorations ${x.d.ameliorations}, défi ${x.d.defi}, Atelier ${x.d.atelierSemaine} ; dimanche ${x.auj.brut} brut → ${x.auj.compte})`); }
+  const r4 = R.h4.total / R.h1.total, ra = R.afk.total / R.h1.total;
+  console.log(`    (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+  check(r4 >= 1.4, `4 h nettement devant 1 h : ${R.h4.total} contre ${R.h1.total} (×${r4.toFixed(2)}, au moins ×1,40 ; ×1,02 avant le lot 7)`);
+  check(ra <= 1.06, `l’écran allumé 12 h ne gagne presque rien de plus que 1 h : ${R.afk.total} (×${ra.toFixed(2)}, au plus ×1,06)`);
+  check(Object.values(R).every((x) => x.jeu <= P.semaine && x.total <= P.semaine + 30), `aucun profil honnête au-delà du maximum (${P.semaine} + série 30)`);
+  const s2 = { h1: semaine7('h1', 23).total, h4: semaine7('h4', 23).total };
+  check(s2.h4 / s2.h1 >= 1.4, `un autre tirage du hasard (graine 23) : 4 h ${s2.h4} contre 1 h ${s2.h1} (×${(s2.h4 / s2.h1).toFixed(2)})`); }
 
 console.log(`\n${n - fails}/${n} vérifications.`);
 console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

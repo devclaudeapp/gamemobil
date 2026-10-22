@@ -459,7 +459,7 @@ const UI = (() => {
       </div>`;
     },
     bind: (sec) => {
-      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !${r.points ? ` +${r.points} points de boulanger` : ''}` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
+      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !${r.points ? ` +${r.points} points de boulanger` : ''}` : `+${G.fmtEur(r.prime)} de prime${r.points ? ` · +${r.points} points de boulanger` : ''}`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
       onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ ! +${G.POINTS.defi} points de boulanger`); renderPage(true); });
       onIn(sec, '[data-jeu]', (b) => { son.tap(); MINIJEUX.ouvrir(b.dataset.jeu); });
       onIn(sec, '[data-a="parcours"]', () => { son.tap(); sheetParcours(); });
@@ -1203,26 +1203,43 @@ const UI = (() => {
     });
   }
   const serrerCoinBientot = () => { if (!coinRaf) coinRaf = requestAnimationFrame(serrerCoin); };
-  // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement cette semaine
+  // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement aujourd'hui
   function sheetAtelier() {
     const d = G.detailPoints(st);
-    openSheet(`<div class="cl" data-cl="atelier">${carteAtelier()}<p class="note centre">Au classement : le meilleur score de la semaine de chaque mini-jeu vaut jusqu’à ${G.POINTS.atelier} points de boulanger. Cette semaine : ${d.atelier.map((a) => `${esc(a.nom.toLowerCase())} ${a.points}/${G.POINTS.atelier}`).join(' · ')}.</p><button type="button" class="btn large sombre" data-a="close" style="margin-top:12px"><b>Retour à la boutique</b></button></div>`);
+    openSheet(`<div class="cl" data-cl="atelier">${carteAtelier()}<p class="note centre">Au classement : chaque jour, le meilleur score du jour de chaque mini-jeu vaut jusqu’à ${G.POINTS.atelier} points de boulanger. Aujourd’hui : ${d.atelier.map((a) => `${esc(a.nom.toLowerCase())} ${a.points}/${G.POINTS.atelier}`).join(' · ')}.</p><button type="button" class="btn large sombre" data-a="close" style="margin-top:12px"><b>Retour à la boutique</b></button></div>`);
     on('[data-jeu]', (b) => { son.tap(); closeSheet(); MINIJEUX.ouvrir(b.dataset.jeu); });
     on('[data-a="close"]', closeSheet);
   }
-  // ses points de la semaine, catégorie par catégorie, et le barème (replié) : en tête de la feuille du classement
+  // la série de jours de suite, telle que le classement la compte (serveur v6.7 : resume().serie ; absente avant, ou pas rejoint : rien)
+  function ligneSerie() {
+    let se = null; try { const r = classement && classement.resume ? classement.resume() : null; se = r && r.serie; } catch (e) { se = null; }
+    if (!se || typeof se !== 'object') return '';
+    const P = G.POINTS.serie, n = Math.max(0, Math.floor(Number(se.jours) || 0)), b = Math.max(0, Math.floor(Number(se.bonus) || 0)), pr = se.prochain && typeof se.prochain === 'object' ? se.prochain : null;
+    const dans = pr ? Math.max(0, Math.floor(Number(pr.dans) || 0)) : -1, pp = pr ? Math.max(0, Math.floor(Number(pr.points) || 0)) : 0;
+    const suite = pr && pp ? (dans === 0 ? ` · +${pp} si tu joues aujourd’hui` : ` · encore ${dans} jour${dans > 1 ? 's' : ''} pour +${pp}`) : '';
+    return `<p class="pts-serie" data-serie="${n}"><i class="ico">${ICONS.UI.etoile || ''}</i><span><b>Série : ${n ? `${n} jour${n > 1 ? 's' : ''} de suite` : 'à commencer'}</b> · +${P[3]} au 3e jour, +${P[7]} au 7e (comptés par le classement)${suite}${b > 0 ? ` · <b>+${b} cette semaine</b>` : ''}</span></p>`;
+  }
+  // ses points de la semaine, catégorie par catégorie (en brut), le jour en cours (brut → compté) et le barème (replié) : en tête de la feuille du classement
   function blocPoints() {
-    const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = d.atelier.reduce((n, x) => n + x.points, 0);
+    const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = a.atelier, som = (o) => Object.values(o).reduce((n, v) => n + v, 0);
+    const presMax = som(Object.fromEntries(Object.entries(P.presence).map(([k, v]) => [k, v[1]]))); // 224 par jour
     const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
-    return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>
-      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+    const bande = a.bande.taux === 1 ? `encore ${a.bande.reste} pts comptés en entier aujourd’hui` : a.bande.taux === 0.5 ? 'les prochains points comptent pour moitié' : a.bande.taux === 0.25 ? 'les prochains points comptent pour un quart' : 'plafond du jour atteint : reviens demain';
+    const pc = (k) => P.presence[k];
+    return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.total}/${a.max}</span></div>
+      <p class="pts-jour" data-taux="${a.bande.taux}">Aujourd’hui : <b>${a.brut}</b> brut → <b>${a.compte}</b> comptés${at ? ` + Atelier ${at}` : ''} · ${bande}</p>${ligneSerie()}
+      <div class="pts-cases">${case_('Journées', d.journees + d.objectifs, 7 * (P.journee + 3 * P.objectif), `auj. ${a.journee + a.objectifs}/${P.journee + 3 * P.objectif}`)}${case_('Événements', d.evenements + d.paliers, 7 * (P.evenementsJour + P.paliersEvtJour), `auj. ${a.evenements + a.paliers}/${P.evenementsJour + P.paliersEvtJour}`)}${case_('Présence', som(d.presence), 7 * presMax, `auj. ${som(a.presence)}/${presMax}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', d.atelierSemaine, 7 * P.atelierJour, `auj. ${d.atelier.map((x) => x.points).join(' · ')}`)}</div>
       <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
-        <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
+        <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés ; et <b>${P.objectif} pts</b> pour chaque objectif réclamé.</li>
         <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
         <li><b>${P.evenement} pts</b> par événement réussi (pétrissage, commande livrée, four réparé, bonne critique, pourboire du client mystère), ${P.evenementsJour} au plus par jour.</li>
-        <li><b>Jusqu’à ${P.atelier} pts</b> par mini-jeu de l’Atelier : ton meilleur score de la semaine.</li>
         <li><b>1 pt</b> par tranche d’améliorations valant 10 minutes de tes propres gains (niveaux, embauches, bonus, mobilier, recette de saison), <b>+${P.palier}</b> à chaque palier ×2 (niveaux 25, 50, 100…), ${P.ameliorationsJour} au plus par jour.</li>
-      </ul><p>Tout est relatif à ta boutique : un débutant et une grande boutique qui jouent pareil marquent autant. La fortune reste affichée en petit, pour information. Les compteurs repartent chaque lundi (heure de Paris).</p></details></div>`;
+        <li>La présence : <b>${pc('petrissage')[0]} pts</b> par pétrissage gagné (${pc('petrissage')[1]} au plus par jour), <b>${pc('mystere')[0]} pt</b> par client mystère servi (${pc('mystere')[1]}), <b>${pc('commande')[0]} pts</b> par grosse commande livrée (${pc('commande')[1]}), <b>${pc('descente')[0]} pts</b> par descente évitée pendant un événement (${pc('descente')[1]}).</li>
+        <li><b>${P.palierEvt} pts</b> par palier d’événement franchi, ${P.paliersEvtJour} au plus par jour.</li>
+        <li><b>Jusqu’à ${P.atelier} pts</b> par mini-jeu de l’Atelier, chaque jour : ton meilleur score du jour.</li>
+        <li><b>La série</b> : +${P.serie[3]} au 3e jour de suite où tu joues, +${P.serie[7]} au 7e, puis à chaque tour de 7 (le classement les compte).</li>
+      </ul><p>Au-delà de ${P.bandes[0][0]} points dans la journée, chaque point compte pour moitié, puis pour un quart au-delà de ${P.bandes[1][0]} ; ${P.jour} au plus par jour (Atelier compris). Une heure de jeu fait déjà une belle journée, les heures suivantes comptent encore, de moins en moins.</p>
+      <p>Tout est relatif à ta boutique : un débutant et une grande boutique qui jouent pareil marquent autant. La fortune reste affichée en petit, pour information. Les compteurs repartent chaque lundi (heure de Paris).</p></details></div>`;
   }
   function sheetClassement(periode) {
     if (!classement) return;

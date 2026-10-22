@@ -136,6 +136,7 @@ const EVENEMENTS = (() => {
       dons.push(...donnerDistinctions(s, p));
       if (F.apresPalier) F.apresPalier(s, p, dons);
       G.gagnerXp(s, 20);
+      if (typeof G.marquerPalierEvt === 'function') G.marquerPalierEvt(s); // un palier franchi : 3 points de boulanger (12 par jour)
       fileSheets.push({ p, dons }); d.save(); d.apres();
       return dons;
     }
@@ -447,9 +448,9 @@ const EVENEMENTS = (() => {
         };
         evEl.innerHTML = html[g]();
         const taper = evEl.querySelector('[data-a="planquer"]');
-        if (taper) taper.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); d.audio(); const r = action('taper')(q()); if (!r || !r.ok) return; d.son.tap(); d.buzz(8); if (r.fini) reussite(c.reussite(fmt(r.prime))); else taper.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
+        if (taper) taper.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); d.audio(); const r = action('taper')(q()); if (!r || !r.ok) return; d.son.tap(); d.buzz(8); if (r.fini) { if (typeof G.marquerPresence === 'function') G.marquerPresence(st(), 'descente'); reussite(c.reussite(fmt(r.prime))); } else taper.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
         const livrer = evEl.querySelector('[data-a="livrer"]');
-        if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('livrer')(q()); if (r && r.ok) reussite(c.reussite(fmt(r.prime))); });
+        if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('livrer')(q()); if (r && r.ok) { if (typeof G.marquerPresence === 'function') G.marquerPresence(st(), 'commande'); reussite(c.reussite(fmt(r.prime))); } });
         const attraper = evEl.querySelector('[data-a="attraper"]');
         if (attraper) attraper.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('attraper')(q()); if (r && r.ok) reussite(c.reussite(fmt(r.prime))); });
       }

@@ -112,6 +112,7 @@ async function gerer(route) {
   const feuille = () => page.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
   const clic = (sel) => page.evaluate((s) => { const b = document.querySelector(s); if (!b) return false; b.click(); return true; }, sel);
   const ev = (fn, arg) => page.evaluate(fn, arg);
+  const pres = () => ev(() => { const d = GAME.detailPoints(window.__fournil.st); return { descente: d.aujourdhui.presence.descente, commande: d.aujourdhui.presence.commande, paliers: d.aujourdhui.paliers }; }); // les points de boulanger de la présence (lot 7)
   const qst = () => ev(() => { const q = window.__fournil.st.quartier; return q ? { majeur: q.majeur, masque: q.masque, annonce: q.annonce, bilan: q.bilan, billets: q.billets, total: q.total, postes: q.postes.map((p) => [p.niv, p.staff]), paliers: q.paliers.slice(), decos: q.decos.slice(), vetements: q.vetements.slice(), etoiles: q.etoiles, boosts: q.boosts, stats: q.stats, ev: q.ev && q.ev.type, lastSeen: q.lastSeen } : null; });
   const planque = () => ev(() => { const el = document.querySelector('#planque'); return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#pq-titre').textContent, sous: document.querySelector('#pq-sous').textContent, billets: document.querySelector('#pq-billets').textContent, taux: document.querySelector('#pq-taux').textContent, reste: document.querySelector('#pq-reste').textContent, paliers: document.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#pq-cartes .carte[data-i]')].map((c) => c.className), ev: document.querySelector('#pq-ev').hidden ? '' : document.querySelector('#pq-ev').innerText, corps: document.querySelector('#pq-corps').innerText, calls: window.__fournil.evenement.scene ? window.__fournil.evenement.scene.calls : -1 }; });
 
@@ -167,10 +168,11 @@ async function gerer(route) {
   await sleep(300); p = await planque();
   check(/Descente de police/.test(p.ev) && /Planque/.test(p.ev), `la bannière de la descente : ${p.ev.split('\n')[0]}`);
   await shot('05-descente');
-  const b0 = (await qst()).billets;
+  const b0 = (await qst()).billets, pts0 = await pres();
   for (let k = 0; k < 12; k++) { await page.evaluate(() => { const b = document.querySelector('#pq-ev [data-a="planquer"]'); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); }); await sleep(40); }
   await sleep(300); s = await qst();
   check(s.ev === null && s.stats.descentes === 1 && s.billets > b0, 'douze touches : tout est planqué, la prime est tombée');
+  check((await pres()).descente === pts0.descente + 4, 'la descente évitée : +4 points de boulanger (présence, lot 7)');
   await ev(() => { const Qd = window.__fournil.Q, q = window.__fournil.st.quartier; Qd.lancerEvenement(q, Math.random, 'scooter'); });
   await sleep(300); p = await planque(); check(/livreur/.test(p.ev), 'le livreur en scooter passe');
   await clic('#pq-ev [data-a="attraper"]'); await sleep(300); s = await qst();
@@ -182,16 +184,19 @@ async function gerer(route) {
   await sleep(300); p = await planque();
   check(/gros client/i.test(p.ev) && /Livrer/.test(p.ev), 'le gros client, sa commande prête');
   await shot('06-grosclient');
+  const pts1 = await pres();
   await clic('#pq-ev [data-a="livrer"]'); await sleep(300); s = await qst();
   check(s.ev === null && s.stats.grosClients === 1, 'livré');
+  check((await pres()).commande === pts1.commande + 4, 'le gros client livré : +4 points de boulanger (grosse commande, lot 7)');
 
   console.log('── les paliers et leurs récompenses pour la boulangerie ──');
-  const avant = await ev(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length }));
+  const avant = await ev(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length })), pts2 = await pres();
   await ev((t) => { const q = window.__fournil.st.quartier; q.billets += t - q.total; q.total = t; }, Q.PALIERS[3].total);
   await attendre(async () => /Palier 1/.test(await feuille()));
   check(/Palier 1 · Premiers billets/.test(await feuille()) && /étoile/.test(await feuille()) && /boost ×2/.test(await feuille()), 'le palier 1 est annoncé : une étoile, un boost ×2 en réserve');
   await shot('07-palier');
   s = await qst();
+  check((await pres()).paliers === Math.min(12, pts2.paliers + 4 * 3), `quatre paliers franchis : +3 points de boulanger chacun, 12 au plus par jour (lot 7 : ${(await pres()).paliers})`);
   check(s.paliers.join() === '1,2,3,4' && s.decos.join() === 'graffiti' && s.vetements.join() === 'quartier-casquette' && s.etoiles === 3 && s.boosts === 2, `les paliers 1 à 4 sont marqués d'un coup : ${JSON.stringify({ decos: s.decos, vetements: s.vetements, etoiles: s.etoiles, boosts: s.boosts })}`);
   const apres = await ev(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.map((b) => b.mult + ':' + b.secs), casquette: window.__fournil.G.possede ? window.__fournil.G.possede(window.__fournil.st, 'quartier-casquette') : null }));
   check(apres.etoiles === avant.etoiles + 3 && apres.reserve.join() === '2:1800,2:1800', `la boulangerie a reçu 3 étoiles et deux boosts ×2 de 30 min (${JSON.stringify(apres)})`);
