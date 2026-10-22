@@ -1,7 +1,14 @@
 /* LE FOURNIL — l'arrière-salle : les règles du BlackJack caché (pures, sans DOM : tournent aussi dans Node, test/fournil-blackjack.test.js).
    Sabot de six jeux mélangé (re-mélangé passé 75 %), tirer, rester, doubler sur les deux premières cartes ; le croupier tire jusqu'à 17 et
-   reste sur 17 souple ; le BlackJack paie 3 pour 2 ; l'égalité rend la mise ; ni partage ni assurance. Deux mises annexes facultatives,
+   reste sur 17 souple ; le BlackJack paie 3 pour 2 ; l'égalité rend la mise ; pas d'assurance. Deux mises annexes facultatives,
    posées avant la donne : Perfect Pairs (tes deux cartes) et 21+3 (tes deux cartes et la carte visible du croupier).
+   SÉPARER (lot 7, la variante C du repérage) : deux premières cartes de même valeur (10, V, D, R entre eux), une seule fois (deux mains),
+   jamais après avoir doublé ; la seconde mise, égale à la première, est prise dans la caisse ; chaque main reçoit sa deuxième carte au
+   partage ; as séparés : une carte chacun, puis le croupier ; pas de double après partage ; 21 après partage = une main gagnée 1 pour 1,
+   jamais un BlackJack. On joue la main 1, puis la main 2 ; le croupier ne tire que si une main tient debout. Avec la stratégie de base,
+   le rendement passe de −0,97 % à −0,60 % (40 millions de mains par variante, repérage du lot 7).
+   LE BON COUP (conseil) : la stratégie de base pour ces règles exactes (6 jeux, croupier sur 17 souple, il regarde sous sa carte, double
+   sur deux cartes quelconques, pas de double après partage), vérifiée sans un écart sur 7 520 situations contre blackjack-strategy 1.4.0.
    L'ÉCONOMIE : on joue l'argent de la caisse (st.coins), tout ou rien, tapis compris. Les gains et les pertes ne touchent QUE st.coins :
    jamais gagner(), ni la fortune (lifetime, lifetimeRun), ni les étoiles, ni les objectifs, ni les défis, ni les points de boulanger ;
    la fortune publiée au classement (st.lifetime) ne bouge pas d'un centime.
@@ -72,9 +79,15 @@
     if (!Number.isInteger(a.pos) || a.pos < 0 || a.pos > CARTES) a.pos = 0;
     if (a.main !== null && (typeof a.main !== 'object' || !a.main || !Array.isArray(a.main.joueur))) a.main = null;
     if (!a.mises || typeof a.mises !== 'object') a.mises = { main: 0, paires: 0, plus3: 0 }; // les dernières mises posées (pour « même mise »)
-    if (!a.stats || typeof a.stats !== 'object') a.stats = { mains: 0, gagnees: 0, perdues: 0, egalites: 0, blackjacks: 0, annexes: 0, plusGrosGain: 0, solde: 0 };
+    if (a.main && a.main.separee && !mainsOk(a.main)) a.main = null; // un partage abîmé : la main est perdue (elle ne se rejouerait pas)
+    if (!a.stats || typeof a.stats !== 'object') a.stats = {};
+    for (const k of STATS) if (!Number.isFinite(a.stats[k])) a.stats[k] = 0; // une vieille sauvegarde : les compteurs du lot 7 (série, partages, doubles, 21 à cinq cartes) à zéro
     return a;
   }
+  // les statistiques de la salle (st.arriere.stats) ; serie : les mains gagnées de suite (une égalité ne la casse pas), meilleureSerie : la plus longue
+  const STATS = ['mains', 'gagnees', 'perdues', 'egalites', 'blackjacks', 'annexes', 'plusGrosGain', 'solde', 'serie', 'meilleureSerie', 'separees', 'doubles', 'cinqCartes'];
+  const mainOk = (m) => m && typeof m === 'object' && Array.isArray(m.cartes) && m.cartes.length >= 1 && m.cartes.every((c) => Number.isInteger(c) && c >= 0 && c < 52) && Number.isFinite(m.mise);
+  const mainsOk = (h) => Array.isArray(h.mains) && h.mains.length === 2 && h.mains.every(mainOk) && (h.active === 0 || h.active === 1);
   const dejaJoue = (a) => a.pos / CARTES; // la part du sabot déjà sortie
   function tirerCarte(a, rng) { // une carte du sabot ; s'il est vide (une très longue série de mains), on en mélange un neuf
     if (a.pos >= a.sabot.length) { a.sabot = nouveauSabot(rng); a.pos = 0; a.melange = (a.melange || 0) + 1; }
@@ -108,11 +121,12 @@
     if (m.main < MISE_MIN || m.main > fini(st.coins)) return { ok: false, raison: 'mise' };
     let melange = false;
     if (dejaJoue(a) >= REMELANGE) { a.sabot = nouveauSabot(rng); a.pos = 0; melange = true; }
+    const caisse = fini(st.coins); // la caisse d'avant les mises (les mini-objectifs du casino comptent une main par sa part de la caisse)
     st.coins = Math.max(0, st.coins - m.total);
     a.mises = { main: m.main, paires: m.paires, plus3: m.plus3 };
     const j = [], c = [];
     j.push(tirerCarte(a, rng)); c.push(tirerCarte(a, rng)); j.push(tirerCarte(a, rng)); c.push(tirerCarte(a, rng));
-    const h = { joueur: j, croupier: c, mise: m.main, mises: { paires: m.paires, plus3: m.plus3 }, double: false, cachee: true, fin: false, resultat: null, gain: 0, annexes: [], tapis: m.tapis, debut: m.total };
+    const h = { joueur: j, croupier: c, mise: m.main, mises: { paires: m.paires, plus3: m.plus3 }, double: false, cachee: true, fin: false, resultat: null, gain: 0, annexes: [], tapis: m.tapis, debut: m.total, caisse, separee: false, active: 0 };
     a.main = h;
     // les annexes : payées (ou perdues) dès la donne
     const pp = m.paires > 0 ? perfectPairs(j[0], j[1]) : null, p3 = m.plus3 > 0 ? vingtEtUnPlusTrois(j[0], j[1], c[0]) : null;
@@ -125,22 +139,59 @@
     return { ok: true, main: h, melange };
   }
   function enCours(st) { const a = etat(st); return a.main && !a.main.fin ? a.main : null; }
-  function peutDoubler(st) { const h = enCours(st); return !!h && h.joueur.length === 2 && !h.double && fini(st.coins) >= h.mise; }
+  function peutDoubler(st) { const h = enCours(st); return !!h && !h.separee && h.joueur.length === 2 && !h.double && fini(st.coins) >= h.mise; } // pas de double après partage
+  const pts = (c) => points(c);
+  const paire = (cartes) => cartes.length === 2 && pts(cartes[0]) === pts(cartes[1]); // deux cartes de même valeur : 8 et 8, mais aussi valet et roi
+  function peutSeparer(st) { const h = enCours(st); return !!h && !h.separee && !h.double && paire(h.joueur) && fini(st.coins) >= h.mise; }
   function tirer(st, rng) {
     const h = enCours(st); if (!h) return { ok: false };
-    const a = etat(st); h.joueur.push(tirerCarte(a, rng));
+    const a = etat(st);
+    if (h.separee) { // la main active du partage : brûlée ou à 21, elle est finie et l'on passe à la suivante
+      const m = h.mains[h.active]; m.cartes.push(tirerCarte(a, rng));
+      const v = valeur(m.cartes); if (v.brule || v.total >= 21) m.fin = true;
+      avancer(st, rng); return { ok: true, main: h };
+    }
+    h.joueur.push(tirerCarte(a, rng));
     const v = valeur(h.joueur);
     if (v.brule) regler(st, 'brule'); else if (v.total === 21) jouerCroupier(st, rng); // à 21, on reste d'office
     return { ok: true, main: h };
   }
-  function rester(st, rng) { const h = enCours(st); if (!h) return { ok: false }; jouerCroupier(st, rng); return { ok: true, main: h }; }
+  function rester(st, rng) {
+    const h = enCours(st); if (!h) return { ok: false };
+    if (h.separee) { h.mains[h.active].fin = true; avancer(st, rng); return { ok: true, main: h }; }
+    jouerCroupier(st, rng); return { ok: true, main: h };
+  }
   function doubler(st, rng) { // la mise doublée (prise dans la caisse), une seule carte, puis le croupier
     if (!peutDoubler(st)) return { ok: false };
     const h = enCours(st), a = etat(st);
-    st.coins = Math.max(0, st.coins - h.mise); h.mise *= 2; h.double = true;
+    st.coins = Math.max(0, st.coins - h.mise); h.mise *= 2; h.double = true; a.stats.doubles++;
     h.joueur.push(tirerCarte(a, rng));
     if (valeur(h.joueur).brule) regler(st, 'brule'); else jouerCroupier(st, rng);
     return { ok: true, main: h };
+  }
+  // séparer : la paire devient deux mains, chacune avec la mise de départ (la seconde prise dans la caisse) et sa deuxième carte tout de suite ;
+  // h.joueur garde la paire d'origine, h.mise la mise totale des deux mains (GAME.annulerMainArriere la rend telle quelle)
+  function separer(st, rng) {
+    const h = enCours(st);
+    if (!h) return { ok: false, raison: 'main' };
+    if (h.separee) return { ok: false, raison: 'deja' };
+    if (h.double) return { ok: false, raison: 'double' };
+    if (!paire(h.joueur)) return { ok: false, raison: 'paire' };
+    if (fini(st.coins) < h.mise) return { ok: false, raison: 'caisse' };
+    const a = etat(st), mise = h.mise, as = hauteur(h.joueur[0]) === 1;
+    st.coins = Math.max(0, st.coins - mise); h.mise = 2 * mise; h.separee = true; h.active = 0; a.stats.separees++;
+    h.mains = h.joueur.map((c) => ({ cartes: [c], mise, resultat: null, gain: 0, fin: as, as }));
+    for (const m of h.mains) m.cartes.push(tirerCarte(a, rng)); // as séparés : une carte chacun, et c'est tout (fin d'office)
+    avancer(st, rng);
+    return { ok: true, main: h };
+  }
+  // la suite d'un partage : une main à 21 reste d'office ; la première main pas finie devient l'active ; les deux finies : le croupier
+  function avancer(st, rng) {
+    const h = enCours(st); if (!h || !h.separee) return;
+    for (const m of h.mains) if (!m.fin && valeur(m.cartes).total >= 21) m.fin = true;
+    const k = h.mains.findIndex((m) => !m.fin);
+    if (k >= 0) { h.active = k; return; }
+    h.active = 1; regler(st, null, rng);
   }
   function jouerCroupier(st, rng) {
     const h = enCours(st), a = etat(st); h.cachee = false;
@@ -148,24 +199,91 @@
     const j = valeur(h.joueur).total, c = valeur(h.croupier);
     regler(st, c.brule ? 'croupierBrule' : j > c.total ? 'gagne' : j < c.total ? 'perdu' : 'egalite');
   }
-  // le règlement : ce qui revient dans la caisse (mise comprise) ; rien d'autre que st.coins ne bouge
+  // une main face au croupier (déjà joué) : son résultat, sans BlackJack (21 après partage paie 1 pour 1)
+  function resultatContre(cartes, croupier) {
+    const j = valeur(cartes), c = valeur(croupier);
+    return j.brule ? 'brule' : c.brule ? 'croupierBrule' : j.total > c.total ? 'gagne' : j.total < c.total ? 'perdu' : 'egalite';
+  }
+  const cinq = (cartes) => cartes.length >= 5 && valeur(cartes).total === 21; // 21 avec cinq cartes ou plus
+  // le règlement : ce qui revient dans la caisse (mise comprise) ; rien d'autre que st.coins ne bouge.
+  // Après un partage (resultat null) : le croupier ne tire que si une main tient debout, chaque main est réglée à part,
+  // et h.resultat dit le bilan des deux : 'gagne', 'perdu' ou 'egalite' selon le signe de (leurs gains − h.mise)
   const RETOUR = { blackjack: 1 + BJ, gagne: 2, croupierBrule: 2, egalite: 1, perdu: 0, brule: 0, croupierBJ: 0 };
-  function regler(st, resultat) {
+  function regler(st, resultat, rng) {
     const h = enCours(st), a = etat(st); if (!h) return;
-    h.cachee = false; h.fin = true; h.resultat = resultat;
-    h.gain = h.mise * RETOUR[resultat];
+    h.cachee = false;
+    if (h.separee) {
+      if (h.mains.some((m) => !valeur(m.cartes).brule)) while (croupierTire(h.croupier)) h.croupier.push(tirerCarte(a, rng));
+      for (const m of h.mains) { m.fin = true; m.resultat = resultatContre(m.cartes, h.croupier); m.gain = m.mise * RETOUR[m.resultat]; }
+      h.gain = h.mains.reduce((s, m) => s + m.gain, 0);
+      resultat = h.gain > h.mise + 1e-9 ? 'gagne' : h.gain < h.mise - 1e-9 ? 'perdu' : 'egalite';
+    } else h.gain = h.mise * RETOUR[resultat];
+    h.fin = true; h.resultat = resultat;
     st.coins += h.gain;
     const annexes = h.annexes.reduce((s, x) => s + x.gain, 0);
     h.net = h.gain + annexes - h.mise - h.annexes.reduce((s, x) => s + x.mise, 0); // le bilan de la main, annexes comprises
     const S = a.stats;
-    if (resultat === 'egalite') S.egalites++; else if (RETOUR[resultat] > 1) S.gagnees++; else S.perdues++;
+    if (resultat === 'egalite') S.egalites++; else if (RETOUR[resultat] > 1) { S.gagnees++; S.serie++; if (S.serie > S.meilleureSerie) S.meilleureSerie = S.serie; } else { S.perdues++; S.serie = 0; }
     if (resultat === 'blackjack') S.blackjacks++;
+    S.cinqCartes += (h.separee ? h.mains.map((m) => m.cartes) : [h.joueur]).filter(cinq).length;
     S.solde += h.net; if (h.net > S.plusGrosGain) S.plusGrosGain = h.net;
+  }
+
+  // ─── ce que voit l'écran : les mains du joueur (une, ou deux après partage) et la main active ───
+  function mains(h) {
+    if (!h || !Array.isArray(h.joueur)) return [];
+    if (!h.separee || !Array.isArray(h.mains)) return [{ cartes: h.joueur, mise: h.mise, double: !!h.double, fin: !!h.fin, resultat: h.resultat || null, gain: h.gain || 0, active: !h.fin, as: false }];
+    return h.mains.map((m, k) => ({ cartes: m.cartes, mise: m.mise, double: false, fin: !!(m.fin || h.fin), resultat: h.fin ? m.resultat : null, gain: h.fin ? m.gain : 0, active: !h.fin && k === h.active, as: !!m.as }));
+  }
+  const mainActive = (h) => (h && h.separee && h.active === 1 ? 1 : 0);
+
+  // ─── le bon coup : la stratégie de base de ces règles (le repérage du lot 7, bjsplit.js) ───
+  // colonnes : la carte visible du croupier, 2 … 10 puis l'as. H tirer, S rester, D doubler (sinon tirer), T doubler (sinon rester), P séparer,
+  // - : la paire se joue comme son total (5-5 : un 10 dur ; 10-10 : un 20 dur)
+  const ligne = (t) => Object.freeze(t.split(''));
+  const TABLE = Object.freeze({
+    dur: Object.freeze({ 5: ligne('HHHHHHHHHH'), 6: ligne('HHHHHHHHHH'), 7: ligne('HHHHHHHHHH'), 8: ligne('HHHHHHHHHH'), 9: ligne('HDDDDHHHHH'), 10: ligne('DDDDDDDDHH'), 11: ligne('DDDDDDDDDH'),
+      12: ligne('HHSSSHHHHH'), 13: ligne('SSSSSHHHHH'), 14: ligne('SSSSSHHHHH'), 15: ligne('SSSSSHHHHH'), 16: ligne('SSSSSHHHHH'), 17: ligne('SSSSSSSSSS') }), // 4 et moins : comme 5 ; 17 et plus : rester
+    souple: Object.freeze({ 13: ligne('HHHDDHHHHH'), 14: ligne('HHHDDHHHHH'), 15: ligne('HHDDDHHHHH'), 16: ligne('HHDDDHHHHH'), 17: ligne('HDDDDHHHHH'), 18: ligne('STTTTSSHHH'), 19: ligne('SSSSSSSSSS'), 20: ligne('SSSSSSSSSS') }),
+    paires: Object.freeze({ 1: ligne('PPPPPPPPPP'), 2: ligne('HHPPPPHHHH'), 3: ligne('HHPPPPHHHH'), 4: ligne('----------'), 5: ligne('----------'), 6: ligne('HPPPPHHHHH'), 7: ligne('PPPPPPHHHH'),
+      8: ligne('PPPPPPPPPP'), 9: ligne('PPPPPSPPSS'), 10: ligne('----------') }), // la paire par sa valeur : 1 = deux as, 10 = deux cartes qui valent 10
+  });
+  const COUPS = { H: 'tirer', S: 'rester', D: 'doubler', P: 'separer' }, VERBES = { tirer: 'Tire', rester: 'Reste', doubler: 'Double', separer: 'Sépare' };
+  const nomCol = (up) => (up === 11 ? 'A' : String(up));
+  // le coup conseillé pour des cartes face à la carte visible (up : 2 … 11, 11 = l'as) ; doublerOk / separerOk : ce qui est permis
+  function coupTable(cartes, up, doublerOk, separerOk) {
+    const v = valeur(cartes), k = up - 2;
+    if (paire(cartes)) {
+      const r = pts(cartes[0]), x = TABLE.paires[r][k];
+      if (x === 'P' && separerOk) return { code: 'P', cle: `paire-${r === 1 ? 'A' : r}-${nomCol(up)}` };
+    }
+    let c, cle;
+    if (v.souple && v.total >= 13 && v.total <= 20) { c = TABLE.souple[v.total][k]; cle = `souple-${v.total}-${nomCol(up)}`; }
+    else if (v.souple) { c = v.total < 13 ? 'H' : 'S'; cle = `souple-${v.total}-${nomCol(up)}`; }
+    else { c = TABLE.dur[Math.max(5, Math.min(17, v.total))][k]; cle = `dur-${v.total}-${nomCol(up)}`; }
+    return { code: c === 'D' ? (doublerOk ? 'D' : 'H') : c === 'T' ? (doublerOk ? 'D' : 'S') : c, cle };
+  }
+  // conseil(st) : null hors d'une main en cours ; sinon { coup, ideal, texte, cle }. ideal : le coup des règles seules (sans regarder la caisse) ;
+  // coup : celui qu'on peut jouer (caisse trop courte pour doubler : D tire, T reste ; pour séparer : la paire se joue comme son total)
+  function conseil(st) {
+    const h = enCours(st); if (!h) return null;
+    const cartes = h.separee ? h.mains[h.active].cartes : h.joueur;
+    const up = hauteur(h.croupier[0]) === 1 ? 11 : pts(h.croupier[0]);
+    const deux = !h.separee && cartes.length === 2 && !h.double;
+    const regles = coupTable(cartes, up, deux, deux), ideal = COUPS[regles.code]; // les règles seules (deux cartes, ni partage ni double avant)
+    const r = ideal === 'separer' || ideal === 'doubler' ? coupTable(cartes, up, peutDoubler(st), peutSeparer(st)) : regles; // puis la caisse
+    const coup = COUPS[r.code];
+    const v = valeur(cartes), contre = up === 11 ? 'un as' : `un ${up}`;
+    const quoi = regles.cle.startsWith('paire') ? (pts(cartes[0]) === 1 ? 'paire d’as' : `paire de ${pts(cartes[0])}`) : `${v.total} ${v.souple ? 'souple' : 'dur'}`;
+    let texte = `${VERBES[coup]} : ${quoi} contre ${contre}.`;
+    if (coup !== ideal) texte = `${VERBES[coup]} (${ideal === 'doubler' ? 'doubler' : 'séparer'} si la caisse suivait) : ${quoi} contre ${contre}.`;
+    return { coup, ideal, texte: texte.slice(0, 70), cle: regles.cle };
   }
   const MOTS = { blackjack: 'BlackJack !', gagne: 'Gagné !', croupierBrule: 'Gagné !', egalite: 'Égalité', perdu: 'Perdu', brule: 'Perdu', croupierBJ: 'Perdu' };
   const gagnant = (r) => RETOUR[r] > 1;
 
   return { JEUX, CARTES, REMELANGE, BJ, PAIRES, VINGT_ET_UN_PLUS_TROIS, NOMS, ENSEIGNES, SYMBOLES, RANGS, MISE_MIN, RETOUR, MOTS,
     hauteur, enseigne, rouge, points, nomCarte, hasard, nouveauSabot, valeur, estBlackjack, croupierTire, perfectPairs, vingtEtUnPlusTrois,
-    etat, borner, estTapis, jeton, pas, arrondiJoli, distribuer, enCours, peutDoubler, tirer, rester, doubler, gagnant };
+    etat, borner, estTapis, jeton, pas, arrondiJoli, distribuer, enCours, peutDoubler, tirer, rester, doubler, gagnant,
+    STATS, TABLE, peutSeparer, separer, mains, mainActive, conseil };
 });
