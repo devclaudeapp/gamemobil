@@ -378,6 +378,10 @@ async function gerer(route) {
     const shot2 = async (nom) => { const f = path.join(out, nom + '.png'); await pg.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
     const charger2 = async () => { await pg.goto(URL_JEU); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 20000 }); await sleep(800); };
     await pg.goto('about:blank'); await charger2();
+    // d'abord l'annonce du jour sur ce premier chargement (le minuteur de 800 ms de ui.js, qui part à l'init) : posée après l'état ci-dessous,
+    // elle donnerait déjà les paliers 13 et 14 ici, avant le rechargement, et la feuille « Palier 13 » n'arriverait plus dans la page rechargée
+    // (une course entre ce minuteur et l'évaluation, selon la charge de la machine ; la même que test/fournil-hantee.cjs, corrigée en e019810)
+    check(await attendre(() => ev2(() => { const qq = window.__fournil.st.quartier; return !!(qq && qq.annonce) && /Le Quartier ouvre ses portes/.test(document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText); }), 20000), 'le premier chargement : l’annonce du jour d’abord');
     // la sauvegarde d'avant la mise à jour : déjà entré, annonce vue, 4 000 Bn gagnés et les douze paliers reçus (ce que donnait l'ancienne version)
     const av = await ev2(() => { const F = window.__fournil, Qd = F.Q, st = F.st, q = Qd.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; Qd.gagner(q, 4e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) Qd.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
       return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: Qd.paliersDus(q).map((p) => p.n).join() }; });

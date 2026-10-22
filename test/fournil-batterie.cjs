@@ -8,6 +8,9 @@
 // rechargement ; une vieille sauvegarde (sans ces champs, ou avec des valeurs inconnues) revient à Auto et Économie. Pour la qualité, la
 // page se fait passer pour un vrai processeur graphique (SwiftShader figerait Auto en éco) ; une « charge » (40 ms de calcul à chaque
 // rafraîchissement) simule un téléphone lent, qui fait descendre Auto et pas un palier fixe.
+// Les mesures « au repos » se font dans une boutique calme : un message du jeu (un événement, un client mystère, un habitué à son créneau
+// du matin, du midi ou du soir, le chat à la porte) ramène les 30 images/s, comme il se doit ; ces sources tirées au hasard ou à l'heure
+// sont repoussées dès l'ouverture (window.__fournil.st, comme la mesure des gains), et un journal des messages est cité dans chaque mesure.
 // Le dessin WebGL est neutralisé (drawArrays / drawElements sans effet) : SwiftShader, sur une machine chargée, ne tient pas toujours 30 images/s,
 // et c'est la boucle qu'on mesure ici, pas le processeur graphique. Une sonde compte les rafraîchissements que la page reçoit vraiment
 // (requestAnimationFrame) : si la machine n'en donne pas 55 par seconde, les fourchettes de cadence ne sont pas exigées (on le dit).
@@ -31,6 +34,8 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
   const ouverts = [];
   async function ouvrir(requete, gpu) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    // le journal des messages du jeu (chacun ramène la cadence de jeu) : cité dans les mesures, pour savoir qui a réveillé la boucle
+    await ctx.addInitScript(() => { window.__messages = []; let der = ''; new MutationObserver(() => { const t = document.querySelector('.toast'); if (t && t.textContent !== der) { der = t.textContent; window.__messages.push(`${Math.round(performance.now())} ms : ${der}`); } else if (!t) der = ''; }).observe(document, { subtree: true, childList: true, characterData: true }); });
     await ctx.addInitScript(() => { window.__sonde = 0; const sonde = () => { window.__sonde++; requestAnimationFrame(sonde); }; requestAnimationFrame(sonde); for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (C.prototype[m]) C.prototype[m] = function () {}; });
     if (gpu) await ctx.addInitScript((nom) => { for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) { const gp = C.prototype.getParameter; C.prototype.getParameter = function (k) { return k === 0x9246 ? nom : gp.call(this, k); }; } }, gpu); // UNMASKED_RENDERER_WEBGL
     await ctx.route(/supabase\.co/, (r) => r.abort());
@@ -39,16 +44,21 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
     page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) erreurs.push(m.text()); });
     await page.goto(`http://localhost:${PORT}/fournil/${requete}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st && SCENE.webgl, null, { timeout: 30000 });
     await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); window.__fournil.st.tuto = 99; });
+    await calme(page);
     const cdp = await ctx.newCDPSession(page), o = { ctx, page, erreurs, cdp }; ouverts.push(o); return o;
   }
   const cadence = (p) => p.evaluate(() => window.__fournil.cadence());
+  // une boutique calme : ni événement, ni client mystère, ni chat à la porte, et les habitués du jour déjà passés (leur créneau dépend de
+  // l'heure de Paris : 7 h-10 h, 12 h-14 h 30, 17 h-20 h) ; sinon leur message ramène les 30 images/s au milieu d'une mesure « au repos »
+  const calme = (p) => p.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st, jour = G.dayKey(st.now); st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = 1e9; st.habitues = st.habitues || {}; for (const h of G.HABITUES) st.habitues[h.id] = Object.assign({ jours: 0, dernier: '' }, st.habitues[h.id], { vuLe: jour }); });
+  const messages = (p, n) => p.evaluate((n) => window.__messages.slice(n), n);
   // les rendus de la scène, les images traitées par la boucle et les rafraîchissements reçus (la sonde), par seconde, sur ms
   async function mesurer(p, ms) {
-    const lire = () => p.evaluate(() => [SCENE.stats.rendus, performance.now(), window.__sonde]);
+    const lire = () => p.evaluate(() => [SCENE.stats.rendus, performance.now(), window.__sonde, window.__messages.length]);
     const a = await lire(); const vues = []; for (let t = 0; t < ms; t += 500) { await sleep(500); vues.push((await cadence(p)).mesuree); } const b = await lire();
-    return { rendus: (b[0] - a[0]) / (b[1] - a[1]) * 1000, images: vues.reduce((s, v) => s + v, 0) / vues.length, raf: (b[2] - a[2]) / (b[1] - a[1]) * 1000 };
+    return { rendus: (b[0] - a[0]) / (b[1] - a[1]) * 1000, images: vues.reduce((s, v) => s + v, 0) / vues.length, raf: (b[2] - a[2]) / (b[1] - a[1]) * 1000, messages: await messages(p, a[3]) };
   }
-  const fmt = (m) => `${m.rendus.toFixed(1)} rendus/s, ${m.images.toFixed(1)} images/s traitées, ${m.raf.toFixed(1)} rafraîchissements/s reçus`;
+  const fmt = (m) => `${m.rendus.toFixed(1)} rendus/s, ${m.images.toFixed(1)} images/s traitées, ${m.raf.toFixed(1)} rafraîchissements/s reçus${m.messages && m.messages.length ? ` ; messages du jeu pendant la mesure : ${m.messages.join(' | ')}` : ''}`;
   const charge = (m, mini) => (m.raf < mini ? ` — machine chargée (${m.raf.toFixed(1)} rafraîchissements/s) : fourchette non exigée` : '');
   const toucher = async (cdp, x, y) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); };
   const centre = (p, sel) => p.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, sel);
@@ -114,13 +124,20 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
   await page.evaluate(() => { const q = SCENE._qual; q.fixe = false; q.mesures = 0; q.somme = 0; q.verif = null; q.moy = 0; q.echecs = {}; q.calme = 0; });
   // la fenêtre mesurée suit l'intervalle réel des rafraîchissements (la sonde), pas celui de la cadence ; si la machine suit (moins de 20 ms
   // entre deux rafraîchissements), le palier ne bouge pas ; sinon, la lenteur est vraie et le palier peut descendre (comme sans limite)
-  const suivre = async (ms) => { const vus = new Set(), a = await page.evaluate(() => [window.__sonde, performance.now()]); for (let t = 0; t < ms; t += 250) { vus.add(await page.evaluate(() => SCENE.stats.qualite)); await sleep(250); } const b = await page.evaluate(() => [window.__sonde, performance.now(), SCENE.stats.ms, SCENE._qual.fixe]); return { vus: [...vus], brut: (b[1] - a[1]) / Math.max(1, b[0] - a[0]), ms: b[2], fixe: b[3] }; };
+  const suivre = async (ms) => { const vus = new Set(), a = await page.evaluate(() => [window.__sonde, performance.now(), window.__messages.length]); for (let t = 0; t < ms; t += 250) { vus.add(await page.evaluate(() => SCENE.stats.qualite)); await sleep(250); } const b = await page.evaluate(() => [window.__sonde, performance.now(), SCENE.stats.ms, SCENE._qual.fixe]); return { vus: [...vus], brut: (b[1] - a[1]) / Math.max(1, b[0] - a[0]), ms: b[2], fixe: b[3], messages: await messages(page, a[2]) }; };
   const qualiteOk = (s) => s.ms > 0 && (s.brut >= 20 || (s.ms < 28 && s.vus.join() === 'moyenne' && !s.fixe));
-  const txtQ = (s) => `fenêtre mesurée : ${s.ms.toFixed(1)} ms par image, rafraîchissements réels : ${s.brut.toFixed(1)} ms ; vue : ${s.vus.join(', ')}${s.brut >= 20 ? ' — machine chargée : palier non exigé' : ''}`;
+  const txtQ = (s) => `fenêtre mesurée : ${s.ms.toFixed(1)} ms par image, rafraîchissements réels : ${s.brut.toFixed(1)} ms ; vue : ${s.vus.join(', ')}${s.brut >= 20 ? ' — machine chargée : palier non exigé' : ''}${s.messages.length ? ` ; messages du jeu : ${s.messages.join(' | ')}` : ''}`;
   const s30 = await suivre(5000), c30 = await cadence(page);
   check(c30.cible === 30 && qualiteOk(s30), `à 30 images/s (une image toutes les 33 ms), la qualité reste moyenne (${txtQ(s30)})`);
   check(await attendre(async () => (await cadence(page)).repos, 25000), 'puis au repos');
-  await page.evaluate(() => { const q = SCENE._qual; q.mesures = 0; q.somme = 0; q.moy = 0; });
+  // la fenêtre à 10 images/s part des mêmes conditions que celle à 30 : palier moyen, mesure remise à zéro, « calme » compris (dix fenêtres
+  // calmes de suite font remonter Auto d'un palier, c'est voulu ; comptées depuis la fenêtre à 30 images/s, elles tombaient au milieu de cette
+  // mesure dès que la boucle était restée un peu plus longtemps à 30 : la qualité vue passait de moyenne à haute, sans lenteur ni limite en cause).
+  // Si une vraie lenteur de la machine l'a fait changer pendant l'attente du repos (non mesurée), on la remet au palier moyen, figée le temps
+  // de recompiler ses matériaux, sans toucher l'écran (la boucle reste au repos)
+  const qAvant10 = await page.evaluate(() => SCENE.stats.qualite);
+  if (qAvant10 !== 'moyenne') { console.log(`  (pendant l'attente du repos, la qualité est passée à « ${qAvant10} » : remise au palier moyen avant la mesure)`); await page.evaluate(() => { SCENE._qual.fixe = true; SCENE.qualite('moyenne'); }); await sleep(4000); }
+  await page.evaluate(() => { const q = SCENE._qual; q.fixe = false; q.mesures = 0; q.somme = 0; q.verif = null; q.moy = 0; q.echecs = {}; q.calme = 0; });
   const s10 = await suivre(7500), c10 = await cadence(page);
   check(c10.cible === 10 && qualiteOk(s10), `à 10 images/s (une image toutes les 100 ms), la qualité reste moyenne (${txtQ(s10)})`);
   await page.keyboard.press('Shift');
