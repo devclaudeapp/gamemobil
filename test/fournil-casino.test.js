@@ -117,6 +117,24 @@ console.log('── les mini-objectifs : la mise à 0,5 % de la caisse, jamais p
   tour(st, [{ type: 'rouge', mise: 10000 }], 2); check(c.objectifs[0].progres === 0, 'une défaite qui compte la casse');
   for (let k = 0; k < 3; k++) tour(st, [{ type: 'rouge', mise: 10000 }], 1); check(c.objectifs[0].fait, 'trois victoires de suite qui comptent : réussi'); }
 
+console.log('── les tours couverts : 35 pleins, rouge + noir… ne sont pas des victoires ──');
+{ const st = boutique(1e6, 21); const c = C.etat(st); const pleins35 = []; for (let n = 1; n <= 36; n++) if (n !== 17) pleins35.push({ type: 'plein', n, mise: 1 });
+  let gagnes = 0; for (let k = 0; k < 30; k++) { const x = tour(st, pleins35, 1 + (k % 16)); if (x.t.net > 0) gagnes++; }
+  check(gagnes === 30 && c.serie === 0 && c.meilleureSerie === 0 && !c.trophees['serie-10'] && !(st.distinctions || []).includes('main-de-velours'),
+    `35 pleins à 1 €, 30 tours gagnés de 1 € : aucun n’allonge la série, pas de « Main de velours » (série ${c.serie}, meilleure ${c.meilleureSerie})`);
+  const y = tour(st, pleins35, 17); check(y.t.net < 0 && c.serie === 0 && C.signeTour(y.t) === -1, 'le 17 (pas couvert) : une vraie défaite');
+  c.serie = 9; tour(st, pleins35, 5); check(c.serie === 9, 'un tour couvert gagnant ne casse pas non plus une série en cours (une égalité)');
+  tour(st, [{ type: 'rouge', mise: 10 }], 1); check(c.serie === 10 && c.trophees['serie-10'], 'une vraie victoire (rouge seul) la porte à 10 : « Main de velours »'); }
+{ const st = boutique(1e6, 21); const c = poser(st, [['couleur', 7], ['douzaine', 3], ['serie', 3]]), m = 6000;
+  const couvert = [{ type: 'rouge', mise: m }, { type: 'noir', mise: m }, { type: 'douzaine', k: 1, mise: m }, { type: 'douzaine', k: 2, mise: m }, { type: 'douzaine', k: 3, mise: m }];
+  const nets = []; for (let k = 0; k < 15; k++) nets.push(tour(st, couvert, 1 + k).t.net); check(nets.every((x) => x === 0), 'rouge + noir + les trois douzaines : un net de 0 à chaque tour');
+  check(c.objectifs.every((o) => o.progres === 0 && !o.fait) && c.jetonsOr === 0, `rouge + noir + trois douzaines, 15 tours à net 0 : « couleur », « douzaine » et « série » n’avancent pas (${c.objectifs.map((o) => o.progres).join()})`);
+  tour(st, [{ type: 'rouge', mise: m }, { type: 'noir', mise: m }], 1); check(c.objectifs[0].progres === 0, 'rouge + noir : la mise sur rouge gagne, le tour est nul, « couleur » n’avance pas');
+  tour(st, [{ type: 'rouge', mise: m }], 1); tour(st, [{ type: 'douzaine', k: 1, mise: m }], 1); check(c.objectifs[0].progres === 1 && c.objectifs[1].progres === 1 && c.objectifs[2].progres === 2, `rouge seul, puis une douzaine seule : de vraies victoires, tout avance (${c.objectifs.map((o) => o.progres).join()})`);
+  tour(st, [{ type: 'rouge', mise: m }, { type: 'plein', n: 2, mise: 1 }], 3); check(c.objectifs[0].progres === 2, 'rouge + un petit plein (19 numéros couverts) : le tour rapporte plus de la moitié de sa mise, une vraie victoire');
+  check(C.signeTour({ net: 1, mise: 35, mises: pleins(35) }) === 0 && C.signeTour({ net: 18, mise: 18, mises: pleins(18) }) === 1 && C.signeTour({ net: 0, mise: 2, mises: [] }) === 0, 'signeTour : 35 pleins gagnant 1 € → égalité ; 18 pleins → victoire ; net nul → égalité'); }
+function pleins(k) { const l = []; for (let n = 1; n <= k; n++) l.push({ type: 'plein', n, mise: 1 }); return l; }
+
 console.log('── les jetons d’or : 1 par objectif, +1 pour les trois, 4 au plus par jour ──');
 { const st = boutique(1e6); const c = poser(st, [['tours', 1], ['tours', 2], ['tours', 3]]);
   const a = tour(st, [{ type: 'rouge', mise: 5000 }], 2).r; check(a.jetons === 1 && a.objectifs.some((o) => o.nouveau && o.fait) && c.jetonsOr === 1 && c.faits === 1, '1er objectif : 1 jeton d’or (le toast : nouveau)');

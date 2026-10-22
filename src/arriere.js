@@ -775,8 +775,20 @@ const ARRIERE = (() => {
     rendu.w = w; rendu.h = h;
     rendu.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); rendu.renderer.setSize(w, h, false);
     const c = rendu.cam; c.aspect = w / h;
-    const vf = (c.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * c.aspect), f = Math.min(vf * 1.32, hf), dist = 1.12 / Math.sin(f / 2), haut = (58 * Math.PI) / 180; // la roue vue d'en haut, un peu de biais
-    c.position.set(0, dist * Math.sin(haut), dist * Math.cos(haut)); c.lookAt(0, 0.04, 0.04); c.updateProjectionMatrix();
+    const vf = (c.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * c.aspect), f = Math.min(vf * 1.32, hf), haut = (58 * Math.PI) / 180; // la roue vue d'en haut, un peu de biais
+    let dist = 1.12 / Math.sin(f / 2);
+    const placer = () => { c.position.set(0, dist * Math.sin(haut), dist * Math.cos(haut)); c.lookAt(0, 0.04, 0.04); c.updateProjectionMatrix(); c.updateMatrixWorld(); };
+    placer();
+    for (let i = 0; i < 40 && bordProjete() > 0.985; i++) { dist *= 1.02; placer(); } // une table presque carrée : on recule jusqu'à ce que tout le bord tienne dans le cadre
+  }
+  function bordProjete() { // le plus grand écart (en coordonnées écran, de −1 à 1) des points du bord extérieur de la roue
+    if (!rendu || rendu.sans) return 0;
+    const v = new THREE.Vector3(); let m = 0;
+    for (let k = 0; k < 48; k++) {
+      const a = (k / 48) * 2 * Math.PI;
+      for (const [r, y] of [[1.0, 0.26], [1.08, 0.26], [1.1, 0.1], [1.05, -0.05]]) { v.set(r * Math.cos(a), y, r * Math.sin(a)).project(rendu.cam); m = Math.max(m, Math.abs(v.x), Math.abs(v.y)); }
+    }
+    return m;
   }
   function dessiner() { if (rendu && !rendu.sans && rendu.renderer) rendu.renderer.render(rendu.scene, rendu.cam); }
   function lireBille() { // la case sous la bille, lue sur les objets 3D eux-mêmes (sa position et l'angle du cylindre)
@@ -794,7 +806,11 @@ const ARRIERE = (() => {
       if (!rendu || rendu.sans) return;
       const t = Math.min(T_FIN, (performance.now() - t0) / 1000);
       taille(); poser(o, p, t); dessiner(); // la table s'agrandit pendant le tour : la roue suit
-      if (t >= T_FIN) { rendu.raf = 0; lireBille(); const f = rendu.fin; rendu.fin = null; if (f) f(); return; }
+      if (t >= T_FIN) {
+        rendu.raf = 0; lireBille();
+        if (rendu.finition !== skin('roue')) refaireRoue(); // une finition choisie pendant que la bille roulait : posée maintenant, la bille garde sa case
+        const f = rendu.fin; rendu.fin = null; if (f) f(); return;
+      }
       rendu.raf = requestAnimationFrame(image);
     };
     rendu.raf = requestAnimationFrame(image);
@@ -843,7 +859,7 @@ const ARRIERE = (() => {
       bulles: bullesEl ? [...bullesEl.children].map((b) => b.textContent) : [],
       skins: el ? { tapis: el.dataset.tapis, dos: el.dataset.dos, jetons: el.dataset.jetons, croupier: el.dataset.croupier, roue: el.dataset.roue } : null,
       roulette: { phase: rPhase, mises: rMises.map((m) => ({ cle: R.cle(m), mise: m.mise })), total: totalR(), jeton: jetonPart, vueTapis, numero: montre ? montre.tour.numero : null,
-        rendu: rendu ? (rendu.sans ? '2d' : 'webgl') : null, tris: rendu && rendu.objets ? rendu.objets.tris : 0, bille: rendu ? rendu.bille : null, anime: !!(rendu && rendu.raf), finition: rendu && !rendu.sans ? rendu.finition : null } };
+        rendu: rendu ? (rendu.sans ? '2d' : 'webgl') : null, tris: rendu && rendu.objets ? rendu.objets.tris : 0, bille: rendu ? rendu.bille : null, anime: !!(rendu && rendu.raf), finition: rendu && !rendu.sans ? rendu.finition : null, bord: rendu && !rendu.sans ? bordProjete() : null } };
   };
   const ROUE = Object.freeze({ T_CALE, T_FIN, plan, etatBille, caseSous, FINITIONS });
   return { init, ouvrir, fermer, maj, get ouvert() { return ouvert(); }, etat, carteEl, ROUE, croupierSVG };

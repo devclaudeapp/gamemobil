@@ -48,7 +48,7 @@
     { id: 'plein', nom: 'Plein !', desc: 'Gagner un plein à la roulette.', jeu: 'roulette', recompense: { skin: 'ebene', categorie: 'roue' } },
     { id: 'zero', nom: 'Le zéro', desc: 'Gagner un plein sur le 0.', jeu: 'roulette', recompense: { skin: 'or', categorie: 'roue' } },
     { id: 'habitue', nom: 'Habitué du tapis', desc: 'Jouer 100 mains et tours en tout.', jeu: 'arriere', recompense: { skin: 'canotier', categorie: 'croupier' } },
-    { id: 'serie-10', nom: 'Main de velours', desc: 'Dix victoires de suite (BlackJack ou roulette ; une égalité ne casse pas la série).', jeu: 'arriere', recompense: { titre: 'main-de-velours' } },
+    { id: 'serie-10', nom: 'Main de velours', desc: 'Dix victoires de suite (BlackJack ou roulette ; une égalité ne casse pas la série, un tour qui couvre presque tout le tapis ne l’allonge pas).', jeu: 'arriere', recompense: { titre: 'main-de-velours' } },
     { id: 'assidu', nom: 'Assidu de l’arrière-salle', desc: 'Réussir 10 mini-objectifs.', jeu: 'arriere', recompense: { skin: 'noir-or', categorie: 'tapis' } },
   ].map((t) => Object.freeze(Object.assign(t, { recompense: Object.freeze(t.recompense) }))));
   const TROPHEE = Object.fromEntries(TROPHEES.map((t) => [t.id, t]));
@@ -196,25 +196,44 @@
     return out;
   }
 
+  // ─── une vraie victoire à la roulette : pas un tour « couvert » (35 pleins, rouge + noir…) ───
+  // le tour gagne (net > 0) ET ses mises couvrent au plus 18 numéros, ou il rapporte au moins la moitié de sa mise ; sinon, un tour gagnant
+  // couvert compte comme une égalité : il n'allonge ni la série ni les objectifs « couleur », « douzaine » et « série », sans les casser
+  const ROUGE = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+  const COUVRE = {
+    rouge: (n) => n > 0 && ROUGE.has(n), noir: (n) => n > 0 && !ROUGE.has(n),
+    pair: (n) => n > 0 && n % 2 === 0, impair: (n) => n % 2 === 1,
+    manque: (n) => n >= 1 && n <= 18, passe: (n) => n >= 19 && n <= 36,
+    douzaine: (n, m) => n > 0 && Math.ceil(n / 12) === m.k, colonne: (n, m) => n > 0 && ((n - 1) % 3) + 1 === m.k,
+    plein: (n, m) => n === m.n,
+  };
+  const COUVERTS_MAX = 18, PART_NET = 0.5;
+  function couverts(mises) { let k = 0; for (let n = 0; n <= 36; n++) if (mises.some((m) => m && COUVRE[m.type] && COUVRE[m.type](n, m))) k++; return k; }
+  function signeTour(tour) {
+    if (!(tour.net > 1e-9)) return tour.net < -1e-9 ? -1 : 0;
+    return couverts(tour.mises) <= COUVERTS_MAX || (Number.isFinite(tour.mise) && tour.net >= PART_NET * tour.mise - 1e-9) ? 1 : 0;
+  }
+
   // ─── après un tour de roulette (tour : le résultat de ROULETTE.lancer) ; idempotent : tour.compte ───
   function apresTour(st, tour, opts) {
     const out = vide();
     if (!tour || typeof tour !== 'object' || tour.compte || !Array.isArray(tour.mises) || !Number.isInteger(tour.numero)) return out;
     const c = etat(st), o = opts || {}, quand = o.maintenant, jour = jourDe(o);
     objectifs(st, jour); tour.compte = true;
-    const signe = tour.net > 1e-9 ? 1 : tour.net < -1e-9 ? -1 : 0;
+    const signe = signeTour(tour);
     serieCommune(c, signe);
     const pleins = tour.mises.filter((m) => m && m.type === 'plein' && m.gagne);
     if (pleins.length) gagnerTrophee(st, c, 'plein', quand, o.G, out);
     if (pleins.some((m) => m.n === 0)) gagnerTrophee(st, c, 'zero', quand, o.G, out);
-    // les objectifs : la mise du tour (ou, pour « couleur » et « douzaine », la mise gagnante de ce genre) doit atteindre 0,5 % de la caisse d'avant
+    // les objectifs : la mise du tour (ou, pour « couleur » et « douzaine », la mise gagnante de ce genre) doit atteindre 0,5 % de la caisse d'avant ;
+    // « couleur » et « douzaine » demandent en plus une vraie victoire (signeTour), pas un tour couvert
     const s = seuil(tour.caisse), somme = (types) => tour.mises.filter((m) => m && m.gagne && types.includes(m.type)).reduce((x, m) => x + (m.mise || 0), 0);
     if (c.jour === jour) {
       const compte = Number.isFinite(tour.mise) && tour.mise >= s - 1e-9;
       c.objectifs.forEach((ob, k) => {
         if (ob.type === 'tours' && compte) avancer(c, ob, k, 1, out);
-        else if (ob.type === 'couleur' && somme(['rouge', 'noir']) >= s - 1e-9) avancer(c, ob, k, 1, out);
-        else if (ob.type === 'douzaine' && somme(['douzaine', 'colonne']) >= s - 1e-9) avancer(c, ob, k, 1, out);
+        else if (ob.type === 'couleur' && signe > 0 && somme(['rouge', 'noir']) >= s - 1e-9) avancer(c, ob, k, 1, out);
+        else if (ob.type === 'douzaine' && signe > 0 && somme(['douzaine', 'colonne']) >= s - 1e-9) avancer(c, ob, k, 1, out);
         else if (ob.type === 'serie' && compte) objectifSerie(c, ob, k, signe, out);
       });
     }
@@ -264,5 +283,5 @@
   }
 
   return { PART_MIN, MISE_MIN, JETONS_JOUR_MAX, PAR_JOUR, BONUS_TROIS, HABITUE, SERIE_VELOURS, ASSIDU, TROPHEES, SKINS, CATEGORIES, NOMS_CATEGORIES, DEFAUTS, TYPES,
-    palier, seuil, etat, objectifs, apresMain, apresTour, trophees, stats, skins, skinChoisi, acheterSkin, choisirSkin, cleSkin };
+    palier, seuil, etat, objectifs, apresMain, apresTour, signeTour, trophees, stats, skins, skinChoisi, acheterSkin, choisirSkin, cleSkin };
 });

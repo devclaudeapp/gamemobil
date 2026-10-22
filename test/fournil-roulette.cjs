@@ -239,11 +239,25 @@ const finTour = (p) => attendre(async () => { const e = await etat(p); return e.
   await p.evaluate(() => { window.__rouletteTirage = 34; });
   await d.toucherEl('[data-ar="lancer"]'); await sleep(2300);
   await p.screenshot({ path: out + '/02-pendant-360.png' });
+  e = await etat(p); check(e.roulette.anime && e.roulette.bord > 0 && e.roulette.bord <= 1, `360 × 640 : pendant le tour, tout le bord de la roue tient dans le canvas (écart projeté ${e.roulette.bord && e.roulette.bord.toFixed(3)} ≤ 1)`);
   await attendre(async () => !(await etat(p)).roulette.anime, 9000); await sleep(150);
   e = await etat(p); check(e.roulette.bille === 34, '360 × 640 : la bille finit sur le 34');
   await p.screenshot({ path: out + '/03-apres-360.png' });
   await finTour(p); s = await salle(p);
   check(!s.coupes.length && s.boutons.every((b) => b.dedans), '360 × 640 : après le tour, tout tient');
+  e = await etat(p); check(e.roulette.bord > 0 && e.roulette.bord <= 1, `360 × 640 : au repos, le bord de la roue tient aussi (${e.roulette.bord && e.roulette.bord.toFixed(3)})`);
+  // une finition choisie PENDANT que la bille roule : posée sur la roue dès la bille arrêtée, sans rouvrir la salle
+  await p.evaluate(() => { window.__fournil.st.arriere.casino.jetonsOr = 5; window.__rouletteTirage = 7; });
+  await d.toucherEl('[data-vue="chances"]'); await sleep(120); await d.toucherEl('[data-jr="0.01"]'); await sleep(100); await d.toucherEl('[data-mise="rouge"]'); await sleep(150); await d.toucherEl('[data-ar="lancer"]'); await sleep(600);
+  check((await etat(p)).roulette.anime, '360 × 640 : un deuxième tour lancé, la bille roule');
+  await d.toucherEl('[data-ar="carnet"]'); await sleep(300); await d.toucherEl('[data-onglet="skins"]'); await sleep(250);
+  await p.evaluate(() => document.querySelector('[data-skin="roue:fournil"]').scrollIntoView({ block: 'center' })); await sleep(150);
+  await d.toucherEl('[data-skin="roue:fournil"]'); await sleep(250); await d.toucherEl('.ar-boite [data-ar="ok"]'); await sleep(200);
+  e = await etat(p); check(e.skins.roue === 'fournil' && e.roulette.finition === 'classique' && e.roulette.anime, 'la finition « Le Fournil » choisie pendant le tour : la roue en mouvement garde la sienne');
+  await attendre(async () => !(await etat(p)).roulette.anime, 9000); await sleep(150);
+  e = await etat(p); check(e.roulette.finition === 'fournil' && e.roulette.bille === 7, `la bille arrêtée : la roue passe à « Le Fournil », la bille reste sur le 7 (${e.roulette.finition}, ${e.roulette.bille})`);
+  await p.screenshot({ path: out + '/03b-finition-apres-tour-360.png' });
+  await finTour(p);
   for (const [o, n] of [['objectifs', '07'], ['trophees', '08'], ['stats', '09'], ['skins', '10']]) {
     if (o === 'objectifs') await d.toucherEl('[data-ar="carnet"]'); else await d.toucherEl(`[data-onglet="${o}"]`);
     await sleep(300); await p.screenshot({ path: `${out}/${n}-carnet-${o}-360.png` });

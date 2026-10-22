@@ -2281,7 +2281,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '57e039fe494e';</script>
+<script>window.FOURNIL_VERSION = 'af65b5b0b34e';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -4365,7 +4365,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     { id: 'plein', nom: 'Plein !', desc: 'Gagner un plein à la roulette.', jeu: 'roulette', recompense: { skin: 'ebene', categorie: 'roue' } },
     { id: 'zero', nom: 'Le zéro', desc: 'Gagner un plein sur le 0.', jeu: 'roulette', recompense: { skin: 'or', categorie: 'roue' } },
     { id: 'habitue', nom: 'Habitué du tapis', desc: 'Jouer 100 mains et tours en tout.', jeu: 'arriere', recompense: { skin: 'canotier', categorie: 'croupier' } },
-    { id: 'serie-10', nom: 'Main de velours', desc: 'Dix victoires de suite (BlackJack ou roulette ; une égalité ne casse pas la série).', jeu: 'arriere', recompense: { titre: 'main-de-velours' } },
+    { id: 'serie-10', nom: 'Main de velours', desc: 'Dix victoires de suite (BlackJack ou roulette ; une égalité ne casse pas la série, un tour qui couvre presque tout le tapis ne l’allonge pas).', jeu: 'arriere', recompense: { titre: 'main-de-velours' } },
     { id: 'assidu', nom: 'Assidu de l’arrière-salle', desc: 'Réussir 10 mini-objectifs.', jeu: 'arriere', recompense: { skin: 'noir-or', categorie: 'tapis' } },
   ].map((t) => Object.freeze(Object.assign(t, { recompense: Object.freeze(t.recompense) }))));
   const TROPHEE = Object.fromEntries(TROPHEES.map((t) => [t.id, t]));
@@ -4513,25 +4513,44 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     return out;
   }
 
+  // ─── une vraie victoire à la roulette : pas un tour « couvert » (35 pleins, rouge + noir…) ───
+  // le tour gagne (net > 0) ET ses mises couvrent au plus 18 numéros, ou il rapporte au moins la moitié de sa mise ; sinon, un tour gagnant
+  // couvert compte comme une égalité : il n'allonge ni la série ni les objectifs « couleur », « douzaine » et « série », sans les casser
+  const ROUGE = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+  const COUVRE = {
+    rouge: (n) => n > 0 && ROUGE.has(n), noir: (n) => n > 0 && !ROUGE.has(n),
+    pair: (n) => n > 0 && n % 2 === 0, impair: (n) => n % 2 === 1,
+    manque: (n) => n >= 1 && n <= 18, passe: (n) => n >= 19 && n <= 36,
+    douzaine: (n, m) => n > 0 && Math.ceil(n / 12) === m.k, colonne: (n, m) => n > 0 && ((n - 1) % 3) + 1 === m.k,
+    plein: (n, m) => n === m.n,
+  };
+  const COUVERTS_MAX = 18, PART_NET = 0.5;
+  function couverts(mises) { let k = 0; for (let n = 0; n <= 36; n++) if (mises.some((m) => m && COUVRE[m.type] && COUVRE[m.type](n, m))) k++; return k; }
+  function signeTour(tour) {
+    if (!(tour.net > 1e-9)) return tour.net < -1e-9 ? -1 : 0;
+    return couverts(tour.mises) <= COUVERTS_MAX || (Number.isFinite(tour.mise) && tour.net >= PART_NET * tour.mise - 1e-9) ? 1 : 0;
+  }
+
   // ─── après un tour de roulette (tour : le résultat de ROULETTE.lancer) ; idempotent : tour.compte ───
   function apresTour(st, tour, opts) {
     const out = vide();
     if (!tour || typeof tour !== 'object' || tour.compte || !Array.isArray(tour.mises) || !Number.isInteger(tour.numero)) return out;
     const c = etat(st), o = opts || {}, quand = o.maintenant, jour = jourDe(o);
     objectifs(st, jour); tour.compte = true;
-    const signe = tour.net > 1e-9 ? 1 : tour.net < -1e-9 ? -1 : 0;
+    const signe = signeTour(tour);
     serieCommune(c, signe);
     const pleins = tour.mises.filter((m) => m && m.type === 'plein' && m.gagne);
     if (pleins.length) gagnerTrophee(st, c, 'plein', quand, o.G, out);
     if (pleins.some((m) => m.n === 0)) gagnerTrophee(st, c, 'zero', quand, o.G, out);
-    // les objectifs : la mise du tour (ou, pour « couleur » et « douzaine », la mise gagnante de ce genre) doit atteindre 0,5 % de la caisse d'avant
+    // les objectifs : la mise du tour (ou, pour « couleur » et « douzaine », la mise gagnante de ce genre) doit atteindre 0,5 % de la caisse d'avant ;
+    // « couleur » et « douzaine » demandent en plus une vraie victoire (signeTour), pas un tour couvert
     const s = seuil(tour.caisse), somme = (types) => tour.mises.filter((m) => m && m.gagne && types.includes(m.type)).reduce((x, m) => x + (m.mise || 0), 0);
     if (c.jour === jour) {
       const compte = Number.isFinite(tour.mise) && tour.mise >= s - 1e-9;
       c.objectifs.forEach((ob, k) => {
         if (ob.type === 'tours' && compte) avancer(c, ob, k, 1, out);
-        else if (ob.type === 'couleur' && somme(['rouge', 'noir']) >= s - 1e-9) avancer(c, ob, k, 1, out);
-        else if (ob.type === 'douzaine' && somme(['douzaine', 'colonne']) >= s - 1e-9) avancer(c, ob, k, 1, out);
+        else if (ob.type === 'couleur' && signe > 0 && somme(['rouge', 'noir']) >= s - 1e-9) avancer(c, ob, k, 1, out);
+        else if (ob.type === 'douzaine' && signe > 0 && somme(['douzaine', 'colonne']) >= s - 1e-9) avancer(c, ob, k, 1, out);
         else if (ob.type === 'serie' && compte) objectifSerie(c, ob, k, signe, out);
       });
     }
@@ -4581,7 +4600,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   }
 
   return { PART_MIN, MISE_MIN, JETONS_JOUR_MAX, PAR_JOUR, BONUS_TROIS, HABITUE, SERIE_VELOURS, ASSIDU, TROPHEES, SKINS, CATEGORIES, NOMS_CATEGORIES, DEFAUTS, TYPES,
-    palier, seuil, etat, objectifs, apresMain, apresTour, trophees, stats, skins, skinChoisi, acheterSkin, choisirSkin, cleSkin };
+    palier, seuil, etat, objectifs, apresMain, apresTour, signeTour, trophees, stats, skins, skinChoisi, acheterSkin, choisirSkin, cleSkin };
 });
 
 /* ── horloge.js ── */
@@ -11736,8 +11755,20 @@ const ARRIERE = (() => {
     rendu.w = w; rendu.h = h;
     rendu.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); rendu.renderer.setSize(w, h, false);
     const c = rendu.cam; c.aspect = w / h;
-    const vf = (c.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * c.aspect), f = Math.min(vf * 1.32, hf), dist = 1.12 / Math.sin(f / 2), haut = (58 * Math.PI) / 180; // la roue vue d'en haut, un peu de biais
-    c.position.set(0, dist * Math.sin(haut), dist * Math.cos(haut)); c.lookAt(0, 0.04, 0.04); c.updateProjectionMatrix();
+    const vf = (c.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * c.aspect), f = Math.min(vf * 1.32, hf), haut = (58 * Math.PI) / 180; // la roue vue d'en haut, un peu de biais
+    let dist = 1.12 / Math.sin(f / 2);
+    const placer = () => { c.position.set(0, dist * Math.sin(haut), dist * Math.cos(haut)); c.lookAt(0, 0.04, 0.04); c.updateProjectionMatrix(); c.updateMatrixWorld(); };
+    placer();
+    for (let i = 0; i < 40 && bordProjete() > 0.985; i++) { dist *= 1.02; placer(); } // une table presque carrée : on recule jusqu'à ce que tout le bord tienne dans le cadre
+  }
+  function bordProjete() { // le plus grand écart (en coordonnées écran, de −1 à 1) des points du bord extérieur de la roue
+    if (!rendu || rendu.sans) return 0;
+    const v = new THREE.Vector3(); let m = 0;
+    for (let k = 0; k < 48; k++) {
+      const a = (k / 48) * 2 * Math.PI;
+      for (const [r, y] of [[1.0, 0.26], [1.08, 0.26], [1.1, 0.1], [1.05, -0.05]]) { v.set(r * Math.cos(a), y, r * Math.sin(a)).project(rendu.cam); m = Math.max(m, Math.abs(v.x), Math.abs(v.y)); }
+    }
+    return m;
   }
   function dessiner() { if (rendu && !rendu.sans && rendu.renderer) rendu.renderer.render(rendu.scene, rendu.cam); }
   function lireBille() { // la case sous la bille, lue sur les objets 3D eux-mêmes (sa position et l'angle du cylindre)
@@ -11755,7 +11786,11 @@ const ARRIERE = (() => {
       if (!rendu || rendu.sans) return;
       const t = Math.min(T_FIN, (performance.now() - t0) / 1000);
       taille(); poser(o, p, t); dessiner(); // la table s'agrandit pendant le tour : la roue suit
-      if (t >= T_FIN) { rendu.raf = 0; lireBille(); const f = rendu.fin; rendu.fin = null; if (f) f(); return; }
+      if (t >= T_FIN) {
+        rendu.raf = 0; lireBille();
+        if (rendu.finition !== skin('roue')) refaireRoue(); // une finition choisie pendant que la bille roulait : posée maintenant, la bille garde sa case
+        const f = rendu.fin; rendu.fin = null; if (f) f(); return;
+      }
       rendu.raf = requestAnimationFrame(image);
     };
     rendu.raf = requestAnimationFrame(image);
@@ -11804,7 +11839,7 @@ const ARRIERE = (() => {
       bulles: bullesEl ? [...bullesEl.children].map((b) => b.textContent) : [],
       skins: el ? { tapis: el.dataset.tapis, dos: el.dataset.dos, jetons: el.dataset.jetons, croupier: el.dataset.croupier, roue: el.dataset.roue } : null,
       roulette: { phase: rPhase, mises: rMises.map((m) => ({ cle: R.cle(m), mise: m.mise })), total: totalR(), jeton: jetonPart, vueTapis, numero: montre ? montre.tour.numero : null,
-        rendu: rendu ? (rendu.sans ? '2d' : 'webgl') : null, tris: rendu && rendu.objets ? rendu.objets.tris : 0, bille: rendu ? rendu.bille : null, anime: !!(rendu && rendu.raf), finition: rendu && !rendu.sans ? rendu.finition : null } };
+        rendu: rendu ? (rendu.sans ? '2d' : 'webgl') : null, tris: rendu && rendu.objets ? rendu.objets.tris : 0, bille: rendu ? rendu.bille : null, anime: !!(rendu && rendu.raf), finition: rendu && !rendu.sans ? rendu.finition : null, bord: rendu && !rendu.sans ? bordProjete() : null } };
   };
   const ROUE = Object.freeze({ T_CALE, T_FIN, plan, etatBille, caseSous, FINITIONS });
   return { init, ouvrir, fermer, maj, get ouvert() { return ouvert(); }, etat, carteEl, ROUE, croupierSVG };
