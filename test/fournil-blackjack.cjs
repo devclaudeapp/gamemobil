@@ -5,7 +5,9 @@
 // réglage fin ; une main jouée jusqu'au bout (tirer, rester) ; un BlackJack payé 3 pour 2 ; les deux mises annexes gagnées (Perfect Pairs,
 // 21+3) ; doubler ; le tapis avec sa confirmation (non, puis oui) ; le tableau des gains ; la carte « L'arrière-salle » du Journal qui y
 // ramène ; une main en cours qui survit au rechargement ; aucun événement surprise pendant la main ; la fortune (lifetime), les étoiles et
-// les points de boulanger jamais touchés. Puis un petit écran (360 × 640) et l'artefact Claude.
+// les points de boulanger jamais touchés. Le lot 7 : séparer une paire (deux mains côte à côte, la main active marquée, pas de double
+// après partage, 21 après partage payé 1 pour 1, as séparés : une carte chacun), « Le bon coup » allumé, le carnet du croupier et un skin
+// choisi. Puis un petit écran (360 × 640) et l'artefact Claude.
 // Les cartes des mains « à montrer » sont posées en tête du sabot (le reste du sabot reste celui du jeu).
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-blackjack.cjs
 //   captures dans test/shots/fournil-blackjack/ (ou SHOTS=dossier) ; PORT_BLACKJACK pour choisir le port (sinon un port libre)
@@ -182,6 +184,59 @@ const salle = (p) => p.evaluate(() => { const a = document.querySelector('#arrie
   await finAnim(p, 'jeu'); await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'mise'); await sleep(200);
   e = await etat(p); check(e.main.tapis && e.main.resultat === 'gagne' && Math.abs((await eco(p)).coins - caisse * 2) < 1e-6, `tapis gagné : la caisse double (${Math.round(caisse * 2)} €)`);
 
+  // ─── séparer une paire (lot 7) : « Le bon coup » allumé le conseille ; les deux mains côte à côte ; 21 après partage payé 1 pour 1 ───
+  await d.toucherEl('[data-ar="effacer"]'); await sleep(100); await d.toucherEl('[data-case="main"]'); await sleep(80); await d.toucherEl('[data-jeton="0.01"]'); await sleep(100);
+  const mS = (await etat(p)).mises.main;
+  await empiler(p, '8♠ 10♥ 8♦ 7♣ 3♥ 10♦ 10♠');
+  c0 = (await eco(p)).coins;
+  await d.toucherEl('[data-ar="donner"]'); await finAnim(p, 'jeu'); await sleep(150);
+  s = await salle(p);
+  check(s.boutons.some((b) => /^Séparer/.test(b.t)) && s.boutons.filter((b) => /^(Tirer|Rester|Doubler|Séparer)/.test(b.t)).length === 4 && s.boutons.filter((b) => /^(Tirer|Rester|Doubler|Séparer)/.test(b.t)).every((b) => b.dedans && b.h >= 44), 'une paire de 8 : le bouton « Séparer » paraît, à côté de Tirer, Rester, Doubler (44 px au moins, dans l’écran)');
+  check(!(await etat(p)).conseil && /Allume-le/.test(s.texte), '« Le bon coup » est éteint par défaut');
+  await d.toucherEl('[data-ar="conseil"]'); await sleep(200);
+  e = await etat(p); s = await salle(p);
+  check(e.conseil && /Sépare : paire de 8 contre un 10\./.test(s.texte) && await p.evaluate(() => document.querySelector('[data-ar="separer"]').classList.contains('conseille')), '« Le bon coup » allumé : « Sépare : paire de 8 contre un 10. », le bouton Séparer surligné');
+  check(await p.evaluate(() => window.__fournil.st.arriere.conseil === true), 'l’interrupteur est gardé dans la sauvegarde (st.arriere.conseil)');
+  await p.screenshot({ path: out + '/11-bon-coup-separer.png' });
+  await d.toucherEl('[data-ar="separer"]'); await finAnim(p, 'jeu'); await sleep(200);
+  e = await etat(p); s = await salle(p);
+  const boitesVues = await p.evaluate(() => [...document.querySelectorAll('#ar-mains.deux .ar-boite-main')].map((b) => ({ n: b.querySelectorAll('.ar-carte').length, active: b.classList.contains('active'), total: b.querySelector('.ar-total').textContent })));
+  check(e.main.separee && e.main.mains.length === 2 && e.main.mains[0].cartes.join(' ') === '8♠ 3♥' && e.main.mains[1].cartes.join(' ') === '8♦ 10♦' && Math.abs((await eco(p)).coins - (c0 - 2 * mS)) < 1e-6, `séparer : deux mains (8♠ 3♥ · 8♦ 10♦), chacune sa deuxième carte, la seconde mise prise dans la caisse (${e.main.mains.map((m) => m.cartes.join(' ')).join(' · ')})`);
+  check(boitesVues.length === 2 && boitesVues[0].active && !boitesVues[1].active && boitesVues[0].total === '11' && boitesVues[1].total === '18', `les deux mains côte à côte, la première marquée active (${JSON.stringify(boitesVues)})`);
+  check(/Doubler\s*pas permis/.test(s.texte) && /Tire : 11 dur contre un 10\./.test(s.texte), 'pas de double après partage ; le bon coup suit la main active (« Tire : 11 dur contre un 10. »)');
+  check(s.cartesDedans && s.large && s.boutons.every((b) => b.dedans), 'les deux mains tiennent dans l’écran');
+  await p.screenshot({ path: out + '/12-deux-mains.png' });
+  await d.toucherEl('[data-ar="tirer"]'); await finAnim(p, 'jeu'); await sleep(150);
+  e = await etat(p);
+  check(e.main.active === 1 && e.main.mains[0].cartes.length === 3, 'la première main à 21 reste d’office : on passe à la seconde');
+  await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'mise'); await sleep(300);
+  e = await etat(p); s = await salle(p);
+  check(e.main.fin && e.main.mains.every((m) => m.resultat === 'gagne') && e.main.mains[0].gain === 2 * mS && Math.abs((await eco(p)).coins - (c0 + 2 * mS)) < 1e-6, `21 après partage payé 1 pour 1 (pas 3 pour 2), 18 contre 17 gagné : +${2 * mS} €`);
+  check(/Main 1 : gagnée · Main 2 : gagnée/.test(s.texte) && await p.evaluate(() => [...document.querySelectorAll('.ar-etiquette')].filter((x) => !x.hidden).length === 2), 'le résultat main par main (« Main 1 : gagnée · Main 2 : gagnée ») et une étiquette sous chaque main');
+  await sleep(200); await p.screenshot({ path: out + '/13-partage-gagne.png' });
+  check(await p.evaluate(() => !!window.__fournil.st.arriere.casino.trophees.partage), 'le trophée « Coupé en deux » (les deux mains d’un partage gagnées)');
+  // les as séparés : une carte chacun, et c'est tout ; as + roi après partage = 21, payé 1 pour 1
+  await empiler(p, 'A♠ 9♣ A♥ 8♦ R♠ 5♥');
+  c0 = (await eco(p)).coins;
+  await d.toucherEl('[data-ar="donner"]'); await finAnim(p, 'jeu'); await sleep(150);
+  check(/Sépare : paire d(e |’)as contre un 9\./.test((await salle(p)).texte), '« Le bon coup » : « Sépare : paire d’as contre un 9. »');
+  await d.toucherEl('[data-ar="separer"]'); await finAnim(p, 'mise'); await sleep(300);
+  e = await etat(p);
+  check(e.main.fin && e.main.mains.every((m) => m.cartes.length === 2) && e.main.mains[0].resultat === 'gagne' && e.main.mains[0].gain === 2 * mS && e.main.mains[1].resultat === 'perdu' && e.main.resultat === 'egalite' && Math.abs((await eco(p)).coins - c0) < 1e-6, `as séparés : une carte chacun (${e.main.mains.map((m) => m.cartes.join(' ')).join(' · ')}), le croupier joue ; A♠ R♠ = 21 payé 1 pour 1, A♥ 5♥ perdu`);
+  // le carnet du croupier, depuis le BlackJack : un dos de cartes débloqué par le trophée, choisi
+  await d.toucherEl('[data-ar="carnet"]'); await sleep(300); await d.toucherEl('[data-onglet="skins"]'); await sleep(250);
+  await p.evaluate(() => document.querySelector('[data-skin="dos:fournil"]').scrollIntoView({ block: 'center' })); await sleep(150);
+  await d.toucherEl('[data-skin="dos:fournil"]'); await sleep(250);
+  check((await etat(p)).skins.dos === 'fournil' && await p.evaluate(() => window.__fournil.st.arriere.casino.skins.choisis.dos === 'fournil'), 'le carnet : le dos « Le Fournil » (trophée « Coupé en deux ») choisi');
+  await d.toucherEl('[data-onglet="stats"]'); await sleep(200);
+  check(/Partages · doubles\s*2 · 1/.test(await p.evaluate(() => document.querySelector('[data-jeu="blackjack"]').innerText)), 'les statistiques du BlackJack comptent les partages et les doubles');
+  await d.toucherEl('.ar-boite [data-ar="ok"]'); await sleep(200);
+  check(await p.evaluate(() => getComputedStyle(document.querySelector('#arriere')).getPropertyValue('--dos').trim().toUpperCase() === '#F0D2A0'), 'le dos des cartes prend la couleur du skin');
+  await empiler(p, '9♠ 10♥ 7♦ 6♣');
+  await d.toucherEl('[data-ar="donner"]'); await finAnim(p, 'jeu'); await sleep(150);
+  await p.screenshot({ path: out + '/14-dos-fournil.png' });
+  await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'mise'); await sleep(200);
+
   // ─── ni fortune, ni étoiles, ni points ───
   const eco1 = await eco(p);
   check(eco1.lifetime === eco0.lifetime && eco1.lifetimeRun === eco0.lifetimeRun && eco1.etoiles === eco0.etoiles && eco1.xp === eco0.xp && eco1.points === eco0.points && eco1.semaine === eco0.semaine && eco1.stats === eco0.stats, `la fortune publiée (lifetime ${Math.round(eco1.lifetime)} €), lifetimeRun, étoiles, expérience, points de boulanger, défis, statistiques : inchangés${Object.keys(eco0).filter((k) => k !== 'coins' && eco0[k] !== eco1[k]).map((k) => ` [${k} : ${eco0[k]} → ${eco1[k]}]`).join('')}`);
@@ -238,6 +293,17 @@ const salle = (p) => p.evaluate(() => { const a = document.querySelector('#arrie
   await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'mise'); await sleep(300);
   s = await salle(p); check(!s.coupes.length && s.boutons.every((b) => b.dedans), '360 × 640 : le résultat et le panneau tiennent');
   await p.screenshot({ path: out + '/10-petit-ecran-resultat.png' });
+  // deux mains séparées et « Le bon coup » sur le petit écran
+  await empiler(p, '8♠ 10♥ 8♦ 7♣ 3♥ 10♦ 10♠');
+  await d.toucherEl('[data-ar="donner"]'); await finAnim(p, 'jeu'); await sleep(150);
+  await d.toucherEl('[data-ar="conseil"]'); await sleep(150);
+  await d.toucherEl('[data-ar="separer"]'); await finAnim(p, 'jeu'); await sleep(200);
+  s = await salle(p);
+  check(s.cartesDedans && s.large && !s.coupes.length && s.boutons.every((b) => b.dedans) && /Tire : 11 dur contre un 10\./.test(s.texte), `360 × 640 : deux mains séparées et le bon coup tiennent dans l’écran (cartes dedans ${s.cartesDedans}, large ${s.large}, coupés ${s.coupes.join(',')}, hors ${s.boutons.filter((b) => !b.dedans).map((b) => b.t).join(', ')})`);
+  await p.screenshot({ path: out + '/15-petit-ecran-deux-mains.png' });
+  await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'jeu'); await d.toucherEl('[data-ar="rester"]'); await finAnim(p, 'mise'); await sleep(300);
+  s = await salle(p); check(!s.coupes.length && s.boutons.every((b) => b.dedans) && /Main 1 : .* · Main 2 : /.test(s.texte), '360 × 640 : le résultat main par main tient');
+  await p.screenshot({ path: out + '/16-petit-ecran-partage-fini.png' });
   await ctx.close();
 
   // ═══ 3. L'artefact Claude ═══
