@@ -1,15 +1,16 @@
-// La boutique du Fournil (le worktree de la maquette) à 390×844, qualité haute, tout le mobilier, 6 à 8 clients (file, assis qui mangent).
+// La boutique du Fournil (ce dépôt) à 390×844, qualité haute (ou celle de la requête), tout le mobilier, 6 à 8 clients (file, assis qui mangent) :
+// les clients 3D (src/clients3d.js), ou les chibis avec « clients=0 » ou « qualite=eco » dans la requête.
 // Le temps est piloté : la boucle du jeu (rAF) est gelée, le script appelle SCENE.frame(dt) image par image (SwiftShader rend ~1 image/s :
 // en temps réel, rien n'aurait le temps de se passer) ; l'avance rapide neutralise les appels de dessin WebGL (comme test/fournil-batterie.cjs).
 // usage : node boutique.cjs <nom> "<requête>" [--port 90xx] [--tiroir ferme|mi] [--avance s] [--video s] [--fps n] [--mesures] [--sans-cpu] [--cpu-temps] [--horloge ISO]
 //         [--loupe "x,y,z;…"] (gros plans : la caméra du jeu resserrée sur un point de l'écran, px CSS) [--cote "x,ys,largeur,x|z;…"] (vues de côté)
-// Math.random est graine-fixée : les mêmes clients d'une variante à l'autre. Sorties dans $MAQUETTE_TRAVAIL (par défaut <tmp>/maquette-clients) :
+// Math.random est graine-fixée : les mêmes clients d'un rendu à l'autre. Sorties dans $CLIENTS3D_TRAVAIL (par défaut <tmp>/clients3d) :
 // captures/<nom>.png (+ -loupeN, -coteN), tmp/<nom>-images/, videos/<nom>.mp4, tmp/<nom>-mesures.json. Le jeu servi : ce dépôt (node build.js d'abord),
 // ou --racine <dossier> (une autre copie, par exemple git archive de master). Playwright et son Chromium (NODE_PATH), ffmpeg pour la vidéo.
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), { execFileSync } = require('child_process');
-const BASE = process.env.MAQUETTE_TRAVAIL || path.join(os.tmpdir(), 'maquette-clients'); for (const d of ['captures', 'tmp', 'videos']) fs.mkdirSync(path.join(BASE, d), { recursive: true });
+const BASE = process.env.CLIENTS3D_TRAVAIL || path.join(os.tmpdir(), 'clients3d'); for (const d of ['captures', 'tmp', 'videos']) fs.mkdirSync(path.join(BASE, d), { recursive: true });
 const args = process.argv.slice(2), nom = args[0], requete = args[1] || '', opt = (k) => args.includes(k), val = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const ROOT = path.resolve(val('--racine', path.resolve(__dirname, '../..'))); // (--racine : une autre copie du jeu, par exemple master, pour comparer)
 const PORT = +val('--port', 9010), TIROIR = val('--tiroir', 'ferme'), FPS = +val('--fps', 25), DT = 1 / 30;
@@ -50,16 +51,17 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
   const page = await ctx.newPage(); const errs = []; page.setDefaultTimeout(180000); // (SwiftShader, machine partagée : une capture peut prendre plus de 30 s)
   page.on('pageerror', (e) => errs.push('pageerror ' + e.message)); page.on('console', (m) => { if (m.type() === 'error' || /Clients 3D/i.test(m.text())) errs.push(m.type() + ' ' + m.text()); });
-  await page.goto(`http://localhost:${PORT}/fournil/?qualite=haute${requete ? '&' + requete : ''}`);
+  await page.goto(`http://localhost:${PORT}/fournil/?${/qualite=/.test(requete) ? '' : 'qualite=haute'}${requete ? (/qualite=/.test(requete) ? '' : '&') + requete : ''}`);
   await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 90000, polling: 200 }); await dodo(800);
   const ev = (f, a) => page.evaluate(f, a);
   await ev(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; for (let k = 0; k < 6; k++) if (st.stations[k]) st.stations[k].niv = Math.max(st.stations[k].niv, 25); st.images = 'max'; f.scene({ heure: 13, saison: [], assis: true }); });
   const fermer = () => ev(() => { const f = document.querySelector('#feuille'); if (f && !f.hidden) { const b = f.querySelector('[data-a="close"], [data-a$="tard"], [data-a="non"], [data-a="ok"], [data-a="pq-ok"]'); if (b) b.click(); } });
   for (let k = 0; k < 8; k++) { await dodo(300); await fermer(); }
   await ev((t) => window.__fournil.tiroir(t), TIROIR);
-  // les lots HD (boutique), les modèles Kenney du jeu et le pack de clients s'il est demandé : demandés à la main (la boucle est gelée)
-  await ev(() => { HDM.charger('boutique'); if (typeof CLIENTS3D !== 'undefined' && CLIENTS3D.actif) CLIENTS3D.charger(); });
-  for (let t = 0; t < 120; t++) { const ok = await ev(() => HDM.pret('boutique') && (typeof KENNEY === 'undefined' || !KENNEY || KENNEY.pret || KENNEY.erreur) && (typeof CLIENTS3D === 'undefined' || !CLIENTS3D.actif || CLIENTS3D.pret || CLIENTS3D.erreur)); if (ok) break; await dodo(500); }
+  // les lots HD (la boutique, puis les clients 3D, cuits) et les modèles Kenney du jeu : demandés à la main (la boucle est gelée) ; en éco ou avec clients=0, rien
+  const hd = await ev(() => typeof HDM !== 'undefined' && HDM.actif && !HDM.coupe() && SCENE.stats.qualite !== 'eco');
+  if (hd) await ev(() => { HDM.charger('boutique'); if (typeof CLIENTS3D !== 'undefined' && CLIENTS3D.actif) CLIENTS3D.demander(); });
+  for (let t = 0; t < 120 && hd; t++) { const ok = await ev(() => HDM.pret('boutique') && (typeof KENNEY === 'undefined' || !KENNEY || KENNEY.pret || KENNEY.erreur) && (typeof CLIENTS3D === 'undefined' || !CLIENTS3D.actif || (HDM.pret('clients') && (() => { for (let k = 0; k < 400 && !CLIENTS3D.preparer() && !CLIENTS3D.erreur; k++); return CLIENTS3D.pret; })()) || (HDM.etat.clients && HDM.etat.clients.erreur))); if (ok) break; await dodo(500); }
   await dodo(1200); await fermer();
   // (les toasts, et la feuille « Pendant ton absence » que le détecteur de gel du jeu ouvre quand un pas d'images bloque la page plus de 5 s)
   await ev(() => { const s = document.createElement('style'); s.textContent = '.toast, #feuille, #voile { visibility: hidden !important; }'; document.head.appendChild(s); });
@@ -81,7 +83,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   e = await pas(2, true); await dodo(400);
   console.log(nom, 't', e.t.toFixed(1), JSON.stringify(e.clients));
   await page.screenshot({ path: path.join(BASE, 'captures', nom + '.png') });
-  const etat = await ev(() => ({ stats: window.__fournil.SCENE.stats, groupes: window.__fournil.SCENE.appelsParGroupe, c3d: typeof CLIENTS3D !== 'undefined' ? CLIENTS3D.info : null }));
+  const etat = await ev(() => ({ stats: window.__fournil.SCENE.stats, groupes: window.__fournil.SCENE.appelsParGroupe, c3d: window.__fournil.SCENE.clients3d }));
   const mes = { nom, requete, t: e.t, clients: e.clients, calls: etat.stats.calls, triangles: etat.stats.triangles, groupes: etat.groupes, c3d: etat.c3d };
   if (val('--loupe')) {
     // un point « p:x,ys,z » est un point du sol du plan (px du plan), projeté par la caméra en place (la caméra basse le montre ailleurs)
@@ -117,7 +119,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     const s = []; for (let k = 0; k < 6; k++) { await pas(3, true); s.push(await ev(() => [window.__fournil.SCENE.stats.calls, window.__fournil.SCENE.stats.triangles])); }
     mes.callsMax = Math.max(...s.map((x) => x[0])); mes.trisMax = Math.max(...s.map((x) => x[1]));
     const vus = new Map(); for (const d of demandes) vus.set(d.p, d.n); mes.hd = [...vus].map(([p, n]) => ({ p, n }));
-    mes.octetsClients = [...vus].filter(([p]) => /\/hd\/clients-/.test(p)).reduce((a, [, n]) => a + n, 0);
+    mes.octetsClients = [...vus].filter(([p]) => /\/hd\/clients\//.test(p)).reduce((a, [, n]) => a + n, 0);
     // le temps JS d'une image, processeur normal et ralenti ×4 (CDP Emulation.setCPUThrottlingRate)
     if (opt('--cpu-temps')) { // le temps PROCESSEUR du fil principal du moteur de rendu (/proc/<pid>/task/<pid>/schedstat), peu sensible à la charge :
       // un fil préempté par un autre processus ne compte pas ce temps-là ; l'attente du processeur graphique (gl.finish) non plus. Des lots de 15 images

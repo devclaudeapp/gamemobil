@@ -1,7 +1,8 @@
 /* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
    Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
    MeshoptDecoder de three r158 ; construit par outils/maquette-hd/construire.cjs). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
-   boutique garde ses personnages et reçoit quelques décors ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
+   boutique reçoit quelques décors, ses meubles de salle et ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
+   Character Pack de Quaternius, CC0 ; le boulanger et les apprentis restent des chibis) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
    pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
@@ -12,7 +13,8 @@ const HDM = (() => {
   const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
   // trois lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque et la Maison hantée (à leur première ouverture) ;
   // et, en plus, les petits lots cuits du standing et de la boutique hantée
-  // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 105 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right)
+  // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 45 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right ;
+  // refaits par outils/maquette-hd/reduire-mini.mjs)
   const MINI = ['male-b', 'female-a', 'male-d', 'female-c', 'male-f', 'female-e'].map((n) => 'character-' + n);
   const LOTS = {
     // la boutique : ses meubles KayKit cuits (fournil/hd/meubles2/ : couleurs de sommets, sans texture, quelques Ko chacun ; lus par part())
@@ -25,8 +27,12 @@ const HDM = (() => {
     // une scène par modèle), un GLB par personnage (sans clips : le rig KayKit à 41 os), les clips partagés, la peau du loup-garou, les ardoises
     hantee3: { hantee3: ['decor-hante', 'anims-hante', 'Skeleton_Minion', 'Skeleton_Mage', 'Rogue', 'Rogue_Hooded', 'Mage', 'Knight', 'Werewolf_Wolf'], images: ['hantee3/werewolf_B.png', 'hantee3/ardoises.jpg', 'hantee3/ardoises-normale.jpg'] },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
+    // les clients de la boutique (src/clients3d.js ; fournil/hd/clients/, ≈ 385 Ko) : six personnages de l'Ultimate Animated Character Pack de
+    // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
+    // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
+    clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
   };
-  const MOD = {}, PER = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
+  const MOD = {}, PER = {}, CLI = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   const image = (u) => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = ko; im.src = BASE + u; });
   function lireH3(n) { // le lot de la boutique hantée : le pack (ses scènes par nom), les clips, ou un personnage (le gltf entier : son squelette)
@@ -37,11 +43,16 @@ const HDM = (() => {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
       if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
+      else if (dossier === 'clients') { if (!CLI[n]) t.push(lire(`clients/${n}.glb`).then((g) => { CLI[n] = g; }, () => console.warn('HD : client manquant', n))); } // (le gltf entier : sa scène, son squelette, ses clips)
       else if (dossier === 'hantee3') { const p = lireH3(n); if (p) t.push(p); } // (tout ou rien : un fichier manquant fait échouer le lot, la boutique hantée reste en procédural)
       else if (dossier === 'images') { if (!H3.images[n]) t.push(image(n).then((im) => { H3.images[n] = im; })); }
       else { const cle = dossier === 'meubles2' || dossier === 'luxe' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
-    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
+    e.promesse = Promise.all(t).then(() => {
+      if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants');
+      if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
+      e.pret = true; API.version++; return true;
+    }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
@@ -120,6 +131,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

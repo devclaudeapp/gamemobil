@@ -1,10 +1,11 @@
-// Reciblage de clips d'un rig vers un autre (glTF), hors ligne, pour la maquette des clients 3D.
+// Reciblage de clips d'un rig vers un autre (glTF), hors ligne, pour les clients 3D (faire-clients.mjs : le salut de la main des Ultimate Modular
+// Men & Women sur le rig de l'Ultimate Animated Character Pack).
 // Méthode : en espace monde, au repos de liaison (matrices de liaison inverses) des deux rigs ; pour chaque os cible relié à un os source,
 //   Rcible(t) = Rsource(t) · Rsource_repos⁻¹ · A · Rcible_repos,
 // où A aligne la direction de l'os cible au repos (vers son enfant) sur celle de l'os source au repos (T-pose contre A-pose) ; un os sans
 // enfant relié prend l'alignement de son parent relié. Les os non reliés gardent leur rotation locale de liaison. Le bassin suit la
 // translation de l'os source, à l'échelle des hauteurs de bassin. Les os « IK » (un pied enfant de la racine) ont un parent logique.
-// usage (module) : import { recibler } from './recibler.mjs' ; voir faire-packs.mjs
+// usage (module) : import { recibler } from './recibler.mjs' ; voir faire-clients.mjs
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
@@ -75,6 +76,9 @@ export function recibler(S, C, o) {
     if (ec && es) A.set(n, Qn().setFromUnitVectors(dirRepos(C, n, ec), dirRepos(S, lien.get(n), es)));
     else { let p = (o.logique && o.logique[n.getName()] ? nomC(o.logique[n.getName()]) : C.parent.get(n)); while (p && !A.has(p)) p = C.parent.get(p); A.set(n, p ? A.get(p).clone() : Qn()); }
   }
+  // l'ordre des os cibles : chaque os après son parent ET son parent logique (un pied d'IK de l'UACP, enfant de la racine, vient avant son tibia
+  // dans le fichier : sa place se calcule au bout du tibia déjà posé)
+  const ordreC = []; { const vu = new Set(), visiter = (n) => { if (vu.has(n)) return; vu.add(n); const p = C.parent.get(n), lp = o.logique && o.logique[n.getName()] ? nomC(o.logique[n.getName()]) : null; if (p) visiter(p); if (lp) visiter(lp); ordreC.push(n); }; for (const n of C.ordre) visiter(n); }
   const [bC, bS] = o.bassin.map((x, i) => (i ? nomS(x) : nomC(x)));
   // l'échelle des déplacements : la longueur de jambe (hanche → cheville au repos) ; les pieds : [[cible g, d], [source g, d]]
   const [pc, ps] = o.pieds.map((l, i) => l.map((x) => (i ? nomS(x) : nomC(x)))), [hc, hs] = o.hanche.map((x, i) => (i ? nomS(x) : nomC(x)));
@@ -91,7 +95,7 @@ export function recibler(S, C, o) {
       const wS = poseA(S, clip, opt && opt.fige != null ? opt.fige : t);
       const poser = (dy) => { // la pose cible complète, le bassin relevé de dy
         const wC = new Map();
-        for (const n of C.ordre) {
+        for (const n of ordreC) {
           const p = C.parent.get(n), pw = p ? wC.get(p) : M4(), bl = C.bindLocal.get(n);
           let w;
           if (lien.has(n)) {

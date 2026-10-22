@@ -1,0 +1,4 @@
+Les clients de la boutique (src/clients3d.js), en qualité haute et moyenne : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ;
+source : le dépôt dancerphil/games). Un personnage par fichier (meshopt, sans clips ; les parties en facettes sans normales, soudées ; les cheveux simplifiés) :
+Casual_Female, Casual2_Male, Doctor_Female_Old, OldClassy_Male, Suit_Male, Worker_Female. anims.glb : Idle, Walk, SitDown, Victory, PickUp du pack (le rig commun de 23 os) ; Wave reciblé depuis
+les Ultimate Modular Men & Women de Quaternius (CC0, LICENCE-modular.txt). Refaits par outils/clients3d/faire-clients.mjs.

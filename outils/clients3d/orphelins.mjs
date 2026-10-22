@@ -1,9 +1,10 @@
-// Le bug de outils/maquette-hd/reduire.mjs et reduire-mini.mjs : Animation.dispose() détache le clip, mais ses échantillonneurs (et leurs
-// accesseurs d'entrée/sortie) restent dans le document : prune() ne retire pas un accesseur encore référencé par un échantillonneur orphelin,
-// et l'écriture garde tous les accesseurs de la racine. Le fichier livré porte donc les données des clips écartés, sans que rien ne les lise.
-// Ce script mesure, pour chaque .glb : (1) les octets des bufferViews que plus rien ne référence (lu dans le JSON du GLB : la vérité du
-// fichier), (2) la taille après relecture + prune + réécriture meshopt (même réglage), comparée à une réécriture sans prune (la base).
-// usage : node orphelins.mjs fournil/hd/mini/*.glb fournil/hd/hantee3/*.glb   (ne modifie rien ; écrit ses essais dans $MAQUETTE_TRAVAIL/orphelins/)
+// Les accesseurs orphelins d'un .glb (le bug, corrigé, de outils/maquette-hd/reduire.mjs et reduire-mini.mjs : Animation.dispose() détache le
+// clip mais laisse ses échantillonneurs, et leurs accesseurs d'entrée/sortie, dans le document ; prune() ne retire pas un accesseur encore
+// référencé par un échantillonneur orphelin, et le fichier écrit porte les données des clips écartés sans que rien ne les lise : fournil/hd/mini/
+// en perdait 56 %). Ce script mesure, pour chaque .glb : (1) les accesseurs et les octets des bufferViews que plus rien ne référence (lu dans le
+// JSON du GLB : la vérité du fichier), (2) la taille après relecture + prune + réécriture meshopt (même réglage), comparée à une réécriture
+// sans prune (la base). Un fichier sain : 0 orphelin, et l'élagage n'y gagne rien.
+// usage : node orphelins.mjs fournil/hd/mini/*.glb fournil/hd/clients/*.glb   (ne modifie rien ; écrit ses essais dans $CLIENTS3D_TRAVAIL/orphelins/)
 import fs from 'fs'; import path from 'path'; import os from 'os';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -11,7 +12,7 @@ import { prune, meshopt } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
-const ICI = path.dirname(new URL(import.meta.url).pathname), DEPOT = path.resolve(ICI, '../..'), OUT = path.join(process.env.MAQUETTE_TRAVAIL || path.join(os.tmpdir(), 'maquette-clients'), 'orphelins'); fs.mkdirSync(OUT, { recursive: true });
+const ICI = path.dirname(new URL(import.meta.url).pathname), DEPOT = path.resolve(ICI, '../..'), OUT = path.join(process.env.CLIENTS3D_TRAVAIL || path.join(os.tmpdir(), 'clients3d'), 'orphelins'); fs.mkdirSync(OUT, { recursive: true });
 function jsonGlb(buf) { const n = buf.readUInt32LE(12); return JSON.parse(buf.slice(20, 20 + n).toString('utf8')); }
 const tot = { avant: 0, base: 0, apres: 0, mort: 0 };
 const lignes = [];

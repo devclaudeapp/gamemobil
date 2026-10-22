@@ -1,2 +1,0 @@
-MAQUETTE (?clients=c) : Quaternius, Ultimate Modular Men & Women (CC0, quaternius.com). Six personnages (meshopt, sans clips).
-anims-c.glb : Idle, Walk du pack ; Sit_Down, Sit_Idle, Cheer reciblés hors ligne depuis l'UACP de Quaternius (CC0).

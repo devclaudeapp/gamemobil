@@ -390,6 +390,9 @@ const VIE = (() => {
     return libres.find((s, i) => poids[i] > 0) || null;
   }
   const DUREE = { table: 1, bar: 0.45, banquette: 1.7, terrasse: 1.25 }; // au bar on boit et on repart ; sur la banquette on s'attarde
+  // repu, il se lève : LEVER secondes encore à sa place (c.leveT, qui décompte ; le siège et son couvert encore à lui) avant de repartir ; les clients
+  // 3D (src/clients3d.js) s'y relèvent en ramassant leur sac posé par terre, les chibis restent assis ce temps-là
+  const LEVER = 0.9;
   function avancer(c, dt) { // suit son chemin ; rend true à l'arrivée
     const p = c.chemin[c.wp]; if (!p) return true;
     const dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy), pas = c.v * dt * (rush ? 1.3 : 1);
@@ -398,6 +401,7 @@ const VIE = (() => {
     c.x += dx / d * pas; c.y += dy / d * pas; return false;
   }
   function leve(c) { // il se lève et repart : par sa voie, l'allée et la porte du fond ; depuis la terrasse, par la rue (le côté le plus proche)
+    c.leveT = null;
     const s = c.siege, assis = c.etat === 'assis'; s.occ = null; c.siege = null; c.wp = 0; c.etat = 'sort'; c.v = 100 * K;
     if (!assis) { c.chemin = cheminSortie(c); return; } // en route vers un siège qui a disparu (nouvelle boutique) : demi-tour par l'allée
     if (s.zone === 'terrasse') { const rue = LAY.trottoir.rue; c.chemin = [{ x: s.x, y: rue }, { x: s.x < W * 0.6 ? -30 * K : W + 30 * K, y: rue }]; return; }
@@ -442,7 +446,7 @@ const VIE = (() => {
         c.wait -= dt; if (c.wait <= 0) servi(st, c);
       }
       else if (c.etat === 'vaTable') { if (!c.siege.actif) leve(c); else if (avancer(c, dt)) { c.etat = 'assis'; c.dir = c.siege.dir; c.mange = (4 + Math.random() * 4) * (rush ? 0.6 : 1) * DUREE[c.siege.zone] * (c.hab ? 1.3 : 1); } }
-      else if (c.etat === 'assis') { c.mange -= dt; if (c.mange <= 0 || !c.siege.actif) leve(c); } // repu, ou son meuble a disparu (nouvelle boutique)
+      else if (c.etat === 'assis') { c.mange -= dt; if (!c.siege.actif) leve(c); else if (c.mange <= 0) { if (c.leveT == null) c.leveT = LEVER; else if ((c.leveT -= dt) <= 0) leve(c); } } // repu (il se lève, puis repart), ou son meuble a disparu (nouvelle boutique : tout de suite)
       else if (c.etat === 'sort') { if (c.joie > 0) { c.joie -= dt; c.dir = 0; continue; } if (c.wp >= c.chemin.length - 1) c.alpha = Math.max(0, c.alpha - dt * 3); if (avancer(c, dt)) c.etat = 'parti'; } // (content : il fête d'abord, face à la salle)
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'parti') clients.splice(i, 1);
