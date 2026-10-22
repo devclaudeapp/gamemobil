@@ -14,7 +14,8 @@
      tasse), la joie quand il est servi (le haut du corps du clip de victoire, par-dessus la marche). Le boulanger et les apprentis restent
      des chibis. Qualité haute ou moyenne (WebGL2) seulement ; en éco, ou si un fichier manque : les chibis.
    · ?cam=basse : la caméra orthographique inclinée à 33° au lieu de 52°, un peu rapprochée, les visages plus de face. Seule la caméra
-     change : les zones de touche, les textes qui flottent et le calque 2D restent calés sur le plan (c'est une maquette). */
+     change : les zones de touche des meubles achetés suivent (elles sont projetées par la caméra), mais le calque 2D (prix, pastilles,
+     noms des habitués, bulles), les zones des emplacements vides et le chat restent calés sur le plan vu à 52° (c'est une maquette). */
 const CLIENTS3D = (() => {
   'use strict';
   const RECH = typeof location !== 'undefined' ? location.search : '';
@@ -44,13 +45,13 @@ const CLIENTS3D = (() => {
       clips: { idle: 'Idle', marche: 'Walk', assis: 'SitDown', assisIdle: null, joie: 'Victory' }, haut: 74, prise: 0.075,
       os: { main: 'FistR', avant: 'LowerArmR', bras: 'UpperArmR', tete: 'Head', bassin: 'Body', cuisses: ['UpperLegL', 'UpperLegR'], tibias: ['LowerLegL', 'LowerLegR'], pieds: ['FootL', 'FootR'], piedsIK: true, assise: /^(Body|Hips|UpperLeg)/ },
       bas: /^(Bone|Body|UpperLeg|LowerLeg|Foot|PoleTarget)/, bouche: [0, 0.075, 0.2],
-      roles: (n, p) => (/^Skin$/.test(n) ? 'peau' : /^Face$/.test(n) ? 'yeux' : /^Hair$/.test(n) ? (/OldClassy/.test(p) ? 'gris' : 'cheveux') : /^(Shirt|Clothes|Main)$/.test(n) ? 'haut' : /^(Pants|DarkClothes)$/.test(n) ? 'bas' : 'fixe') },
+      roles: (n, p) => (/^Skin$/.test(n) ? 'peau' : /^Face$/.test(n) ? 'yeux' : /^Hair$/.test(n) ? (/OldClassy/.test(p) ? 'gris' : 'cheveux') : /^(Shirt|Clothes|Main)$/.test(n) ? 'haut' : /^(Pants|DarkClothes)$/.test(n) ? 'bas' : /^Hat$/.test(n) ? (/OldClassy/.test(p) ? 'hautForme' : 'chapeau') : 'fixe') },
     b: { dossier: 'clients-b/', persos: ['characterMedium'], peaux: ['skaterMaleA', 'skaterFemaleA', 'criminalMaleA'], anims: 'anims-b',
       clips: { idle: 'Idle', marche: 'Walk', assis: 'Sit_Down', assisIdle: 'Sit_Idle', joie: 'Cheer' }, haut: 72, prise: 0.04,
       os: { main: 'RightHand', avant: 'RightForeArm', bras: 'RightArm', tete: 'Head', bassin: 'Hips', cuisses: ['LeftUpLeg', 'RightUpLeg'], tibias: ['LeftLeg', 'RightLeg'], pieds: ['LeftFoot', 'RightFoot'], piedsIK: false, assise: /^(Hips|LeftUpLeg|RightUpLeg)$/ },
       bas: /(UpLeg|Leg|Foot|Toes|Ctrl|Roll|IK)$|^(Hips|Root)$/, bouche: [0, 0.055, 0.15], texture: true },
     c: { dossier: 'clients-c/', persos: ['F_Casual', 'H_Casual_Hoodie', 'F_Formal', 'H_Casual_2', 'H_Farmer', 'F_Suit'], anims: 'anims-c',
-      clips: { idle: 'Idle', marche: 'Walk', assis: 'Sit_Down', assisIdle: 'Sit_Idle', joie: 'Cheer' }, haut: 62, prise: 0.03,
+      clips: { idle: 'Idle', marche: 'Walk', assis: 'Sit_Down', assisIdle: 'Sit_Idle', joie: 'Cheer' }, haut: 68, prise: 0.03,
       os: { main: 'WristR', avant: 'LowerArmR', bras: 'UpperArmR', tete: 'Head', bassin: 'Body', cuisses: ['UpperLegL', 'UpperLegR'], tibias: ['LowerLegL', 'LowerLegR'], pieds: ['FootL', 'FootR'], piedsIK: true, assise: /^(Body|Hips|UpperLeg)/ },
       bas: /^(Root|Body|UpperLeg|LowerLeg|Foot|PT)/, bouche: [0, 0.02, 0.085],
       roles: (n, p) => {
@@ -64,6 +65,7 @@ const CLIENTS3D = (() => {
   // la hauteur d'assise par coin (unités du monde : src/meubles.js, chaises et tabourets à 16, la banquette plus basse)
   const ASSISE = { table: 16, terrasse: 16, bar: 16, banquette: 12 };
   const BAS = ['#4A5A78', '#5B4A3A', '#3E4A5C', '#8A7A66', '#33363F', '#6B5B7A']; // les pantalons (le jeu ne tire pas de bas)
+  const CHAPEAUX = ['#C8553D', '#E0B84E', '#3E6E8E', '#5B8E7D', '#D9CAB3', '#8E5B8A'], FORMES = ['#26262C', '#4A3328', '#2F3A55', '#5E2A35']; // les casquettes ; les hauts-de-forme (A)
   const YAW = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI };
 
   // ─── le chargement (le chargeur de src/hd.js, meshopt) ───
@@ -86,7 +88,7 @@ const CLIENTS3D = (() => {
   function palette(c) { // c : le client de VIE
     const h = (c.id * 2654435761) >>> 0, peau = c.peau || '#FFD7B5', ch = c.cheveux || '#4A3328', haut = c.haut || '#FF9FB2';
     const L2 = (hex, k) => { _c.set(hex); if (k != null) _c.multiplyScalar(k); return [_c.r, _c.g, _c.b]; };
-    return { peau: L2(peau), peauOmbre: L2(peau, 0.85), cheveux: L2(ch), sourcils: L2(ch, 0.55), gris: L2('#DCD8D0'), haut: L2(haut), hautSombre: L2(haut, 0.45), bas: L2(c.or ? '#E0A61E' : BAS[h % BAS.length]), yeux: L2('#3A2A22') };
+    return { peau: L2(peau), peauOmbre: L2(peau, 0.85), cheveux: L2(ch), sourcils: L2(ch, 0.55), gris: L2('#DCD8D0'), haut: L2(haut), hautSombre: L2(haut, 0.45), bas: L2(c.or ? '#E0A61E' : BAS[h % BAS.length]), yeux: L2('#3A2A22'), chapeau: L2(CHAPEAUX[(h >>> 5) % CHAPEAUX.length]), hautForme: L2(FORMES[(h >>> 9) % FORMES.length]) };
   }
 
   // ═══ la cuisson d'un personnage : tous ses maillages sur le squelette du premier (v' = B0⁻¹ · BI0ⱼ⁻¹ · BIⱼ · B · v, l'os dominant),
@@ -110,12 +112,12 @@ const CLIENTS3D = (() => {
     // les accessoires : deux os sous la main, d'inverse de liaison identité : leurs sommets sont en coordonnées locales de l'os (la géométrie
     // est quantifiée par meshopt : son espace n'est pas celui du monde au repos ; l'os seul porte la place, l'orientation et la taille)
     const acc = accessoires(), main = idx.get(P.os.main), accBones = [], accInv = [];
-    for (const nomAcc of ['accCroissant', 'accTasse']) { const bo = new T.Bone(); bo.name = nomAcc; bo.scale.setScalar(0); accBones.push(bo); accInv.push(new T.Matrix4()); }
+    for (const nomAcc of ['accCroissant', 'accTasse']) { const bo = new T.Bone(); bo.name = nomAcc; bo.scale.setScalar(0); accBones.push(bo); accInv.push(iB.clone()); } // (inverse = B⁻¹ : monde = os · v, quelle que soit la liaison du maillage)
     // les tableaux : positions, normales, rôles (et couleur d'origine), os et poids, uv (pack à texture)
     let n = 0, ni = 0; for (const p of parts) { const g = p.mesh.geometry; n += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
     for (const a of [acc.cr, acc.tasse]) { n += a.attributes.position.count; ni += a.attributes.position.count; }
     const Pp = new Float32Array(n * 3), N = new Float32Array(n * 3), C0 = new Float32Array(n * 3), R = new Uint8Array(n), SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), UV = P.texture ? new Float32Array(n * 2) : null, I = new Uint32Array(ni);
-    const ROLES = ['fixe', 'peau', 'peauOmbre', 'cheveux', 'sourcils', 'gris', 'haut', 'hautSombre', 'bas', 'yeux'], v = new T.Vector3(), nn = new T.Vector3(); let kk = 0, ki = 0;
+    const ROLES = ['fixe', 'peau', 'peauOmbre', 'cheveux', 'sourcils', 'gris', 'haut', 'hautSombre', 'bas', 'yeux', 'chapeau', 'hautForme'], v = new T.Vector3(), nn = new T.Vector3(); let kk = 0, ki = 0;
     for (const p of parts) {
       const g = p.mesh.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, mat = p.mesh.material, base = kk;
       const role = P.roles ? ROLES.indexOf(P.roles(mat.name || '', nom)) : 0, mc = mat.color || new T.Color(1, 1, 1), n3 = p.Mj.map((x) => new T.Matrix3().getNormalMatrix(x));
@@ -165,34 +167,32 @@ const CLIENTS3D = (() => {
     const j = CL[P.clips.joie]; if (j) CL.__joie = new T.AnimationClip('joie', j.duration, j.tracks.filter((t) => !P.bas.test(t.name.split('.')[0]) && /quaternion$/.test(t.name)));
   }
 
-  // ─── la préparation : les gabarits, la mesure de chaque personnage (assise, pas de la marche, cheville) ───
+  // ─── la préparation : les gabarits, la mesure de chaque personnage (hauteur, assise, pas de la marche, cheville) ───
   function preparer() {
     clips();
     for (const n of P.persos) { const pr = cuire(n, SRC[n].scene); mesurer(pr); PROTOS.push(pr); }
+    const ref = Math.min(...PROTOS.map((p) => p.hauteur)); for (const p of PROTOS) { p.hauteurTete = p.hauteur; p.hauteur = ref; } // (une seule échelle par pack : un chapeau, un chignon ne rapetissent pas leur porteur)
     API.info = { pack: mp[1], modeles: PROTOS.map((p) => ({ nom: p.nom, tris: p.tris, os: p.nbOs, assise: +p.assise.toFixed(3), pas: +p.vitesse.toFixed(3) })) };
   }
   const _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion();
-  function mesurer(pr) { // sur un clone : l'assise (le bas du bassin et des cuisses, assis), le centre de l'assise (z), la vitesse du clip de marche, la cheville
+  function mesurer(pr) { // sur un clone : la hauteur debout, l'assise (le bas du bassin et des cuisses, assis) et son centre (z), la vitesse du clip de marche, la cheville
     const g = X.SkeletonUtils.clone(pr.tpl); let S = null; g.traverse((o) => { if (o.isSkinnedMesh) S = o; }); S.geometry = pr.geo;
-    const mx = new T.AnimationMixer(g), ass = mx.clipAction(CL[P.clips.assisIdle || P.clips.assis]); ass.play(); mx.setTime((CL[P.clips.assisIdle || P.clips.assis].duration) * 0.999); g.updateMatrixWorld(true);
-    const bones = S.skeleton.bones, siege = new Set(bones.map((b, i) => (P.os.assise.test(b.name) ? i : -1)).filter((i) => i >= 0));
-    const si = pr.geo.attributes.skinIndex, sw = pr.geo.attributes.skinWeight; let ymin = 1e9; const pts = [];
-    for (let i = 0; i < si.count; i++) {
-      let jd = si.getX(i), wd = sw.getX(i); for (const [jj, ww] of [[si.getY(i), sw.getY(i)], [si.getZ(i), sw.getZ(i)], [si.getW(i), sw.getW(i)]]) if (ww > wd) { wd = ww; jd = jj; }
-      if (!siege.has(jd) || pr.R[i] === 255) continue; S.getVertexPosition(i, _v1); S.localToWorld(_v1); pts.push(_v1.clone()); ymin = Math.min(ymin, _v1.y);
-    }
-    let zs = 0, nz = 0; for (const p of pts) if (p.y < ymin + 0.06 * pr.hauteur) { zs += p.z; nz++; }
-    pr.assise = ymin; pr.assiseZ = nz ? zs / nz : 0;
-    // la marche : l'aller-retour d'un pied (repère du personnage) → la longueur du pas ; la vitesse du clip, en unités du modèle par seconde
-    ass.stop(); const ma = mx.clipAction(CL[P.clips.marche]); ma.play(); const pied = g.getObjectByName(P.os.pieds[0]); let zmin = 1e9, zmax = -1e9;
-    for (let k = 0; k < 24; k++) { mx.setTime(CL[P.clips.marche].duration * k / 24); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); zmin = Math.min(zmin, _v1.z); zmax = Math.max(zmax, _v1.z); }
-    pr.vitesse = 2 * (zmax - zmin) / CL[P.clips.marche].duration;
-    ma.stop(); mx.setTime(0); g.updateMatrixWorld(true);
-    // debout (l'idle) : la cheville au-dessus du sol, la hauteur du personnage (ses sommets), l'échelle monde de l'os de la main
+    const mx = new T.AnimationMixer(g), si = pr.geo.attributes.skinIndex, sw = pr.geo.attributes.skinWeight, pied = g.getObjectByName(P.os.pieds[0]);
+    const dominant = (i) => { let jd = si.getX(i), wd = sw.getX(i); for (const [jj, ww] of [[si.getY(i), sw.getY(i)], [si.getZ(i), sw.getZ(i)], [si.getW(i), sw.getW(i)]]) if (ww > wd) { wd = ww; jd = jj; } return jd; };
+    // debout (l'idle) : la cheville au-dessus du sol, la hauteur du personnage (ses sommets, posés par les os : la géométrie est quantifiée), l'échelle monde de la main
     const id = mx.clipAction(CL[P.clips.idle]); id.play(); mx.setTime(0.01); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); pr.cheville = Math.max(0, _v1.y);
     let ymax = -1e9, ymin2 = 1e9; for (let i = 0; i < si.count; i++) { if (pr.R[i] === 255) continue; S.getVertexPosition(i, _v1); S.localToWorld(_v1); ymax = Math.max(ymax, _v1.y); ymin2 = Math.min(ymin2, _v1.y); }
-    pr.hauteur = ymax - Math.min(0, ymin2); pr.mainEchelle = g.getObjectByName(P.os.main).getWorldScale(_v1).x;
-    id.stop(); mx.uncacheRoot(g);
+    pr.hauteur = ymax - Math.min(0, ymin2); pr.mainEchelle = g.getObjectByName(P.os.main).getWorldScale(_v1).x; id.stop();
+    // assis : le dessous du bassin et des cuisses (sa hauteur, et le centre de la surface d'appui)
+    const clipA = CL[P.clips.assisIdle || P.clips.assis], ass = mx.clipAction(clipA); ass.play(); mx.setTime(clipA.duration * 0.999); g.updateMatrixWorld(true);
+    const siege = new Set(S.skeleton.bones.map((b, i) => (P.os.assise.test(b.name) ? i : -1)).filter((i) => i >= 0)); let ymin = 1e9; const pts = [];
+    for (let i = 0; i < si.count; i++) { if (pr.R[i] === 255 || !siege.has(dominant(i))) continue; S.getVertexPosition(i, _v1); S.localToWorld(_v1); pts.push(_v1.clone()); ymin = Math.min(ymin, _v1.y); }
+    let zs = 0, nz = 0; for (const p of pts) if (p.y < ymin + 0.06 * pr.hauteur) { zs += p.z; nz++; }
+    pr.assise = ymin; pr.assiseZ = nz ? zs / nz : 0; ass.stop();
+    // la marche : l'aller-retour d'un pied (repère du personnage) → la longueur du pas ; la vitesse du clip, en unités du modèle par seconde
+    const clipM = CL[P.clips.marche], ma = mx.clipAction(clipM); ma.play(); let zmin = 1e9, zmax = -1e9;
+    for (let k = 0; k < 24; k++) { mx.setTime(clipM.duration * k / 24); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); zmin = Math.min(zmin, _v1.z); zmax = Math.max(zmax, _v1.z); }
+    pr.vitesse = 2 * (zmax - zmin) / clipM.duration; ma.stop(); mx.uncacheRoot(g);
   }
 
   // ═══ un acteur : un clone du gabarit, sa géométrie (les attributs du gabarit, sa propre couleur), son mélangeur ═══
@@ -214,7 +214,7 @@ const CLIENTS3D = (() => {
       a = { g, S, pr, i, mixer, actions: {}, joue: '', joie: null, os: { main: byName(P.os.main), avant: byName(P.os.avant), bras: byName(P.os.bras), tete: byName(P.os.tete), bassin: byName(P.os.bassin), tibias: P.os.tibias.map(byName), cuisses: P.os.cuisses.map(byName), pieds: P.os.pieds.map(byName), cr: byName('accCroissant'), tasse: byName('accTasse') } };
       nActeurs++;
     }
-    a.c = c.id; a.etatP = ''; a.joieT = 0; a.assisT = 0; a.mange = false; a.aMange = false; a.yaw = YAW[c.dir] || 0; a.vitesse = 0; a.xp = null; a.zp = null; a.graine = (c.id * 0.6180339887) % 1;
+    a.c = c.id; a.etatP = ''; a.joieT = 0; a.assisT = 0; a.aMange = false; a.yaw = YAW[c.dir] || 0; a.vitesse = 0; a.xp = null; a.zp = null; a.graine = (c.id * 0.6180339887) % 1;
     a.objet = (c.id % 3 === 0) ? 'tasse' : 'cr';
     teindre(a, c); a.g.visible = true; a.g.rotation.set(0, a.yaw, 0); a.g.userData.c3d = a; a.g.userData.cle = 'c3d'; a.g.userData.yaw = a.yaw;
     jouer(a, P.clips.idle, 0); a.mixer.update(0.01 + a.graine * 2);
@@ -225,7 +225,7 @@ const CLIENTS3D = (() => {
     const tab = ROLES.map((r) => (r === 'fixe' ? null : pal[r]));
     for (let i = 0; i < R.length; i++) { const p = R[i] === 255 ? null : tab[R[i]]; if (p) { col[i * 3] = p[0]; col[i * 3 + 1] = p[1]; col[i * 3 + 2] = p[2]; } else { col[i * 3] = C0[i * 3]; col[i * 3 + 1] = C0[i * 3 + 1]; col[i * 3 + 2] = C0[i * 3 + 2]; } }
     a.S.geometry.attributes.color.needsUpdate = true;
-    a.S.material = P.texture ? peauPeinte(c) : materiau(null);
+    a.S.material = P.texture ? peauPeinte(c) : materiau();
   }
   function rendre(a) { if (!a) return; a.mixer.stopAllAction(); a.joue = ''; a.joie = null; a.sauve = null; a.g.visible = false; const l = POOL.get(a.i) || []; if (l.length < 4) { l.push(a); POOL.set(a.i, l); } else { a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); } }
 
