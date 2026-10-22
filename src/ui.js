@@ -1206,14 +1206,17 @@ const UI = (() => {
   }
   const serrerCoinBientot = () => { if (!coinRaf) coinRaf = requestAnimationFrame(serrerCoin); };
   // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement aujourd'hui
-  function sheetAtelier() {
-    const d = G.detailPoints(st);
-    openSheet(`<div class="cl" data-cl="atelier">${carteAtelier()}<p class="note centre">Au classement : chaque jour, le meilleur score du jour de chaque mini-jeu vaut jusqu’à ${G.POINTS.atelier} points de boulanger. Aujourd’hui : ${d.atelier.map((a) => `${esc(a.nom.toLowerCase())} ${a.points}/${G.POINTS.atelier}`).join(' · ')}.</p><button type="button" class="btn large sombre" data-a="close" style="margin-top:12px"><b>Retour à la boutique</b></button></div>`);
+  function sheetAtelier() { // (avant le 26 octobre 2026, d.bareme 1 : le barème d'avant, le meilleur score de la semaine, 0 à 20, et l'annonce du nouveau)
+    const d = G.detailPoints(st), ancien = d.bareme === 1, mx = d.atelierMax;
+    const regle = ancien ? `Au classement : le meilleur score de la semaine de chaque mini-jeu vaut jusqu’à ${mx} points de boulanger. Cette semaine : ` : `Au classement : chaque jour, le meilleur score du jour de chaque mini-jeu vaut jusqu’à ${mx} points de boulanger. Aujourd’hui : `;
+    openSheet(`<div class="cl" data-cl="atelier">${carteAtelier()}<p class="note centre">${regle}${d.atelier.map((a) => `${esc(a.nom.toLowerCase())} ${a.points}/${mx}`).join(' · ')}.${ancien ? ` ${esc(G.POINTS.annonce)} : chaque jour, jusqu’à ${G.POINTS.atelier} points par mini-jeu.` : ''}</p><button type="button" class="btn large sombre" data-a="close" style="margin-top:12px"><b>Retour à la boutique</b></button></div>`);
     on('[data-jeu]', (b) => { son.tap(); closeSheet(); MINIJEUX.ouvrir(b.dataset.jeu); });
     on('[data-a="close"]', closeSheet);
   }
-  // la série de jours de suite, telle que le classement la compte (serveur v6.7 : resume().serie ; absente avant, ou pas rejoint : rien)
-  function ligneSerie() {
+  // la série de jours de suite, telle que le classement la compte (serveur v6.7 : resume().serie ; absente avant, ou pas rejoint : rien).
+  // Avant le lundi 26 octobre 2026 (G.POINTS.depuis) : l'annonce du nouveau barème et de la série, à la place (le serveur n'en compte pas encore)
+  function ligneSerie(d) {
+    if (d && d.bareme === 1) return `<p class="pts-serie pts-annonce" data-serie="avant"><i class="ico">${ICONS.UI.etoile || ''}</i><span><b>${esc(G.POINTS.annonce)}</b> · cette semaine, les points se comptent comme avant</span></p>`;
     let se = null; try { const r = classement && classement.resume ? classement.resume() : null; se = r && r.serie; } catch (e) { se = null; }
     if (!se || typeof se !== 'object') return '';
     const P = G.POINTS.serie, n = Math.max(0, Math.floor(Number(se.jours) || 0)), b = Math.max(0, Math.floor(Number(se.bonus) || 0)), pr = se.prochain && typeof se.prochain === 'object' ? se.prochain : null;
@@ -1226,10 +1229,22 @@ const UI = (() => {
     const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = a.atelier, som = (o) => Object.values(o).reduce((n, v) => n + v, 0);
     const presMax = som(Object.fromEntries(Object.entries(P.presence).map(([k, v]) => [k, v[1]]))); // 224 par jour
     const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
+    if (d.bareme === 1) { // une semaine d'avant le lundi 26 octobre 2026 : le barème d'avant le lot 7, tel quel (cinq cases), et l'annonce du nouveau
+      return `<div class="pts-bloc" data-bareme="1"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>${ligneSerie(d)}
+      <div class="pts-cases pts-ancien">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', d.atelierSemaine, d.atelierMax * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+      <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
+        <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
+        <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
+        <li><b>${P.evenement} pts</b> par événement réussi (pétrissage, commande livrée, four réparé, bonne critique, pourboire du client mystère), ${P.evenementsJour} au plus par jour.</li>
+        <li><b>Jusqu’à ${d.atelierMax} pts</b> par mini-jeu de l’Atelier : ton meilleur score de la semaine.</li>
+        <li><b>1 pt</b> par tranche d’améliorations valant 10 minutes de tes propres gains (niveaux, embauches, bonus, mobilier, recette de saison), <b>+${P.palier}</b> à chaque palier ×2 (niveaux 25, 50, 100…), ${P.ameliorationsJour} au plus par jour.</li>
+      </ul><p class="pts-annonce-bareme"><b>${esc(P.annonce)}</b> : les objectifs réclamés, la présence (pétrissages, clients mystère, grosses commandes, descentes évitées) et les paliers d’événement compteront aussi, l’Atelier chaque jour, jusqu’à ${P.jour} points par jour (au-delà de ${P.bandes[0][0]}, chaque point compte pour moitié, puis pour un quart au-delà de ${P.bandes[1][0]}), et la série de jours de suite : +${P.serie[3]} au 3e jour, +${P.serie[7]} au 7e.</p>
+      <p>Tout est relatif à ta boutique : un débutant et une grande boutique qui jouent pareil marquent autant. La fortune reste affichée en petit, pour information. Les compteurs repartent chaque lundi (heure de Paris).</p></details></div>`;
+    }
     const bande = a.bande.taux === 1 ? `encore ${a.bande.reste} pts comptés en entier aujourd’hui` : a.bande.taux === 0.5 ? 'les prochains points comptent pour moitié' : a.bande.taux === 0.25 ? 'les prochains points comptent pour un quart' : 'plafond du jour atteint : reviens demain';
     const pc = (k) => P.presence[k];
-    return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.total}/${a.max}</span></div>
-      <p class="pts-jour" data-taux="${a.bande.taux}">Aujourd’hui : <b>${a.brut}</b> brut → <b>${a.compte}</b> comptés${at ? ` + Atelier ${at}` : ''} · ${bande}</p>${ligneSerie()}
+    return `<div class="pts-bloc" data-bareme="2"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.total}/${a.max}</span></div>
+      <p class="pts-jour" data-taux="${a.bande.taux}">Aujourd’hui : <b>${a.brut}</b> brut → <b>${a.compte}</b> comptés${at ? ` + Atelier ${at}` : ''} · ${bande}</p>${ligneSerie(d)}
       <div class="pts-cases">${case_('Journées', d.journees + d.objectifs, 7 * (P.journee + 3 * P.objectif), `auj. ${a.journee + a.objectifs}/${P.journee + 3 * P.objectif}`)}${case_('Événements', d.evenements + d.paliers, 7 * (P.evenementsJour + P.paliersEvtJour), `auj. ${a.evenements + a.paliers}/${P.evenementsJour + P.paliersEvtJour}`)}${case_('Présence', som(d.presence), 7 * presMax, `auj. ${som(a.presence)}/${presMax}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', d.atelierSemaine, 7 * P.atelierJour, `auj. ${d.atelier.map((x) => x.points).join(' · ')}`)}</div>
       <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
         <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés ; et <b>${P.objectif} pts</b> pour chaque objectif réclamé.</li>

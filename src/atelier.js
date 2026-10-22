@@ -39,10 +39,12 @@ const MINIJEUX = (() => {
     return reste > 0 ? `<b>Aujourd’hui : ${a.payees[id]}/${G.ATELIER.parJour} parties payées.</b> Une belle partie rapporte jusqu’à <b>${G.fmtEur(G.primePleineAtelier(s))}</b>.`
       : `<b>Plafond du jour atteint</b> (${G.fmtEur(a.gains[id])} gagnés). Tu peux jouer pour le record, sans gain : rendez-vous demain, après minuit.`;
   }
-  // au classement : le meilleur score du jour vaut de 0 à 4 points de boulanger, chaque jour (une tuile de plus à côté du record, sans hauteur en plus)
-  function tuilePoints(id, gagnes) { // gagnes : les points de boulanger que cette partie vient d'ajouter (meilleur score du jour battu)
-    const a = G.detailPoints(st()).atelier.find((x) => x.id === id);
-    return `<span class="at-points${gagnes > 0 ? ' plus' : ''}" title="Ton meilleur score du jour, en points de boulanger : ça repart chaque jour (${G.fmt(G.jeuAtelier(id).plein)} pour le maximum)"><small>Classement${gagnes > 0 ? ` +${gagnes}` : ''}</small><b>${a ? a.points : 0}/${G.POINTS.atelier} pts</b></span>`;
+  // au classement : le meilleur score du jour vaut de 0 à 4 points de boulanger, chaque jour (une tuile de plus à côté du record, sans hauteur en plus) ;
+  // avant le lundi 26 octobre 2026 (d.bareme 1), le barème d'avant : le meilleur score de la semaine, 0 à 20
+  function tuilePoints(id, gagnes) { // gagnes : les points de boulanger que cette partie vient d'ajouter (meilleur score du jour, ou de la semaine, battu)
+    const d = G.detailPoints(st()), a = d.atelier.find((x) => x.id === id), plein = G.fmt(G.jeuAtelier(id).plein);
+    const titre = d.bareme === 1 ? `Ton meilleur score de la semaine, en points de boulanger (${plein} pour le maximum). ${G.POINTS.annonce} : le meilleur score du jour, chaque jour` : `Ton meilleur score du jour, en points de boulanger : ça repart chaque jour (${plein} pour le maximum)`;
+    return `<span class="at-points${gagnes > 0 ? ' plus' : ''}" title="${titre}"><small>Classement${gagnes > 0 ? ` +${gagnes}` : ''}</small><b>${a ? a.points : 0}/${d.atelierMax} pts</b></span>`;
   }
   function ouvrir(id) {
     const j = G.jeuAtelier(id); if (!j) return;

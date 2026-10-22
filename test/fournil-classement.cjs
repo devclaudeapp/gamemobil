@@ -13,11 +13,15 @@
 // en 3D (la vraie scène du Quartier, sur un canvas à part, libérée au retour), à une heure du téléphone prise dans la fenêtre du Quartier.
 // Captures 390×844 dans
 // test/shots/classement/ et, si COPAINS_CAPTURES est donné, dans ce dossier.
+// Le barème des points (lot 7) et la série démarrent le lundi 26 octobre 2026 (G.BAREME_DEPUIS ; SQL v6.7.1) : le test passe quelle que soit la
+// date du jour. Le faux serveur borne et compte la série comme la v6.7.1 (selon sa semaine) ; le bloc de points se vérifie au barème de la
+// date du jour (NOUVEAU), puis à l'autre, dans un second téléphone dont l'heure (et celle du serveur) est décalée avant ou après le 26.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-classement.cjs   (captures dans test/shots/classement/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const CL = require('../src/classement.js'), G = require('../src/game.js'), Q = require('../src/quartier.js');
 const root = path.join(__dirname, '..');
+const NOUVEAU = CL.lundiParis(Date.now()) >= '2026-10-26'; // la semaine du jour est-elle au barème du lot 7 (depuis le lundi 26 octobre 2026) ?
 const PORT = +process.env.PORT_CLASSEMENT || 8783, BASE = `http://localhost:${PORT}`, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 let decalHeure = 0; // la Planque d'un copain : l'heure du serveur (en-tête Date, fournil_heure) et celle du téléphone décalées dans la fenêtre du Quartier
@@ -55,13 +59,15 @@ function rangs(id) {
 const versionFaux = () => (faux.v2 ? undefined : faux.v6 ? 6 : 3);
 // version 6.7 : la série de jours de suite (le jour de Paris du dernier envoi de points, jourPts ; ses points à part, bonus), rendue par la réponse
 const aujParis = () => CL.jourParis(Date.now()), hierParis = () => CL.jourParis(Date.parse(aujParis() + 'T12:00:00Z') - 864e5);
-const serieRep = (j) => (faux.v6 && j ? { serie: j.jourPts && j.jourPts >= hierParis() ? j.serie : 0, serie_auj: j.jourPts === aujParis(), serie_bonus: j.semaine === lundi() ? j.bonus || 0 : 0 } : {});
+const serieRep = (j) => (faux.v6 && j ? (nouveauSrv() ? { serie: j.jourPts && j.jourPts >= hierParis() ? j.serie : 0, serie_auj: j.jourPts === aujParis(), serie_bonus: j.semaine === lundi() ? j.bonus || 0 : 0 } : { serie: 0, serie_auj: false, serie_bonus: 0 }) : {}); // (v6.7.1 : rien avant le 26)
 function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, version: versionFaux(), ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l, ...(id ? serieRep(faux.joueurs.get(id)) : {}) }; }
-// les points de la semaine du serveur, sous le plafond du jour de la version 6.7 (137 × jours commencés + 50, 989 au plus ; les vrais plafonds : test SQL)
+// les points de la semaine du serveur, sous le plafond du jour de la version 6.7.1 (les vrais plafonds : test SQL) : à partir de la semaine du
+// lundi 26 octobre 2026, 137 × jours commencés + 50, 989 au plus ; avant, l'ancien, 60 × jours + 100, 510 au plus ; la série aussi ne compte qu'à partir du 26
 const jourSemaine = () => Math.round((Date.parse(aujParis() + 'T12:00:00Z') - Date.parse(lundi() + 'T12:00:00Z')) / 864e5) + 1;
-const ptsDe = (c) => (Number.isInteger(c.p_points) && c.p_lundi === lundi() ? Math.min(989, 137 * jourSemaine() + 50, c.p_points) : null);
+const nouveauSrv = () => lundi() >= '2026-10-26';
+const ptsDe = (c) => (Number.isInteger(c.p_points) && c.p_lundi === lundi() ? Math.min(nouveauSrv() ? Math.min(989, 137 * jourSemaine() + 50) : Math.min(510, 60 * jourSemaine() + 100), c.p_points) : null);
 // la série au premier envoi de points du jour : +1 si la veille avait un envoi, sinon 1 ; +10 au 3e jour, +20 au 7e, puis à chaque tour de 7 (CL.serieBonus)
-function serieAvance(j) { const a = aujParis(); if (j.jourPts === a) return; j.serie = j.jourPts === hierParis() ? (j.serie || 0) + 1 : 1; j.jourPts = a; const b = CL.serieBonus(j.serie); j.points += b; j.ptsTotal += b; j.bonus = (j.bonus || 0) + b; }
+function serieAvance(j) { const a = aujParis(); if (!nouveauSrv()) { j.jourPts = a; return; } if (j.jourPts === a) return; j.serie = j.jourPts === hierParis() ? (j.serie || 0) + 1 : 1; j.jourPts = a; const b = CL.serieBonus(j.serie); j.points += b; j.ptsTotal += b; j.bonus = (j.bonus || 0) + b; }
 const RPC = {
   fournil_publier: (c) => {
     if (!c.p_id || !/^[0-9A-Za-z_-]{32,128}$/.test(c.p_jeton || '')) return reponse('jeton');
@@ -182,30 +188,53 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   check(v1.lignes === 45 && v1.moi === 0 && v1.sel === 'true' && /45 boulangers/.test(v1.info) && /Depuis lundi/.test(v1.info) && v1.rejoindre && v1.premier === '1er', `la feuille : onglet « Cette semaine », ${v1.lignes} lignes, « ${v1.info.replace(/\n/g, ' · ')} », bouton « Rejoindre le classement »`);
   const l1 = await page.evaluate(() => { const l = document.querySelector('#feuille .cl-ligne'), v = l.querySelector('.cl-val'), sm = v.querySelector('small'); return { txt: l.innerText.replace(/\s+/g, ' '), pts: v.firstChild.textContent, euros: sm ? sm.textContent : '', petit: sm ? parseFloat(getComputedStyle(sm).fontSize) < parseFloat(getComputedStyle(v).fontSize) : false }; });
   check(/^\d+ pts$/.test(l1.pts) && /\d.*€$/u.test(l1.euros) && l1.petit, `chaque ligne : ses points en gros, sa fortune de la semaine en petit dessous (« ${l1.txt} » ; ${JSON.stringify(l1)})`);
-  // le bloc de points (lot 7) : six cases (journées et objectifs, événements et paliers, présence, améliorations, défi, Atelier), le jour en cours
-  // brut → compté et sa bande (plein, moitié, quart), la série du classement quand le serveur la donne
-  const bloc = await page.evaluate(() => { const b = document.querySelector('#feuille .pts-bloc'), d = b && b.querySelector('details'), j = b && b.querySelector('.pts-jour'), cs = b ? [...b.querySelectorAll('.pts-case')].map((c) => c.getBoundingClientRect()) : [];
-    return b ? { txt: b.innerText.replace(/\s+/g, ' '), cases: cs.length, lignes: new Set(cs.map((r) => Math.round(r.top))).size, dedans: cs.every((r) => r.left >= 0 && r.right <= innerWidth), ferme: d && !d.open, jour: j ? j.innerText : '', taux: j ? j.dataset.taux : '', serie: !!b.querySelector('.pts-serie'), avantListe: !!(b.compareDocumentPosition(document.querySelector('#feuille .segments')) & Node.DOCUMENT_POSITION_FOLLOWING) } : null; });
-  check(bloc && /Mes points cette semaine/.test(bloc.txt) && bloc.cases === 6 && bloc.lignes === 2 && bloc.dedans && /Journées/.test(bloc.txt) && /Événements/.test(bloc.txt) && /Présence/.test(bloc.txt) && /Atelier/.test(bloc.txt) && /Améliorations/.test(bloc.txt) && /Défi de la semaine/.test(bloc.txt) && /\/137/.test(bloc.txt) && bloc.ferme && bloc.avantListe, `en tête de la feuille : ses points de la semaine en six cases sur deux lignes (journées, événements, présence, améliorations, défi, Atelier), « aujourd’hui x/137 », le barème replié (« ${bloc && bloc.txt.slice(0, 90)}… »)`);
-  check(bloc && /^Aujourd’hui : \d+ brut → \d+ comptés/.test(bloc.jour) && bloc.taux === '1' && /comptés en entier/.test(bloc.jour), `le jour en cours, brut → compté, et sa bande : « ${bloc && bloc.jour} »`);
-  check(bloc && !bloc.serie, 'pas encore rejoint (ou serveur d’avant la v6.7) : aucune ligne de série');
-  await page.tap('#feuille .pts-bareme summary'); await sleep(250);
-  check(await page.evaluate(() => { const d = document.querySelector('#feuille .pts-bareme'), t = d.innerText; return d.open && /10 pts par journée complète/.test(t) && /2 pts pour chaque objectif réclamé/.test(t) && /4 pts par pétrissage gagné \(48 au plus par jour\)/.test(t) && /1 pt par client mystère servi \(80\)/.test(t) && /par grosse commande livrée/.test(t) && /par descente évitée/.test(t) && /3 pts par palier d’événement franchi, 12 au plus par jour/.test(t) && /Jusqu’à 4 pts par mini-jeu de l’Atelier, chaque jour/.test(t) && /\+10 au 3e jour de suite/.test(t) && /\+20 au 7e/.test(t) && /Au-delà de 60 points dans la journée, chaque point compte pour moitié, puis pour un quart au-delà de 160 ; 137 au plus par jour/.test(t) && /10 minutes de tes propres gains/.test(t) && /un débutant et une grande boutique qui jouent pareil marquent autant/.test(t); }), '« Comment marquer des points ? » déplie le barème du lot 7 : journée 10, objectifs 2, présence (pétrissage, client mystère, grosse commande, descente), paliers 3, Atelier 4 par jour, la série, la dégressivité (moitié au-delà de 60, quart au-delà de 160, 137 par jour)');
-  await page.screenshot({ path: out + '/02b-bareme.png' });
-  await page.tap('#feuille .pts-bareme summary'); await sleep(150);
-  { // la série, lue sur resume().serie (rempli par le serveur v6.7, côté classement.js) : ici un resume bouchonné dans la page
-    const serie = async (se) => { await page.evaluate((x) => { const c = window.__fournil.classement(); if (!c.__resume) c.__resume = c.resume; c.resume = () => Object.assign({}, c.__resume(), { serie: x }); window.__fournil.feuilleClassement('semaine'); }, se); await listeChargee(); await sleep(150);
-      return page.evaluate(() => { const p = document.querySelector('#feuille .pts-bloc .pts-serie'); return p ? { n: p.dataset.serie, txt: p.innerText.replace(/\s+/g, ' ').trim(), dedans: p.getBoundingClientRect().right <= innerWidth } : null; }); };
-    let sv = await serie({ jours: 2, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 1 } });
-    check(sv && sv.n === '2' && /^Série : 2 jours de suite · \+10 au 3e jour, \+20 au 7e \(comptés par le classement\) · encore 1 jour pour \+10$/.test(sv.txt) && sv.dedans, `la série affichée : « ${sv && sv.txt} »`);
-    await page.screenshot({ path: out + '/02c-serie.png' });
-    sv = await serie({ jours: 6, aujourdhui: false, bonus: 10, prochain: { jour: 7, points: 20, dans: 0 } });
-    check(sv && sv.n === '6' && /\+20 si tu joues aujourd’hui/.test(sv.txt) && /\+10 cette semaine/.test(sv.txt), `six jours, le 7e à jouer aujourd’hui, 10 déjà gagnés : « ${sv && sv.txt} »`);
-    sv = await serie({ jours: 0, aujourdhui: false, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } });
-    check(sv && sv.n === '0' && /Série : à commencer/.test(sv.txt) && !/cette semaine/.test(sv.txt), `une série cassée : « ${sv && sv.txt} »`);
-    sv = await serie(null);
-    check(sv === null && await page.evaluate(() => !!document.querySelector('#feuille .pts-bloc')), 'resume().serie nul : la ligne disparaît, le bloc reste');
-    await page.evaluate(() => { const c = window.__fournil.classement(); c.resume = c.__resume; delete c.__resume; window.__fournil.feuilleClassement('semaine'); }); await listeChargee(); await sleep(150); }
+  // le bloc de points, sur une page dont la feuille du classement est ouverte, au barème attendu (nouveau : celui du lot 7, depuis le lundi 26
+  // octobre 2026 ; sinon celui d'avant, avec l'annonce du nouveau). Appelé ici à la date du jour, puis plus bas à l'autre barème (date simulée).
+  const verifierBloc = async (pg, nouveau, quand) => {
+    const charge = () => attendre(() => pg.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste')));
+    const bareme = await pg.evaluate(() => window.__fournil.points().bareme);
+    check(bareme === (nouveau ? 2 : 1), `${quand} : le carnet compte au barème ${nouveau ? 'du lot 7 (depuis le lundi 26 octobre 2026)' : 'd’avant (jusqu’au dimanche 25 octobre 2026)'} (detailPoints().bareme = ${bareme})`);
+    const bloc = await pg.evaluate(() => { const b = document.querySelector('#feuille .pts-bloc'), d = b && b.querySelector('details'), j = b && b.querySelector('.pts-jour'), cs = b ? [...b.querySelectorAll('.pts-case')].map((c) => c.getBoundingClientRect()) : [], an = b && b.querySelector('.pts-annonce');
+      return b ? { txt: b.innerText.replace(/\s+/g, ' '), cases: cs.length, lignes: new Set(cs.map((r) => Math.round(r.top))).size, dedans: cs.every((r) => r.left >= 0 && r.right <= innerWidth), ferme: d && !d.open, jour: j ? j.innerText : '', taux: j ? j.dataset.taux : '', serie: !!b.querySelector('.pts-serie:not(.pts-annonce)'), annonce: an ? an.innerText.replace(/\s+/g, ' ').trim() : '', annonceDedans: an ? an.getBoundingClientRect().right <= innerWidth : false, bareme: b.dataset.bareme, avantListe: !!(b.compareDocumentPosition(document.querySelector('#feuille .segments')) & Node.DOCUMENT_POSITION_FOLLOWING) } : null; });
+    if (nouveau) {
+      // le bloc de points (lot 7) : six cases (journées et objectifs, événements et paliers, présence, améliorations, défi, Atelier), le jour en cours
+      // brut → compté et sa bande (plein, moitié, quart), la série du classement quand le serveur la donne
+      check(bloc && bloc.bareme === '2' && /Mes points cette semaine/.test(bloc.txt) && bloc.cases === 6 && bloc.lignes === 2 && bloc.dedans && /Journées/.test(bloc.txt) && /Événements/.test(bloc.txt) && /Présence/.test(bloc.txt) && /Atelier/.test(bloc.txt) && /Améliorations/.test(bloc.txt) && /Défi de la semaine/.test(bloc.txt) && /\/137/.test(bloc.txt) && bloc.ferme && bloc.avantListe && !bloc.annonce, `${quand}, en tête de la feuille : ses points de la semaine en six cases sur deux lignes (journées, événements, présence, améliorations, défi, Atelier), « aujourd’hui x/137 », le barème replié, pas d’annonce (« ${bloc && bloc.txt.slice(0, 90)}… »)`);
+      check(bloc && /^Aujourd’hui : \d+ brut → \d+ comptés/.test(bloc.jour) && bloc.taux === '1' && /comptés en entier/.test(bloc.jour), `${quand}, le jour en cours, brut → compté, et sa bande : « ${bloc && bloc.jour} »`);
+      check(bloc && !bloc.serie, `${quand} : pas encore rejoint (ou serveur d’avant la v6.7) : aucune ligne de série`);
+      await pg.tap('#feuille .pts-bareme summary'); await sleep(250);
+      check(await pg.evaluate(() => { const d = document.querySelector('#feuille .pts-bareme'), t = d.innerText; return d.open && /10 pts par journée complète/.test(t) && /2 pts pour chaque objectif réclamé/.test(t) && /4 pts par pétrissage gagné \(48 au plus par jour\)/.test(t) && /1 pt par client mystère servi \(80\)/.test(t) && /par grosse commande livrée/.test(t) && /par descente évitée/.test(t) && /3 pts par palier d’événement franchi, 12 au plus par jour/.test(t) && /Jusqu’à 4 pts par mini-jeu de l’Atelier, chaque jour/.test(t) && /\+10 au 3e jour de suite/.test(t) && /\+20 au 7e/.test(t) && /Au-delà de 60 points dans la journée, chaque point compte pour moitié, puis pour un quart au-delà de 160 ; 137 au plus par jour/.test(t) && /10 minutes de tes propres gains/.test(t) && /un débutant et une grande boutique qui jouent pareil marquent autant/.test(t) && !/Nouveau barème et série/.test(t); }), `${quand}, « Comment marquer des points ? » déplie le barème du lot 7 : journée 10, objectifs 2, présence (pétrissage, client mystère, grosse commande, descente), paliers 3, Atelier 4 par jour, la série, la dégressivité (moitié au-delà de 60, quart au-delà de 160, 137 par jour)`);
+    } else {
+      // avant le lundi 26 octobre 2026 : le bloc d'avant le lot 7 (cinq cases : journées, événements, améliorations, défi, Atelier de la semaine ;
+      // « aujourd’hui x/60 » ; pas de brut → compté), et l'annonce « Nouveau barème et série à partir du lundi 26 octobre » à la place de la série
+      check(bloc && bloc.bareme === '1' && /Mes points cette semaine/.test(bloc.txt) && bloc.cases === 5 && bloc.lignes === 2 && bloc.dedans && /Journées/.test(bloc.txt) && /Événements/.test(bloc.txt) && /Améliorations/.test(bloc.txt) && /Défi de la semaine/.test(bloc.txt) && /Atelier/.test(bloc.txt) && !/Présence/.test(bloc.txt) && /aujourd’hui \d+\/60/.test(bloc.txt) && /\/60\b/.test(bloc.txt) && !bloc.jour && bloc.ferme && bloc.avantListe, `${quand}, en tête de la feuille : le bloc d’avant le lot 7, cinq cases sur deux lignes (journées, événements, améliorations, défi, Atelier sur 60), « aujourd’hui x/60 », le barème replié (« ${bloc && bloc.txt.slice(0, 90)}… »)`);
+      check(bloc && /^Nouveau barème et série à partir du lundi 26 octobre · cette semaine, les points se comptent comme avant$/.test(bloc.annonce) && bloc.annonceDedans && !bloc.serie, `${quand}, l’annonce à la place de la série : « ${bloc && bloc.annonce} »`);
+      await pg.tap('#feuille .pts-bareme summary'); await sleep(250);
+      check(await pg.evaluate(() => { const d = document.querySelector('#feuille .pts-bareme'), t = d.innerText; return d.open && /10 pts par journée complète : les trois objectifs du jour réclamés\./.test(t) && /30 pts pour le défi de la semaine/.test(t) && /2 pts par événement réussi/.test(t) && /Jusqu’à 20 pts par mini-jeu de l’Atelier : ton meilleur score de la semaine/.test(t) && /10 minutes de tes propres gains/.test(t) && !/pour chaque objectif réclamé/.test(t) && !/par pétrissage gagné/.test(t) && /Nouveau barème et série à partir du lundi 26 octobre : les objectifs réclamés, la présence/.test(t) && /jusqu’à 137 points par jour/.test(t) && /\+10 au 3e jour, \+20 au 7e/.test(t) && /un débutant et une grande boutique qui jouent pareil marquent autant/.test(t); }), `${quand}, « Comment marquer des points ? » déplie le barème d’avant (journée 10, défi 30, événements 2, Atelier 20 sur la semaine, améliorations) et annonce le nouveau et la série à partir du lundi 26 octobre`);
+    }
+    await pg.screenshot({ path: out + `/02b-bareme-${nouveau ? 'lot7' : 'avant'}.png` });
+    await pg.tap('#feuille .pts-bareme summary'); await sleep(150);
+    { // la série, lue sur resume().serie (rempli par le serveur v6.7, côté classement.js) : ici un resume bouchonné dans la page
+      const serie = async (se) => { await pg.evaluate((x) => { const c = window.__fournil.classement(); if (!c.__resume) c.__resume = c.resume; c.resume = () => Object.assign({}, c.__resume(), { serie: x }); window.__fournil.feuilleClassement('semaine'); }, se); await charge(); await sleep(150);
+        return pg.evaluate(() => { const p = document.querySelector('#feuille .pts-bloc .pts-serie'); return p ? { n: p.dataset.serie, txt: p.innerText.replace(/\s+/g, ' ').trim(), dedans: p.getBoundingClientRect().right <= innerWidth } : null; }); };
+      let sv = await serie({ jours: 2, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 1 } });
+      if (nouveau) {
+        check(sv && sv.n === '2' && /^Série : 2 jours de suite · \+10 au 3e jour, \+20 au 7e \(comptés par le classement\) · encore 1 jour pour \+10$/.test(sv.txt) && sv.dedans, `${quand}, la série affichée : « ${sv && sv.txt} »`);
+        await pg.screenshot({ path: out + '/02c-serie.png' });
+        sv = await serie({ jours: 6, aujourdhui: false, bonus: 10, prochain: { jour: 7, points: 20, dans: 0 } });
+        check(sv && sv.n === '6' && /\+20 si tu joues aujourd’hui/.test(sv.txt) && /\+10 cette semaine/.test(sv.txt), `${quand}, six jours, le 7e à jouer aujourd’hui, 10 déjà gagnés : « ${sv && sv.txt} »`);
+        sv = await serie({ jours: 0, aujourdhui: false, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } });
+        check(sv && sv.n === '0' && /Série : à commencer/.test(sv.txt) && !/cette semaine/.test(sv.txt), `${quand}, une série cassée : « ${sv && sv.txt} »`);
+        sv = await serie(null);
+        check(sv === null && await pg.evaluate(() => !!document.querySelector('#feuille .pts-bloc')), `${quand} : resume().serie nul : la ligne disparaît, le bloc reste`);
+      } else {
+        check(sv && sv.n === 'avant' && /^Nouveau barème et série à partir du lundi 26 octobre/.test(sv.txt) && !/Série :/.test(sv.txt), `${quand} : même si une série arrivait (resume().serie bouchonné à 2 jours), avant le 26 seule l’annonce se montre (« ${sv && sv.txt} »)`);
+        sv = await serie(null);
+        check(sv && sv.n === 'avant', `${quand} : resume().serie nul : l’annonce reste`);
+      }
+      await pg.evaluate(() => { const c = window.__fournil.classement(); c.resume = c.__resume; delete c.__resume; window.__fournil.feuilleClassement('semaine'); }); await charge(); await sleep(150); }
+  };
+  await verifierBloc(page, NOUVEAU, `aujourd’hui (${CL.jourParis(Date.now())})`);
   check(appelListe && appelListe.corps.p_periode === 'semaine' && appelListe.corps.p_id === null && appelListe.corps.p_limite === 50 && appelListe.apikey === 'sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3' && appelListe.auth === 'Bearer sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3' && /application\/json/.test(appelListe.type), 'fournil_classement(semaine, sans id, 50) avec apikey et Authorization: Bearer <clé publique>');
   check(publies().length === 0, 'ouvrir la feuille sans avoir rejoint : rien n’est publié');
   const toques = await page.evaluate(() => [...document.querySelectorAll('#feuille .cl-ligne')].filter((l) => l.querySelector('.cl-toque')).map((l) => { const t = l.querySelector('.cl-toque'), r = t.getBoundingClientRect(); return { nom: l.querySelector('.cl-nom > span').textContent, m: t.className.replace('cl-toque', '').trim(), label: t.getAttribute('aria-label'), w: Math.round(r.width) }; }));
@@ -276,10 +305,12 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   }
 
   // ─── beaucoup de points (une semaine bien jouée, marquée ici par la console) : sa ligne en tête, mise en avant ───
-  // (lot 7 : le maximum d'un jour passe de 150 à 167 = 125 comptés après dégressivité + Atelier 12 + défi 30 ; objectifs, présence et paliers marqués aussi)
+  // (lot 7 : le maximum d'un jour passe de 150 à 167 = 125 comptés après dégressivité + Atelier 12 + défi 30 ; objectifs, présence et paliers marqués aussi ;
+  //  avant le lundi 26 octobre 2026, le barème d'avant : 150 = journée 10 + événements 20 + améliorations 30 + défi 30 + Atelier 60)
+  const MAX_JOUR = NOUVEAU ? 167 : 150;
   await page.evaluate(() => { const { G, st } = window.__fournil; G.marquerDefi(st); G.marquerJournee(st); for (const j of G.JEUX_ATELIER) G.marquerAtelier(st, j.id, j.max); for (let k = 0; k < 10; k++) G.marquerEvenement(st); G.marquerAmelioration(st, 1e30, 1, 6);
     for (let k = 0; k < 100; k++) { G.marquerObjectif(st); G.marquerPalierEvt(st); for (const t of Object.keys(G.POINTS.presence)) G.marquerPresence(st, t); } window.__fournil.give(5e9); });
-  check(await page.evaluate(() => window.__fournil.points().total) === 167, '167 points dans la journée : le maximum du barème un lundi (125 comptés, Atelier 12, défi 30)');
+  check(await page.evaluate(() => window.__fournil.points().total) === MAX_JOUR, NOUVEAU ? '167 points dans la journée : le maximum du barème un lundi (125 comptés, Atelier 12, défi 30)' : '150 points dans la journée : le maximum du barème d’avant le 26 octobre (journée, événements, améliorations, défi, Atelier ; objectifs, présence et paliers ne comptent pas)');
   await libererEnvois();
   const nPub = publies().length;
   await page.tap('#b-classement'); await listeChargee(); await sleep(250); // l'icône ouvre la feuille (sur l'onglet vu en dernier : « Tous les temps »)
@@ -288,7 +319,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await attendre(() => page.evaluate(() => /^1/.test(((document.querySelector('#feuille .cl-ligne.moi .cl-rang') || {}).innerText || '').trim())), 5000);
   const haut = await page.evaluate(() => { const m = document.querySelector('#feuille .cl-ligne.moi'), r = m.getBoundingClientRect(), s = getComputedStyle(m); return { txt: m.innerText.replace(/\s+/g, ' '), sep: !!document.querySelector('#feuille .cl-sep'), fond: s.backgroundColor, h: r.height, n: document.querySelectorAll('#feuille .cl-ligne').length }; });
   check(!(await page.evaluate(() => document.querySelector('#feuille .cl-place'))), 'en tête de liste : pas de résumé en double, sa ligne se voit');
-  check(publies().length === nPub + 1 && publies()[nPub].corps.p_points === 167 && /^1er Paulo toi 167 pts \d/.test(haut.txt) && !haut.sep && haut.fond !== 'rgba(0, 0, 0, 0)' && haut.h >= 48, `à l’ouverture de la feuille : ses points partent d’abord, puis la liste ; sa ligne en tête, mise en avant : « ${haut.txt} »`);
+  check(publies().length === nPub + 1 && publies()[nPub].corps.p_points === MAX_JOUR && new RegExp(`^1er Paulo toi ${MAX_JOUR} pts \\d`).test(haut.txt) && !haut.sep && haut.fond !== 'rgba(0, 0, 0, 0)' && haut.h >= 48, `à l’ouverture de la feuille : ses points partent d’abord, puis la liste ; sa ligne en tête, mise en avant : « ${haut.txt} »`);
   await page.screenshot({ path: out + '/06-ma-ligne-en-tete.png' });
   const nTot = faux.appels.length;
   await page.tap('[data-tab="total"]');
@@ -440,7 +471,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await p3.evaluate(() => { const { G, st } = window.__fournil; G.marquerDefi(st); G.marquerJournee(st); for (const j of G.JEUX_ATELIER) G.marquerAtelier(st, j.id, j.max); for (let k = 0; k < 10; k++) G.marquerEvenement(st); G.marquerAmelioration(st, 1e30, 1, 6); for (let k = 0; k < 100; k++) { G.marquerObjectif(st); G.marquerPalierEvt(st); for (const t of Object.keys(G.POINTS.presence)) G.marquerPresence(st, t); } window.__fournil.give(123.4e15); const m = window.__fournil.classement(), e = m.etat(); e.essai = 0; e.dernierEnvoi = 0; try { const x = JSON.parse(localStorage.getItem('fournil.classement')); x.essai = 0; x.dernierEnvoi = 0; localStorage.setItem('fournil.classement', JSON.stringify(x)); } catch (z) { /* rien */ } return m.envoyer('feuille').then(() => m.charger('total')); });
   await attendre(() => p3.evaluate(() => /^1/.test(((document.querySelector('#feuille .cl-ligne.moi .cl-rang') || {}).innerText || '').trim())), 8000); await sleep(300);
   const etroit = await p3.evaluate(() => { const f = document.querySelector('#feuille'), m = document.querySelector('#feuille .cl-ligne.moi'), r = m.getBoundingClientRect(); return { large: f.scrollWidth <= f.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, dedans: r.right <= innerWidth && r.left >= 0, val: m.querySelector('.cl-val').getBoundingClientRect().right <= r.right + 1, txt: m.innerText.replace(/\s+/g, ' ') }; });
-  check(etroit.large && etroit.dedans && etroit.val && /^1er/.test(etroit.txt), 'à 320 px : rien ne déborde, un pseudo de 16 lettres, 167 points et une fortune de 123 Bd € tiennent sur leur ligne (« ' + etroit.txt + ' »)');
+  check(etroit.large && etroit.dedans && etroit.val && /^1er/.test(etroit.txt), `à 320 px : rien ne déborde, un pseudo de 16 lettres, ${MAX_JOUR} points et une fortune de 123 Bd € tiennent sur leur ligne (« ${etroit.txt} »)`);
   await p3.screenshot({ path: out + '/13-320px.png' });
   // ─── un cadeau déposé sur le serveur (3 Bn €) : reçu une seule fois, même si l'accusé de réception se perd ───
   {
@@ -522,8 +553,11 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     const moiId = await p6.evaluate(() => window.__fournil.classement().etat().id);
     { // version 6.7 : la série de jours de suite, comptée par le serveur, rendue par fournil_publier et lue par le vrai moteur dans la page
       const se = await p6.evaluate(() => ({ r: window.__fournil.classement().resume().serie, e: window.__fournil.classement().etat().dernier.serie })), j = faux.joueurs.get(moiId);
-      check(rj === 'ok' && JSON.stringify(se.r) === JSON.stringify({ jours: 1, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } }) && se.e && se.e.jours === 1 && se.e.auj === true && j && j.serie === 1,
-        `v6.7 : après l’envoi qui rejoint, __fournil.classement().resume().serie = ${JSON.stringify(se.r)} (le 1er jour de la série, le +10 au 3e jour dans 2 jours)`); }
+      // (v6.7.1 : avant le lundi 26 octobre 2026, le serveur ne compte pas la série : 0 jour, rien aujourd'hui)
+      const n = NOUVEAU ? 1 : 0;
+      check(rj === 'ok' && JSON.stringify(se.r) === JSON.stringify({ jours: n, aujourdhui: NOUVEAU, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } }) && se.e && se.e.jours === n && se.e.auj === NOUVEAU && j && (j.serie || 0) === n,
+        NOUVEAU ? `v6.7 : après l’envoi qui rejoint, __fournil.classement().resume().serie = ${JSON.stringify(se.r)} (le 1er jour de la série, le +10 au 3e jour dans 2 jours)`
+          : `v6.7.1, avant le 26 octobre : après l’envoi qui rejoint, __fournil.classement().resume().serie = ${JSON.stringify(se.r)} (la série ne compte pas encore)`); }
     check(rj === 'ok' && faux.photos.has(moiId) && faux.photos.get(moiId).v === 1 && faux.photos.get(moiId).m.four >= 1 && CL.octetsJson(faux.photos.get(moiId)) <= 2048, `v6 : rejoindre envoie aussi la photo de sa boutique (p_photo, ${CL.octetsJson(faux.photos.get(moiId) || {})} octets ≤ 2 Ko)`);
     await p6.evaluate(() => window.__fournil.feuilleClassement('semaine'));
     await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && !!document.querySelector('#feuille .obj-carte')));
@@ -665,6 +699,23 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(v5.vis === 0 && !v5.obj, 'serveur sans la mise à jour des copains : pas d’objectif commun, aucune ligne à toucher, le classement comme avant');
     await c6.close();
     faux.v6 = false;
+
+    // ─── l'autre barème, à une date simulée : avant le lundi 26 octobre 2026 (le mercredi 21) si aujourd'hui est au barème du lot 7, sinon après
+    // (le mercredi 4 novembre) ; le téléphone et le serveur (en-tête Date, fournil_heure) décalés ensemble, comme pour la Planque plus bas ───
+    {
+      const autre = !NOUVEAU, iso = autre ? '2026-11-04T10:00:00+01:00' : '2026-10-21T10:00:00+02:00';
+      decalHeure = Date.parse(iso) - Date.now();
+      const cB = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+      await cB.addInitScript((d) => { const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = FauxDate; }, decalHeure);
+      await cB.route(SUPA + '/rest/v1/rpc/*', gerer);
+      const pB = await cB.newPage(); suivre(pB);
+      await pB.goto(BASE + '/fournil/'); await sleep(1300);
+      const sB = await pB.evaluate(() => window.__fournil.points().semaine);
+      check(sB === (autre ? '2026-11-02' : '2026-10-19'), `un second téléphone à l’heure du ${iso.slice(0, 10)} (le serveur décalé d’autant) : la semaine du ${sB}`);
+      await pB.evaluate(() => window.__fournil.feuilleClassement('semaine')); await attendre(() => pB.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste'))); await sleep(250);
+      await verifierBloc(pB, autre, `le ${iso.slice(0, 10)} (date simulée)`);
+      await cB.close(); decalHeure = 0;
+    }
 
     // ─── l'onglet « Événement » : la Planque d'un copain, en 3D (la vraie scène du Quartier), en lecture seule ───
     // Le Quartier est ouvert du 13 au 27 octobre 2026 (midi) : hors de sa fenêtre, le téléphone et le serveur sont mis au vendredi 16 à 15 h.

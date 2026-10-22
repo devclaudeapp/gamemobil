@@ -1315,6 +1315,12 @@
   // Écartés : le temps passé (l'écran allumé sans jouer ne rapporte presque rien), le casino (arrière-salle : jamais de points).
   // Un achat cher pour un joueur riche coûte autant de minutes de ses gains qu'un achat modeste pour un débutant : les points ne
   // dépendent pas du niveau.
+  // LE DÉPART : ce barème et la série démarrent ENSEMBLE le lundi 26 octobre 2026 à 0 h, heure de Paris (BAREME_DEPUIS ; le serveur, SQL
+  // v6.7.1, bascule à la même minute). Une semaine qui commence avant se compte EXACTEMENT comme avant le lot 7 (le carnet version 1,
+  // celui de master) : journée complète 10, défi 30, événements 2 (20 par jour), améliorations (30 par jour), l'Atelier sur la SEMAINE
+  // (le meilleur score de la semaine de chaque mini-jeu, 0 à 20 points), sans objectifs, présence, paliers ni dégressivité : 60 au plus par
+  // jour, 510 par semaine (POINTS.ancien). La semaine du 19 au 25 octobre finit donc avec les anciennes règles, part dans l'historique
+  // comme d'habitude, et la semaine du 26 repart de zéro au nouveau barème.
   const POINTS = {
     journee: 10, defi: 30, evenement: 2, evenementsJour: 20, tranche: 600, palier: 5, ameliorationsJour: 30, semaines: 12, // le socle d'avant le lot 7
     objectif: 2, presence: { petrissage: [4, 48], descente: [4, 48], mystere: [1, 80], commande: [4, 48] }, palierEvt: 3, paliersEvtJour: 12, // [points, plafond du jour]
@@ -1329,19 +1335,30 @@
   POINTS.atelierJour = POINTS.atelier * JEUX_ATELIER.length;                // 12
   POINTS.jour = POINTS.jourCompte + POINTS.atelierJour;                     // 137
   POINTS.semaine = 7 * POINTS.jour + POINTS.defi;                           // 989 (la série du serveur en plus : 30 au plus)
+  const BAREME_DEPUIS = '2026-10-26'; // le lundi (heure de Paris) où démarrent ce barème et la série ; avant : le barème d'avant le lot 7
+  POINTS.depuis = BAREME_DEPUIS;
+  POINTS.ancien = { atelier: 20, jour: 60, semaine: 510 }; // le barème d'avant (master) : 7 × 60 + 30 + 3 × 20 = 510
+  POINTS.annonce = 'Nouveau barème et série à partir du lundi 26 octobre'; // le texte montré avant le départ (feuille des points, Atelier)
+  const baremeDe = (semaine) => (String(semaine) < BAREME_DEPUIS ? 1 : 2); // 1 : le barème d'avant, 2 : celui du lot 7 (le lundi de la semaine, 'AAAA-MM-JJ')
   const PRESENCES = Object.keys(POINTS.presence);
   const zeroPresence = () => { const o = {}; PRESENCES.forEach((k) => { o[k] = 0; }); return o; };
   const MAX_SEM_ATELIER = 7 * POINTS.atelierJour;                           // 84
   // le carnet, version 2 : comptes = les jours FINIS de la semaine (dégressivité appliquée), atelierSemaine = l'Atelier des jours finis,
-  // atelier = les meilleurs scores DU JOUR ; les j… = le brut du jour, source par source ; les autres champs, la semaine (pour l'affichage)
-  const pointsNeufs = (semaine, jour) => ({ v: 2, semaine, jour, journees: 0, evenements: 0, ameliorations: 0, defi: 0, objectifs: 0, presence: zeroPresence(), paliers: 0,
+  // atelier = les meilleurs scores DU JOUR ; les j… = le brut du jour, source par source ; les autres champs, la semaine (pour l'affichage).
+  // Version 1 (une semaine d'avant BAREME_DEPUIS) : le carnet de master, mêmes champs ; atelier = les meilleurs scores de la SEMAINE,
+  // atelierSemaine = 0 (ou, pour un carnet version 2 d'une version de test, les points d'Atelier déjà acquis, gardés) ; le reste du lot 7 à zéro.
+  const pointsNeufs = (semaine, jour) => ({ v: baremeDe(semaine), semaine, jour, journees: 0, evenements: 0, ameliorations: 0, defi: 0, objectifs: 0, presence: zeroPresence(), paliers: 0,
     comptes: 0, atelierSemaine: 0, atelier: zeroJeux(),
     jJournee: 0, jEvenements: 0, jAmeliorations: 0, jObjectifs: 0, jPresence: zeroPresence(), jPaliers: 0, reste: 0, avant: 0, semaines: [] });
   const JOUR_ISO = /^\d{4}-\d{2}-\d{2}$/;
   const pointsAtelier = (id, score) => Math.round(POINTS.atelier * qualiteAtelier(id, score));
+  const pointsAtelierAncien = (id, score) => Math.round(POINTS.ancien.atelier * qualiteAtelier(id, score)); // le barème d'avant : 0 à 20, sur la semaine
   const entierPos = (v, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0; };
   const brutDuJour = (p) => p.jJournee + p.jEvenements + p.jAmeliorations + p.jObjectifs + PRESENCES.reduce((s, k) => s + p.jPresence[k], 0) + p.jPaliers;
   const atelierPointsDuJour = (p) => JEUX_ATELIER.reduce((s, j) => s + pointsAtelier(j.id, p.atelier[j.id]), 0);
+  // version 1 : l'Atelier de la semaine, au barème d'avant (0 à 20 par jeu, 60 au plus) ; atelierSemaine n'est pas nul que pour un carnet
+  // version 2 d'une version de test ramené à la version 1 (ses points d'Atelier déjà acquis : on garde le plus haut des deux)
+  const atelierAncien = (p) => Math.max(p.atelierSemaine, JEUX_ATELIER.reduce((s, j) => s + pointsAtelierAncien(j.id, p.atelier[j.id]), 0));
   // la migration d'un carnet d'avant le lot 7 (sans v) : rien de compté ne se perd. Les jours finis de la semaine (60 au plus chacun,
   // donc intacts par la dégressivité) passent dans comptes ; l'Atelier de la semaine, à l'ancien barème (0 à 20 par jeu), dans atelierSemaine.
   function migrerPoints(p) {
@@ -1351,13 +1368,24 @@
     p.comptes = Math.max(0, jours - auj); p.atelierSemaine = at; p.atelier = zeroJeux();
     p.objectifs = 0; p.presence = zeroPresence(); p.paliers = 0; p.jObjectifs = 0; p.jPresence = zeroPresence(); p.jPaliers = 0; p.v = 2;
   }
+  // le carnet d'une semaine d'avant BAREME_DEPUIS, en version 1 (le barème d'avant). Un carnet sans version (la sauvegarde de master) se
+  // garde tel quel : ses compteurs de la semaine et ses meilleurs scores de l'Atelier comptent exactement comme avant. Un carnet version 2
+  // (une version de test du lot 7, jouée avant le 26) : ses compteurs de journées, d'événements, d'améliorations et le défi sont les mêmes
+  // qu'en version 1 ; ses points d'Atelier déjà acquis restent (atelierSemaine, 60 au plus), ses meilleurs scores du jour deviennent ceux de
+  // la semaine ; objectifs, présence, paliers et jours comptés (le lot 7) ne comptent pas avant le 26 : remis à zéro.
+  function versAncien(p) {
+    const at = p.v === 2 ? Math.min(3 * POINTS.ancien.atelier, entierPos(p.atelierSemaine, 1e9)) : 0;
+    p.comptes = 0; p.atelierSemaine = at;
+    p.objectifs = 0; p.presence = zeroPresence(); p.paliers = 0; p.jObjectifs = 0; p.jPresence = zeroPresence(); p.jPaliers = 0; p.v = 1;
+  }
   function pointsDuJour(st) { // le carnet de points, remis d'aplomb ; une nouvelle semaine ou un nouveau jour (heure de Paris) repart de zéro
     const sem = semaineKey(st.now), jour = dayKey(st.now);
     let p = st.points;
     if (!p || typeof p !== 'object' || Array.isArray(p)) p = st.points = pointsNeufs(sem, jour);
-    if (p.v !== 2) migrerPoints(p);
     if (!JOUR_ISO.test(p.semaine)) p.semaine = sem;
     if (!JOUR_ISO.test(p.jour)) p.jour = jour;
+    const v = baremeDe(p.semaine); // le barème de la semaine du carnet : 1 avant le 26 octobre 2026, 2 ensuite
+    if (p.v !== v) { if (v === 2) migrerPoints(p); else versAncien(p); }
     // remis d'aplomb, bornés par le barème (la semaine : 7 jours)
     p.journees = entierPos(p.journees, 7 * POINTS.journee); p.evenements = entierPos(p.evenements, 7 * POINTS.evenementsJour); p.ameliorations = entierPos(p.ameliorations, 7 * POINTS.ameliorationsJour);
     p.defi = entierPos(p.defi, POINTS.defi); p.objectifs = entierPos(p.objectifs, 7 * 3 * POINTS.objectif); p.paliers = entierPos(p.paliers, 7 * POINTS.paliersEvtJour);
@@ -1370,41 +1398,62 @@
     JEUX_ATELIER.forEach((j) => { p.atelier[j.id] = entierPos(p.atelier[j.id], j.max); });
     p.avant = entierPos(p.avant, 1e9); p.reste = Number(p.reste) >= 0 && Number(p.reste) < 1 ? Number(p.reste) : 0;
     if (!Array.isArray(p.semaines)) p.semaines = [];
+    if (p.v === 1) { // version 1 : rien du lot 7 (bornés à zéro), l'Atelier acquis d'une version de test 60 au plus
+      p.comptes = 0; p.objectifs = 0; p.paliers = 0; p.jObjectifs = 0; p.jPaliers = 0; p.presence = zeroPresence(); p.jPresence = zeroPresence();
+      p.atelierSemaine = Math.min(p.atelierSemaine, 3 * POINTS.ancien.atelier);
+    }
     if (sem > p.semaine) { // une nouvelle semaine : celle qui finit (son dernier jour compris) rejoint l'historique (les 12 dernières), puis tout repart de zéro
       const total = pointsSemaineDe(p);
       p.avant += total; if (total > 0) { p.semaines.push({ semaine: p.semaine, points: total }); p.semaines = p.semaines.slice(-POINTS.semaines); }
-      const n = pointsNeufs(sem, jour); n.avant = p.avant; n.semaines = p.semaines; p = st.points = n;
+      const n = pointsNeufs(sem, jour); n.avant = p.avant; n.semaines = p.semaines; p = st.points = n; // (au barème de la nouvelle semaine)
+    } else if (jour > p.jour && p.v === 1) { // version 1, un nouveau jour : seuls les plafonds du jour repartent (l'Atelier est celui de la semaine)
+      p.jour = jour; p.jJournee = 0; p.jEvenements = 0; p.jAmeliorations = 0;
     } else if (jour > p.jour) { // un nouveau jour : le jour fini est compté (dégressivité), son Atelier rangé, puis le jour repart de zéro
       p.comptes += degressif(brutDuJour(p)); p.atelierSemaine = Math.min(MAX_SEM_ATELIER, p.atelierSemaine + atelierPointsDuJour(p));
       p.jour = jour; p.jJournee = 0; p.jEvenements = 0; p.jAmeliorations = 0; p.jObjectifs = 0; p.jPresence = zeroPresence(); p.jPaliers = 0; p.atelier = zeroJeux();
     }
     return p;
   }
-  const pointsSemaineDe = (p) => Math.min(POINTS.semaine, p.comptes + degressif(brutDuJour(p)) + Math.min(MAX_SEM_ATELIER, p.atelierSemaine + atelierPointsDuJour(p)) + p.defi);
+  const pointsSemaineDe = (p) => (p.v === 1 ? Math.min(POINTS.ancien.semaine, p.journees + p.evenements + p.ameliorations + p.defi + atelierAncien(p)) // le barème d'avant
+    : Math.min(POINTS.semaine, p.comptes + degressif(brutDuJour(p)) + Math.min(MAX_SEM_ATELIER, p.atelierSemaine + atelierPointsDuJour(p)) + p.defi));
   const pointsSemaine = (st) => pointsSemaineDe(pointsDuJour(st));
   const pointsTotal = (st) => pointsDuJour(st).avant + pointsSemaine(st); // depuis le début de la partie (le serveur compte, lui, depuis l'arrivée au classement)
   // la bande où tombe le prochain point brut du jour : { taux: 1 | 0,5 | 0,25 | 0, reste: points bruts avant la bande suivante }
   function bandeDuJour(brut) { const b = Math.max(0, Number(brut) || 0); for (const [haut, taux] of POINTS.bandes) if (b < haut) return { taux, reste: haut - b }; return { taux: 0, reste: 0 }; }
   function detailPoints(st) { // pour l'interface : la semaine en cours, catégorie par catégorie, et ce qu'il reste à prendre aujourd'hui
-    const p = pointsDuJour(st), brut = brutDuJour(p), at = atelierPointsDuJour(p), compte = degressif(brut);
-    return { semaine: p.semaine, jour: p.jour, total: pointsSemaine(st), cumul: pointsTotal(st), journees: p.journees, evenements: p.evenements, ameliorations: p.ameliorations, defi: p.defi,
-      objectifs: p.objectifs, presence: Object.assign({}, p.presence), paliers: p.paliers, atelierSemaine: Math.min(MAX_SEM_ATELIER, p.atelierSemaine + at),
+    const p = pointsDuJour(st), brut = brutDuJour(p);
+    if (p.v === 1) { // le barème d'avant le 26 octobre 2026 (bareme 1) : les mêmes champs, l'Atelier de la semaine (0 à 20), ni dégressivité ni lot 7
+      const A = POINTS.ancien;
+      return { bareme: 1, depuis: BAREME_DEPUIS, semaine: p.semaine, jour: p.jour, total: pointsSemaine(st), cumul: pointsTotal(st), journees: p.journees, evenements: p.evenements, ameliorations: p.ameliorations, defi: p.defi,
+        objectifs: 0, presence: zeroPresence(), paliers: 0, atelierSemaine: atelierAncien(p), atelierMax: A.atelier,
+        atelier: JEUX_ATELIER.map((j) => ({ id: j.id, nom: j.court, score: p.atelier[j.id], points: pointsAtelierAncien(j.id, p.atelier[j.id]) })),
+        aujourdhui: { journee: p.jJournee, evenements: p.jEvenements, ameliorations: p.jAmeliorations, objectifs: 0, presence: zeroPresence(), paliers: 0,
+          brut, compte: brut, atelier: 0, total: brut, max: A.jour, maxCompte: A.jour, bande: { taux: brut < A.jour ? 1 : 0, reste: Math.max(0, A.jour - brut) } },
+        semaines: p.semaines.slice() };
+    }
+    const at = atelierPointsDuJour(p), compte = degressif(brut);
+    return { bareme: 2, depuis: BAREME_DEPUIS, semaine: p.semaine, jour: p.jour, total: pointsSemaine(st), cumul: pointsTotal(st), journees: p.journees, evenements: p.evenements, ameliorations: p.ameliorations, defi: p.defi,
+      objectifs: p.objectifs, presence: Object.assign({}, p.presence), paliers: p.paliers, atelierSemaine: Math.min(MAX_SEM_ATELIER, p.atelierSemaine + at), atelierMax: POINTS.atelier,
       atelier: JEUX_ATELIER.map((j) => ({ id: j.id, nom: j.court, score: p.atelier[j.id], points: pointsAtelier(j.id, p.atelier[j.id]) })),
       aujourdhui: { journee: p.jJournee, evenements: p.jEvenements, ameliorations: p.jAmeliorations, objectifs: p.jObjectifs, presence: Object.assign({}, p.jPresence), paliers: p.jPaliers,
         brut, compte, atelier: at, total: compte + at, max: POINTS.jour, maxCompte: POINTS.jourCompte, bande: bandeDuJour(brut) },
       semaines: p.semaines.slice() };
   }
-  // les marquages : chacun rend les points BRUTS ajoutés (0 au plafond) ; le compté du jour se lit dans detailPoints().aujourdhui
+  // les marquages : chacun rend les points BRUTS ajoutés (0 au plafond) ; le compté du jour se lit dans detailPoints().aujourdhui.
+  // Avant le 26 octobre 2026 (carnet version 1) : objectifs, présence et paliers ne comptent pas (0) ; l'Atelier, au barème d'avant.
   function marquerJournee(st) { const p = pointsDuJour(st); if (p.jJournee) return 0; p.jJournee = POINTS.journee; p.journees += POINTS.journee; return POINTS.journee; }
   function marquerDefi(st) { const p = pointsDuJour(st); if (p.defi) return 0; p.defi = POINTS.defi; return POINTS.defi; }
   function marquerEvenement(st) { const p = pointsDuJour(st), n = Math.max(0, Math.min(POINTS.evenement, POINTS.evenementsJour - p.jEvenements)); p.jEvenements += n; p.evenements += n; return n; }
-  function marquerObjectif(st) { const p = pointsDuJour(st), n = Math.max(0, Math.min(POINTS.objectif, 3 * POINTS.objectif - p.jObjectifs)); p.jObjectifs += n; p.objectifs += n; return n; }
+  function marquerObjectif(st) { const p = pointsDuJour(st); if (p.v === 1) return 0; const n = Math.max(0, Math.min(POINTS.objectif, 3 * POINTS.objectif - p.jObjectifs)); p.jObjectifs += n; p.objectifs += n; return n; }
   function marquerPresence(st, type) { // 'petrissage' | 'descente' | 'mystere' | 'commande' ; un autre type : rien
     const P = Object.prototype.hasOwnProperty.call(POINTS.presence, type) ? POINTS.presence[type] : null; if (!P) return 0;
-    const p = pointsDuJour(st), n = Math.max(0, Math.min(P[0], P[1] - p.jPresence[type])); p.jPresence[type] += n; p.presence[type] += n; return n;
+    const p = pointsDuJour(st); if (p.v === 1) return 0; const n = Math.max(0, Math.min(P[0], P[1] - p.jPresence[type])); p.jPresence[type] += n; p.presence[type] += n; return n;
   }
-  function marquerPalierEvt(st) { const p = pointsDuJour(st), n = Math.max(0, Math.min(POINTS.palierEvt, POINTS.paliersEvtJour - p.jPaliers)); p.jPaliers += n; p.paliers += n; return n; }
-  function marquerAtelier(st, id, score) { const p = pointsDuJour(st), j = jeuAtelier(id); if (!j) return 0; const avant = pointsAtelier(id, p.atelier[id]); p.atelier[id] = Math.max(p.atelier[id], entierPos(score, j.max)); return pointsAtelier(id, p.atelier[id]) - avant; }
+  function marquerPalierEvt(st) { const p = pointsDuJour(st); if (p.v === 1) return 0; const n = Math.max(0, Math.min(POINTS.palierEvt, POINTS.paliersEvtJour - p.jPaliers)); p.jPaliers += n; p.paliers += n; return n; }
+  function marquerAtelier(st, id, score) { // version 1 : le meilleur score de la SEMAINE, 0 à 20 (points ajoutés au barème d'avant) ; version 2 : du jour, 0 à 4
+    const p = pointsDuJour(st), j = jeuAtelier(id); if (!j) return 0; const vaut = () => (p.v === 1 ? atelierAncien(p) : pointsAtelier(id, p.atelier[id])), avant = vaut();
+    p.atelier[id] = Math.max(p.atelier[id], entierPos(score, j.max)); return vaut() - avant;
+  }
   // un achat d'amélioration : prix payé, rythme de la boutique juste AVANT l'achat (€/s), paliers ×2 franchis
   function marquerAmelioration(st, prix, r, paliers) {
     const p = pointsDuJour(st);
@@ -1585,7 +1634,7 @@
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
-    POINTS, pointsAtelier, pointsSemaine, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration, marquerObjectif, marquerPresence, marquerPalierEvt, degressif, bandeDuJour,
+    POINTS, BAREME_DEPUIS, baremeDe, pointsAtelier, pointsSemaine, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration, marquerObjectif, marquerPresence, marquerPalierEvt, degressif, bandeDuJour,
     GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
     AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
 });

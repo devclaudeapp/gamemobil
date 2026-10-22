@@ -6,9 +6,12 @@
 // surprise pendant une partie ; la sauvegarde après rechargement ; hors ligne. Puis un petit écran (360 × 640) et l'artefact Claude.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-atelier.cjs
 //   captures dans test/shots/fournil-atelier/ (ou SHOTS=dossier) ; PORT_ATELIER pour choisir le port (sinon un port libre)
+// L'étiquette « Classement » suit le barème de la semaine du jour : à partir du lundi 26 octobre 2026 (G.BAREME_DEPUIS), le meilleur score
+// du jour, 0 à 4 points ; avant, le barème d'avant le lot 7, le meilleur score de la semaine, 0 à 20 (le test passe quelle que soit la date).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
+const NOUVEAU = require('../src/classement.js').lundiParis(Date.now()) >= '2026-10-26', AT_MAX = NOUVEAU ? 4 : 20; // le barème de la semaine du jour
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
@@ -133,10 +136,12 @@ const partir = async (p, d) => { await d.toucherEl('[data-at="jouer"]'); await a
   check(/Enfournement en rythme/.test(acc.texte) && /Record\s*—/.test(acc.texte) && /0\/3 parties payées/.test(acc.texte) && /jusqu’à/.test(acc.texte) && acc.large, 'l’accueil : les règles, le record (aucun), 0/3 parties payées, ce que rapporte une belle partie');
   check(acc.boutons.every(([, h, w]) => h >= 44 && w >= 44), `boutons de 44 px au moins : ${acc.boutons.map((b) => `${b[0]} ${b[1]} px`).join(', ')}`);
   await p.screenshot({ path: out + '/02-four-accueil.png' });
-  // l'étiquette « Classement » : le meilleur score DU JOUR, de 0 à 4 points de boulanger (lot 7 : chaque jour, et non plus 0 à 20 sur la semaine)
+  // l'étiquette « Classement » : le meilleur score DU JOUR, de 0 à 4 points de boulanger (lot 7 : chaque jour, et non plus 0 à 20 sur la semaine) ;
+  // avant le lundi 26 octobre 2026, le barème d'avant : le meilleur score de la semaine, 0 à 20
   const tuile = () => p.evaluate(() => { const t = document.querySelector('#atelier .at-points'); return t ? { txt: t.innerText.replace(/\s+/g, ' ').trim(), titre: t.getAttribute('title'), plus: t.classList.contains('plus'), carnet: GAME.detailPoints(window.__fournil.st).atelier.find((a) => a.id === 'four').points } : null; });
   const tu0 = await tuile();
-  check(tu0 && /Classement 0\/4 pts/.test(tu0.txt) && /meilleur score du jour/.test(tu0.titre) && !tu0.plus, `l’accueil : l’étiquette « ${tu0 && tu0.txt} » (le meilleur score du jour, 4 points au plus)`);
+  check(tu0 && tu0.txt === `Classement 0/${AT_MAX} pts` && (NOUVEAU ? /meilleur score du jour/.test(tu0.titre) : /meilleur score de la semaine/.test(tu0.titre) && /Nouveau barème et série à partir du lundi 26 octobre/.test(tu0.titre)) && !tu0.plus,
+    `l’accueil : l’étiquette « ${tu0 && tu0.txt} » (${NOUVEAU ? 'le meilleur score du jour, 4 points au plus' : 'avant le 26 octobre : le meilleur score de la semaine, 20 points au plus, et l’annonce du nouveau barème'})`);
   await p.evaluate(() => { const st = window.__fournil.st; st.evTimer = 0.5; st.mystereTimer = 0.5; }); // un événement était sur le point d'arriver
   const avantFour = await S(p);
   await partir(p, d);
@@ -156,8 +161,8 @@ const partir = async (p, d) => { await d.toucherEl('[data-at="jouer"]'); await a
   check(!apresFour.ev && !apresFour.carnet.some((t) => /Coup de feu|commande|critique|meunier|pétrissage|four répar|anniversaire/i.test(t)), 'pendant la partie, aucun événement surprise n’a surgi (il attend la fin de la partie)');
   const resFour = await ecranAtelier(p);
   check(/Nouveau record/.test(resFour.texte) && new RegExp(`\\+${rFour.prime}`).test(resFour.texte.replace(/\s/g, '')) && /Encore 2 parties payées/.test(resFour.texte) && /parfaite/.test(resFour.texte) && /combo/.test(resFour.texte), 'le résultat : nouveau record, la prime, encore 2 parties payées, le bilan (cuissons parfaites, combo)');
-  const tu1 = await tuile(), ptsFour = Math.round(4 * Math.min(1, rFour.score / 450));
-  check(tu1 && tu1.carnet === ptsFour && tu1.txt === `Classement +${ptsFour} ${ptsFour}/4 pts` && tu1.plus && ptsFour > 0, `le résultat : l’étiquette « ${tu1 && tu1.txt} » (${rFour.score} points sur 450 → ${ptsFour}/4 aujourd’hui, comptés au classement)`);
+  const tu1 = await tuile(), ptsFour = Math.round(AT_MAX * Math.min(1, rFour.score / 450));
+  check(tu1 && tu1.carnet === ptsFour && tu1.txt === `Classement +${ptsFour} ${ptsFour}/${AT_MAX} pts` && tu1.plus && ptsFour > 0, `le résultat : l’étiquette « ${tu1 && tu1.txt} » (${rFour.score} points sur 450 → ${ptsFour}/${AT_MAX} ${NOUVEAU ? 'aujourd’hui' : 'cette semaine'}, comptés au classement)`);
   const etatFour = await p.evaluate(() => window.__fournil.atelier());
   check(etatFour.ecran === 'resultat', 'résultat affiché');
   await d.toucherEl('[data-at="retour"]'); await sleep(400);
