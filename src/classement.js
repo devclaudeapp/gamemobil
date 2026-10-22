@@ -181,6 +181,7 @@
   }
   // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
   const TITRES = { 'legende-manoir': 'Légende du Manoir' };
+  TITRES['main-de-velours'] = 'Main de velours'; // lot 7 : dix victoires de suite dans l'arrière-salle (src/casino.js)
   const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
