@@ -30,7 +30,12 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     Math.random = function () { const l = (new Error().stack || '').split('\n')[2] || ''; return /three\.min\.js|fournil-hd\.min\.js/.test(l) ? r2() : r1(); };
     // le détecteur de gel du jeu (ui.js, verifierReveil, chaque seconde) : l'avance rapide bloque la page plus de 5 s, il croirait à un retour
     // d'absence et rattraperait le temps « perdu » (ventes, clients) selon la durée réelle du blocage, qui dépend de la charge de la machine
-    const si = window.setInterval; window.setInterval = function (fn, ms, ...r) { if (fn && fn.name === 'verifierReveil') return 0; return si.call(window, fn, ms, ...r); };
+    const si = window.setInterval, st = window.setTimeout; let gel = false;
+    window.setInterval = function (fn, ms, ...r) { if (fn && fn.name === 'verifierReveil') return 0; return si.call(window, typeof fn === 'function' ? function () { if (!gel) return fn.apply(this, arguments); } : fn, ms, ...r); };
+    window.setTimeout = function (fn, ms, ...r) { return st.call(window, typeof fn === 'function' ? function () { if (!gel) return fn.apply(this, arguments); } : fn, ms, ...r); };
+    // au départ du temps piloté : la suite du jeu reprend sa graine, et les minuteurs de la page se taisent (sons, annonces, bandeaux :
+    // ils tirent aussi au hasard, au rythme de l'horloge réelle ; la vie, elle, ne passe que par SCENE.frame)
+    window.__depart = () => { s = 20261022; gel = true; };
     const raf = window.requestAnimationFrame.bind(window); let manuel = true; const file = []; // gelée dès le chargement : aucune image ne passe avant la mise en place (les variantes voient les mêmes clients)
     window.__rafManuel = (on) => { manuel = on; }; // gelée : les rappels de la boucle du jeu attendent (le script appelle SCENE.frame lui-même)
     window.requestAnimationFrame = (cb) => { if (!manuel) return raf(cb); file.push(cb); return file.length; };
@@ -59,7 +64,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   // (les toasts, et la feuille « Pendant ton absence » que le détecteur de gel du jeu ouvre quand un pas d'images bloque la page plus de 5 s)
   await ev(() => { const s = document.createElement('style'); s.textContent = '.toast, #feuille, #voile { visibility: hidden !important; }'; document.head.appendChild(s); });
   // le temps piloté : la boucle gelée ; pas(n, rendu) : n images de 1/30 s par SCENE.frame (sans dessin sauf la dernière si rendu)
-  await ev(() => { window.__rafManuel(true); window.__tSim = 0; });
+  await ev(() => { window.__rafManuel(true); window.__tSim = 0; window.__depart(); });
   await dodo(300);
   const pas = (n, rendu, fn) => ev(([n, rendu, DT, fn]) => {
     const f = window.__fournil, S = f.SCENE; window.__dessin(false);
@@ -114,10 +119,10 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     const vus = new Map(); for (const d of demandes) vus.set(d.p, d.n); mes.hd = [...vus].map(([p, n]) => ({ p, n }));
     mes.octetsClients = [...vus].filter(([p]) => /\/hd\/clients-/.test(p)).reduce((a, [, n]) => a + n, 0);
     // le temps JS d'une image, processeur normal et ralenti ×4 (CDP Emulation.setCPUThrottlingRate)
-    if (opt('--cpu-temps')) { // le temps PROCESSEUR du fil principal du moteur de rendu (/proc/<pid>/task/<pid>/schedstat), insensible à la charge :
+    if (opt('--cpu-temps')) { // le temps PROCESSEUR du fil principal du moteur de rendu (/proc/<pid>/task/<pid>/schedstat), peu sensible à la charge :
       // un fil préempté par un autre processus ne compte pas ce temps-là ; l'attente du processeur graphique (gl.finish) non plus. Des lots de 15 images
-      // (une longue tâche : gl.finish, puis SCENE.frame), avec et sans les appels de dessin ; le meilleur de 6 lots sans dessin, de 4 avec
-      // (après un lot de chauffe) : sur une machine partagée, le temps processeur lui-même varie (caches, cœurs voisins) ; le meilleur lot l'approche le mieux. ×4 : 4 fois ce temps (c'est ce
+      // (une longue tâche : gl.finish, puis SCENE.frame), avec et sans les appels de dessin ; 6 lots sans dessin, 4 avec (après un lot de
+      // chauffe), tous gardés : sur une machine partagée, le temps processeur lui-même varie (caches, cœur voisin) ; la planche en prend la médiane. ×4 : 4 fois ce temps (c'est ce
       // qu'émule le ralentissement de CDP, étalonné par etalon.cjs).
       const cmd = (p) => { try { return fs.readFileSync(`/proc/${p}/cmdline`, 'utf8'); } catch (e) { return ''; } };
       const cpuNs = (p) => { try { return +fs.readFileSync(`/proc/${p}/task/${p}/schedstat`, 'utf8').split(' ')[0]; } catch (e) { return 0; } };

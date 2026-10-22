@@ -17,8 +17,10 @@ const ko = (o) => (o / 1024).toFixed(0) + ' Ko', n = (x) => (x == null ? '–' :
 const lire = (f) => { try { return JSON.parse(fs.readFileSync(path.join(BASE, 'tmp', f), 'utf8')); } catch (e) { return null; } };
 // les rendus (captures, appels, triangles, poids) viennent de tout.sh ; le temps du processeur de la passe à part (cpu.sh, m-<id>), machine plus calme
 const mes = V.map(([id]) => { const m = lire(id + '-mesures.json') || {}, c = lire('m-' + id + '-mesures.json'), t = [lire('c-' + id + '-mesures.json'), lire('d-' + id + '-mesures.json')].filter((x) => x && x.cpuTemps).map((x) => x.cpuTemps); if (c) for (const k of ['sansDessin1', 'sansDessin4', 'avecDessin1', 'avecDessin4', 'charge']) m[k] = c[k];
-  // (les passes c- et d- du temps processeur : le meilleur lot de toutes)
-  if (t.length) { const tous = (k) => t.flatMap((x) => x[k].lots); m.cpuTemps = { sans: { cpu: Math.min(...tous('sans')), lots: tous('sans') }, avec: { cpu: Math.min(...tous('avec')), lots: tous('avec') } }; }
+  // (les passes c- et d- du temps processeur, tous leurs lots : la médiane ; le temps d'un même lot varie du simple à 1,6 selon que le
+  // cœur voisin travaille ou non, la machine étant partagée)
+  const med = (v) => { const w = v.slice().sort((a, b) => a - b), k = w.length >> 1; return w.length % 2 ? w[k] : (w[k - 1] + w[k]) / 2; };
+  if (t.length) { const tous = (k) => t.flatMap((x) => x[k].lots); m.cpuTemps = { sans: { cpu: med(tous('sans')), min: Math.min(...tous('sans')), lots: tous('sans') }, avec: { cpu: med(tous('avec')), min: Math.min(...tous('avec')), lots: tous('avec') } }; }
   return m; });
 const f1 = (x) => (x == null ? '–' : x.toFixed(1));
 const cartes = V.map(([id, t, s], i) => {
@@ -47,16 +49,16 @@ h1{font-size:22px;margin:16px 20px 4px} p.s{margin:0 20px 12px;font-size:12.5px;
 .g{display:grid;grid-template-columns:repeat(5,318px);gap:12px;padding:0 20px 14px}
 .t{background:#F6EBDD;border-radius:10px;overflow:hidden;color:#4A3328}
 .cap{width:318px;height:600px;background-size:318px auto;background-position:0 -46px;background-repeat:no-repeat}
-.loupe{width:318px;height:310px;background-size:318px auto;background-position:0 -40px;background-repeat:no-repeat;border-top:2px solid #e2cdb8}
+.loupe{width:318px;height:340px;background-size:318px auto;background-position:0 -60px;background-repeat:no-repeat;border-top:2px solid #e2cdb8}
 .loupe.vide{background:#efe2d2}
 .t b{display:block;font-size:14px;padding:7px 10px 0} .t span{display:block;font-size:11.5px;padding:0 10px;color:#7a5a48} .t span.m{padding:3px 10px 9px;color:#4A3328;font-weight:600}
 table{border-collapse:collapse;margin:0 20px 20px;font-size:12.5px;background:#F6EBDD;color:#4A3328;border-radius:8px;overflow:hidden}
 th,td{padding:6px 10px;text-align:right;border-bottom:1px solid #e2cdb8} th{background:#ead8c4;font-weight:700} td:first-child,th:first-child{text-align:left}
 </style></head><body>
 <h1>Clients de la boutique : l'actuelle et les quatre variantes de la maquette</h1>
-<p class="s">iPhone 390 × 844, qualité haute, même boutique (tout le mobilier, 13 h), même graine de hasard : les mêmes clients arrivent dans chaque variante. En haut, l'écran ; dessous, un gros plan pris avec la caméra du jeu resserrée (file au comptoir et premières tables). Les clients GLB sont cuits en un maillage et un appel de dessin chacun, reteints aux palettes du jeu, assis pieds au sol, le croissant ou la tasse à la main ; le boulanger et les apprentis restent des chibis. Mesures : appels de dessin et triangles de la scène entière (passe d'effets comprise), poids des fichiers des clients ; le temps processeur d'une image (simulation, personnages, scène soumise) sur le fil principal de la page, lu dans /proc (insensible à la charge de la machine, attente du processeur graphique exclue), meilleur de quatre lots de 30 images, sans et avec les appels de dessin WebGL ; ×4 = 4 fois ce temps (ce qu'émule le ralentissement CDP, étalonné) ; et, pour recouper, le temps JS mesuré à l'horloge, ×1 et ralenti ×4 par CDP (médianes de 20 images, bruitées par la charge). SwiftShader dessine sur le processeur : la cadence réelle d'un téléphone ne se mesure pas ici, seul le coût processeur a un sens.</p>
+<p class="s">iPhone 390 × 844, qualité haute, même boutique (tout le mobilier, 13 h), même graine de hasard : les mêmes clients arrivent dans chaque variante. En haut, l'écran ; dessous, un gros plan pris avec la caméra du jeu resserrée (file au comptoir et premières tables). Les clients GLB sont cuits en un maillage et un appel de dessin chacun, reteints aux palettes du jeu, assis pieds au sol, le croissant ou la tasse à la main ; le boulanger et les apprentis restent des chibis. Mesures : appels de dessin et triangles de la scène entière (passe d'effets comprise), poids des fichiers des clients ; le temps processeur d'une image (simulation, personnages, scène soumise) sur le fil principal de la page, lu dans /proc (la préemption par les autres processus et l'attente du processeur graphique n'y comptent pas ; un cœur voisin occupé le ralentit encore un peu), la médiane d'une quinzaine de lots de 15 images (deux passes), sans et avec les appels de dessin WebGL ; ×4 = 4 fois ce temps (ce qu'émule le ralentissement CDP, étalonné) ; et, pour recouper, le temps JS mesuré à l'horloge, ×1 et ralenti ×4 par CDP (médianes de 20 images, bruitées par la charge). SwiftShader dessine sur le processeur : la cadence réelle d'un téléphone ne se mesure pas ici, seul le coût processeur a un sens.</p>
 <div class="g">${cartes}</div>
-<table><tr><th>Variante</th><th>Appels</th><th>dont décor (≤ 80)</th><th>Maillages acteurs</th><th>Triangles</th><th>Tris / client</th><th>Poids clients</th><th>Processeur / image (ms)<br><small>sans dessin · avec</small></th><th>×4 (ms)<br><small>avec dessin</small></th><th>i/s plafond<br><small>processeur ×4</small></th><th>JS mesuré (ms)<br><small>×1 · ×4, médianes</small></th><th>Clients</th></tr>
+<table><tr><th>Variante</th><th>Appels</th><th>dont décor (≤ 80)</th><th>Maillages acteurs</th><th>Triangles</th><th>Tris / client</th><th>Poids clients</th><th>Processeur / image (ms)<br><small>sans dessin · avec, médianes</small></th><th>×4 (ms)<br><small>avec dessin</small></th><th>i/s plafond<br><small>processeur ×4</small></th><th>JS mesuré (ms)<br><small>×1 · ×4, médianes</small></th><th>Clients</th></tr>
 ${lignes}
 </table>
 ${master}
