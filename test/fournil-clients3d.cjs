@@ -102,7 +102,10 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
   await ev(() => window.__rafManuel(true)); await sleep(300);
   await ev(() => { const S = window.__fournil.SCENE; for (const z of ['table', 'table', 'table', 'bar', 'bar', 'banquette', 'banquette', 'banquette', 'terrasse', 'terrasse']) S.installer(z, 600); });
   for (let k = 0; k < 4; k++) await nouveau(ev);
+  // le temps avance par paquets jusqu'à ce que les places soient prises (une machine lente n'en a que 8 au bout de 60 pas)
+  const assisPrets = () => ev(() => { const L = window.__fournil.SCENE.clients3d.liste.filter((x) => x.etat === 'assis' && !x.leve && x.assisK >= 1); return L.length >= 10 && new Set(L.map((x) => x.siege)).size === 4; });
   await ev(() => window.__pas(60, true));
+  for (let k = 0; k < 27 && !(await assisPrets()); k++) await ev(() => window.__pas(20, true));
   {
     const c = await ev(() => window.__fournil.SCENE.clients3d);
     check(c.glb === await ev(() => VIE.clients.length) && c.chibis === 0, `tous les clients en personnages 3D (${c.glb}, aucun chibi)`);

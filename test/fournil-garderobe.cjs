@@ -131,9 +131,12 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   ({ ctx, p } = await nouveau(360, 640));
   await p.goto(BASE + '/vide.html'); await p.evaluate(() => localStorage.clear());
   await p.goto(BASE + '/fournil/'); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st));
-  await p.evaluate(() => { const f = window.__fournil; f.st.tuto = 99; ['or', 'argent', 'quartier-or'].forEach((c) => f.G.donnerCollection(f.st, c)); f.st.etoiles = 3; f.rafraichir(); f.garderobe('pieds'); }); await sleep(500);
-  const petit = await p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, boutons: [...document.querySelectorAll('#feuille-contenu button')].every((b) => b.getBoundingClientRect().height >= 44), pieds: [...document.querySelectorAll('[data-gr-porter]')].map((b) => b.dataset.grPorter), seg: document.querySelector('[data-gr-piece="pieds"]').getAttribute('aria-selected') }));
-  check(petit.large && petit.boutons && petit.seg === 'true' && JSON.stringify(petit.pieds) === JSON.stringify(['sabots', 'or-chaussures', 'argent-chaussures', 'quartier-or-baskets']), 'à 360 px : la feuille ouverte sur « Pieds », sans défilement de côté, tous les boutons d’au moins 44 px');
+  await p.evaluate(() => { const f = window.__fournil; f.st.tuto = 99; ['or', 'argent', 'quartier-or'].forEach((c) => f.G.donnerCollection(f.st, c)); f.st.etoiles = 3; f.rafraichir(); f.garderobe('pieds'); });
+  // la feuille s'ouvre en glissant : on mesure jusqu'à ce qu'elle soit posée (une machine lente y met plus de 500 ms)
+  const mesurer = () => p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, boutons: [...document.querySelectorAll('#feuille-contenu button')].every((b) => b.getBoundingClientRect().height >= 44), pieds: [...document.querySelectorAll('[data-gr-porter]')].map((b) => b.dataset.grPorter), seg: document.querySelector('[data-gr-piece="pieds"]').getAttribute('aria-selected'), mini: Math.min(...[...document.querySelectorAll('#feuille-contenu button')].map((b) => Math.round(b.getBoundingClientRect().height))) }));
+  const bon = (x) => x.large && x.boutons && x.seg === 'true' && JSON.stringify(x.pieds) === JSON.stringify(['sabots', 'or-chaussures', 'argent-chaussures', 'quartier-or-baskets']);
+  let petit = null; await attendre(async () => bon(petit = await mesurer()), 10000);
+  check(petit && bon(petit), `à 360 px : la feuille ouverte sur « Pieds », sans défilement de côté, tous les boutons d’au moins 44 px (${petit ? `large ${petit.large}, plus petit bouton ${petit.mini} px, ${petit.pieds.join(', ')}` : 'pas de mesure'})`);
   await p.screenshot({ path: out + '/10-feuille-360.png' });
   await p.evaluate(() => { const b = document.querySelector('.gr-ensembles'); b.scrollIntoView({ block: 'start' }); }); await sleep(200);
   await p.screenshot({ path: out + '/11-ensembles-360.png' });
