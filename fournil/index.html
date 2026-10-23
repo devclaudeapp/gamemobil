@@ -2131,6 +2131,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .pl-legende b { font: 700 17px/1 var(--titre); overflow: hidden; text-overflow: ellipsis; }
 .pl-legende small { font-size: 12.5px; color: var(--texte-2); }
 .pl-legende.cache, .pl-indice.cache { opacity: 0; }
+.pl-indice.cache { animation: none; }
 .pl-indice { position: absolute; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); text-align: center;
   font-size: 13px; color: var(--texte-2); pointer-events: none; transition: opacity .4s; animation: plIndice 1s .9s both; }
 @keyframes plIndice { from { opacity: 0; } to { opacity: 1; } }
@@ -2141,6 +2142,8 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     radial-gradient(115% 62% at 50% 46%, #FFFDF8 0%, #F4EFFF 36%, #E2EBFF 64%, #FFE8D8 100%); animation: atEntre .22s ease-out; }
 #planete .pl-vue { position: absolute; inset: 0; }
 #planete .at-haut { position: relative; z-index: 2; pointer-events: none; }
+#planete .at-haut::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1 * env(safe-area-inset-top, 0px)); bottom: -30px; z-index: -1; pointer-events: none; /* un voile du ciel sous le titre : une tour, un sommet passent dessous sans le brouiller */
+  background: linear-gradient(to bottom, rgba(232, 235, 251, .9) 0%, rgba(232, 235, 251, .72) 58%, rgba(232, 235, 251, 0) 100%); }
 #planete .at-haut > * { pointer-events: auto; }
 #planete .pl-jetons { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); }
 #planete .pl-jetons svg { width: 24px; height: 24px; }
@@ -2337,7 +2340,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'a1745bcefd83';</script>
+<script>window.FOURNIL_VERSION = '5cbf5aff8399';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -10411,6 +10414,11 @@ const PLANETE = (() => {
   const COTE = 60 * DEG; // le bord de mer : la côte à 60° du village, la plage regarde l'avant de la planète, la mer au-delà
   const cote = (p) => Math.acos(borne(p.dot(RI.village.c), -1, 1)) - COTE + 0.08 * (bruitP(p, 5, 3) - 0.5); // > 0 : en mer
   const ILE_R = 0.26, ILOTS = [40, 160, 280].map((b) => autour(RI.ile, 0.43, b * DEG));
+  // la Seine de la capitale : une courbe dans le plan tangent (u le long de e2, v le long de e1), au sud de la tour ; seine(p) : la distance à son lit
+  const coordsCapitale = (p) => { const R = RI.capitale, w = p.dot(R.c); return w < 0.4 ? null : [Math.atan2(p.dot(R.e2), w), Math.atan2(p.dot(R.e1), w)]; };
+  const SEINE = (u) => -0.2 + 0.07 * Math.sin(u * 5.5 + 0.4);
+  const ETOILE = autour(RI.capitale, 0.27, 1.25); // l'arc de triomphe et ses avenues
+  const seine = (p) => { const c = coordsCapitale(p); return c ? Math.abs(c[1] - SEINE(c[0])) : 1; };
   // les sommets de la montagne et de la station de ski : des cônes émoussés, tirés une fois (graine fixe) ; ceux de la montagne derrière sa
   // vallée (vus de l'avant, ils se dressent derrière les boutiques), ceux des cimes tout autour du plateau
   const PICS = { montagne: [], cimes: [] };
@@ -10435,7 +10443,7 @@ const PLANETE = (() => {
     },
     chateau: (p, d) => 1.016 + 0.052 * (1 - lisse(0.075, 0.165, d)) + 0.014 * (bruitP(p, 4.6, 1) - 0.42) * lisse(0.24, 0.38, d),
     cimes: (p, d) => 1.03 + pics(p, PICS.cimes) - 0.013 * lisse(0.48, 0.66, d),
-    capitale: () => 1.017,
+    capitale: (p) => { const s = seine(p); return s < 0.045 ? 0.991 + 0.026 * lisse(0.018, 0.045, s) : 1.017; }, // la Seine, au sud de la tour
   };
   const relief = (i, p) => RELIEF[REG[i].id](p, Math.acos(borne(p.dot(REG[i].c), -1, 1)));
   function altitude(p, o) { // le rayon du sol en p (unitaire) ; o reçoit les régions les plus proches
@@ -10451,7 +10459,7 @@ const PLANETE = (() => {
   const COULEURS = new Map(), _c = new THREE.Color();
   function couleur(hex) { let k = COULEURS.get(hex); if (!k) { _c.set(hex); k = [_c.r, _c.g, _c.b]; COULEURS.set(hex, k); } return k; }
   const melange = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-  const BRUME = couleur('#ECE7F2'); // un quartier pas encore gagné : pâli, comme dans la brume
+  const BRUME = couleur('#F2EFF7'); // un quartier pas encore gagné : pâli, comme dans la brume
 
   // la couleur du sol d'une région en p (h : le rayon, pente : l'écart d'altitude sur la facette, d : la distance au centre)
   const SOL = {
@@ -10467,7 +10475,7 @@ const PLANETE = (() => {
     ile: (p, h) => (h > 1.017 ? (bruitP(p, 9) > 0.5 ? '#9BD98A' : '#8ED07F') : '#F6E7BF'),
     chateau: (p, h, pente, d) => (d < 0.17 && h > 1.03 ? '#A2D58A' : bruitP(p, 6, 6) > 0.6 ? '#76B866' : bruitP(p, 8) > 0.5 ? '#8DCA78' : '#84C371'),
     cimes: (p, h, pente) => (pente > 0.034 && h > 1.07 ? (bruitP(p, 13) > 0.5 ? '#CFCBDB' : '#C2BFD0') : bruitP(p, 9, 2) > 0.5 ? '#FDFEFF' : '#EDF3FB'),
-    capitale: (p, h, pente, d) => (d > 0.22 && d < 0.4 && Math.abs(Math.sin(Math.atan2(p.dot(RI.capitale.e2), p.dot(RI.capitale.e1)) * 4)) < 0.38 ? '#A6D98B' : bruitP(p, 9, 7) > 0.5 ? '#F3E7C6' : '#EBDDB6'),
+    capitale: (p, h, pente, d) => (d > 0.24 && bruitP(p, 6, 8) > 0.67 ? '#A6D98B' : bruitP(p, 9, 7) > 0.5 ? '#F3E7C6' : '#EBDDB6'), // le pavé clair, quelques squares
   };
 
   // ─── les formes unitaires : des listes de triangles (x, y, z…), posées sur y = 0, de taille 1 ───
@@ -10560,13 +10568,13 @@ const PLANETE = (() => {
     // le toit : à deux pans (0, 1), mansardé (2, 4), à quatre pans (3), une terrasse et son dôme (5)
     if (s <= 1) { L.f(PANS, 0, y0, 0, larg + 0.14, 0.42, prof + 0.16, '#FFFFFF', 0, 0, 0, 2); L.f(PIGNONS, 0, y0, 0, larg, 0.42, prof, mur, 0, 0, 0, teMur); }
     else if (s === 3) { B(0, y0, 0, larg + 0.08, 0.07, prof + 0.08, OR, 0); L.f(croupes(0.2), 0, y0 + 0.07, 0, larg + 0.06, 0.4, prof + 0.06, '#FFFFFF', 0, 0, 0, 2); }
-    else if (s === 5) { B(0, y0, 0, larg + 0.08, 0.07, prof + 0.08, OR, 0); B(0, y0 + 0.07, 0, larg - 0.04, 0.03, prof - 0.04, '#EFE6D8', 0); for (let k = -2; k <= 2; k++) B(k * larg / 5, y0 + 0.07, av - 0.02, 0.05, 0.09, 0.05, MARBRE, 0); }
+    else if (s === 5) { B(0, y0, 0, larg + 0.08, 0.07, prof + 0.08, OR, 0); B(0, y0 + 0.07, 0, larg - 0.04, 0.03, prof - 0.04, '#EFE6D8', 0); if (!eco) for (let k = -2; k <= 2; k++) B(k * larg / 5, y0 + 0.07, av - 0.02, 0.05, 0.09, 0.05, MARBRE, 0); } // (la balustrade : de près seulement)
     else { B(0, y0, 0, larg + 0.06, 0.06, prof + 0.06, s >= 4 ? OR : '#F3EBDD', 0); L.f(croupes(0.32), 0, y0 + 0.06, 0, larg, 0.34, prof - 0.02, '#FFFFFF', 0, 0, 0, 2); }
     // la devanture : la vitrine (qui luit du palier 3), la porte, le store (rayé du palier 2)
     const vw = larg * (s >= 3 ? 0.5 : 0.44);
     Q(-larg * 0.17, 0.18, av + 0.004, vw, 0.3, s >= 3 ? VITRE_LUIT : VITRE, 0);
     Q(larg * 0.29, 0.08, av + 0.004, 0.2, 0.4, PORTE, 0);
-    const ys = 0.58, profS = 0.26, ns = s >= 2 ? 6 : 1;
+    const ys = 0.58, profS = 0.26, ns = s >= 2 && !(eco && s === 5) ? 6 : 1; // (de loin, le palais garde un store uni : son dôme le signale assez, et les chaînes au-delà de la n°40 en comptent beaucoup)
     for (let k = 0; k < ns; k++) { const w = (larg * 0.96) / ns; if (ns > 1 && k % 2) continue; // (le store rayé : une bande sur deux à l'accent, les autres dessous, blanches)
        B(-larg * 0.48 + w * (k + 0.5), ys, av + 0.11, w, 0.03, profS, k % 2 ? '#FFFFFF' : '#FFFFFF', k % 2 && ns > 1 ? 0 : 3, 0, 0.5); }
     if (ns > 1) B(0, ys - 0.004, av + 0.105, larg * 0.95, 0.03, profS - 0.01, '#FFFFFF', 0, 0, 0.5); // (dessous : le blanc des rayures)
@@ -10679,7 +10687,11 @@ const PLANETE = (() => {
     ailes(L, a) { // les quatre ailes du moulin autour de leur moyeu (x, y, z du lot), tournées de a
       const M0 = L.M.clone(); L.M.multiply(new THREE.Matrix4().makeTranslation(0, 0.9, 0.46)).multiply(new THREE.Matrix4().makeRotationZ(a || 0));
       L.f(CYL(6, 1), 0, 0, -0.05, 0.12, 0.1, 0.12, '#8B5E3C', 0, Math.PI / 2);
-      for (let k = 0; k < 4; k++) { const b = k * Math.PI / 2 + 0.3; L.f(BOITE, Math.cos(b) * 0.52, Math.sin(b) * 0.52, 0.05, 0.05, 1.04, 0.04, '#B98A5E', 0, 0, b - Math.PI / 2); const cx = Math.cos(b) * 0.6 - Math.sin(b) * 0.13, cy = Math.sin(b) * 0.6 + Math.cos(b) * 0.13; L.f(BOITE, cx, cy, 0.06, 0.24, 0.78, 0.02, '#FFF9EE', 0, 0, b - Math.PI / 2); for (const u of [0.3, 0.55, 0.8]) L.f(BOITE, Math.cos(b) * u - Math.sin(b) * 0.13, Math.sin(b) * u + Math.cos(b) * 0.13, 0.072, 0.25, 0.02, 0.01, '#C9A27A', 0, 0, b - Math.PI / 2); }
+      for (let k = 0; k < 4; k++) { // (une boîte posée part de son point et s'allonge le long de y : tournée de b − 90°, le long de l'aile)
+        const b = k * Math.PI / 2 + 0.3, c = Math.cos(b), sn = Math.sin(b), rz = b - Math.PI / 2;
+        L.f(BOITE, 0, 0, 0.05, 0.05, 0.82, 0.04, '#B98A5E', 0, 0, rz); L.f(BOITE, c * 0.2 - sn * 0.12, sn * 0.2 + c * 0.12, 0.06, 0.22, 0.6, 0.02, '#FFF9EE', 0, 0, rz);
+        for (const u of [0.32, 0.52, 0.72]) L.f(BOITE, c * u - sn * 0.12, sn * u + c * 0.12, 0.072, 0.24, 0.02, 0.012, '#C9A27A', 0, 0, rz);
+      }
       L.M.copy(M0);
     },
     angle(L) { // l'immeuble d'angle parisien : deux ailes, la rotonde au coin et son petit dôme d'ardoise, le café au pied
@@ -10736,7 +10748,7 @@ const PLANETE = (() => {
     invalides(L) { L.f(BOITE, 0, -0.2, 0, 1.2, 0.6, 0.6, '#F2E8D6'); L.f(CYL(10, 1), 0, 0.4, 0, 0.5, 0.3, 0.5, '#F2E8D6'); L.f(DOME(10), 0, 0.7, 0, 0.56, 0.5, 0.56, OR); L.f(CYL(6, 0.2), 0, 0.94, 0, 0.08, 0.36, 0.08, OR); },
     fontaine(L) { L.f(CYL(10, 1), 0, 0, 0, 0.9, 0.14, 0.9, '#E6DDCF'); L.f(CYL(10, 1), 0, 0.02, 0, 0.78, 0.13, 0.78, '#8FD3F0'); L.f(CYL(6, 1), 0, 0, 0, 0.16, 0.5, 0.16, '#E6DDCF'); L.f(CYL(8, 0.6), 0, 0.46, 0, 0.42, 0.08, 0.42, '#E6DDCF'); L.f(ICO(0), 0, 0.52, 0, 0.12, 0.2, 0.12, '#BDE8F7'); },
     gare_station(L, neige) { L.f(BOITE, 0, -0.2, 0, 0.8, 0.6, 0.6, '#C99A6B'); L.f(PANS, 0, 0.4, 0, 0.96, 0.3, 0.76, neige ? '#F7FAFE' : '#7A4E31'); L.f(PIGNONS, 0, 0.4, 0, 0.8, 0.3, 0.6, '#C99A6B'); },
-    nuage(L, r) { const n = 3 + Math.floor(r() * 2); for (let k = 0; k < n; k++) { const x = (k - (n - 1) / 2) * 0.42 + (r() - 0.5) * 0.1, s = 0.55 + 0.35 * Math.sin(Math.PI * (k + 0.5) / n) + r() * 0.15; L.f(ICO(1), x, -s * 0.35 + r() * 0.06, (r() - 0.5) * 0.2, s, s * 0.8, s * 0.85, k % 2 ? '#FFFFFF' : '#FBF8FF', r() * 3); } },
+    nuage(L, r) { const n = 3; for (let k = 0; k < n; k++) { const x = (k - (n - 1) / 2) * 0.42 + (r() - 0.5) * 0.1, s = 0.55 + 0.35 * Math.sin(Math.PI * (k + 0.5) / n) + r() * 0.15; L.f(ICO(1), x, -s * 0.35 + r() * 0.06, (r() - 0.5) * 0.2, s, s * 0.8, s * 0.85, k % 2 ? '#FFFFFF' : '#FBF8FF', r() * 3); } },
   };
 
   // ─── le kit de modèles libres (qualité haute et moyenne, la HD permise) : fournil/hd/planete/planete.glb, lu une fois par HDM (src/hd.js,
@@ -10768,27 +10780,46 @@ const PLANETE = (() => {
   }
 
   // ─── le sol : une icosphère à facettes, chaque facette colorée selon sa région, son altitude et sa pente, rangée dans le lot de sa région ───
+  // l'icosphère : les vingt faces de l'icosaèdre, chacune découpée en (n + 1)² triangles, ramenés sur la sphère ; seulement les positions
+  // (THREE.IcosahedronGeometry calcule aussi ses UV et ses normales : quatre fois plus lent, pour rien ici)
+  const ICOS = new Map();
+  function icosphere(detail) {
+    let P = ICOS.get(detail); if (P) return P;
+    const t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]];
+    const f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    const n = detail + 1, out = new Float32Array(20 * n * n * 9), q = new V3(); let o = 0;
+    const pt = (a, b, c, i, j) => { const u = i / n, w = j / n; q.set(a[0] + (b[0] - a[0]) * u + (c[0] - a[0]) * w, a[1] + (b[1] - a[1]) * u + (c[1] - a[1]) * w, a[2] + (b[2] - a[2]) * u + (c[2] - a[2]) * w).normalize(); out[o++] = q.x; out[o++] = q.y; out[o++] = q.z; };
+    for (const [ia, ib, ic] of f) {
+      const a = v[ia], b = v[ib], c = v[ic];
+      for (let i = 0; i < n; i++) for (let j = 0; j < n - i; j++) {
+        pt(a, b, c, i, j); pt(a, b, c, i + 1, j); pt(a, b, c, i, j + 1);
+        if (i + j < n - 1) { pt(a, b, c, i + 1, j); pt(a, b, c, i + 1, j + 1); pt(a, b, c, i, j + 1); }
+      }
+    }
+    ICOS.set(detail, out); return out;
+  }
   function sol(lots, detail) {
-    const g = new THREE.IcosahedronGeometry(1, detail), P = g.attributes.position.array; g.dispose();
+    const P = icosphere(detail);
     const cache = new Map(), p = new V3(), alts = new Float32Array(P.length / 3);
     for (let i = 0; i < alts.length; i++) {
       const x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2], k = Math.round((x + 1) * 4000) * 64016001 + Math.round((y + 1) * 4000) * 8001 + Math.round((z + 1) * 4000);
       let h = cache.get(k); if (h === undefined) { h = altitude(p.set(x, y, z).normalize()); cache.set(k, h); } alts[i] = h;
     }
-    const o = {}, a = new V3(), b = new V3(), c = new V3(), m = new V3(), SABLE = couleur('#F6EAC6'), FOND = couleur('#E5DAB0'), LAGON = couleur('#A6DED6'), ECUME = couleur('#FBFAF2');
+    const o = {}, a = new V3(), b = new V3(), c = new V3(), m = new V3(), SABLE = couleur('#F6EAC6'), FOND = couleur('#E5DAB0'), LAGON = couleur('#A6DED6'), ECUME = couleur('#FBFAF2'), BERGE = couleur('#CDBFA5'), LIT = couleur('#8ACDD2');
     for (let f = 0, nf = P.length / 9; f < nf; f++) {
       const i = f * 9; a.set(P[i], P[i + 1], P[i + 2]).normalize(); b.set(P[i + 3], P[i + 4], P[i + 5]).normalize(); c.set(P[i + 6], P[i + 7], P[i + 8]).normalize();
       const ha = alts[f * 3], hb = alts[f * 3 + 1], hc = alts[f * 3 + 2], h = (ha + hb + hc) / 3, pente = Math.max(ha, hb, hc) - Math.min(ha, hb, hc);
       m.copy(a).add(b).add(c).normalize(); plusProches(m, o); const R = REG[o.i1];
       let k;
-      if (h < MER - 0.0026) k = melange(SABLE, melange(FOND, LAGON, 0.55), lisse(MER - 0.003, MER - 0.022, h));
+      if (R.id === 'capitale' && h < 1.013) k = h < MER - 0.0026 ? LIT : BERGE; // la Seine : son lit et ses berges de pierre (ni plage ni écume)
+      else if (h < MER - 0.0026) k = melange(SABLE, melange(FOND, LAGON, 0.55), lisse(MER - 0.003, MER - 0.022, h));
       else if (h < MER + 0.0012) k = ECUME; // l'écume, là où les vagues viennent mourir
       else if (h < MER + 0.0042) k = SABLE;
       else {
         k = couleur(SOL[R.id](m, h, pente, angle(m, R.c)));
         const ec = o.d2 - o.d1; if (ec < 0.024) { const R2 = REG[o.i2]; k = melange(k, couleur(SOL[R2.id](m, h, pente, angle(m, R2.c))), 0.5 * (1 - ec / 0.024)); }
       }
-      if (!E.gagne[o.i1]) k = melange(k, BRUME, 0.6);
+      if (!E.gagne[o.i1]) k = melange(k, BRUME, 0.5);
       const v = 0.955 + 0.075 * hache(m.x * 91.7, m.y * 91.7, m.z * 91.7), L = lots[o.i1];
       L.p.push(a.x * ha, a.y * ha, a.z * ha, b.x * hb, b.y * hb, b.z * hb, c.x * hc, c.y * hc, c.z * hc);
       for (let j = 0; j < 3; j++) L.c.push(k[0] * v, k[1] * v, k[2] * v);
@@ -10808,7 +10839,11 @@ const PLANETE = (() => {
   const ANNEAUX = { ile: [[0.12, 5, 0.1], [0.2, 7, 0.35]], gare: [[0.2, 6, 0], [0.3, 8, 0.25]], mer: [[0.16, 8, 0], [0.28, 9, 0.3], [0.39, 10, 0.1]] };
   // (d'abord des anneaux réguliers autour du repère, espacés de 0,16 rad ; puis, pour les chaînes au-delà de la n°60, une spirale qui
   // remplit le reste du quartier, à 0,13 rad : une douzaine de boutiques et plus par quartier, jusque vers la n°120)
+  const PLACES_CACHE = new Map();
   function placesDe(R) {
+    let c = PLACES_CACHE.get(R.i); if (!c) { c = calculerPlaces(R); PLACES_CACHE.set(R.i, c); } return c;
+  }
+  function calculerPlaces(R) {
     const anneaux = ANNEAUX[R.id] || [[0.22, 6, 0], [0.35, 8, 0.3], [0.47, 9, 0.1]], o = {}, d = new V3(), repere = R.id === 'mer' ? phare() : R.id === 'ile' ? null : R.c;
     const essai = (p, rho, b, bord, pente) => {
       const h = altitude(p, o);
@@ -10857,10 +10892,11 @@ const PLANETE = (() => {
     const versCentre = (p) => R.c.clone().sub(p).addScaledVector(p, -(R.c.clone().sub(p)).dot(p)).normalize();
     switch (R.id) {
       case 'village': {
-        const m = repere('moulin', R.c, 0.13, 0.12, 0.12); if (!eco) E.animer.moulin = m;
-        semer('maison', 7, 0.27, 0.55, 0.05, 0.062, { ombre: 1.1, plat: true, eco: 0.43 });
-        if (kit) { semer('kit:etal_rouge', 1, 0.12, 0.16, 0.04, 0.04, { plat: true, ombre: 1, face: versCentre }); semer('kit:etal_vert', 1, 0.12, 0.16, 0.04, 0.04, { plat: true, ombre: 1, face: versCentre }); for (const fl of ['rouges', 'jaunes', 'mauves']) semer('kit:fleurs_' + fl, 5, 0.14, 0.58, 0.016, 0.022, { place: 0.3 }); }
-        semer('arbre', 18, 0.22, 0.62, 0.042, 0.06, { ombre: 0.8 }); semer('meule', 9, 0.3, 0.6, 0.026, 0.032, { eco: 0 }); semer('buisson', 8, 0.22, 0.6, 0.02, 0.03, { eco: 0 });
+        const m = repere('moulin', R.c, 0.15, 0.13, 0.14); if (!eco) E.animer.moulin = m;
+        semer('maison', 9, 0.27, 0.58, 0.05, 0.062, { ombre: 1.1, plat: true, eco: 0.35 });
+        if (kit) { semer('kit:etal_rouge', 1, 0.12, 0.16, 0.04, 0.04, { plat: true, ombre: 1, face: versCentre }); semer('kit:etal_vert', 1, 0.12, 0.16, 0.04, 0.04, { plat: true, ombre: 1, face: versCentre }); for (const fl of ['rouges', 'jaunes', 'mauves']) semer('kit:fleurs_' + fl, 3, 0.14, 0.58, 0.016, 0.022, { place: 0.3 }); }
+        for (let k = 0; k < 6; k++) { const b = (k + 0.5) * TAU / 6, pts = [], hs = []; for (let j = 0; j <= 14; j++) { const q = autour(R, 0.075 + j * 0.03, b + 0.06 * Math.sin(j * 0.9 + k)); pts.push(q); hs.push(altitude(q)); } L.ruban(pts, hs, 0.018, '#E9D4A9'); for (const q of pts) poses.push({ p: q, r: 0.012 }); } // les chemins
+        semer('arbre', 24, 0.22, 0.62, 0.042, 0.06, { ombre: 0.8 }); semer('meule', 9, 0.3, 0.6, 0.026, 0.032, { eco: 0 }); semer('buisson', 12, 0.2, 0.6, 0.02, 0.03, { eco: 0 });
         break;
       }
       case 'paris':
@@ -10883,8 +10919,8 @@ const PLANETE = (() => {
         break;
       case 'ville':
         repere('gratteciel', R.c, 0.12, 0.1, 0.12);
-        if (kit) for (const im of ['immeuble_a', 'immeuble_b', 'immeuble_c']) semer('kit:' + im, 2, 0.12, 0.42, 0.095, 0.11, { plat: true, ombre: 0.75, face: versCentre, place: 0.45 });
-        semer('tour', kit ? 12 : 18, 0.12, 0.55, 0.055, 0.065, { plat: true, ombre: 0.9, eco: 0.33 }); semer('arbre', 10, 0.2, 0.6, 0.04, 0.05, { ombre: 0.8, eco: 0.2 });
+        if (kit) for (const im of ['immeuble_a', 'immeuble_b', 'immeuble_c']) semer('kit:' + im, 1, 0.12, 0.42, 0.095, 0.11, { plat: true, ombre: 0.75, face: versCentre, place: 0.45 }); // (un de chaque : 400 à 700 triangles pièce)
+        semer('tour', kit ? 15 : 18, 0.12, 0.55, 0.055, 0.065, { plat: true, ombre: 0.9, eco: 0.33 }); semer('arbre', 10, 0.2, 0.6, 0.04, 0.05, { ombre: 0.8, eco: 0.2 });
         break;
       case 'gare': {
         repere('halle', R.c, 0.095, 0.12, 0.16);
@@ -10899,7 +10935,7 @@ const PLANETE = (() => {
       }
       case 'ile':
         repere('paillote', autour(R, 0.03, 2.2), 0.05, 0.05, 0.06);
-        semer('palmier', 10, 0.02, 0.2, 0.055, 0.075, { ombre: 0.6, eco: 0.4 }); semer(kit ? 'kit:voilier' : 'voilier', 2, 0.3, 0.5, kit ? 0.08 : 0.07, kit ? 0.09 : 0.08, { eau: true, libre: true, eco: 0, enfonce: 0 }); if (kit) semer('kit:coffre', 1, 0.08, 0.17, 0.022, 0.022, { ombre: 1.2 });
+        semer('palmier', 10, 0.02, 0.2, 0.055, 0.075, { ombre: 0.6, eco: 0.4 }); semer('voilier', 2, 0.3, 0.5, 0.07, 0.08, { eau: true, libre: true, eco: 0, enfonce: 0 }); // (les voiliers du kit, 390 triangles pièce, gardés pour le bord de mer) if (kit) semer('kit:coffre', 1, 0.08, 0.17, 0.022, 0.022, { ombre: 1.2 });
         semer('ponton', 1, 0.19, 0.22, 0.05, 0.05, { libre: true, plage: true, eco: 0, face: versCentre }); semer('paillote', 2, 0.05, 0.17, 0.04, 0.045, { eco: 0, ombre: 0.9 });
         break;
       case 'chateau':
@@ -10920,12 +10956,43 @@ const PLANETE = (() => {
       }
       case 'capitale': {
         repere('eiffel', R.c, 0.12, 0.1, 0.13);
-        repere('arc', autour(R, 0.26, 2.6), 0.055, 0.05, 0.07); repere('invalides', autour(R, 0.3, -2.3), 0.06, 0.07, 0.08);
-        semer('platane', 16, 0.2, 0.6, 0.04, 0.05, { ombre: 0.8 }); semer('haussmann', 7, 0.36, 0.6, 0.055, 0.065, { plat: true, ombre: 1.1, face: versCentre, eco: 0.3 }); semer(kit ? 'kit:fontaine' : 'fontaine', 2, 0.16, 0.3, kit ? 0.06 : 0.035, kit ? 0.065 : 0.04, { eco: 0, plat: true });
+        repere('arc', ETOILE, 0.055, 0.05, 0.07); repere('invalides', autour(R, 0.3, -0.95), 0.06, 0.07, 0.08);
+        const plan = (u, v) => R.c.clone().addScaledVector(R.e2, Math.tan(u)).addScaledVector(R.e1, Math.tan(v)).normalize(); // (u, v) du plan tangent → la sphère
+        const libre = (q, marge) => !places.some((x) => angle(q, x.p) < marge) && altitude(q, o) > MER + 0.012 && o.i1 === R.i; // ni sur une boutique, ni dans la Seine, ni hors du quartier
+        const route = (pts, larg, col, marge) => { // une voie posée au sol (null : une coupure), interrompue là où passerait une boutique
+          let run = []; const fin = () => { if (run.length > 1) L.ruban(run, run.map((q) => altitude(q)), larg, col); run = []; };
+          for (const q of pts) { if (q && libre(q, marge)) { run.push(q); poses.push({ p: q, r: larg * 0.6 }); } else fin(); } fin();
+        };
+        // deux ponts sur la Seine (de pierre claire, une arche dessous)
+        const PONTS = [-0.17, 0.24];
+        for (const u of PONTS) { const p = plan(u, SEINE(u)); poser(L.M, p, 1.011, R.e1, 0.05); L.f(BOITE, 0, 0, 0, 0.45, 0.08, 2.2, '#F0E6D2'); L.f(BOITE, 0, 0.08, 0, 0.5, 0.06, 2.2, '#E2D5BC'); L.f(ARCHE, 0, -0.2, 0, 0.5, 0.42, 1.3, '#E2D5BC', Math.PI / 2); poses.push({ p, r: 0.05 }); }
+        // les quais : des platanes en rang, puis le pavé (vus d'en haut, la Seine et ses berges dessinent la ville)
+        for (const sens of [-1, 1]) {
+          if (!eco) for (let u = -0.6 + (sens > 0 ? 0.035 : 0); u < 0.6; u += 0.075) { const q = plan(u, SEINE(u) + sens * 0.086); if (libre(q, 0.07) && !occupe(q, 0.015)) poserObjet('platane', q, altitude(q) - 0.003, capAleatoire(q, r() * TAU), 0.04 + 0.006 * r(), 0.018, 0.032); }
+          const pts = []; for (let u = -0.64; u <= 0.641; u += 0.032) pts.push(PONTS.some((b) => Math.abs(u - b) < 0.035) ? null : plan(u, SEINE(u) + sens * 0.056));
+          route(pts, 0.011, '#E2D7C3', 0.06);
+        }
+        // le Champ-de-Mars : la pelouse au pied de la tour et ses deux allées ; l'Étoile : huit avenues autour de l'arc
+        route([0.075, 0.105, 0.135, 0.165].map((v) => plan(0, v)), 0.085, '#A9DB8C', 0.075);
+        for (const u of [-0.024, 0.024]) route([0.075, 0.12, 0.165].map((v) => plan(u, v)), 0.008, '#F4E8C8', 0.07);
+        const et = { c: ETOILE, e1: R.e1.clone().addScaledVector(ETOILE, -R.e1.dot(ETOILE)).normalize() }; et.e2 = new V3().crossVectors(ETOILE, et.e1);
+        for (let k = 0; k < 8; k++) { const b = k * TAU / 8 + 0.2; route([0, 1, 2, 3, 4, 5].map((j) => autour(et, 0.042 + j * 0.024, b)), 0.014, '#D8D2E0', 0.06); }
+        semer('platane', 8, 0.2, 0.6, 0.04, 0.05, { ombre: 0.8, eco: 0.3 }); semer('haussmann', 16, 0.26, 0.6, 0.055, 0.065, { plat: true, ombre: 1.1, face: versCentre, eco: 0.25 }); semer(kit ? 'kit:fontaine' : 'fontaine', 2, 0.16, 0.3, kit ? 0.06 : 0.035, kit ? 0.065 : 0.04, { eco: 0, plat: true });
         break;
       }
     }
   }
+  Lot.prototype.ruban = function (pts, hs, larg, col) { // une bande à plat sur le sol, le long de points (un chemin) : deux triangles par tronçon, sans jour aux coudes
+    const k = couleur(col), P = this.p, C = this.c, g = [], d = [], a = new V3(), n = new V3(), t = new V3();
+    for (let i = 0; i < pts.length; i++) {
+      t.subVectors(pts[Math.min(pts.length - 1, i + 1)], pts[Math.max(0, i - 1)]); n.crossVectors(t, pts[i]).normalize().multiplyScalar(larg / 2); // (la tangente moyenne : les deux tronçons voisins partagent leurs coins)
+      a.copy(pts[i]).multiplyScalar(hs[i] + 0.0025); g.push(a.clone().add(n)); d.push(a.clone().sub(n));
+    }
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const c = [d[i], g[i], g[i + 1], d[i + 1]];
+      for (const j of [0, 1, 2, 0, 2, 3]) { P.push(c[j].x, c[j].y, c[j].z); C.push(k[0], k[1], k[2]); if (this.t) this.t.push(0); } // (tournés vers le ciel)
+    }
+  };
   Lot.prototype.dalle = function (A, hA, B, hB, larg, ep, col, decal) { // une bande posée sur le sol de A à B (un rail, son ballast) ; decal : décalée de côté
     const a = _t.copy(A).multiplyScalar(hA), b = _v2.copy(B).multiplyScalar(hB), dz = _v.subVectors(b, a), len = dz.length(); dz.normalize();
     _ay.copy(A).add(B).normalize(); _ax.crossVectors(_ay, dz).normalize(); _az.crossVectors(_ax, _ay);
@@ -10953,7 +11020,11 @@ const PLANETE = (() => {
       };
       eau.customProgramCacheKey = () => 'planete-eau';
     } else eau.onBeforeCompile = lisere;
-    const nuage = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.94, depthWrite: false });
+    // les nuages : opaques (des bouffées transparentes qui se chevauchent laissent voir leurs ronds) ; quand on zoome, chacun se résorbe en son centre
+    T.uNuage = { value: 1 };
+    const nuage = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    nuage.onBeforeCompile = (sh) => { sh.uniforms.uNuage = T.uNuage; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uNuage;\nattribute vec3 centre;').replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = centre + ( transformed - centre ) * uNuage;'); };
+    nuage.customProgramCacheKey = () => 'planete-nuage';
     return { sol, bout, eau, nuage };
   }
   // une petite texture en dégradé radial (les ombres au sol, le halo)
@@ -10971,12 +11042,12 @@ const PLANETE = (() => {
     E.kit = !eco && E.kitOk ? lireKit() : null;
     E.ombres = []; E.animer = {}; E.rails = null; E.cable = null; E.places = {}; E.placesQ = []; E.parQ = REG.map(() => 0);
     const lots = REG.map(() => new Lot(false));
-    sol(lots, eco ? 11 : E.qualite === 'moyenne' ? 17 : 20);
+    const t0 = performance.now(); sol(lots, eco ? 11 : E.qualite === 'moyenne' ? 17 : 19); const t1 = performance.now();
     // les boutiques prennent leurs places, dans l'ordre de leurs numéros
     const parQ = REG.map(() => []); for (const f of E.fiches) parQ[f.q].push(f);
     for (const R of REG) { const pl = placesDe(R); E.placesQ[R.i] = pl; parQ[R.i].sort((a, b) => a.n - b.n).forEach((f, k) => { if (pl[k]) { E.places[f.n] = pl[k]; E.parQ[R.i] = k + 1; } }); }
-    for (const R of REG) { lots[R.i].M.identity(); decorDe(R, lots[R.i], tirage(1000 + R.i * 77)); }
-    E.regions = lots.map((L, i) => { const m = new THREE.Mesh(L.geo(), M.sol); m.userData.region = i; monde.add(m); return m; });
+    const t2 = performance.now(); for (const R of REG) { lots[R.i].M.identity(); decorDe(R, lots[R.i], tirage(1000 + R.i * 77)); } const t3 = performance.now();
+    E.regions = lots.map((L, i) => { const m = new THREE.Mesh(L.geo(), M.sol); m.userData.region = i; monde.add(m); return m; }); E.temps = { sol: +(t1 - t0).toFixed(1), places: +(t2 - t1).toFixed(1), decor: +(t3 - t2).toFixed(1), geo: +(performance.now() - t3).toFixed(1) };
     // l'eau
     E.eau = new THREE.Mesh(new THREE.IcosahedronGeometry(MER, eco ? 5 : 8), M.eau); monde.add(E.eau);
     boutiques();
@@ -10990,13 +11061,18 @@ const PLANETE = (() => {
     if (!eco) animes(r);
     // les nuages (pas en éco) : quelques gros nuages qui tournent autour de la planète
     if (!eco) {
-      const L = new Lot(false), rn = tirage(7);
-      for (let k = 0; k < 5; k++) { const p = new V3().setFromSphericalCoords(1, Math.acos(lerp(-0.8, 0.8, (k + rn()) / 5)), k * 2.4 + rn()); poser(L.M, p, 1.3 + rn() * 0.07, capAleatoire(p, rn() * TAU), 0.1 + rn() * 0.04); MODELES.nuage(L, rn); }
-      E.nuages = new THREE.Mesh(L.geo(), M.nuage); E.nuages.renderOrder = 3; monde.add(E.nuages);
+      const L = new Lot(false), rn = tirage(7), centres = [];
+      for (let k = 0; k < 5; k++) {
+        const p = new V3().setFromSphericalCoords(1, Math.acos(lerp(-0.8, 0.8, (k + rn()) / 5)), k * 2.4 + rn()), d = L.p.length; poser(L.M, p, 1.3 + rn() * 0.07, capAleatoire(p, rn() * TAU), 0.1 + rn() * 0.04); MODELES.nuage(L, rn);
+        const n = (L.p.length - d) / 3, c = new V3(); for (let i = d; i < L.p.length; i += 3) c.x += L.p[i] / n, c.y += L.p[i + 1] / n, c.z += L.p[i + 2] / n; for (let i = 0; i < n; i++) centres.push(c.x, c.y, c.z);
+      }
+      const g = L.geo(); g.setAttribute('centre', new THREE.Float32BufferAttribute(centres, 3)); // (chaque sommet connaît le centre de son nuage : de près, le nuage s'y résorbe)
+      E.nuages = new THREE.Mesh(g, M.nuage); E.nuages.renderOrder = 3; monde.add(E.nuages);
     }
     // le halo : une couronne de lumière douce autour de la planète
     const th = degrade([[0, 'rgba(255,255,255,0)'], [0.68, 'rgba(255,255,255,0)'], [0.74, 'rgba(255,250,244,.85)'], [0.8, 'rgba(250,240,255,.4)'], [1, 'rgba(240,235,255,0)']], 256); E.textures.push(th);
-    E.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: th, transparent: true, depthWrite: false })); E.halo.scale.setScalar(2.86); E.halo.renderOrder = -1; E.scene.add(E.halo);
+    // (un plan tourné vers la caméra à chaque image, pas un THREE.Sprite : la géométrie partagée des sprites garderait en vie le contexte de chaque ouverture)
+    E.halo = new THREE.Mesh(new THREE.PlaneGeometry(2.86, 2.86), new THREE.MeshBasicMaterial({ map: th, transparent: true, depthWrite: false })); E.halo.renderOrder = -1; E.scene.add(E.halo);
   }
   // ─── les boutiques : une instance par boutique, un maillage par standing, aux teintes de son quartier (façade, toit, store). Deux détails :
   //     de loin la forme simple (celle de l'éco), de près la forme riche ; et seules les boutiques tournées vers la caméra sont dessinées
@@ -11021,7 +11097,7 @@ const PLANETE = (() => {
         let mur = couleur(d && d.mur ? d.mur : R.mur), toit = couleur(R.toit), acc = couleur(f.or ? OR : d && d.accent ? d.accent : R.accent);
         if (!E.gagne[f.q]) { mur = melange(mur, BRUME, 0.5); toit = melange(toit, BRUME, 0.5); acc = melange(acc, BRUME, 0.5); }
         G.liste.push({ n: f.n, p: pl.p, h: pl.h, mat: poser(new THREE.Matrix4(), pl.p, pl.h - 0.002, pl.f, ECHELLE_BOUTIQUE[s]), mur, toit, acc });
-        E.instance[f.n] = { G, haut: baseP.boundingBox.max.y * ECHELLE_BOUTIQUE[s] };
+        E.instance[f.n] = { G, haut: baseP.boundingBox.max.y * ECHELLE_BOUTIQUE[s], avant: baseP.boundingBox.max.z * ECHELLE_BOUTIQUE[s] };
       }
       E.monde.add(im); E.groupes.push(G); E.bouts.push(im);
     }
@@ -11044,17 +11120,14 @@ const PLANETE = (() => {
       const L = new Lot(false); MODELES.ailes(L, 0); const g = L.geo(), m = new THREE.Mesh(g, E.mats.sol); m.matrixAutoUpdate = false; E.monde.add(m);
       const base = poser(new THREE.Matrix4(), mo.p, mo.h - 0.003, mo.f, mo.s); A.push((t) => { m.matrix.copy(base).multiply(_m.makeTranslation(0, 0.9, 0.46)).multiply(_m2.makeRotationZ(-t * 0.9)).multiply(_m.makeTranslation(0, -0.9, -0.46)); });
     }
-    if (E.rails) { // le petit train fait le tour de la gare
+    if (E.rails) { // le petit train fait le tour de la gare (fait main : 140 triangles ; celui d'un kit en coûtait 1 800 pour quelques pixels)
       const { R, rho } = E.rails, wagons = [];
-      const kit = E.kit && E.kit.locomotive && E.kit.wagon ? E.kit : null, ech = [], ecart = [];
       for (const [type, c] of [['locomotive', null], ['wagon', '#5FAE8B'], ['wagon', '#FFC84A']]) {
-        const L = new Lot(false);
-        if (kit) { L.M.makeRotationY(-Math.PI / 2); L.brut(kit[type].P, L.M, [1, 1, 1], 0, kit[type].C); ech.push(type === 'locomotive' ? 0.072 : 0.04); ecart.push(type === 'locomotive' ? 0 : 0.05); } // (le train de Kenney : sa longueur le long de x)
-        else { MODELES[type](L, r, c); ech.push(0.06); ecart.push(0.075); }
+        const L = new Lot(false); MODELES[type](L, r, c);
         const m = new THREE.Mesh(L.geo(), E.mats.sol); m.matrixAutoUpdate = false; E.monde.add(m); wagons.push(m);
       }
       const p = new V3(), q = new V3();
-      A.push((t) => { let b = t * 0.16; wagons.forEach((m, k) => { b -= k ? ecart[k] + (kit && k === 1 ? 0.012 : 0) : 0; autour(R, rho, b, p); autour(R, rho, b + 0.01, q).sub(p).normalize(); poser(m.matrix, p, altitude(p) + 0.0055, q, ech[k]); }); });
+      A.push((t) => { let b = t * 0.16; wagons.forEach((m, k) => { b -= k ? 0.075 : 0; autour(R, rho, b, p); autour(R, rho, b + 0.01, q).sub(p).normalize(); poser(m.matrix, p, altitude(p) + 0.0055, q, 0.06); }); });
     }
     if (E.cable) { // les sièges du télésiège montent le long du câble
       const { A: PA, B: PB } = E.cable, L = new Lot(false); L.f(BOITE, 0, -0.5, 0, 0.06, 0.5, 0.06, '#4A4E5A'); L.f(BOITE, 0, -0.75, 0.06, 0.55, 0.08, 0.32, '#E63946'); L.f(BOITE, 0, -0.72, -0.08, 0.55, 0.3, 0.06, '#E63946');
@@ -11068,7 +11141,7 @@ const PLANETE = (() => {
     for (const G of E.groupes || []) { G.geoP.dispose(); G.geoL.dispose(); } E.groupes = [];
     const partages = new Set(Object.values(E.mats));
     for (const o of [...E.monde.children]) { E.monde.remove(o); if (o.geometry) o.geometry.dispose(); if (o.isInstancedMesh) o.dispose(); if (o.material && !partages.has(o.material)) o.material.dispose(); }
-    if (E.halo) { E.scene.remove(E.halo); E.halo.material.dispose(); E.halo = null; }
+    if (E.halo) { E.scene.remove(E.halo); E.halo.geometry.dispose(); E.halo.material.dispose(); E.halo = null; }
     for (const t of E.textures) t.dispose(); E.textures = []; E.bouts = []; E.anime = []; E.nuages = null;
   }
 
@@ -11190,7 +11263,7 @@ const PLANETE = (() => {
       const el = document.createElement('div'); el.className = 'pl-drap' + (E.gagne[f.q] ? '' : ' brume'); el.style.setProperty('--acc', acc); el.style.setProperty('--enc', clair(acc) ? '#4A3328' : '#FFFFFF');
       el.innerHTML = `<span><b>${f.n}</b>${f.jetons ? '<i class="pl-jet"></i>' : ''}</span>`; el.setAttribute('aria-hidden', 'true');
       E.calque.appendChild(el);
-      E.drapeaux.push({ n: f.n, el, f, local: pl.p.clone().multiplyScalar(pl.h + inst.haut + 0.002), base: pl.p.clone().multiplyScalar(pl.h + 0.004), normale: pl.p.clone(), vu: false, a: 0, x: 0, y: 0, bx: 0, by: 0, cle: '' });
+      E.drapeaux.push({ n: f.n, el, f, local: pl.p.clone().multiplyScalar(pl.h + inst.haut + 0.002), base: pl.p.clone().multiplyScalar(pl.h + 0.004), pied: pl.p.clone().addScaledVector(pl.f, inst.avant).normalize().multiplyScalar(pl.h + 0.004), normale: pl.p.clone(), vu: false, a: 0, x: 0, y: 0, bx: 0, by: 0, cle: '' }); // (le pied : le sol devant la devanture, où pointe l'étiquette)
     }
     majDrapeaux();
   }
@@ -11201,8 +11274,9 @@ const PLANETE = (() => {
     for (const d of E.drapeaux) {
       _n.copy(d.normale).applyQuaternion(E.q); _p.copy(d.local).applyMatrix4(mw); _vers.copy(cam.position).sub(_p); const dist = _vers.length(); _vers.divideScalar(dist);
       let a = lisse(0.06, 0.32, _n.dot(_vers)); if (loin) a *= lisse(2.2, 1.2, dist); if (E.choisi && d.n !== E.choisi && E.etiquetteVue) a *= 0.35;
+      if (a >= 0.03) { _p.project(cam); const px = (_p.x + 1) * W / 2; a *= lisse(-8, 4, px) * lisse(W + 8, W - 4, px); } // (contre un bord de l'écran, le fanion qui en sortirait s'efface)
       if (a < 0.03) { if (d.vu) { d.el.style.visibility = 'hidden'; d.vu = false; } d.a = 0; continue; }
-      _p.project(cam); const x = Math.round((_p.x + 1) * W / 2 * 2) / 2, y = Math.round((1 - _p.y) * H / 2 * 2) / 2;
+      const x = Math.round((_p.x + 1) * W / 2 * 2) / 2, y = Math.round((1 - _p.y) * H / 2 * 2) / 2;
       _p.copy(d.base).applyMatrix4(mw).project(cam); d.bx = (_p.x + 1) * W / 2; d.by = (1 - _p.y) * H / 2;
       const s = d.n === E.choisi ? 1.2 : loin ? borne(1.25 / dist, 0.75, 1.1) : 1, cle = `${x}|${y}|${a.toFixed(2)}|${s.toFixed(2)}`;
       d.x = x; d.y = y; d.a = a;
@@ -11227,13 +11301,14 @@ const PLANETE = (() => {
   function cacherEtiquette() { if (!E || !E.etiquette) return; E.etiquette.classList.remove('vue'); E.etiquette.hidden = true; E.etiquetteVue = false; E.legende.classList.remove('cache'); }
   function placerEtiquette() {
     if (!E.etiquetteVue) return; const d = E.drapeaux.find((x) => x.n === E.choisi); if (!d) return;
-    const el = E.etiquette, w = el.offsetWidth || 270, x = borne(d.bx - w / 2, 12, E.W - w - 12), y = Math.min(d.by + 14, E.H - el.offsetHeight - 16);
-    el.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`; el.style.setProperty('--pointe', `${Math.round(borne(d.bx - x, 24, w - 24))}px`);
+    _p.copy(d.pied).applyMatrix4(E.monde.matrixWorld).project(E.camera); const px = (_p.x + 1) * E.W / 2, py = (1 - _p.y) * E.H / 2; // (sous l'avant de la boutique : sa devanture reste visible)
+    const el = E.etiquette, w = el.offsetWidth || 270, x = borne(px - w / 2, 12, E.W - w - 12), y = Math.min(py + 10, E.H - el.offsetHeight - 16);
+    el.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`; el.style.setProperty('--pointe', `${Math.round(borne(px - x, 24, w - 24))}px`);
   }
   function majLegende() {
     const p = devant(); let best = 0, bd = -2; for (const R of REG) { const d = p.dot(R.c); if (d > bd) { bd = d; best = R.i; } }
     if (best === E.legendeQ) return; E.legendeQ = best; const R = REG[best], nb = E.fiches.filter((f) => f.q === best).length;
-    const sous = !E.gagne[best] ? `À gagner à la boutique n°${R.gagneA}` : nb ? `${nb} boutique${nb > 1 ? 's' : ''}` : 'Pas encore de boutique';
+    const sous = !E.gagne[best] ? `À gagner à la n°${R.gagneA}` : nb ? `${nb} boutique${nb > 1 ? 's' : ''}` : 'Pas encore de boutique';
     E.legende.innerHTML = `<i style="--acc:${R.accent}"></i><b>${capital(R.nom)}</b><small>${sous}</small>`;
   }
   function cacherIndice() { if (E && E.indice) { E.indice.classList.add('cache'); E.indice = null; } }
@@ -11242,8 +11317,8 @@ const PLANETE = (() => {
   function visibilites() {
     const c = E.camera.position, dc = c.length(), hor = Math.acos(Math.min(1, 1.03 / dc)) + 0.95;
     for (const m of E.regions) { _v.copy(REG[m.userData.region].c).applyQuaternion(E.q); m.visible = Math.acos(borne(_v.dot(c) / dc, -1, 1)) < hor; }
-    if (E.nuages) { const o = lisse(0.55, 0.25, E.z); E.mats.nuage.opacity = 0.94 * o; E.nuages.visible = o > 0.02; }
-    if (E.halo) E.halo.material.opacity = lisse(0.9, 0.4, E.z);
+    if (E.nuages) { const o = lisse(0.5, 0.22, E.z); E.uniformes.uNuage.value = o * (2 - o); E.nuages.visible = o > 0.02; }
+    if (E.halo) { E.halo.material.opacity = lisse(0.9, 0.4, E.z); E.halo.quaternion.copy(E.camera.quaternion); }
   }
   function image(dt) {
     E.t += dt; E.uniformes.uT.value = E.t;
@@ -11288,8 +11363,8 @@ const PLANETE = (() => {
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(qualite === 'haute' ? 2 : qualite === 'moyenne' ? 1.5 : 1, window.devicePixelRatio || 1));
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(CAM.fov, 1, 0.01, 30), monde = new THREE.Group(); scene.add(monde);
-    scene.add(new THREE.HemisphereLight('#FFF7EC', '#E3D6D2', 1.65));
-    const soleil = new THREE.DirectionalLight('#FFF0DA', 1.6); soleil.position.set(-2.4, 3.2, 4.2); scene.add(soleil);
+    scene.add(new THREE.HemisphereLight('#FFF6EA', '#D6CBE0', 1.4)); // (le ciel crème, le reflet du sol lavande)
+    const soleil = new THREE.DirectionalLight('#FFEED8', 2.0); soleil.position.set(-3.0, 3.4, 3.0); scene.add(soleil); // le soleil en haut à gauche : la planète a du volume
     const div = (c) => { const d = document.createElement('div'); d.className = c; return d; };
     const calque = div('pl-calque'), etiquette = div('pl-etiquette'), legende = div('pl-legende'), indice = div('pl-indice');
     etiquette.hidden = true; etiquette.setAttribute('role', 'group'); legende.setAttribute('aria-live', 'polite'); calque.setAttribute('aria-hidden', 'true');
@@ -11354,7 +11429,7 @@ const PLANETE = (() => {
       pause(on) { if (!E) return; E.pause = !!on; E.essai = !!on; cancelAnimationFrame(E.raf); if (!on) { E.derniere = performance.now(); E.raf = requestAnimationFrame(boucle); } },
       image(dt, n) { if (!E) return; for (let k = 0; k < (n || 1); k++) image(dt == null ? 1 / 60 : dt); },
       ecran(n) { const d = E && E.drapeaux.find((x) => x.n === n); if (!d) return null; const r = E.cv.getBoundingClientRect(); return { x: r.left + d.x + 12, y: r.top + d.y - 22, bx: r.left + d.bx, by: r.top + d.by, vu: d.vu && d.a > 0.35 }; },
-      journal() { return E ? E.journal : null; },
+      journal() { return E ? E.journal : null; }, temps() { return E ? E.temps : null; },
       etat() { return E ? { q: E.q.toArray().map((v) => +v.toFixed(4)), z: E.z, choisi: E.choisi, etiquette: !!E.etiquetteVue, tween: !!E.tween, vx: E.vx, vy: E.vy } : null; },
       repos() { if (!E) return; E.tween = null; E.q.copy(E.qRepos); E.z = 0; E.vx = 0; E.vy = 0; },
       regarder(i, z, penche) { if (!E) return; const R = REG[i]; E.tween = null; E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -(penche || 0))); E.z = z == null ? 0.6 : z; E.vx = 0; E.vy = 0; E.rs = altitude(R.c); },
@@ -19845,7 +19920,7 @@ const PLANETE_ECRAN = (() => {
     if (API.ouvert) return true; o = o || {};
     const st = etat(), N = Math.max(1, Math.floor(o.boutiques || (st && st.boutiques) || 1)), liste = fiches(N);
     const gagnes = G.QUARTIERS.filter((q) => !q.boutique || q.boutique <= N).length, total = liste.reduce((s, f) => s + f.jetons, 0);
-    const sous = liste.length ? `${liste.length} boutique${liste.length > 1 ? 's' : ''} · ${gagnes} quartiers sur ${G.QUARTIERS.length}` : `${gagnes} quartiers sur ${G.QUARTIERS.length}`;
+    const sous = `${liste.length ? `${liste.length} boutique${liste.length > 1 ? 's' : ''} · ` : ''}${gagnes}/${G.QUARTIERS.length} quartiers`;
     el = document.createElement('div'); el.id = 'planete'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pl-titre');
     el.innerHTML = `<div class="pl-vue"></div><div class="at-haut"><button type="button" class="at-fermer" data-pl="fermer" aria-label="Fermer la planète"><i class="ico">${(typeof ICONS !== 'undefined' && ICONS.UI.fermer) || '×'}</i></button>
       <div class="at-titre"><b id="pl-titre">Ma chaîne</b><small>${sous}</small></div>${total ? `<span class="pl-jetons" aria-label="${total} jetons de chaîne à prendre dans tes boutiques">${CLE}<b>${total}</b></span>` : ''}</div>`;

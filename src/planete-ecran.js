@@ -26,7 +26,7 @@ const PLANETE_ECRAN = (() => {
     if (API.ouvert) return true; o = o || {};
     const st = etat(), N = Math.max(1, Math.floor(o.boutiques || (st && st.boutiques) || 1)), liste = fiches(N);
     const gagnes = G.QUARTIERS.filter((q) => !q.boutique || q.boutique <= N).length, total = liste.reduce((s, f) => s + f.jetons, 0);
-    const sous = liste.length ? `${liste.length} boutique${liste.length > 1 ? 's' : ''} · ${gagnes} quartiers sur ${G.QUARTIERS.length}` : `${gagnes} quartiers sur ${G.QUARTIERS.length}`;
+    const sous = `${liste.length ? `${liste.length} boutique${liste.length > 1 ? 's' : ''} · ` : ''}${gagnes}/${G.QUARTIERS.length} quartiers`;
     el = document.createElement('div'); el.id = 'planete'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pl-titre');
     el.innerHTML = `<div class="pl-vue"></div><div class="at-haut"><button type="button" class="at-fermer" data-pl="fermer" aria-label="Fermer la planète"><i class="ico">${(typeof ICONS !== 'undefined' && ICONS.UI.fermer) || '×'}</i></button>
       <div class="at-titre"><b id="pl-titre">Ma chaîne</b><small>${sous}</small></div>${total ? `<span class="pl-jetons" aria-label="${total} jetons de chaîne à prendre dans tes boutiques">${CLE}<b>${total}</b></span>` : ''}</div>`;

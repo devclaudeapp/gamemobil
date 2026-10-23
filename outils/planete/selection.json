@@ -1,7 +1,6 @@
 {
  "packs": {
   "nature": "kenney_nature-kit/Models/GLTF format",
-  "noel": "kenney_holiday-kit/Models/GLB format",
   "bateaux": "kenney_watercraft-pack/Models/GLB format",
   "bourg": "kenney_fantasy-town-kit_2.0/Models/GLB format",
   "pirate": "kenney_pirate-kit/Models/GLB format",
@@ -11,8 +10,6 @@
   [ "ville", "kkville", "building_A_withoutBase.gltf", "immeuble_a", {  "pastel": 0.32 } ],
   [ "ville", "kkville", "building_B_withoutBase.gltf", "immeuble_b", {  "pastel": 0.32 } ],
   [ "ville", "kkville", "building_C_withoutBase.gltf", "immeuble_c", {  "pastel": 0.32 } ],
-  [ "gare", "noel", "train-locomotive.glb", "locomotive" ],
-  [ "gare", "noel", "train-wagon-short.glb", "wagon" ],
   [ "mer", "bateaux", "boat-sail-a.glb", "voilier" ],
   [ "ile", "pirate", "chest.glb", "coffre" ],
   [ "capitale", "bourg", "fountain-square.glb", "fontaine" ],

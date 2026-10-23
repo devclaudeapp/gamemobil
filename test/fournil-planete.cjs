@@ -3,14 +3,16 @@
 // · sans ?planete=1 : ni bouton ni écran, le jeu tel qu'avant ;
 // · avec ?planete=1 : le bouton rond du coin ouvre l'écran plein (la boutique, derrière, ne se dessine plus) ; à la n°31, trente boutiques,
 //   une instance et un drapeau chacune, de plus en plus luxueuses (six standings) ; le kit (hd/planete/planete.glb) demandé une fois,
-//   ≤ 600 Ko ; ≤ 60 appels de dessin, ≤ 40 000 triangles en haute (et à la n°60) ;
+//   ≤ 600 Ko ; ≤ 60 appels de dessin, ≤ 40 000 triangles en haute, dans la vue d'arrivée et dans la pire des vues (chaque région devant,
+//   de loin et de près), à la n°31 et à la n°60 ;
 // · au doigt (de vrais touchers, CDP Input.dispatchTouchEvent) : un glissé fait tourner la planète, l'inertie la porte puis s'éteint ;
 //   pincer zoome, le zoom trop poussé revient doucement dans ses bornes, la planète se redresse ;
 // · toucher le drapeau d'une boutique : elle vient devant, la caméra s'approche, puis l'étiquette (n°, quartier, « Gérant : aucun », jetons
 //   à prendre) ; « Entrer » répond ; toucher le ciel : l'étiquette part, la caméra recule ;
 // · fermer : l'écran et son canvas partent ; cinq ouvertures et fermetures : la planète rebâtie à l'identique (géométries, textures),
 //   la boutique et le tas JS (après le ramasse-miettes) stables ;
-// · en éco : ≤ 15 000 triangles, ni kit, ni nuages ; ?hd=0 : le sol et les boutiques procéduraux seuls, aucune requête hd/planete ;
+// · en éco : ≤ 15 000 triangles (la pire des vues aussi, à la n°31 et à la n°60), ni kit, ni nuages ; ?hd=0 : le sol et les boutiques
+//   procéduraux seuls, aucune requête hd/planete ;
 // · aucune erreur dans la page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-planete.cjs   (port : PORT_PLANETE)
 'use strict';
@@ -46,6 +48,12 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
     const tas = async () => { await cdp.send('HeapProfiler.collectGarbage'); await sleep(100); await cdp.send('HeapProfiler.collectGarbage'); return (await cdp.send('Runtime.getHeapUsage')).usedSize; };
     return { ctx, page, erreurs, ev, touche, tas };
   }
+  // la pire des vues : chaque région devant, de loin (penchée comme au repos) et de près ; la boucle suspendue le temps de la ronde
+  const pire = (ev) => ev(() => {
+    PLANETE.essai.pause(true); let calls = 0, tri = 0, ou = '';
+    for (let i = 0; i < PLANETE.REG.length; i++) for (const [z, pe] of [[0, 0.36], [0.72, 0]]) { PLANETE.essai.regarder(i, z, pe); PLANETE.essai.image(1 / 60, 2); const s = PLANETE.stats; calls = Math.max(calls, s.calls); if (s.triangles > tri) { tri = s.triangles; ou = PLANETE.REG[i].id + (z ? ' de près' : ''); } }
+    PLANETE.essai.repos(); PLANETE.essai.pause(false); return { calls, tri, ou };
+  });
 
   // ─── 1. sans ?planete=1 : rien ne change ───
   {
@@ -78,7 +86,7 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
   check(s.boutiques === 30 && s.placees === 30, `trente boutiques, toutes posées dans leur quartier (${s.placees}/${s.boutiques})`);
   const drap = await ev(() => ({ n: document.querySelectorAll('#planete .pl-drap').length, vus: [...document.querySelectorAll('#planete .pl-drap')].filter((d) => d.style.visibility !== 'hidden').length, titre: document.querySelector('#planete .at-titre').textContent }));
   check(drap.n === 30 && drap.vus >= 8, `un drapeau numéroté par boutique (${drap.n}, dont ${drap.vus} face à nous)`);
-  check(/30 boutiques/.test(drap.titre) && /10 quartiers sur 10/.test(drap.titre), `le titre : « ${drap.titre.replace(/\s+/g, ' ').trim()} »`);
+  check(/30 boutiques/.test(drap.titre) && /10\/10 quartiers/.test(drap.titre), `le titre : « ${drap.titre.replace(/\s+/g, ' ').trim()} »`);
   const std = await ev(() => { const o = {}; for (let n = 1; n <= 30; n++) { const s = GAME.standingDe(n); o[s] = (o[s] || 0) + 1; } return o; });
   check(Object.keys(std).length === 6, `les six standings sont là (${JSON.stringify(std)})`);
   const poids = demandes.reduce((a, d) => a + d.n, 0), glb = demandes.filter((d) => /planete\.glb$/.test(d.p)).length;
@@ -88,6 +96,8 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
   s = await ev(() => PLANETE.stats);
   check(s.calls <= 60, `${s.calls} appels de dessin (≤ 60)`);
   check(s.triangles <= 40000, `${s.triangles} triangles en haute (≤ 40 000)`);
+  let pv = await pire(ev);
+  check(pv.calls <= 60 && pv.tri <= 40000, `la pire des vues (chaque région devant, de loin et de près) : ${pv.calls} appels, ${pv.tri} triangles (${pv.ou})`);
 
   // ─── au doigt : tourner, l'inertie, pincer, le retour doux ───
   const q0 = await ev(() => PLANETE.essai.etat().q);
@@ -159,6 +169,8 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
   await ev(() => PLANETE_ECRAN.ouvrir({ boutiques: 60 })); await attendre(() => ev(() => PLANETE.ouvert && PLANETE.stats.kit), 15000); await sleep(1800);
   s = await ev(() => PLANETE.stats);
   check(s.placees === 59 && s.calls <= 60 && s.triangles <= 40000, `à la n°60 : ${s.placees} boutiques posées, ${s.calls} appels, ${s.triangles} triangles`);
+  pv = await pire(ev);
+  check(pv.calls <= 60 && pv.tri <= 40000, `à la n°60, la pire des vues : ${pv.calls} appels, ${pv.tri} triangles (${pv.ou})`);
   await ev(() => PLANETE_ECRAN.fermer());
   check(!erreurs.length, `aucune erreur (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
@@ -170,6 +182,11 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
     const se = await j.ev(() => PLANETE.stats);
     check(se.qualite === 'eco' && !se.kit && se.placees === 30, `en éco : trente boutiques, sans kit (${se.qualite})`);
     check(se.triangles <= 15000 && se.calls <= 60, `en éco : ${se.triangles} triangles (≤ 15 000), ${se.calls} appels`);
+    let pe = await pire(j.ev);
+    check(pe.calls <= 60 && pe.tri <= 15000, `en éco, la pire des vues : ${pe.calls} appels, ${pe.tri} triangles (${pe.ou})`);
+    await j.ev(() => { PLANETE_ECRAN.fermer(); PLANETE_ECRAN.ouvrir({ boutiques: 60 }); }); await sleep(600);
+    pe = await pire(j.ev);
+    check(pe.calls <= 60 && pe.tri <= 15000 && (await j.ev(() => PLANETE.stats.placees)) === 59, `en éco, à la n°60, la pire des vues : ${pe.calls} appels, ${pe.tri} triangles (${pe.ou})`);
     check(!demandes.length, 'en éco : aucun fichier de la planète demandé');
     await j.ev(() => PLANETE_ECRAN.fermer());
     check(!j.erreurs.length, `aucune erreur en éco (${j.erreurs.slice(0, 3).join(' | ')})`);

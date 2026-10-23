@@ -2108,6 +2108,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .pl-legende b { font: 700 17px/1 var(--titre); overflow: hidden; text-overflow: ellipsis; }
 .pl-legende small { font-size: 12.5px; color: var(--texte-2); }
 .pl-legende.cache, .pl-indice.cache { opacity: 0; }
+.pl-indice.cache { animation: none; }
 .pl-indice { position: absolute; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); text-align: center;
   font-size: 13px; color: var(--texte-2); pointer-events: none; transition: opacity .4s; animation: plIndice 1s .9s both; }
 @keyframes plIndice { from { opacity: 0; } to { opacity: 1; } }
@@ -2118,6 +2119,8 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     radial-gradient(115% 62% at 50% 46%, #FFFDF8 0%, #F4EFFF 36%, #E2EBFF 64%, #FFE8D8 100%); animation: atEntre .22s ease-out; }
 #planete .pl-vue { position: absolute; inset: 0; }
 #planete .at-haut { position: relative; z-index: 2; pointer-events: none; }
+#planete .at-haut::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1 * env(safe-area-inset-top, 0px)); bottom: -30px; z-index: -1; pointer-events: none; /* un voile du ciel sous le titre : une tour, un sommet passent dessous sans le brouiller */
+  background: linear-gradient(to bottom, rgba(232, 235, 251, .9) 0%, rgba(232, 235, 251, .72) 58%, rgba(232, 235, 251, 0) 100%); }
 #planete .at-haut > * { pointer-events: auto; }
 #planete .pl-jetons { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); }
 #planete .pl-jetons svg { width: 24px; height: 24px; }
