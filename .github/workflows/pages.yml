@@ -59,9 +59,9 @@ jobs:
           PORT_VERSION: '8869'
   # Deux tâches en parallèle : une seule dépassait les 20 minutes.
   fournil2:
-    name: Le Fournil, événements et scène (Playwright)
+    name: Le Fournil, événements (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +71,7 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Le Quartier, la Maison hantée (et ses activités), l'arrière-salle, la HD, les sons
+      - name: Le Quartier, la Maison hantée (et ses activités)
         run: |
           node build.js
           node test/fournil-quartier.test.js
@@ -79,6 +79,35 @@ jobs:
           node test/fournil-quartier.cjs
           node test/fournil-hantee.cjs
           node test/fournil-hantee-activites.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_RECOMPENSES: '8861'
+          PORT_CLASSEMENT: '8862'
+          PORT_ATELIER: '8863'
+          PORT_GARDEROBE: '8864'
+          PORT_QUARTIER: '8865'
+          PORT_BLACKJACK: '8866'
+          PORT_MEUBLES: '8870'
+          PORT_HANTEE_ACTIVITES: '8881'
+  # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
+  # les recettes de boutique et le parcours du boulanger.
+  fournil6:
+    name: Le Fournil, arrière-salle, HD et sons (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: L'arrière-salle, la HD, les sons
+        run: |
+          node build.js
           node test/fournil-blackjack.test.js
           node test/fournil-roulette.test.js
           node test/fournil-casino.test.js
@@ -189,7 +218,7 @@ jobs:
           PORT_CLIENTS3D: '8877'
           PORT_MEUBLES: '8870'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
