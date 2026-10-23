@@ -2283,7 +2283,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'b44815b57e2d';</script>
+<script>window.FOURNIL_VERSION = '7078a04ffbec';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -9761,7 +9761,7 @@ const CLIENTS3D = (() => {
   // les mesures (unités du monde, comme les chibis : 73 de haut à l'échelle 1) : la hauteur visée (× K × taille du client) ; l'assise de chaque coin
   // (src/meubles.js : chaises et tabourets à 16, la banquette plus basse) ; un point devant la bouche (relatif à la tête, × la hauteur du modèle) ;
   // l'objet en main, au bout du poing (× la hauteur) ; la durée de la joie ; le sac (× celui des chibis)
-  const HAUT = 74, ASSISE = { table: 16, terrasse: 16, bar: 16, banquette: 12 }, BOUCHE = [0, 0.075, 0.2], PRISE = 0.075, JOIE = 1.35, SAC = 0.8;
+  const HAUT = 62, ASSISE = { table: 16, terrasse: 16, bar: 16, banquette: 12 }, BOUCHE = [0, 0.075, 0.2], PRISE = 0.075, JOIE = 1.35, SAC = 0.8;
   const BAS = ['#4A5A78', '#5B4A3A', '#3E4A5C', '#8A7A66', '#33363F', '#6B5B7A'], CASQUES = ['#F2C14E', '#F08A3C', '#F2EEE4', '#E05A4E', '#5B8FD0'];
   const FORMES = ['#26262C', '#4A3328', '#2F3A55', '#5E2A35'], GRIS = ['#DCD8D0', '#C4BFB6', '#ECE8E0', '#A9A49B'], OR = '#FFC84A', OR2 = '#E0A61E';
   const YAW = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI };
@@ -10264,7 +10264,7 @@ const CLIENTS3D = (() => {
   // (pour les tests) le bas et le haut du corps d'un acteur, en y monde : ses sommets posés par les os, sans les accessoires
   function mesure(a) { let bas = Infinity, haut = -Infinity; a.g.updateMatrixWorld(true); sommetsMonde(a.S, a.pr.sommets, (i, x, y) => { if (y < bas) bas = y; if (y > haut) haut = y; }); return { bas, haut }; }
 
-  Object.assign(API, { actif: true, permis, demander, preparer, acteur, poser, rendre, tete, mesure, liberer, chauffer, rentrer, echantillon, PERSONNAGES, CL, PROTOS, ASSISE });
+  Object.assign(API, { actif: true, HAUT, permis, demander, preparer, acteur, poser, rendre, tete, mesure, liberer, chauffer, rentrer, echantillon, PERSONNAGES, CL, PROTOS, ASSISE });
   Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0) }, etat) }); // (pour les tests : la réserve, la cuisson)
   return API;
 })();

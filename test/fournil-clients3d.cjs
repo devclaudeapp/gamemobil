@@ -148,7 +148,8 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     check(i0 > 0 && s.slice(i0, i0 + 8).some((x) => x && x[3]), 'servi : la joie (les bras levés de Victory), en quittant la file');
     const enMain = sortie.filter((x) => x[9] > 0.99);
     const ys = enMain.map((x) => x[5]).sort((a, b) => a - b), med = ys[Math.floor(ys.length / 2)];
-    check(enMain.length > 10 && enMain.every((x) => x[4] === 'main' && x[5] > 16.5) && med > 20, `il repart le sac à la main droite (le haut de l'anse à y ${Math.round(ys[0])} à ${Math.round(ys[ys.length - 1])}, ${Math.round(med)} en médiane ; posé par terre, sous 16)`);
+    const kH = (await ev(() => CLIENTS3D.HAUT)) / 74; // (les hauteurs suivent la taille des clients : mesurées à 74, rapetissés à 62 le 23 oct.)
+    check(enMain.length > 10 && enMain.every((x) => x[4] === 'main' && x[5] > 16.5 * kH) && med > 20 * kH, `il repart le sac à la main droite (le haut de l'anse à y ${Math.round(ys[0])} à ${Math.round(ys[ys.length - 1])}, ${Math.round(med)} en médiane ; posé par terre, sous 16)`);
     check(sortie.filter((x) => x[6] >= x[7] - 2).some((x) => x[2] > 0.5), 'et salue de la main en passant la porte');
     check(s[s.length - 1] === null, 'puis il sort (il n\'est plus dans la boutique)');
   }
@@ -164,9 +165,10 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     // repu : il se lève (VIE lui laisse 0,9 s), en ramassant son sac (PickUp), et repart avec
     await ev((id) => { const c = VIE.clients.find((x) => x.id === id); if (c) c.mange = 0; }, id);
     const l = await ev((id) => window.__pas(150, false, (c3) => { const x = c3.liste.find((y) => y.id === id), c = VIE.clients.find((y) => y.id === id); return x ? [x.etat, x.clip, x.sacLieu, x.sacY, x.leve, c ? c.alpha : 0] : null; }), id);
+    const kL = (await ev(() => CLIENTS3D.HAUT)) / 74; // (la taille des clients)
     const leve = l.filter((x) => x && x[4]), apres = l.filter((x) => x && x[0] === 'sort' && x[5] > 0.99), iMain = leve.findIndex((x) => x[2] === 'main');
     check(leve.length > 10 && leve.every((x) => x[1] === 'PickUp'), `repu, il se lève en ramassant son sac (PickUp, ${leve.length} images)`);
-    check(leve[0] && leve[0][2] === 'sol' && iMain > 0 && leve.slice(iMain).every((x) => x[2] === 'main') && apres.length > 5 && apres.every((x) => x[2] === 'main' && x[3] > 16.5), `le sac quitte le sol pour sa main (à la ${iMain + 1}e image du lever), et il repart avec`);
+    check(leve[0] && leve[0][2] === 'sol' && iMain > 0 && leve.slice(iMain).every((x) => x[2] === 'main') && apres.length > 5 && apres.every((x) => x[2] === 'main' && x[3] > 16.5 * kL), `le sac quitte le sol pour sa main (à la ${iMain + 1}e image du lever), et il repart avec`);
   }
 
   console.log('── le client mystère : touché, puis oublié ──');
@@ -179,7 +181,7 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     await ev(() => window.__pas(130, false)); m = await ev(() => window.__fournil.SCENE.clients3d.liste.find((x) => x.or) || null);
     check(m && m.attente > 6, `plus de 6 s sans être touché : il s'impatiente (${m && m.attente} s)`);
     // touché sur sa boîte 3D, hors du rectangle du plan (VIE.hit : ±24 × taille) : la scène le prend quand même
-    const t = await ev(() => { const c = VIE.mystereEnAttente(), K = VIE.K; if (!c) return null; const x = c.x + 28 * K * c.taille, y = c.y - 30 * K; return { plan: VIE.hit(x, y), scene: window.__fournil.SCENE.hit(x, y), pris: c.pris }; });
+    const t = await ev(() => { const c = VIE.mystereEnAttente(), K = VIE.K; if (!c) return null; const x = c.x + 25 * K * c.taille, y = c.y - 30 * K; return { plan: VIE.hit(x, y), scene: window.__fournil.SCENE.hit(x, y), pris: c.pris }; });
     check(t && !t.plan && t.scene && t.pris, 'touché sur sa silhouette 3D (hors du rectangle du plan) : la scène le prend');
     const s = await ev(() => window.__pas(60, false, (c3) => { const x = c3.liste.find((y) => y.or); return x ? [x.etat, x.geste, x.sac, x.halo] : null; }));
     check(s.some((x) => x && x[1] === 'oui') && s.filter((x) => x && x[0] === 'sort').every((x) => x[2] && !x[3]), 'il dit oui de la tête et repart avec son sac, sans son halo');
