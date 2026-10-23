@@ -2105,7 +2105,8 @@ const UI = (() => {
       ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
     if (AR) AR.init({ st: () => st, son, buzz, audio, save, confettis,
-      ouvert: () => { closeSheet(); eveiller(); if (SCENE.alleger) SCENE.alleger(); }, // la boutique, cachée, rend sa passe d'effets (recréée au retour) ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      ouvert: () => { closeSheet(); eveiller(); if (SCENE.alleger) SCENE.alleger(); }, // la boutique, cachée, rend sa passe d'effets (recréée au retour)
+      ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);

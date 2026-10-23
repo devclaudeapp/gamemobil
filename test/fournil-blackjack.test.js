@@ -289,5 +289,11 @@ console.log('── le rendement avec Séparer et le bon coup (le moteur réel, 
   check(/'blackjack\.js'/.test(build) && build.indexOf("'blackjack.js'") < build.indexOf("'ui.js'"), 'build.js charge src/blackjack.js avant ui.js');
 }
 
+{ // l'arrière-salle rend la main à la boutique : le rappel « ferme » d'AR.init n'est pas perdu dans un commentaire (bug du 22 oct.)
+  const ui = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const i = ui.indexOf('AR.init('), bloc = ui.slice(i, ui.indexOf('apres:', i));
+  const code = bloc.split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+  check(i > 0 && /ferme:\s*\(\)\s*=>/.test(code) && /feteEnAttente/.test(code), 'AR.init reçoit bien « ferme » (hors commentaire) : la fête en attente est jouée en refermant l\'arrière-salle');
+}
 console.log(`\n${n - fails}/${n} ${fails ? 'ÉCHECS : ' + fails : 'tout est vert'}`);
 process.exit(fails ? 1 : 0);
