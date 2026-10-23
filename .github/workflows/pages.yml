@@ -223,6 +223,10 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # La version d'essai (fournil-essai/, à côté du vrai jeu) : construite depuis la branche du lot en cours, à chaque déploiement (un
+      # déploiement Pages remplace tout le site). Vide quand le lot est fusionné dans master : plus de version d'essai.
+      ESSAI_BRANCHE: chaine
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
@@ -231,6 +235,19 @@ jobs:
       - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js
         env:
           TZ: Europe/Paris
+      # La version d'essai : la branche du lot, construite à part (node build.js --essai n'écrit que fournil-essai/), testée, puis posée à
+      # côté du vrai jeu. Le vrai jeu reste celui de master, construit et testé plus haut. Une branche d'essai cassée ne bloque jamais sa
+      # mise en ligne (continue-on-error) : l'essai manque simplement à ce déploiement.
+      - name: La version d'essai (la branche du lot, à côté du vrai jeu)
+        if: ${{ env.ESSAI_BRANCHE != '' }}
+        continue-on-error: true
+        env:
+          TZ: Europe/Paris
+        run: |
+          trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
+          git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD
+          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-chaine.test.js)
+          rm -rf fournil-essai && mv _essai/fournil-essai fournil-essai
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
