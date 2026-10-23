@@ -61,7 +61,10 @@ async function calme(page) {
   check(await page.evaluate(() => typeof FOURNIL_HD.GLTFLoader === 'function' && typeof FOURNIL_HD.EffectComposer === 'undefined' && typeof FOURNIL_HD.N8AOPostPass === 'undefined' && typeof HDM.effets === 'undefined') && paquet < 100e3,
     `le paquet du jeu n'embarque que le chargeur (sans postprocessing ni n8ao, réservés à la maquette) : ${Math.round(paquet / 1024)} Ko (< 100 Ko)`);
   check(await attendre(() => page.evaluate(() => SCENE.decorHD > 0)), 'après les premières images, la boutique reçoit ses décors HD');
-  // la boutique : ses personnages arrivent (des clients) ; aucun personnage de la Planque n'est demandé (ses clients 3D ont leur lot, « clients »)
+  // la boutique : ses personnages arrivent (des clients) ; aucun personnage de la Planque n'est demandé (ses clients 3D ont leur lot, « clients »).
+  // Un client amené à coup sûr (VIE.accueillir, comme test/fournil-clients3d.cjs) : au début d'une partie, la file se remplit au hasard (un
+  // tirage à 0,3 toutes les 7 s de jeu) et, à deux images par seconde sous SwiftShader, les 20 s d'attente passaient souvent sans personne
+  await page.evaluate(() => { const id = VIE.accueillir(), c = VIE.clients.find((x) => x.id === id); if (c) { c.garde = false; c.wait = 1.2 + Math.random() * 1.5; } });
   const acteurs = await attendre(() => page.evaluate(() => window.__fournil.stats().acteurs > 0), 20000), nActeurs = await page.evaluate(() => window.__fournil.stats().acteurs);
   check(acteurs && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage de la Planque : ${nActeurs} personnage(s) dans la salle, ${demandes.length} modèles demandés, des décors et ses clients`);
   const decorsB = demandes.filter((d) => !/\/clients\//.test(d)), poidsB = decorsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
