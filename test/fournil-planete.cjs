@@ -11,6 +11,7 @@
 //   à prendre) ; « Entrer » répond ; toucher le ciel : l'étiquette part, la caméra recule ;
 // · fermer : l'écran et son canvas partent ; cinq ouvertures et fermetures : la planète rebâtie à l'identique (géométries, textures),
 //   la boutique et le tas JS (après le ramasse-miettes) stables ;
+// · l'heure : l'écran passe celle de Paris ; à 23 h la nuit (le fond, les vitres allumées), à 19 h le soir, à midi le jour (PLANETE.heure) ;
 // · en éco : ≤ 15 000 triangles (la pire des vues aussi, à la n°31 et à la n°60), ni kit, ni nuages ; ?hd=0 : le sol et les boutiques
 //   procéduraux seuls, aucune requête hd/planete ;
 // · aucune erreur dans la page.
@@ -89,6 +90,8 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
   check(/30 boutiques/.test(drap.titre) && /10\/10 quartiers/.test(drap.titre), `le titre : « ${drap.titre.replace(/\s+/g, ' ').trim()} »`);
   const std = await ev(() => { const o = {}; for (let n = 1; n <= 30; n++) { const s = GAME.standingDe(n); o[s] = (o[s] || 0) + 1; } return o; });
   check(Object.keys(std).length === 6, `les six standings sont là (${JSON.stringify(std)})`);
+  const hp = await ev(() => ({ planete: PLANETE.stats.heure, paris: GAME.heureParis(Date.now()), phase: PLANETE.stats.phase }));
+  check(Math.abs(hp.planete - hp.paris) < 0.05, `l'heure de Paris, comme le ciel de la boutique (${hp.planete.toFixed(2)} h : ${hp.phase})`);
   const poids = demandes.reduce((a, d) => a + d.n, 0), glb = demandes.filter((d) => /planete\.glb$/.test(d.p)).length;
   check(glb === 1 && poids <= 600 * 1024, `le kit demandé une fois, ${(poids / 1024).toFixed(0)} Ko (≤ 600 Ko)`);
   const fondu = await ev(() => { const r = SCENE.stats.rendus; return new Promise((ok) => setTimeout(() => ok(SCENE.stats.rendus - r), 1500)); });
@@ -171,6 +174,15 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 150) {
   check(s.placees === 59 && s.calls <= 60 && s.triangles <= 40000, `à la n°60 : ${s.placees} boutiques posées, ${s.calls} appels, ${s.triangles} triangles`);
   pv = await pire(ev);
   check(pv.calls <= 60 && pv.tri <= 40000, `à la n°60, la pire des vues : ${pv.calls} appels, ${pv.tri} triangles (${pv.ou})`);
+  // ─── l'heure : la nuit, les vitres s'allument ; le soir ; midi ───
+  await ev(() => { PLANETE_ECRAN.fermer(); PLANETE_ECRAN.ouvrir({ boutiques: 31, heure: 23 }); }); await sleep(600);
+  const ciel = () => ev(() => ({ phase: PLANETE.stats.phase, lueur: PLANETE.stats.lueur, cl: document.querySelector('#planete .pl-vue').className, triangles: PLANETE.stats.triangles }));
+  let h = await ciel();
+  check(h.phase === 'nuit' && h.lueur === 1 && /pl-nuit/.test(h.cl), `à 23 h, la nuit : le ciel étoilé, les vitres allumées (lueur ${h.lueur} ; ${h.cl})`);
+  await ev(() => PLANETE.heure(19)); h = await ciel();
+  check(h.phase === 'soir' && h.lueur > 0 && h.lueur < 1 && /pl-soir/.test(h.cl) && !/pl-nuit/.test(h.cl), `à 19 h, le soir (lueur ${h.lueur} ; ${h.cl})`);
+  await ev(() => PLANETE.heure(12)); h = await ciel();
+  check(h.phase === 'jour' && h.lueur === 0 && !/pl-soir/.test(h.cl), `à midi, le jour (lueur ${h.lueur})`);
   await ev(() => PLANETE_ECRAN.fermer());
   check(!erreurs.length, `aucune erreur (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();

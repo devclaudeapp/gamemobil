@@ -2,7 +2,8 @@
 // La boucle de la planète est suspendue (PLANETE.essai.pause) : le script fait les images une à une (SwiftShader rend lentement : en temps
 // réel, rien n'aurait le temps de se passer), et ses gestes sont de vrais touchers (CDP Input.dispatchTouchEvent) horodatés à la cadence d'un écran.
 // usage : node capture.cjs [--captures] [--video 9] [--mesures] [--port 9520] [--sortie <dossier>]
-//   --captures : haute et éco, à 5, 15 et 30 boutiques ; une boutique touchée (son étiquette) ; l'autre face ; chaque région de près
+//   --captures : haute et éco, à 5, 15 et 30 boutiques ; une boutique touchée (son étiquette) ; l'autre face ; chaque région de près ;
+//                le soir et la nuit (option heure : les vitres allumées, la tour dorée). Sans heure demandée, midi.
 //   --video s  : s secondes à 30 images/s (l'arrivée, un glissé et son inertie, pincer, toucher une boutique, son étiquette, revenir) → planete.mp4
 //   --mesures  : appels de dessin et triangles (vue d'ensemble, de près, à 30 et 59 boutiques, haute et éco) ; le temps processeur d'une image
 //                (×1 et ×4, avec et sans les appels de dessin, la planète au repos et en rotation) ; la mémoire (cinq ouvertures et fermetures)
@@ -42,10 +43,10 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     await ev(() => { const s = document.createElement('style'); s.textContent = '.toast, #feuille, #voile { visibility: hidden !important; }'; document.head.appendChild(s); });
     const cdp = await ctx.newCDPSession(page);
     const touche = (type, pts, ts) => cdp.send('Input.dispatchTouchEvent', Object.assign({ type, touchPoints: pts.map(([x, y], id) => ({ x, y, id, radiusX: 4, radiusY: 4, force: 1 })) }, ts ? { timestamp: ts } : {}));
-    // ouvrir la planète à la n°N (N − 1 boutiques), le kit arrivé en haute, l'arrivée jouée ; la boucle suspendue
-    async function planete(N) {
+    // ouvrir la planète à la n°N (N − 1 boutiques), à l'heure h (midi par défaut), le kit arrivé en haute, l'arrivée jouée ; la boucle suspendue
+    async function planete(N, h) {
       await ev(() => { if (PLANETE_ECRAN.ouvert) PLANETE_ECRAN.fermer(); });
-      await ev((N) => PLANETE_ECRAN.ouvrir({ boutiques: N }), N);
+      await ev(([N, h]) => PLANETE_ECRAN.ouvrir({ boutiques: N, heure: h }), [N, h == null ? 12 : h]);
       await page.waitForFunction((q) => PLANETE.ouvert && (q === 'eco' || PLANETE.stats.kit), qualite, { timeout: 30000 }).catch(() => console.log('(planète : sans kit)'));
       await ev(() => { PLANETE.essai.pause(true); PLANETE.essai.image(1 / 60, 110); }); await dodo(1700); // (l'indice paraît en fondu, de 0,9 à 1,9 s)
     }
@@ -64,7 +65,12 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
       const cible = await J.ev(() => { for (const n of [13, 6, 1, 8, 3]) { const e = PLANETE.essai.ecran(n); if (e && e.vu && e.y > 150 && e.y < 700 && e.x > 30 && e.x < 350) return Object.assign({ n }, e); } return null; });
       if (cible) { await J.touche('touchStart', [[cible.x, cible.y]]); await J.touche('touchEnd', []); await J.image(90); }
       await photo(J, `${q}-boutique-touchee-n${cible ? cible.n : 0}`);
+      // le soir et la nuit : les vitres et les lanternes s'allument (la tour Eiffel aussi, dorée)
+      await J.planete(31, 23); await photo(J, `${q}-30-boutiques-nuit`);
       if (q === 'haute') {
+        await J.planete(31, 19); await photo(J, 'haute-30-boutiques-soir');
+        await J.planete(16, 23); await J.ev(() => { PLANETE.viser(13); PLANETE.essai.image(1 / 30, 90); }); await photo(J, 'haute-boutique-touchee-n13-nuit');
+        await J.planete(31, 22); await J.ev(() => { PLANETE.essai.regarder(9, 0.75, 0.1); PLANETE.essai.tourner(0, -0.35); }); await photo(J, 'haute-capitale-nuit');
         await J.planete(31); await J.ev(() => { PLANETE.viser(30); PLANETE.essai.image(1 / 30, 90); }); await photo(J, 'haute-boutique-touchee-n30');
         await J.planete(31); await J.ev(() => { PLANETE.viser(3); PLANETE.essai.image(1 / 30, 90); }); await photo(J, 'haute-boutique-touchee-n3');
         await J.planete(31); await J.ev(() => { PLANETE.essai.tourner(Math.PI, 0); }); await photo(J, 'haute-30-boutiques-autre-face');
@@ -85,9 +91,9 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   if (opt('--video')) {
     const J = await jeu('haute', 2), FPS = 30, n = Math.round(+val('--video') * FPS), dir = path.join(SORTIE, 'images-video');
     fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
-    await J.ev(() => PLANETE_ECRAN.ouvrir({ boutiques: 16 }));
+    await J.ev(() => PLANETE_ECRAN.ouvrir({ boutiques: 16, heure: 12 }));
     await J.page.waitForFunction(() => PLANETE.ouvert && PLANETE.stats.kit, null, { timeout: 30000 }).catch(() => {});
-    await J.ev(() => { PLANETE.essai.pause(true); PLANETE.fermer(); PLANETE_ECRAN.fermer(); PLANETE_ECRAN.ouvrir({ boutiques: 16 }); PLANETE.essai.pause(true); }); // (de nouveau, le kit en cache : l'arrivée filmée depuis le début)
+    await J.ev(() => { PLANETE.essai.pause(true); PLANETE.fermer(); PLANETE_ECRAN.fermer(); PLANETE_ECRAN.ouvrir({ boutiques: 16, heure: 12 }); PLANETE.essai.pause(true); }); // (de nouveau, le kit en cache : l'arrivée filmée depuis le début)
     let ts = Date.now() / 1000; const T = (k) => k / FPS;
     const cible = { n: 0 };
     for (let k = 0; k < n; k++) {
@@ -139,7 +145,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
       m.temps = {};
       for (const [cle, rot] of [['repos', false], ['rotation', true]]) m.temps[cle] = { sansDessin1: await mesure(1, false, rot), avecDessin1: await mesure(1, true, rot), sansDessin4: await mesure(4, false, rot), avecDessin4: await mesure(4, true, rot) };
       // la construction à l'ouverture (le sol, le décor, les boutiques ; ×1)
-      m.ouverture = await J.ev(() => { PLANETE_ECRAN.fermer(); const t0 = performance.now(); PLANETE_ECRAN.ouvrir({ boutiques: 31 }); return +(performance.now() - t0).toFixed(1); });
+      m.ouverture = await J.ev(() => { PLANETE_ECRAN.fermer(); const t0 = performance.now(); PLANETE_ECRAN.ouvrir({ boutiques: 31, heure: 12 }); return +(performance.now() - t0).toFixed(1); });
       // la mémoire : cinq ouvertures et fermetures (le tas après le ramasse-miettes, la mémoire du renderer de la boutique)
       const tas = async () => { await J.cdp.send('HeapProfiler.collectGarbage'); await dodo(100); await J.cdp.send('HeapProfiler.collectGarbage'); return +((await J.cdp.send('Runtime.getHeapUsage')).usedSize / 1048576).toFixed(2); };
       await J.ev(() => PLANETE_ECRAN.fermer()); await dodo(800);
@@ -147,7 +153,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
       await J.page.waitForFunction(() => !SCENE.clients3d || SCENE.clients3d.pret || SCENE.stats.qualite === 'eco', null, { timeout: 90000 }).catch(() => {});
       for (let k = 0, der = '', stable = 0; k < 40 && stable < 4; k++) { await dodo(500); const x = await J.ev(() => `${SCENE.stats.geometries}/${SCENE.stats.textures}`); stable = x === der ? stable + 1 : 0; der = x; }
       m.memoire = [{ tas: await tas(), boutique: await J.ev(() => `${SCENE.stats.geometries}/${SCENE.stats.textures}`) }];
-      for (let k = 0; k < 5; k++) { await J.ev(() => PLANETE_ECRAN.ouvrir({ boutiques: 31 })); await dodo(1500); const p = await J.ev(() => `${PLANETE.stats.geometries}/${PLANETE.stats.textures}`); await J.ev(() => PLANETE_ECRAN.fermer()); await dodo(800); m.memoire.push({ tas: await tas(), boutique: await J.ev(() => `${SCENE.stats.geometries}/${SCENE.stats.textures}`), planete: p }); }
+      for (let k = 0; k < 5; k++) { await J.ev(() => PLANETE_ECRAN.ouvrir({ boutiques: 31, heure: 12 })); await dodo(1500); const p = await J.ev(() => `${PLANETE.stats.geometries}/${PLANETE.stats.textures}`); await J.ev(() => PLANETE_ECRAN.fermer()); await dodo(800); m.memoire.push({ tas: await tas(), boutique: await J.ev(() => `${SCENE.stats.geometries}/${SCENE.stats.textures}`), planete: p }); }
       m.erreurs = J.errs.slice(0, 5);
       console.log(q, JSON.stringify(m));
       await J.ctx.close();

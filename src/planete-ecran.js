@@ -21,7 +21,9 @@ const PLANETE_ECRAN = (() => {
   const etat = () => (typeof UI !== 'undefined' && UI.st ? UI.st : null);
   const qualite = () => { try { return (typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite) || 'haute'; } catch (e) { return 'haute'; } };
   const echap = (e) => { if (e.key === 'Escape' && API.ouvert) fermer(); };
-  // o (tests, captures) : { boutiques (le numéro de la boutique en cours, à la place de st.boutiques), qualite }
+  // o (tests, captures) : { boutiques (le numéro de la boutique en cours, à la place de st.boutiques), qualite, heure (sinon l'heure de Paris,
+  // celle du ciel de la boutique) }
+  const heureParis = () => { try { return G.heureParis(Date.now()); } catch (e) { return new Date().getHours(); } };
   function ouvrir(o) {
     if (API.ouvert) return true; o = o || {};
     const st = etat(), N = Math.max(1, Math.floor(o.boutiques || (st && st.boutiques) || 1)), liste = fiches(N);
@@ -32,7 +34,7 @@ const PLANETE_ECRAN = (() => {
       <div class="at-titre"><b id="pl-titre">Ma chaîne</b><small>${sous}</small></div>${total ? `<span class="pl-jetons" aria-label="${total} jetons de chaîne à prendre dans tes boutiques">${CLE}<b>${total}</b></span>` : ''}</div>`;
     document.body.appendChild(el); API.ouvert = true;
     el.querySelector('[data-pl="fermer"]').addEventListener('click', fermer); document.addEventListener('keydown', echap);
-    const ok = PLANETE.ouvrir(el.querySelector('.pl-vue'), liste, { qualite: o.qualite || qualite(), boutiques: N, onEntrer });
+    const ok = PLANETE.ouvrir(el.querySelector('.pl-vue'), liste, { qualite: o.qualite || qualite(), boutiques: N, onEntrer, heure: o.heure != null ? o.heure : heureParis() });
     if (!ok) el.querySelector('.pl-vue').innerHTML = '<p class="pl-sans">La petite planète a besoin de la 3D, qui n’est pas disponible sur cet appareil.</p>';
     else if (!liste.length) { const p = document.createElement('p'); p.className = 'pl-sans pl-vide'; p.textContent = 'Ta chaîne commence avec ta 2e boutique : chaque ancienne boutique viendra s’installer ici, dans son quartier.'; el.appendChild(p); }
     return ok;

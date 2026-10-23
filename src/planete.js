@@ -12,10 +12,11 @@
    par standing pour les boutiques, les ombres au sol, les nuages, le halo et quelques pièces animées : une trentaine d'appels de dessin.
    Son propre contexte WebGL, créé à l'ouverture, rendu à la fermeture (forceContextLoss), comme les écrans des événements.
    API : ouvrir(conteneur, fiches, { qualite, onToucher(n), onEntrer(n), heure }) ; maj(fiches) ; viser(n) ; photo(q) → Promise<dataURL> ;
-   fermer() ; stats (les tests). fiches : [{ n, quartier (id), standing, jetons, gerant, or, nom }] (CHAINE.liste ; la maquette en fabrique). */
+   heure(h) ; fermer() ; stats (les tests). fiches : [{ n, quartier (id), standing, jetons, gerant, or, nom }] (CHAINE.liste ; la maquette en
+   fabrique). heure : l'heure de Paris (12 sans elle) ; le ciel suit les cinq phases de la boutique, et le soir les vitres s'allument. */
 const PLANETE = (() => {
   'use strict';
-  const RIEN = { actif: false, ouvert: false, ouvrir: () => false, maj() {}, viser() {}, photo: () => Promise.resolve(null), fermer() {}, stats: null };
+  const RIEN = { actif: false, ouvert: false, ouvrir: () => false, maj() {}, viser() {}, photo: () => Promise.resolve(null), heure() {}, fermer() {}, stats: null };
   if (typeof THREE === 'undefined' || typeof document === 'undefined') return RIEN;
   const G = typeof GAME !== 'undefined' ? GAME : null, VI = typeof VIE !== 'undefined' ? VIE : null;
   const V3 = THREE.Vector3, TAU = Math.PI * 2, DEG = Math.PI / 180, HAUT = new V3(0, 1, 0), AVANT = new V3(0, 0, 1);
@@ -124,7 +125,10 @@ const PLANETE = (() => {
 
   // ─── les couleurs (linéaires, en cache) ───
   const COULEURS = new Map(), _c = new THREE.Color();
-  function couleur(hex) { let k = COULEURS.get(hex); if (!k) { _c.set(hex); k = [_c.r, _c.g, _c.b]; COULEURS.set(hex, k); } return k; }
+  // les couleurs qui s'allument le soir : les vitres, les lanternes, les lampadaires, le feu du phare (1 : toute la lueur) et la tour Eiffel,
+  // dorée la nuit (2 : à moitié) ; marquées dans la couleur de leurs sommets (+10 ou +20 sur le rouge, que le shader retire), sans attribut de plus
+  const LUEURS = new Map([['#BFE6F6', 1], ['#FFF0B8', 1], ['#A9CBE0', 1], ['#A9D2EC', 1], ['#FFE9B8', 1], ['#FFE6A0', 1], ['#FFE69A', 1], ['#FFD86E', 1], ['#B08F78', 2], ['#9C7C66', 2]]);
+  function couleur(hex) { let k = COULEURS.get(hex); if (!k) { _c.set(hex); k = [_c.r, _c.g, _c.b]; if (LUEURS.has(hex)) k.lueur = LUEURS.get(hex); COULEURS.set(hex, k); } return k; }
   const melange = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
   const BRUME = couleur('#F2EFF7'); // un quartier pas encore gagné : pâli, comme dans la brume
 
@@ -200,7 +204,7 @@ const PLANETE = (() => {
       for (let i = 0; i < fo.length; i += 3) {
         const x = fo[i], y = fo[i + 1], z = fo[i + 2];
         P.push(e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]);
-        if (ks) C.push(ks[i] * k[0], ks[i + 1] * k[1], ks[i + 2] * k[2]); else C.push(k[0], k[1], k[2]); if (T) T.push(te);
+        if (ks) C.push(ks[i] * k[0], ks[i + 1] * k[1], ks[i + 2] * k[2]); else C.push(k[0] + 10 * (k.lueur || 0), k[1], k[2]); if (T) T.push(te);
       }
     }
     // une pièce d'un point A à un point B (dans le repère du lot), de section l × l : une poutre, un pied de tour, un câble
@@ -251,7 +255,7 @@ const PLANETE = (() => {
     if (s >= 1) { // les boiseries, les jardinières et les lanternes de la belle boutique
       B(0, 0.08, av + 0.006, larg + 0.02, 0.1, 0.02, s >= 4 ? OR : BOIS, 0);
       for (const sx of [-1, 1]) { B(sx * (larg / 2 + 0.06), 0.0, av - 0.02, 0.13, 0.13, 0.13, BOIS, 0); L.f(ICO(0), sx * (larg / 2 + 0.06), 0.1, av - 0.02, 0.2, 0.2, 0.2, '#6FBF63'); }
-      for (const sx of [-1, 1]) B(larg * 0.29 + sx * 0.15, 0.36, av + 0.03, 0.05, 0.08, 0.05, '#FFD66B', 0);
+      for (const sx of [-1, 1]) B(larg * 0.29 + sx * 0.15, 0.36, av + 0.03, 0.05, 0.08, 0.05, '#FFD86E', 0); // (les lanternes : un jaune à elles, qui s'allume le soir)
     }
     if (s >= 1) { const ex = -larg / 2 - 0.02; B(ex - 0.08, 0.5, av - 0.06, 0.16, 0.025, 0.025, '#4A4A58', 0); L.f(CYL(7, 1), ex - 0.14, 0.33, av - 0.06, 0.2, 0.025, 0.2, '#FFFFFF', 0, 0, Math.PI / 2, 3); B(ex - 0.14, 0.4, av - 0.06, 0.03, 0.04, 0.12, '#E8A54A', 0); } // l'enseigne en potence et son petit pain
     if (s >= 2) { // l'étage : deux fenêtres et leurs jardinières fleuries, l'enseigne
@@ -669,14 +673,23 @@ const PLANETE = (() => {
 
   // ─── les matériaux : mats, à facettes (les normales viennent des dérivées : le kit n'en a pas), un liseré clair au bord de la planète ───
   function materiaux() {
-    const T = E.uniformes = { uLisere: { value: new THREE.Color('#FFF1E4').multiplyScalar(E.eco ? 0.18 : 0.3) }, uT: { value: 0 } };
+    const T = E.uniformes = { uLisere: { value: new THREE.Color('#FFF1E4').multiplyScalar(E.eco ? 0.18 : 0.3) }, uT: { value: 0 }, uLueur: { value: 0 }, uLueurCol: { value: new THREE.Color('#FFC66E') } };
     const lisere = (sh) => { sh.uniforms.uLisere = T.uLisere; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uLisere;').replace('#include <opaque_fragment>', 'outgoingLight += uLisere * pow( 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) ), 3.0 );\n#include <opaque_fragment>'); };
-    const sol = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }); sol.onBeforeCompile = lisere; sol.customProgramCacheKey = () => 'planete-sol';
+    // la lueur des vitres : la marque des sommets (rouge + 10) retirée, puis, le soir, la vitre prend la couleur d'une lampe
+    const DECODE = 'float luM = floor( vColor.r * 0.1 ); vColor.r -= 10.0 * luM; vLueur = luM > 1.5 ? 0.55 : luM;';
+    const lueur = (sh) => {
+      sh.uniforms.uLueur = T.uLueur; sh.uniforms.uLueurCol = T.uLueurCol;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vLueur;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLueur;\nuniform vec3 uLueurCol;\nvarying float vLueur;').replace('#include <opaque_fragment>', 'outgoingLight = mix( outgoingLight, uLueurCol, vLueur * uLueur );\n#include <opaque_fragment>');
+    };
+    const sol = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    sol.onBeforeCompile = (sh) => { lisere(sh); lueur(sh); sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n' + DECODE); };
+    sol.customProgramCacheKey = () => 'planete-sol';
     const bout = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
     bout.onBeforeCompile = (sh) => {
-      lisere(sh);
+      lisere(sh); lueur(sh);
       sh.vertexShader = sh.vertexShader.replace('#include <color_pars_vertex>', '#include <color_pars_vertex>\nattribute float teinte;\nattribute vec3 cMur;\nattribute vec3 cToit;\nattribute vec3 cAccent;\nattribute float cEclat;')
-        .replace('#include <color_vertex>', '#include <color_vertex>\nvColor.xyz *= teinte < 0.5 ? vec3( 1.0 ) : teinte < 1.5 ? cMur : teinte < 2.5 ? cToit : cAccent;\nvColor.xyz = mix( vColor.xyz, vec3( 1.0, 0.97, 0.9 ), cEclat * 0.22 );');
+        .replace('#include <color_vertex>', '#include <color_vertex>\n' + DECODE + '\nvColor.xyz *= teinte < 0.5 ? vec3( 1.0 ) : teinte < 1.5 ? cMur : teinte < 2.5 ? cToit : cAccent;\nvColor.xyz = mix( vColor.xyz, vec3( 1.0, 0.97, 0.9 ), cEclat * 0.22 );');
     };
     bout.customProgramCacheKey = () => 'planete-boutique';
     const eau = new THREE.MeshLambertMaterial({ color: '#62CFE6', flatShading: true, transparent: !E.eco, opacity: 0.86 });
@@ -740,6 +753,7 @@ const PLANETE = (() => {
     const th = degrade([[0, 'rgba(255,255,255,0)'], [0.68, 'rgba(255,255,255,0)'], [0.74, 'rgba(255,250,244,.85)'], [0.8, 'rgba(250,240,255,.4)'], [1, 'rgba(240,235,255,0)']], 256); E.textures.push(th);
     // (un plan tourné vers la caméra à chaque image, pas un THREE.Sprite : la géométrie partagée des sprites garderait en vie le contexte de chaque ouverture)
     E.halo = new THREE.Mesh(new THREE.PlaneGeometry(2.86, 2.86), new THREE.MeshBasicMaterial({ map: th, transparent: true, depthWrite: false })); E.halo.renderOrder = -1; E.scene.add(E.halo);
+    eclairer(); // (la lumière et le halo à l'heure)
   }
   // ─── les boutiques : une instance par boutique, un maillage par standing, aux teintes de son quartier (façade, toit, store). Deux détails :
   //     de loin la forme simple (celle de l'éco), de près la forme riche ; et seules les boutiques tournées vers la caméra sont dessinées
@@ -1021,6 +1035,31 @@ const PLANETE = (() => {
     return der ? REG[E.fiches[E.fiches.length - 1].q].c.clone() : RI.village.c.clone();
   }
   const ecoute = (cible, type, f, o) => { cible.addEventListener(type, f, o); E.ecoutes.push([cible, type, f, o]); };
+  // ─── l'heure (option heure, en heures de Paris) : cinq phases du ciel, comme la boutique (src/scene.js), fondues un quart d'heure de part et
+  //     d'autre de chaque borne ; le soir et la nuit, les vitres, les lanternes et les lampadaires s'allument, le fond du ciel suit (CSS) ───
+  const CIELS = {
+    nuit: { hemi: ['#C4CAF2', '#6A6196', 1.12], soleil: ['#CFD8FF', 0.95], lueur: 1, lisere: '#CFD8FF', halo: '#CBD2FF', fond: '#AEB2E2' }, // (une nuit claire de conte, pas le noir)
+    aube: { hemi: ['#FFF0E8', '#D6BFCB', 1.3], soleil: ['#FFD9C2', 1.8], lueur: 0.3, lisere: '#FFE6DC', halo: '#FFEDE6', fond: '#FCEDEA' },
+    jour: { hemi: ['#FFF6EA', '#D6CBE0', 1.4], soleil: ['#FFEED8', 2.0], lueur: 0, lisere: '#FFF1E4', halo: '#FFFFFF', fond: '#E6EEFF' },
+    soir: { hemi: ['#FFE6D4', '#CDB4C8', 1.3], soleil: ['#FFC792', 1.9], lueur: 0.4, lisere: '#FFE0C4', halo: '#FFE6D6', fond: '#FADCE2' },
+    crepuscule: { hemi: ['#DCD3F4', '#8C7DAA', 1.08], soleil: ['#E8CFFF', 1.15], lueur: 0.85, lisere: '#E6D8FF', halo: '#E6DCFF', fond: '#D6CEF2' }, // (fond : le ciel des cartes postales)
+  };
+  const BORNES = [[6, 'nuit', 'aube'], [8, 'aube', 'jour'], [18, 'jour', 'soir'], [20, 'soir', 'crepuscule'], [21, 'crepuscule', 'nuit']];
+  function ciel(h) { // → la phase a, la suivante b, et le fondu k de l'une à l'autre
+    h = ((h % 24) + 24) % 24; let a = h < 6 || h >= 21 ? 'nuit' : h < 8 ? 'aube' : h < 18 ? 'jour' : h < 20 ? 'soir' : 'crepuscule', b = a, k = 0;
+    for (const [x, p, q] of BORNES) { const d = h - x; if (Math.abs(d) < 0.25) { a = p; b = q; k = (d + 0.25) / 0.5; } }
+    return { a, b, k };
+  }
+  const _c3 = new THREE.Color();
+  function eclairer() {
+    const { a, b, k } = ciel(E.heure), A = CIELS[a], B = CIELS[b], mix = (u, v) => u + (v - u) * k, teinte = (c, u, v) => c.set(u).lerp(_c3.set(v), k);
+    teinte(E.hemi.color, A.hemi[0], B.hemi[0]); teinte(E.hemi.groundColor, A.hemi[1], B.hemi[1]); E.hemi.intensity = mix(A.hemi[2], B.hemi[2]);
+    teinte(E.soleil.color, A.soleil[0], B.soleil[0]); E.soleil.intensity = mix(A.soleil[1], B.soleil[1]);
+    const U = E.uniformes; U.uLueur.value = mix(A.lueur, B.lueur); teinte(U.uLisere.value, A.lisere, B.lisere).multiplyScalar(E.eco ? 0.18 : 0.3);
+    if (E.halo) teinte(E.halo.material.color, A.halo, B.halo);
+    const phase = k < 0.5 ? a : b; if (phase !== E.phase) { if (E.phase) E.conteneur.classList.remove('pl-' + E.phase); E.phase = phase; E.conteneur.classList.add('pl-' + phase); } // (le fond du ciel : .pl-conteneur.pl-nuit…)
+  }
+  function changerHeure(h) { if (!E || !Number.isFinite(+h)) return; E.heure = +h; eclairer(); }
   function ouvrir(conteneur, fiches, opts) {
     if (E) fermer(); if (!conteneur) return false; opts = opts || {};
     const qualite = ['haute', 'moyenne', 'eco'].includes(opts.qualite) ? opts.qualite : 'haute';
@@ -1030,14 +1069,14 @@ const PLANETE = (() => {
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(qualite === 'haute' ? 2 : qualite === 'moyenne' ? 1.5 : 1, window.devicePixelRatio || 1));
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(CAM.fov, 1, 0.01, 30), monde = new THREE.Group(); scene.add(monde);
-    scene.add(new THREE.HemisphereLight('#FFF6EA', '#D6CBE0', 1.4)); // (le ciel crème, le reflet du sol lavande)
+    const hemi = new THREE.HemisphereLight('#FFF6EA', '#D6CBE0', 1.4); scene.add(hemi); // (le jour : le ciel crème, le reflet du sol lavande ; eclairer() suit l'heure)
     const soleil = new THREE.DirectionalLight('#FFEED8', 2.0); soleil.position.set(-3.0, 3.4, 3.0); scene.add(soleil); // le soleil en haut à gauche : la planète a du volume
     const div = (c) => { const d = document.createElement('div'); d.className = c; return d; };
     const calque = div('pl-calque'), etiquette = div('pl-etiquette'), legende = div('pl-legende'), indice = div('pl-indice');
     etiquette.hidden = true; etiquette.setAttribute('role', 'group'); legende.setAttribute('aria-live', 'polite'); calque.setAttribute('aria-hidden', 'true');
     indice.textContent = 'Fais tourner la planète du doigt, touche une boutique';
     conteneur.classList.add('pl-conteneur'); conteneur.append(cv, calque, etiquette, legende, indice);
-    E = { conteneur, cv, renderer, scene, camera, monde, calque, etiquette, legende, indice, indiceEl: indice, qualite, eco: qualite === 'eco', opts, textures: [], geoB: [], geoBL: [], groupes: [], bouts: [], anime: [], drapeaux: [], regions: [], ecoutes: [],
+    E = { conteneur, cv, renderer, scene, camera, monde, hemi, soleil, calque, etiquette, legende, indice, indiceEl: indice, qualite, eco: qualite === 'eco', opts, textures: [], geoB: [], geoBL: [], groupes: [], bouts: [], anime: [], drapeaux: [], regions: [], ecoutes: [],
       doigts: new Map(), echant: [], q: new THREE.Quaternion(), z: 0, cadre: CAM.cadre, rs: 1.02, vx: 0, vy: 0, t: 0, images: 0, ms: 0, derniere: performance.now(), geste: performance.now(),
       W: 0, H: 0, f: 1, loin: 8, choisi: 0, legendeQ: -1, kitOk: false, tap: false, pince: 0 };
     E.fiches = (fiches || []).map(normaliser).filter((f, i, a) => a.findIndex((g) => g.n === f.n) === i).sort((a, b) => a.n - b.n);
@@ -1045,6 +1084,7 @@ const PLANETE = (() => {
     E.kitOk = !E.eco && !!kitPermis() && renderer.capabilities.isWebGL2;
     cv.setAttribute('aria-label', `La petite planète de ta chaîne : ${E.fiches.length} boutique${E.fiches.length > 1 ? 's' : ''} dans les quartiers.`);
     E.mats = materiaux();
+    E.heure = Number.isFinite(+opts.heure) && opts.heure !== null ? +opts.heure : 12; // (sans heure : le plein jour)
     redimensionner(); batir(); drapeaux();
     E.qRepos = orientationVers(centreBoutiques(), HAUT).premultiply(_qa.setFromAxisAngle(AXE_X, -CAM.penche)); E.rs = 1.02; // le centre des boutiques au-dessus du milieu : vues de biais, elles se détachent sur le ciel
     _qa.setFromAxisAngle(HAUT, -0.85); E.q.copy(E.qRepos).premultiply(_qa); E.z = -0.3; // l'arrivée : de plus loin, un quart de tour, puis elle se pose
@@ -1073,7 +1113,7 @@ const PLANETE = (() => {
     const garde = { q: E.q.clone(), z: E.z, cadre: E.cadre, rs: E.rs, aspect: E.camera.aspect };
     E.q.copy(orientationVers(R.c, HAUT)); E.z = 0.62; E.cadre = 0.5; E.rs = altitude(R.c); E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
     E.camera.aspect = w / h; E.camera.updateProjectionMatrix(); placerCamera(); visibilites();
-    E.renderer.setRenderTarget(rt); E.renderer.setClearColor('#E6EEFF', 1); E.renderer.clear(); E.renderer.render(E.scene, E.camera); E.renderer.setRenderTarget(null); E.renderer.setClearColor(0x000000, 0);
+    E.renderer.setRenderTarget(rt); E.renderer.setClearColor((CIELS[E.phase] || CIELS.jour).fond, 1); E.renderer.clear(); E.renderer.render(E.scene, E.camera); E.renderer.setRenderTarget(null); E.renderer.setClearColor(0x000000, 0);
     const px = new Uint8Array(w * h * 4); E.renderer.readRenderTargetPixels(rt, 0, 0, w, h, px); rt.dispose();
     Object.assign(E, { q: garde.q, z: garde.z, cadre: garde.cadre, rs: garde.rs }); E.camera.aspect = garde.aspect; E.camera.updateProjectionMatrix();
     const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const x = cv.getContext('2d'), im = x.createImageData(w, h);
@@ -1085,12 +1125,12 @@ const PLANETE = (() => {
     cancelAnimationFrame(e.raf); for (const [c, t, f, o] of e.ecoutes) c.removeEventListener(t, f, o); if (e.ro) e.ro.disconnect();
     defaire(); for (const g of e.geoB.concat(e.geoBL)) if (g) g.dispose(); for (const m of Object.values(e.mats)) m.dispose();
     try { e.renderer.dispose(); e.renderer.forceContextLoss(); } catch (x) { /* rien */ }
-    for (const el of [e.cv, e.calque, e.etiquette, e.legende, e.indiceEl]) if (el) el.remove(); e.conteneur.classList.remove('pl-conteneur');
+    for (const el of [e.cv, e.calque, e.etiquette, e.legende, e.indiceEl]) if (el) el.remove(); e.conteneur.classList.remove('pl-conteneur', 'pl-' + e.phase);
     E = null; API.ouvert = false;
   }
   const API = {
-    actif: true, ouvert: false, ouvrir, maj, viser: (n) => (E ? choisir(n) : false), relacher: () => relacher(), photo, fermer, REG, placesDe,
-    get stats() { if (!E) return null; const i = E.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programmes: (i.programs || []).length, ms: +E.ms.toFixed(3), images: E.images, qualite: E.qualite, boutiques: E.fiches.length, placees: Object.keys(E.places).length, choisi: E.choisi, etiquette: !!E.etiquetteVue, z: +E.z.toFixed(3), kit: !!E.kit, regionsVues: E.regions.filter((m) => m.visible).length, legende: E.legende.textContent }; },
+    actif: true, ouvert: false, ouvrir, maj, viser: (n) => (E ? choisir(n) : false), relacher: () => relacher(), photo, fermer, heure: changerHeure, REG, placesDe,
+    get stats() { if (!E) return null; const i = E.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programmes: (i.programs || []).length, ms: +E.ms.toFixed(3), images: E.images, qualite: E.qualite, boutiques: E.fiches.length, placees: Object.keys(E.places).length, choisi: E.choisi, etiquette: !!E.etiquetteVue, z: +E.z.toFixed(3), kit: !!E.kit, regionsVues: E.regions.filter((m) => m.visible).length, legende: E.legende.textContent, heure: E.heure, phase: E.phase, lueur: +E.uniformes.uLueur.value.toFixed(2) }; },
     // pour les tests et les captures : la boucle suspendue, des images à la main, où est une boutique à l'écran
     essai: {
       pause(on) { if (!E) return; E.pause = !!on; E.essai = !!on; cancelAnimationFrame(E.raf); if (!on) { E.derniere = performance.now(); E.raf = requestAnimationFrame(boucle); } },
