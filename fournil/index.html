@@ -2283,7 +2283,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '635f5bea14b4';</script>
+<script>window.FOURNIL_VERSION = '3fc9ad586ae1';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -9734,7 +9734,8 @@ if (typeof module !== 'undefined') module.exports = HDM;
      halo (le calque 2D fait ses étincelles) ; touché, il dit oui de la tête et repart avec son sac ; oublié, il repart les mains vides en
      disant non. L'habitué : toujours le même personnage (Mme Dupuis et ses lunettes, Marco en costume, Léna en casque de chantier), son
      prénom au-dessus de sa tête (le calque de src/scene.js, à la hauteur de sa tête : tete()), un oui de la tête quand il est servi.
-     L'hiver (la neige, la montagne), un bonnet pour qui le porte chez les chibis, sur un personnage sans chapeau. */
+     L'hiver (la neige, la montagne), un bonnet pour qui le porte chez les chibis, sur un personnage sans chapeau ni crête (s'il n'en est
+     aucun de chargé, le client va tête nue). */
 const CLIENTS3D = (() => {
   'use strict';
   const T = typeof THREE !== 'undefined' ? THREE : null, X = typeof FOURNIL_HD !== 'undefined' ? FOURNIL_HD : null;
@@ -10012,20 +10013,24 @@ const CLIENTS3D = (() => {
     for (let i = 0; i < PROTOS.length; i++) { const l = LIBRES.get(i) || []; LIBRES.set(i, l); if (TOUS.reduce((n, a) => n + (a.i === i), 0) < RESERVE) { l.push(creer(i)); return; } }
     aRemplir = false; etat.chauffe = false;
   }
-  // le personnage d'un client : le mystère, l'habitué, le bonnet (sans chapeau), sinon tiré de son numéro
+  // le personnage d'un client : le mystère, l'habitué, le bonnet (un personnage sans chapeau ni crête), sinon tiré de son numéro ; -1 si aucun.
+  // Le bonnet écarte les personnages qui ne peuvent pas le porter, s'il en reste un qui le peut ; sinon (le lot réduit à des chapeaux et des
+  // crêtes) tous font l'affaire et le client va tête nue (a.bonnet n'est mis que sur un personnage qui le porte)
+  const horsBonnet = (c, i) => c.coiffure === 3 && PROTOS[i].sansBonnet && PROTOS.some((p) => !p.sansBonnet);
   function voulu(c) {
     const par = (nom) => { const i = NOMS.indexOf(nom); return i >= 0 ? i : -1; };
     if (c.perso3d) { const i = par(c.perso3d); if (i >= 0) return i; } // (les tests et les captures : un personnage imposé)
     if (c.or) { const i = par(MYSTERE); if (i >= 0) return i; }
     if (c.hab && HABITUES[c.hab]) { const i = par(HABITUES[c.hab]); if (i >= 0) return i; }
-    const ok = PROTOS.map((p, i) => i).filter((i) => !(c.coiffure === 3 && PROTOS[i].sansBonnet));
+    const ok = PROTOS.map((p, i) => i).filter((i) => !horsBonnet(c, i));
     const h = (c.hab ? [...String(c.hab)].reduce((s, ch) => s * 31 + ch.charCodeAt(0), 7) : c.id * 2246822519) >>> 0;
-    return ok[h % ok.length];
+    return ok.length ? ok[h % ok.length] : -1;
   }
   function acteur(c) {
     if (!API.pret) return null;
-    const i = voulu(c), l = LIBRES.get(i); let a = l && l.length ? l.pop() : null;
-    if (!a && !c.or && !c.hab) { let best = -1; for (const [j, x] of LIBRES) if (x.length && !(c.coiffure === 3 && PROTOS[j].sansBonnet) && (best < 0 || x.length > LIBRES.get(best).length)) best = j; if (best >= 0) a = LIBRES.get(best).pop(); } // un autre personnage libre
+    const i = voulu(c); if (!PROTOS[i]) return null; // (par prudence : sans personnage, le client reste un chibi ; src/scene.js le garde tel)
+    const l = LIBRES.get(i); let a = l && l.length ? l.pop() : null;
+    if (!a && !c.or && !c.hab) { let best = -1; for (const [j, x] of LIBRES) if (x.length && !horsBonnet(c, j) && (best < 0 || x.length > LIBRES.get(best).length)) best = j; if (best >= 0) a = LIBRES.get(best).pop(); } // un autre personnage libre
     if (!a) a = creer(i); // la réserve grandit
     a.c = c.id; a.etatP = ''; a.joieT = 0; a.salut = 0; a.salutT = 0; a.salueE = a.salueS = c.etat !== 'entre'; a.geste = null; a.assisT = 0; a.leveT = 0; a.attente = 0; a.prisVu = false; a.neuf = true;
     a.yaw = YAW[c.dir] || 0; a.vitesse = 0; a.xp = null; a.zp = null; a.graine = (c.id * 0.6180339887) % 1; a.objet = null; a.sacSol = null; a.sacPose = 1;
@@ -10921,9 +10926,9 @@ const SCENE = (() => {
     else if (C3 && C3.pret && !c3p && (c3Interdit += dt) > 10) C3.liberer(); // (sans effet si la réserve est déjà rendue, ou si un acteur est encore en service)
     for (const c of V.clients) {
       let g = acteurs.get(c.id); const glb = !!c3 && !EVV && !c.deg; // (la boutique hantée procédurale garde ses chibis : leurs costumes, et le client mystère avec eux)
-      if (C3 && g && !!g.userData.c3d !== glb) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; }
+      if (C3 && g && !!g.userData.c3d !== glb && !(glb && g.userData.repli)) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; } // (repli : un chibi faute d'acteur, il le reste plutôt que d'être rebâti à chaque image)
       if (!g && glb) { const a = c3.acteur(c); if (a) { g = a.g; habiller(g); scene.add(g); acteurs.set(c.id, g); } }
-      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
+      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.repli = glb; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); if (g.userData.c3d) c3.poser(g.userData.c3d, c, E, dt, ctxC3); else poser(g, c, E, dt);
     }
     for (const a of V.apprentis) {

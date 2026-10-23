@@ -13,8 +13,10 @@
 //   de nouveau) ; la visite de la boutique d'un copain (Supabase simulé : les clients 3D y passent) ; trois allers-retours boutique ↔ Maison
 //   hantée en HD (ses monstres, aucun client 3D) sans que la mémoire monte (géométries, textures, acteurs) ;
 // · la boutique hantée procédurale (son lot HD absent) : ses clients restent des chibis déguisés, les clients 3D prêts ou non ;
-// · en qualité moyenne aussi (leur jumeau MeshStandard) ; les replis : un personnage manquant (omis : cinq), les clips manquants (le lot
-//   échoue : les chibis, sans erreur), ?clients=0 et la qualité éco (aucun fichier des clients demandé, les chibis). Aucune erreur dans la page.
+// · en qualité moyenne aussi (leur jumeau MeshStandard) ; les replis : un personnage manquant (omis : cinq), l'hiver le lot réduit aux
+//   personnages à chapeau ou à crête (les clients en bonnet vont tête nue, la scène continue ; un client sans personnage possible reste un
+//   chibi, bâti une fois), les clips manquants (le lot échoue : les chibis, sans erreur), ?clients=0 et la qualité éco (aucun fichier des
+//   clients demandé, les chibis). Aucune erreur dans la page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-clients3d.cjs   (port : PORT_CLIENTS3D)
 'use strict';
 const { chromium } = require('playwright');
@@ -325,6 +327,42 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     check(avertissements.some((t) => /client manquant/.test(t)), 'un avertissement le dit (console.warn)');
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+  await ctx.close();
+
+  console.log('── l\'hiver, le lot réduit aux personnages à chapeau ou à crête : les clients en bonnet vont tête nue ──');
+  bloques = [/\/hd\/clients\/(Casual_Female|Doctor_Female_Old|Suit_Male)\.glb$/]; // (restent Casual2_Male, sa crête ; OldClassy_Male et Worker_Female, leur chapeau)
+  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute'));
+  await ev(() => window.__fournil.scene({ heure: 13, saison: ['neige'] }));
+  for (let k = 0; k < 2; k++) await nouveau(ev);
+  check(await attendre(async () => (await pret3d(ev)) && (await ev(() => window.__fournil.SCENE.clients3d.glb > 0)), 90000), 'les clients sont des personnages 3D (trois personnages chargés)');
+  {
+    const i = await ev(() => window.__fournil.SCENE.clients3d.info), noms = i.modeles.map((m) => m.nom);
+    check(noms.length === 3 && ['Casual2_Male', 'OldClassy_Male', 'Worker_Female'].every((n) => noms.includes(n)) && await ev((noms) => noms.every((n) => CLIENTS3D.PERSONNAGES[n].chapeau || CLIENTS3D.PERSONNAGES[n].crete), noms), `trois personnages, tous à chapeau ou à crête (${noms.join(', ')})`);
+    await ev(() => window.__rafManuel(true)); await sleep(300);
+    const ids = []; for (let k = 0; k < 3; k++) { const id = await nouveau(ev); if (id != null) ids.push(id); await ev((id) => { const c = VIE.clients.find((x) => x.id === id); c.coiffure = 3; c.wait = 20; }, id); } // (en bonnet chez les chibis)
+    await ev(() => window.__pas(30, true));
+    const c = await ev(() => window.__fournil.SCENE.clients3d), l = c.liste.filter((x) => ids.includes(x.id)), s = await ev(() => ({ webgl: window.__fournil.SCENE.webgl, panneau: !document.getElementById('sans-3d').hidden, n: VIE.clients.length, rendus: window.__fournil.SCENE.stats.rendus }));
+    check(s.webgl && !s.panneau && s.rendus > 0, `la scène 3D continue (WebGL ${s.webgl ? 'actif' : 'ARRÊTÉ'}, le panneau « sans 3D » ${s.panneau ? 'AFFICHÉ' : 'caché'}, ${s.rendus} images rendues)`);
+    check(ids.length === 3 && l.length === 3 && l.every((x) => x.coiffure === 3 && !x.bonnet) && c.glb === s.n && c.chibis === 0, `les ${l.length} clients en bonnet sont des personnages 3D, tête nue (${l.map((x) => `${x.nom}${x.bonnet ? ' EN BONNET' : ''}`).join(', ')}) ; tous les clients en 3D (${c.glb} sur ${s.n})`);
+    // par prudence : un client pour qui aucun personnage n'est possible (le lot vidé un instant) n'a pas d'acteur, sans erreur ; src/scene.js
+    // lui garde alors son chibi (bâti une fois, pas à chaque image) et la scène continue
+    const r = await ev(() => {
+      const S = window.__fournil.SCENE, P = CLIENTS3D.PROTOS.splice(0); let nul, err = '';
+      try { nul = CLIENTS3D.acteur({ id: 1e6, coiffure: 3, etat: 'entre' }); } catch (e) { err = String((e && e.message) || e); } finally { CLIENTS3D.PROTOS.push(...P); }
+      const id = VIE.accueillir(), c = VIE.clients.find((x) => x.id === id); if (!c) return null; c.wait = 20;
+      const A = CLIENTS3D.acteur, creer = PERSOS.creer, batis = [];
+      CLIENTS3D.acteur = (x) => (x.id === id ? null : A(x)); // (ce client-là seulement)
+      PERSOS.creer = function (o) { const g = creer.apply(this, arguments); if (o && !o.toque && o.haut === c.haut && o.peau === c.peau && o.cheveux === c.cheveux) batis.push(g); return g; };
+      try { window.__pas(30, true); } finally { CLIENTS3D.acteur = A; PERSOS.creer = creer; }
+      window.__pas(5, true);
+      const c3 = S.clients3d;
+      return { nul, err, batis: batis.length, enScene: batis.length > 0 && !!batis[0].parent, webgl: S.webgl, glb: c3.glb, chibis: c3.chibis, n: VIE.clients.length, en3d: c3.liste.some((x) => x.id === id) };
+    });
+    check(r && r.nul === null && !r.err, `aucun personnage possible : pas d'acteur, sans erreur (${r && (r.err || String(r.nul))})`);
+    check(r && r.batis === 1 && r.enScene && !r.en3d && r.webgl && r.chibis === 1 && r.glb === r.n - 1, `son chibi, bâti une fois en 35 images (${r && r.batis}), reste dans la scène ; les autres en 3D (${r && r.glb} sur ${r && r.n}), la scène continue`);
+  }
+  check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+  check(avertissements.every((t) => /client manquant/.test(t)), `aucun autre avertissement que les trois personnages manquants (${avertissements.filter((t) => !/client manquant/.test(t)).slice(0, 2).join(' | ') || 'aucun'})`);
   await ctx.close();
 
   console.log('── les clips manquants : le lot échoue, les chibis restent ──');

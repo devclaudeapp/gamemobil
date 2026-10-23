@@ -654,9 +654,9 @@ const SCENE = (() => {
     else if (C3 && C3.pret && !c3p && (c3Interdit += dt) > 10) C3.liberer(); // (sans effet si la réserve est déjà rendue, ou si un acteur est encore en service)
     for (const c of V.clients) {
       let g = acteurs.get(c.id); const glb = !!c3 && !EVV && !c.deg; // (la boutique hantée procédurale garde ses chibis : leurs costumes, et le client mystère avec eux)
-      if (C3 && g && !!g.userData.c3d !== glb) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; }
+      if (C3 && g && !!g.userData.c3d !== glb && !(glb && g.userData.repli)) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; } // (repli : un chibi faute d'acteur, il le reste plutôt que d'être rebâti à chaque image)
       if (!g && glb) { const a = c3.acteur(c); if (a) { g = a.g; habiller(g); scene.add(g); acteurs.set(c.id, g); } }
-      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
+      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.repli = glb; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); if (g.userData.c3d) c3.poser(g.userData.c3d, c, E, dt, ctxC3); else poser(g, c, E, dt);
     }
     for (const a of V.apprentis) {
