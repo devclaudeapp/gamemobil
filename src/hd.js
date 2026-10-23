@@ -31,6 +31,9 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
+    // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, ≈ 60 Ko) : son kit de modèles libres (Kenney,
+    // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
+    planete: { planete: ['planete'] },
   };
   const MOD = {}, PER = {}, CLI = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
@@ -131,6 +134,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, scene: (n) => MOD[n] || null });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

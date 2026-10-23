@@ -1,0 +1,16 @@
+La petite planète de « Ma chaîne » (src/planete.js), qualité haute et moyenne : le kit planete.glb, tout en CC0.
+
+planete.glb : 13 modèles dans un seul GLB (un maillage nommé par modèle), cuits par outils/planete/kit.mjs à partir de
+outils/planete/selection.json : couleurs de sommets (l'atlas cuit, sans texture ni normales), base posée sur y = 0, meshopt.
+La planète elle-même (le sol, l'eau, les dix régions, les boutiques à six standings, les repères : le moulin, l'immeuble d'angle,
+le phare, le chalet, le gratte-ciel, la halle de la gare, le château, la tour Eiffel…) est faite main dans src/planete.js ; le kit
+n'ajoute que quelques modèles en qualité haute. Sans lui (éco, ?hd=0, l'artefact), la planète reste entière.
+- immeuble_a, immeuble_b, immeuble_c : KayKit City Builder Bits 1.0 (Kay Lousberg, kaylousberg.com ; github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0, 63976910),
+  building_A/B/C_withoutBase, teintes pâlies (pastel 0,32) — la grande ville
+- locomotive, wagon : Kenney Holiday Kit 2.0 (kenney.nl/assets/holiday-kit), train-locomotive, train-wagon-short — le petit train de la gare
+- voilier : Kenney Watercraft Kit 2.1 (kenney.nl/assets/watercraft-pack), boat-sail-a — le bord de mer et l'île
+- coffre : Kenney Pirate Kit 2.1 (kenney.nl/assets/pirate-kit), chest — l'île
+- fontaine : Kenney Fantasy Town Kit 2.0 (kenney.nl/assets/fantasy-town-kit), fountain-square — la capitale
+- etal_rouge, etal_vert : Kenney Fantasy Town Kit 2.0, stall-red, stall-green — le marché du village
+- fleurs_rouges, fleurs_jaunes, fleurs_mauves : Kenney Nature Kit 2.1 (kenney.nl/assets/nature-kit), flower_redA/yellowA/purpleA — le village
+Les licences de chaque pack sont à côté (LICENCE-*.txt). Le crédit (Kenney, Kay Lousberg) est apprécié, pas obligatoire.
