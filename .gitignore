@@ -2,3 +2,4 @@ node_modules/
 test/shots/
 outils/carte/cache/
 outils/carte/node_modules/
+outils/clients3d/node_modules
