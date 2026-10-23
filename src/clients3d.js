@@ -1,32 +1,37 @@
 /* LE FOURNIL — les clients de la boutique en personnages 3D animés : six personnages de l'Ultimate Animated Character Pack de Quaternius (CC0 ;
-   fournil/hd/clients/, le lot « clients » de src/hd.js, ≈ 385 Ko, refait par outils/clients3d/faire-clients.mjs). C'est le défaut en qualité haute et
+   fournil/hd/clients/, le lot « clients » de src/hd.js, 384 Ko, refait par outils/clients3d/faire-clients.mjs). C'est le défaut en qualité haute et
    moyenne quand la HD est permise (HDM.permis : WebGL2, pas l'éco, pas coupée dans Réglages › Décors en HD) ; src/scene.js demande le lot après
    celui de la boutique (après les premières images), le service worker le garde comme les autres fichiers hd/. Les chibis (src/persos.js) restent
    en éco, la HD coupée, tant que le lot n'est pas prêt, s'il échoue (les clips manquent, ou tous les personnages : un personnage manquant est
-   simplement omis), et pour les clients déguisés de la boutique hantée procédurale ; ?clients=0 dans l'adresse les garde toujours (les tests).
-   Le boulanger et les apprentis restent des chibis.
-   · La cuisson (comme les monstres de la boutique hantée, src/boutiquehantee.js) : les parties d'un personnage fusionnées en une géométrie sur
-     son squelette, les normales de face recalculées pour les parties en facettes (le fichier ne les porte pas), un rôle de couleur par sommet
-     (peau, yeux, cheveux, haut, bas, chapeau…) ; les accessoires — le croissant et la tasse, le sac en papier, les lunettes, le bonnet d'hiver —
-     sur des os ajoutés, d'échelle nulle quand ils sont rangés : UN appel de dessin par client. Chaque client a ses couleurs de sommets, teintes
-     aux couleurs que VIE lui tire (la palette du quartier) ; la marinière (au bord de la mer, un haut blanc) raye son haut.
-   · Une réserve d'acteurs : quatre par personnage, bâtis et chauffés (dessinés une fois hors champ) dès le lot préparé, rendus à la réserve
-     quand le client s'en va : la mémoire (géométries, textures des os) ne bouge plus ensuite. Un client prend un acteur de son personnage,
-     sinon un autre libre ; au-delà, la réserve grandit.
+   simplement omis), et dans la boutique hantée (procédurale : ses chibis déguisés ; en HD : ses monstres) ; ?clients=0 dans l'adresse les garde
+   toujours (les tests). Le boulanger et les apprentis restent des chibis.
+   · La cuisson, à petits pas (une partie du personnage par image, ses mesures en quatre pas ; comme les monstres de la boutique hantée,
+     src/boutiquehantee.js) : les parties d'un personnage fusionnées en une géométrie sur son squelette, les normales de face recalculées pour
+     les parties en facettes (le fichier ne les porte pas), un rôle de couleur par sommet (peau, yeux, cheveux, haut, bas, chapeau…) ; les
+     accessoires — le croissant et la tasse, le sac en papier, les lunettes, le bonnet d'hiver — sur des os ajoutés, d'échelle nulle quand ils
+     sont rangés : UN appel de dessin par client. Chaque client a ses couleurs de sommets, teintes aux couleurs que VIE lui tire (la palette du
+     quartier) ; la marinière (au bord de la mer, un haut blanc) raye son haut.
+   · Une réserve d'acteurs : quatre par personnage, bâtis dès le lot préparé ; src/scene.js compile leur programme hors de l'image
+     (compileAsync), puis les chauffe (dessinés une fois hors champ) : alors seulement les clients deviennent 3D. Rendus à la réserve quand le
+     client s'en va, la mémoire (géométries, textures des os) ne bouge plus ensuite. Un client prend un acteur de son personnage, sinon un autre
+     libre ; au-delà, la réserve grandit. La HD interdite plus de 10 s, la réserve rend sa mémoire ; permise de nouveau, elle revient à petits
+     pas (un acteur par image, quatre par personnage en tout), puis elle est chauffée de nouveau.
    · La vie (VIE, mêmes états que les chibis : entre, attend, vaTable, assis, sort) : il entre en saluant de la main (Wave, le haut du corps
-     par-dessus la marche, cadencée sur le pas réel) et attend son tour ; servi, il lève les bras (Victory) et prend son sac ; il va s'asseoir
-     son croissant ou sa tasse à la main (au bar, toujours une tasse), s'assoit (SitDown, les pieds posés au sol), pose son sac par terre et
-     mange (la main monte à la bouche) ; repu, il se lève en ramassant son sac (PickUp : VIE lui laisse ce temps, leveT) et repart en saluant.
-     Le client mystère, tout en or, attend dans son halo (le calque 2D fait ses étincelles) et s'impatiente (il regarde autour de lui, tape du
-     pied) ; touché, il dit oui de la tête et repart avec son sac ; oublié, il repart les mains vides en disant non. L'habitué : toujours le
-     même personnage (Mme Dupuis et ses lunettes, Marco en costume, Léna en casque de chantier), son prénom au-dessus de sa tête (le calque
-     de src/scene.js, à la hauteur de sa tête : tete()), un oui de la tête quand il est servi. L'hiver (la neige, la montagne), un bonnet
-     pour qui le porte chez les chibis, sur un personnage sans chapeau. */
+     par-dessus la marche, cadencée sur le pas réel ; les semelles posées sur le sol) et attend son tour ; plus de 6 s immobile dans la file
+     (le client mystère qu'on ne touche pas), il s'impatiente comme les chibis : il regarde autour de lui et tape du pied. Servi, il lève les
+     bras (Victory) et prend son sac ; il va s'asseoir son croissant ou sa tasse à la main (au bar, toujours une tasse), s'assoit (SitDown :
+     le pantalon sur le siège, les pieds posés au sol : au besoin, la cuisse s'incline et le tibia s'allonge un peu), pose son sac par terre
+     et mange (la main monte à la bouche) ; repu, il se lève en ramassant son sac (PickUp : VIE lui laisse ce temps, leveT) et repart en
+     saluant (le pack n'a ni oui ni non : la tête hoche ou secoue d'elle-même, plus bas). Le client mystère, tout en or, attend dans son
+     halo (le calque 2D fait ses étincelles) ; touché, il dit oui de la tête et repart avec son sac ; oublié, il repart les mains vides en
+     disant non. L'habitué : toujours le même personnage (Mme Dupuis et ses lunettes, Marco en costume, Léna en casque de chantier), son
+     prénom au-dessus de sa tête (le calque de src/scene.js, à la hauteur de sa tête : tete()), un oui de la tête quand il est servi.
+     L'hiver (la neige, la montagne), un bonnet pour qui le porte chez les chibis, sur un personnage sans chapeau. */
 const CLIENTS3D = (() => {
   'use strict';
   const T = typeof THREE !== 'undefined' ? THREE : null, X = typeof FOURNIL_HD !== 'undefined' ? FOURNIL_HD : null;
   const sansClients = typeof location !== 'undefined' && /[?&]clients=0(?:&|$)/.test(location.search); // (les tests : les chibis d'office)
-  const API = { actif: false, pret: false, erreur: '', info: null, permis: () => false, demander: () => {}, preparer: () => false, acteur: () => null, poser: () => {}, rendre: () => {}, tete: () => null, liberer: () => {}, chauffer: () => false, rentrer: () => {} };
+  const API = { actif: false, pret: false, erreur: '', info: null, permis: () => false, demander: () => {}, preparer: () => false, acteur: () => null, poser: () => {}, rendre: () => {}, tete: () => null, mesure: () => null, liberer: () => {}, chauffer: () => null, rentrer: () => {}, echantillon: () => null };
   if (!T || !X || typeof document === 'undefined' || sansClients || typeof HDM === 'undefined' || !HDM.actif || !HDM.LOTS || !HDM.LOTS.clients || typeof PERSOS === 'undefined' || !PERSOS || typeof MODELES === 'undefined' || !MODELES) return API;
 
   // ═══ les personnages : le rôle de chaque matériau (les autres gardent leur couleur : ceintures, bretelles, chemise blanche, gilet de travail) ═══
@@ -42,18 +47,18 @@ const CLIENTS3D = (() => {
   // les os (noms tels que les lit GLTFLoader : « Fist.R » → « FistR ») ; assise : les os qui portent sur le siège ; basDuCorps : ce que la joie ne touche pas
   const OS = { main: 'FistR', avant: 'LowerArmR', bras: 'UpperArmR', tete: 'Head', cuisses: ['UpperLegL', 'UpperLegR'], tibias: ['LowerLegL', 'LowerLegR'], pieds: ['FootL', 'FootR'], assise: /^(Body|Hips|UpperLeg)/, basDuCorps: /^(Bone|Body|Hips|UpperLeg|LowerLeg|Foot|PoleTarget)/ };
   const ROLES = ['fixe', 'peau', 'yeux', 'cheveux', 'gris', 'haut', 'hautSombre', 'hautClair', 'bas', 'casque', 'hautForme', 'sac', 'anse', 'lunettes', 'bonnet', 'pompon'];
-  const RI = Object.fromEntries(ROLES.map((r, i) => [r, i]));
+  const RI = Object.fromEntries(ROLES.map((r, i) => [r, i])), ASSISE_ROLES = new Set([RI.bas, RI.hautSombre, RI.peau]); // (le pantalon : « bas », ou le costume sombre)
   // les mesures (unités du monde, comme les chibis : 73 de haut à l'échelle 1) : la hauteur visée (× K × taille du client) ; l'assise de chaque coin
   // (src/meubles.js : chaises et tabourets à 16, la banquette plus basse) ; un point devant la bouche (relatif à la tête, × la hauteur du modèle) ;
-  // l'objet en main, au bout du poing (× la hauteur) ; la durée de la joie
-  const HAUT = 74, ASSISE = { table: 16, terrasse: 16, bar: 16, banquette: 12 }, BOUCHE = [0, 0.075, 0.2], PRISE = 0.075, JOIE = 1.35;
+  // l'objet en main, au bout du poing (× la hauteur) ; la durée de la joie ; le sac (× celui des chibis)
+  const HAUT = 74, ASSISE = { table: 16, terrasse: 16, bar: 16, banquette: 12 }, BOUCHE = [0, 0.075, 0.2], PRISE = 0.075, JOIE = 1.35, SAC = 0.8;
   const BAS = ['#4A5A78', '#5B4A3A', '#3E4A5C', '#8A7A66', '#33363F', '#6B5B7A'], CASQUES = ['#F2C14E', '#F08A3C', '#F2EEE4', '#E05A4E', '#5B8FD0'];
   const FORMES = ['#26262C', '#4A3328', '#2F3A55', '#5E2A35'], GRIS = ['#DCD8D0', '#C4BFB6', '#ECE8E0', '#A9A49B'], OR = '#FFC84A', OR2 = '#E0A61E';
   const YAW = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI };
 
-  const _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _v5 = new T.Vector3(), _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion();
+  const _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _v5 = new T.Vector3(), _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion(), _q4 = new T.Quaternion();
   const _m1 = new T.Matrix4(), _m2 = new T.Matrix4(), _e = new T.Euler(), _c = new T.Color(), _s1 = new T.Vector3(), AXE_Y = new T.Vector3(0, 1, 0);
-  const etat = { prets: 0, acteurs: 0, enService: 0, chauffe: false, msCuisson: 0, liberes: 0 };
+  const etat = { acteurs: 0, enService: 0, chauffe: false, msCuisson: 0, liberes: 0 };
 
   const permis = (renderer) => !!(typeof HDM !== 'undefined' && HDM.permis(renderer));
   function demander() { if (!HDM.etat.clients) HDM.charger('clients'); }
@@ -76,10 +81,12 @@ const CLIENTS3D = (() => {
     return { geo: g, roles: new Uint8Array(R) };
   }
   const rolesDe = (geo, parts) => { const r = new Uint8Array(geo.attributes.position.count); let o = 0; for (const p of parts) { const n = p.geo.index ? p.geo.index.count : p.geo.attributes.position.count; r.fill(RI[p.role || 'fixe'], o, o + n); o += n; } return r; };
-  function enMain() {
+  function* enMain() { // (un accessoire par pas)
     const M = MODELES, C = (g, col, role, p) => Object.assign(M.part(g, col, p), { role });
     const cr = souder(M.assembler(PERSOS.partsPatisserie(1))); // le croissant du jeu (la pâtisserie n° 1, src/persos.js), ~16 d'envergure
+    yield 'croissant';
     const tasse = souder(M.assembler([M.part(M.cylindre(4.2, 3.6, 8, 12), '#FFFFFF'), M.part(M.cylindre(3.7, 3.7, 0.6, 12), '#6B4226', { y: 7.2 }), M.part(M.tore(2.2, 0.8, Math.PI * 2, 5, 10), '#FFFFFF', { x: 4.4, y: 4.4 }), M.part(M.cylindre(6, 6, 0.6, 14), '#F2E6D8', { y: -0.6 })]));
+    yield 'tasse';
     // le sac en papier kraft (celui des chibis : 9 × 13 × 5), son revers, son anse ; pendu par l'anse : l'origine en haut
     const sacP = [C(M.boite(9, 13, 5, 1.2, 1), '#F2D7B6', 'sac', { y: -16 }), C(M.boite(9.4, 1.4, 5.4, 0.5, 1), '#E2C29C', 'sac', { y: -4.4 }), C(M.tore(2.6, 0.55, Math.PI, 4, 8), '#C9955A', 'anse', { y: -3.2 })];
     const sacG = M.assembler(sacP), sac = souder(sacG, rolesDe(sacG, sacP));
@@ -92,7 +99,7 @@ const CLIENTS3D = (() => {
     const src = gltf.scene; src.updateMatrixWorld(true);
     let S0 = null; src.traverse((o) => { if (!S0 && o.isSkinnedMesh) S0 = o; });
     const bones = S0.skeleton.bones, idx = new Map(bones.map((b, i) => [b.name, i])), iB = S0.bindMatrix.clone().invert(), BI0 = S0.skeleton.boneInverses.map((m) => m.clone().invert());
-    const pr0 = {}, cfg = PERSONNAGES[nom], P = [], N = [], C0 = [], R = [], RAY = [], SI = [], SW = [], I = [];
+    const cfg = PERSONNAGES[nom], P = [], N = [], C0 = [], R = [], RAY = [], SI = [], SW = [], I = [];
     const v = new T.Vector3(), n3 = new T.Vector3(), a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3();
     const emettre = (x, y, z, nx, ny, nz, col, role, si, sw, o) => { const k = P.length / 3; P.push(x, y, z); N.push(nx, ny, nz); C0.push(col.r, col.g, col.b); R.push(role); RAY.push(0); o = o || 0; SI.push(si[o], si[o + 1], si[o + 2], si[o + 3]); SW.push(sw[o], sw[o + 1], sw[o + 2], sw[o + 3]); return k; };
     const parts = []; src.traverse((o) => { if (o.isSkinnedMesh) parts.push(o); });
@@ -126,7 +133,7 @@ const CLIENTS3D = (() => {
           if (seul) { const y = (a.y + b.y + c.y) / 3; hautTris.push([I.length - 3, y]); hautY0 = Math.min(hautY0, y); hautY1 = Math.max(hautY1, y); }
         }
       }
-      yield;
+      yield o.material.name; // (une partie du personnage par pas)
     }
     // la marinière : sept bandes dans la hauteur du haut, une sur deux rayée (par triangle : des bandes nettes)
     if (hautTris.length) { const h = Math.max(1e-6, hautY1 - hautY0) / 7; for (const [k, y] of hautTris) if (Math.floor((y - hautY0) / h) % 2 === 1) for (let j = 0; j < 3; j++) RAY[I[k + j]] = 1; }
@@ -144,23 +151,24 @@ const CLIENTS3D = (() => {
       const ix = geo.index; for (let k = 0; k < ix.count; k++) I.push(base + ix.getX(k));
     };
     ajouter(acc.cr, 0); ajouter(acc.tasse, 1); ajouter(acc.sac, 2);
+    yield 'en main';
     // la tête, mesurée dans le monde au repos (la liaison du maillage) : ses sommets de peau et de cheveux (l'os dominant : la tête), les yeux et
     // les sourcils (la partie « Face ») ; les lunettes et le bonnet y sont bâtis, puis ramenés dans l'espace de liaison du maillage
     const yeux = [], crane = [], cheveux = [], jD = (k) => { let jd = SI[k * 4], wd = SW[k * 4]; for (let q = 1; q < 4; q++) if (SW[k * 4 + q] > wd) { wd = SW[k * 4 + q]; jd = SI[k * 4 + q]; } return jd; };
     for (let k = 0; k < nbCorps; k++) { if (jD(k) !== tete) continue; const p = new T.Vector3(P[k * 3], P[k * 3 + 1], P[k * 3 + 2]).applyMatrix4(S0.bindMatrix); if (R[k] === RI.yeux) yeux.push(p); else if (R[k] === RI.peau) crane.push(p); else if (R[k] === RI.cheveux || R[k] === RI.gris) { p.k = k; cheveux.push(p); } }
     const mt = mesureTete(yeux, crane), lu = lunettes(mt), bon = bonnet(mt);
     lu.geo.applyMatrix4(iB); bon.geo.applyMatrix4(iB); ajouter(lu, 3, true); ajouter(bon, 4, true);
+    yield 'tête';
     // sous le bonnet : les cheveux au-dessus de son bord passent sur un os à eux (enfant de la tête, au centre du bonnet), d'échelle nulle quand le
     // bonnet est mis : ils s'y replient, cachés dedans ; ceux d'en dessous (les côtés, la queue de cheval) dépassent du bonnet
     for (const p of cheveux) if (p.y > bon.bord) { const k = p.k; SI[k * 4] = nbOs + 5; SI[k * 4 + 1] = SI[k * 4 + 2] = SI[k * 4 + 3] = 0; SW[k * 4] = 1; SW[k * 4 + 1] = SW[k * 4 + 2] = SW[k * 4 + 3] = 0; }
     const teteRepos = S0.skeleton.boneInverses[tete].clone().invert(), centreBonnet = bon.centre.clone().applyMatrix4(teteRepos.clone().invert()); // (le centre du bonnet, dans le repère de la tête au repos)
-    pr0.tete = { ecart: +mt.yeuxG.distanceTo(mt.yeuxD).toFixed(3), crane: +(mt.crane.max.y - mt.crane.min.y).toFixed(3) };
     // la géométrie de base (partagée par tous les acteurs de ce personnage ; chacun a sa couleur)
     const n = P.length / 3, geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.BufferAttribute(new Float32Array(P), 3)); geo.setAttribute('normal', new T.BufferAttribute(new Float32Array(N), 3));
     geo.setAttribute('skinIndex', new T.BufferAttribute(new Uint16Array(SI), 4)); geo.setAttribute('skinWeight', new T.BufferAttribute(new Float32Array(SW), 4));
     geo.setIndex(new T.BufferAttribute(n > 65535 ? new Uint32Array(I) : new Uint16Array(I), 1)); geo.computeBoundingBox(); geo.computeBoundingSphere();
-    yield;
+    yield 'géométrie';
     // le gabarit : le gltf cloné, un seul SkinnedMesh, les os ajoutés, le squelette refait
     const tpl = X.SkeletonUtils.clone(src); let S1 = null; const jeter = [];
     tpl.traverse((o) => { if (o.isMesh) { if (!S1 && o.isSkinnedMesh) S1 = o; else jeter.push(o); } });
@@ -173,8 +181,8 @@ const CLIENTS3D = (() => {
     });
     S1.bind(new T.Skeleton(os, inv), S1.bindMatrix);
     S1.geometry = geo; S1.castShadow = true; S1.receiveShadow = false; S1.frustumCulled = false;
-    const pr = Object.assign(pr0, { nom, tpl, geo, C0: new Float32Array(C0), R: new Uint8Array(R), RAY: new Uint8Array(RAY), tris: trisCorps, sommets: nbCorps, trisAcc: I.length / 3 - trisCorps, sommetsAcc: n - nbCorps, nbOs, chapeau: !!cfg.chapeau, sansBonnet: !!(cfg.chapeau || cfg.crete), hauteur: 1 });
-    yield; mesurer(pr); return pr;
+    const pr = { nom, tpl, geo, C0: new Float32Array(C0), R: new Uint8Array(R), RAY: new Uint8Array(RAY), tris: trisCorps, sommets: nbCorps, trisAcc: I.length / 3 - trisCorps, sommetsAcc: n - nbCorps, nbOs, sansBonnet: !!(cfg.chapeau || cfg.crete), hauteur: 1 };
+    yield 'gabarit'; yield* mesurer(pr); return pr;
   }
   // la tête (monde au repos ; le visage regarde vers +z, le haut est +y) : le centre de chaque œil (le bas de la partie « Face » de son côté :
   // le haut, ce sont les sourcils), l'avant du visage, la calotte (la peau et les cheveux au-dessus des sourcils)
@@ -213,27 +221,29 @@ const CLIENTS3D = (() => {
   // ═══ la préparation, à petits pas (src/scene.js l'appelle à chaque image ; des pas tant que l'image n'a pas passé 6 ms, un au moins) : les
   //     clips et les accessoires ; puis chaque personnage, une partie par pas, ses accessoires et son gabarit, ses mesures ; puis la réserve, un
   //     acteur par pas. Prêt quand tout y est ═══
-  const PROTOS = [], NOMS = [], A_CUIRE = Object.keys(PERSONNAGES); let ACC = null, iCuit = 0, enCours = null, echec = false;
+  const PROTOS = [], NOMS = [], A_CUIRE = Object.keys(PERSONNAGES); let ACC = null, accEnCours = null, iCuit = 0, enCours = null, echec = false, aRemplir = false;
   function preparer() {
-    if (API.pret || echec || !HDM.pret('clients')) return API.pret;
+    if (API.pret) { if (aRemplir) remplir(); return true; } // (après liberer : la réserve revient, un acteur par image)
+    if (echec || !HDM.pret('clients')) return false;
     const t0 = performance.now();
-    try { do etape(); while (!API.pret && performance.now() - t0 < 6); }
+    try { do { const t1 = performance.now(), quoi = etape(), d = performance.now() - t1; if (d > (etat.pasMax || 0)) { etat.pasMax = Math.round(d * 10) / 10; etat.pasLent = quoi; } } while (!API.pret && performance.now() - t0 < 6); } // (le pas le plus long, pour les tests)
     catch (e) { echec = true; API.erreur = String((e && e.message) || e); console.warn('Clients 3D : pas préparés, les chibis restent', API.erreur); }
     const ms = performance.now() - t0; etat.msCuisson = Math.round(etat.msCuisson + ms); etat.msImageMax = Math.max(etat.msImageMax || 0, Math.round(ms)); etat.images = (etat.images || 0) + 1;
     return API.pret;
   }
-  function etape() {
-    if (!ACC) { clips(HDM.clients('anims').animations); ACC = enMain(); return; }
-    if (enCours) { const r = enCours.next(); if (r.done) { PROTOS.push(r.value); NOMS.push(r.value.nom); enCours = null; } return; } // un pas de la cuisson en cours
-    if (iCuit < A_CUIRE.length) { const nom = A_CUIRE[iCuit++], g = HDM.clients(nom); if (g) enCours = cuire(nom, g, ACC); return; }
+  function etape() { // (rend ce qu'il a fait)
+    if (!accEnCours) { clips(HDM.clients('anims').animations); accEnCours = enMain(); return 'clips'; }
+    if (!ACC) { const r = accEnCours.next(); if (r.done) ACC = r.value; return 'accessoire ' + (r.done ? 'sac' : r.value); }
+    if (enCours) { const r = enCours.next(); if (r.done) { PROTOS.push(r.value); NOMS.push(r.value.nom); enCours = null; } return 'cuisson ' + (r.done ? r.value.nom : r.value || ''); } // un pas de la cuisson en cours
+    if (iCuit < A_CUIRE.length) { const nom = A_CUIRE[iCuit++], g = HDM.clients(nom); if (g) enCours = cuire(nom, g, ACC); return 'lecture ' + nom; }
     if (!API.info) {
       if (!PROTOS.length) throw new Error('aucun personnage');
-      const ref = Math.min(...PROTOS.map((p) => p.hauteur)); for (const p of PROTOS) { p.hauteurTete = p.hauteur; p.hauteur = ref; } // une seule échelle : un chapeau, un chignon ne rapetissent pas leur porteur
-      API.info = { modeles: PROTOS.map((p) => ({ nom: p.nom, tris: p.tris, sommets: p.sommets, trisAcc: p.trisAcc, sommetsAcc: p.sommetsAcc, os: p.nbOs, assise: +p.assise.toFixed(3), pas: +p.vitesse.toFixed(3) })) };
-      return;
+      const ref = Math.min(...PROTOS.map((p) => p.hauteur)); for (const p of PROTOS) p.hauteur = ref; // une seule échelle : un chapeau, un chignon ne rapetissent pas leur porteur
+      API.info = { modeles: PROTOS.map((p) => ({ nom: p.nom, tris: p.tris, sommets: p.sommets, trisAcc: p.trisAcc, sommetsAcc: p.sommetsAcc, os: p.nbOs, assise: +p.assise.toFixed(3), sol: +p.sol.toFixed(4), pas: +p.vitesse.toFixed(3) })) };
+      return 'mesures';
     }
-    for (let i = 0; i < PROTOS.length; i++) { const l = LIBRES.get(i) || []; LIBRES.set(i, l); if (l.length < RESERVE) { l.push(creer(i)); return; } } // la réserve : un acteur par étape
-    etat.chauffe = false; API.pret = true;
+    for (let i = 0; i < PROTOS.length; i++) { const l = LIBRES.get(i) || []; LIBRES.set(i, l); if (l.length < RESERVE) { l.push(creer(i)); return 'réserve'; } } // la réserve : un acteur par étape
+    etat.chauffe = false; API.pret = true; return 'prêt';
   }
   // les positions monde des n premiers sommets d'un maillage skinné, à sa pose : une multiplication matrice × vecteur par os et par sommet
   // (SkinnedMesh.getVertexPosition refait une multiplication de matrices par os et par sommet)
@@ -247,23 +257,27 @@ const CLIENTS3D = (() => {
       fn(i, W[0] * sx + W[4] * sy + W[8] * sz + W[12], W[1] * sx + W[5] * sy + W[9] * sz + W[13], W[2] * sx + W[6] * sy + W[10] * sz + W[14]);
     }
   }
-  function mesurer(pr) { // sur un clone : la hauteur debout, la cheville, l'assise et son centre, la vitesse du pas, le point où les mains ramassent le sac
+  function* mesurer(pr) { // sur un clone : la hauteur debout, la cheville, l'assise et son centre, la vitesse du pas, le point où les mains ramassent le sac (un pas chacune)
     const g = X.SkeletonUtils.clone(pr.tpl); let S = null; g.traverse((o) => { if (o.isSkinnedMesh) S = o; }); S.geometry = pr.geo;
     const mx = new T.AnimationMixer(g), si = pr.geo.attributes.skinIndex, sw = pr.geo.attributes.skinWeight, pied = g.getObjectByName(OS.pieds[0]), tete = g.getObjectByName(OS.tete), main = g.getObjectByName(OS.main);
     const dominant = (i) => { let jd = 0, wd = -1; for (let q = 0; q < 4; q++) { const ww = sw.array[i * 4 + q]; if (ww > wd) { wd = ww; jd = si.array[i * 4 + q]; } } return jd; };
     const id = mx.clipAction(CL.Idle); id.play(); mx.setTime(0.01); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); pr.cheville = Math.max(0, _v1.y);
     let ymax = -1e9, ymin = 1e9; sommetsMonde(S, pr.sommets, (i, x, y) => { if (y > ymax) ymax = y; if (y < ymin) ymin = y; });
-    pr.hauteur = ymax - Math.min(0, ymin); tete.getWorldPosition(_v1); pr.dessus = ymax - _v1.y; id.stop();
-    // assis (la fin de SitDown) : le dessous du bassin et des cuisses, et le centre de la surface d'appui
+    pr.hauteur = ymax - Math.min(0, ymin); pr.sol = ymin; tete.getWorldPosition(_v1); pr.dessus = ymax - _v1.y; id.stop();
+    yield 'debout';
+    // assis (la fin de SitDown) : le dessous du bassin et des cuisses, et le centre de la surface d'appui : le pantalon seulement (le pan d'un
+    // manteau, un gilet, une ceinture pendent plus bas que l'assise : ils passeraient pour elle, et leur porteur flotterait au-dessus du siège)
     const ass = mx.clipAction(CL.SitDown); ass.setLoop(T.LoopOnce, 1); ass.clampWhenFinished = true; ass.play(); mx.setTime(CL.SitDown.duration * 0.999); g.updateMatrixWorld(true);
     const siege = new Set(S.skeleton.bones.map((b, i) => (OS.assise.test(b.name) ? i : -1)).filter((i) => i >= 0)), pts = []; let ya = 1e9;
-    sommetsMonde(S, pr.sommets, (i, x, y, z) => { if (!siege.has(dominant(i))) return; pts.push(y, z); if (y < ya) ya = y; });
+    sommetsMonde(S, pr.sommets, (i, x, y, z) => { if (!siege.has(dominant(i)) || !ASSISE_ROLES.has(pr.R[i])) return; pts.push(y, z); if (y < ya) ya = y; });
     let zs = 0, nz = 0; for (let k = 0; k < pts.length; k += 2) if (pts[k] < ya + 0.06 * pr.hauteur) { zs += pts[k + 1]; nz++; }
     pr.assise = ya; pr.assiseZ = nz ? zs / nz : 0; ass.stop();
+    yield 'assis';
     // la marche : l'aller-retour d'un pied → la longueur du pas ; la vitesse du clip (unités du modèle par seconde)
     const ma = mx.clipAction(CL.Walk); ma.play(); let z0 = 1e9, z1 = -1e9;
     for (let k = 0; k < 24; k++) { mx.setTime(CL.Walk.duration * k / 24); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); z0 = Math.min(z0, _v1.z); z1 = Math.max(z1, _v1.z); }
     pr.vitesse = 2 * (z1 - z0) / CL.Walk.duration; ma.stop();
+    yield 'marche';
     // ramasser (PickUp) : l'instant où la main droite est au plus bas, et où elle est alors (repère du personnage) : le sac posé là l'attend
     const pu = mx.clipAction(CL.PickUp); pu.play(); let yb = 1e9;
     for (let k = 0; k <= 40; k++) { const t = CL.PickUp.duration * k / 40; mx.setTime(t); g.updateMatrixWorld(true); main.getWorldPosition(_v1); if (_v1.y < yb) { yb = _v1.y; pr.ramasse = { t, x: _v1.x, z: _v1.z }; } }
@@ -283,13 +297,17 @@ const CLIENTS3D = (() => {
     S.geometry = geo; S.material = materiau(); S.castShadow = true; S.frustumCulled = false; g.visible = false;
     const nomme = (n) => g.getObjectByName(n);
     const a = { g, S, pr, i, mixer: new T.AnimationMixer(g), actions: {}, joue: '', c: 0, os: { main: nomme(OS.main), avant: nomme(OS.avant), bras: nomme(OS.bras), tete: nomme(OS.tete), cuisses: OS.cuisses.map(nomme), tibias: OS.tibias.map(nomme), pieds: OS.pieds.map(nomme), mainG: nomme('FistL'), cr: nomme('accCroissant'), tasse: nomme('accTasse'), sac: nomme('accSac'), lunettes: nomme('accLunettes'), bonnet: nomme('accBonnet'), cheveux: nomme('accCheveux') } };
-    a.sauve = [a.os.bras, a.os.avant, a.os.main, a.os.tete, ...a.os.tibias, ...a.os.pieds].filter(Boolean).map((b) => [b, b.quaternion.clone(), b.position.clone()]);
+    a.sauve = [a.os.bras, a.os.avant, a.os.main, a.os.tete, ...a.os.cuisses, ...a.os.tibias, ...a.os.pieds].filter(Boolean).map((b) => [b, b.quaternion.clone(), b.position.clone()]);
     g.userData.c3d = a; g.userData.cle = 'c3d'; TOUS.push(a); etat.acteurs = TOUS.length; return a;
   }
-  function reserve() { for (let i = 0; i < PROTOS.length; i++) { const l = LIBRES.get(i) || []; while (l.length < RESERVE) l.push(creer(i)); LIBRES.set(i, l); } etat.chauffe = false; }
+  function remplir() { // un acteur par appel, jusqu'à quatre par personnage en tout (ceux en service compris) ; puis la chauffe, de nouveau
+    for (let i = 0; i < PROTOS.length; i++) { const l = LIBRES.get(i) || []; LIBRES.set(i, l); if (TOUS.reduce((n, a) => n + (a.i === i), 0) < RESERVE) { l.push(creer(i)); return; } }
+    aRemplir = false; etat.chauffe = false;
+  }
   // le personnage d'un client : le mystère, l'habitué, le bonnet (sans chapeau), sinon tiré de son numéro
   function voulu(c) {
     const par = (nom) => { const i = NOMS.indexOf(nom); return i >= 0 ? i : -1; };
+    if (c.perso3d) { const i = par(c.perso3d); if (i >= 0) return i; } // (les tests et les captures : un personnage imposé)
     if (c.or) { const i = par(MYSTERE); if (i >= 0) return i; }
     if (c.hab && HABITUES[c.hab]) { const i = par(HABITUES[c.hab]); if (i >= 0) return i; }
     const ok = PROTOS.map((p, i) => i).filter((i) => !(c.coiffure === 3 && PROTOS[i].sansBonnet));
@@ -298,12 +316,11 @@ const CLIENTS3D = (() => {
   }
   function acteur(c) {
     if (!API.pret) return null;
-    if (!LIBRES.size) reserve(); // (après liberer : la réserve revient)
     const i = voulu(c), l = LIBRES.get(i); let a = l && l.length ? l.pop() : null;
     if (!a && !c.or && !c.hab) { let best = -1; for (const [j, x] of LIBRES) if (x.length && !(c.coiffure === 3 && PROTOS[j].sansBonnet) && (best < 0 || x.length > LIBRES.get(best).length)) best = j; if (best >= 0) a = LIBRES.get(best).pop(); } // un autre personnage libre
     if (!a) a = creer(i); // la réserve grandit
-    a.c = c.id; a.etatP = ''; a.joieT = 0; a.salut = 0; a.salutT = 0; a.salueE = a.salueS = c.etat !== 'entre'; a.geste = null; a.assisT = 0; a.leveT = 0; a.leve = false; a.attente = 0; a.prisVu = false; a.neuf = true;
-    a.yaw = YAW[c.dir] || 0; a.vitesse = 0; a.xp = null; a.zp = null; a.graine = (c.id * 0.6180339887) % 1; a.objet = null; a.sacSol = null; a.sacMain = false;
+    a.c = c.id; a.etatP = ''; a.joieT = 0; a.salut = 0; a.salutT = 0; a.salueE = a.salueS = c.etat !== 'entre'; a.geste = null; a.assisT = 0; a.leveT = 0; a.attente = 0; a.prisVu = false; a.neuf = true;
+    a.yaw = YAW[c.dir] || 0; a.vitesse = 0; a.xp = null; a.zp = null; a.graine = (c.id * 0.6180339887) % 1; a.objet = null; a.sacSol = null; a.sacPose = 1;
     a.lunettes = !!c.lunettes; a.bonnet = c.coiffure === 3 && !a.pr.sansBonnet; a.raye = !!c.mariniere;
     teindre(a, c); a.g.visible = true; a.g.rotation.set(0, a.yaw, 0); a.g.userData.yaw = a.yaw;
     jouer(a, 'Idle', 0); a.mixer.update(0.01 + a.graine * 2); // (rendu à la réserve, stopAllAction a remis chaque os animé à son repos)
@@ -311,7 +328,7 @@ const CLIENTS3D = (() => {
     etat.enService++; return a;
   }
   function rendre(a) {
-    if (!a || a.c === 0) return; a.mixer.stopAllAction(); a.joue = ''; a.couche = null; a.c = 0; a.g.visible = false; if (a.halo) { a.g.remove(a.halo); a.halo = null; }
+    if (!a || a.c === 0) return; a.mixer.stopAllAction(); a.joue = ''; a.c = 0; a.g.visible = false; if (a.halo) { a.g.remove(a.halo); a.halo = null; }
     for (const b of [a.os.cr, a.os.tasse, a.os.sac, a.os.lunettes, a.os.bonnet]) if (b) b.scale.setScalar(0); if (a.os.cheveux) a.os.cheveux.scale.setScalar(1);
     const l = LIBRES.get(a.i) || []; l.push(a); LIBRES.set(a.i, l); etat.enService = Math.max(0, etat.enService - 1);
   }
@@ -319,13 +336,14 @@ const CLIENTS3D = (() => {
     // gabarits restent ; elle revient au besoin). Jamais avec un acteur en service : les géométries des acteurs partagent les tampons du gabarit
     if (!TOUS.length || TOUS.some((a) => a.c)) return false;
     for (const a of TOUS) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); if (a.g.parent) a.g.parent.remove(a.g); }
-    TOUS.length = 0; LIBRES.clear(); etat.acteurs = 0; etat.liberes++; return true;
+    TOUS.length = 0; LIBRES.clear(); etat.acteurs = 0; etat.liberes++; aRemplir = true; return true;
   }
   // la chauffe : les acteurs libres dessinés une fois, loin sous le sol (leur géométrie, la texture de leurs os et les programmes montent sur la
   // carte graphique tout de suite, pas au premier client ; la mémoire ne bouge plus ensuite) : chauffer() les rend à src/scene.js, qui les pose
   // dans la scène pour une image ; rentrer() reprend ceux qu'aucun client n'a pris entre-temps
   function chauffer() { if (etat.chauffe || !API.pret) return null; const gs = []; for (const l of LIBRES.values()) for (const a of l) { a.g.position.set(0, -5000, 0); a.g.scale.setScalar(1); a.g.visible = true; gs.push(a.g); } etat.chauffe = true; etat.chauffes = (etat.chauffes || 0) + 1; return gs; }
   function rentrer(gs) { for (const g of gs || []) { const a = g.userData.c3d; if (a && a.c) continue; if (g.parent) g.parent.remove(g); g.visible = false; } }
+  function echantillon() { for (const l of LIBRES.values()) if (l.length) return l[0].g; return null; } // un acteur libre (src/scene.js y compile le programme des clients)
 
   // ─── les couleurs : rôles → couleurs (linéaires) ───
   const lin = (hex, k) => { _c.set(hex); if (k != null) _c.multiplyScalar(k); return [_c.r, _c.g, _c.b]; };
@@ -382,15 +400,25 @@ const CLIENTS3D = (() => {
     tournerMonde(o.bras, _q1.setFromUnitVectors(_t1.subVectors(_E, _S).normalize(), _t2.subVectors(E2, _S).normalize()));
     posM(o.main, _W); tournerMonde(o.avant, _q1.setFromUnitVectors(_t1.subVectors(_W, E2).normalize(), _t2.subVectors(_Tg, E2).normalize()));
   }
-  function piedsAuSol(a, k) { // assis : le tibia tourne au genou pour que la cheville touche le sol (devant, dans l'axe de la cuisse), ou pend droit
+  // assis : les pieds posés au sol. Le tibia tourne au genou pour que la cheville touche le sol (devant, dans l'axe de la cuisse) ; trop haut
+  // (ces personnages ont les jambes courtes pour des chaises à 16), la cuisse s'incline d'abord (20° au plus : on s'assoit au bord) et le
+  // tibia s'allonge un peu (25 % au plus) ; au-delà, la jambe pend. k : le poids (0 → 1), en s'asseyant et en se levant
+  const CUISSE_MAX = 0.35, ETIRE_MAX = 1.25, _qk = new T.Quaternion();
+  function piedsAuSol(a, k) {
     const o = a.os, ch = a.pr.cheville * a.g.scale.y;
     for (let i = 0; i < 2; i++) {
-      const tib = o.tibias[i], pied = o.pieds[i]; if (!tib || !pied) continue;
-      posM(tib, _v1); posM(pied, _v2); posM(o.cuisses[i], _v3); const Lg = _v1.distanceTo(_v2), dy = _v1.y - ch;
+      const cui = o.cuisses[i], tib = o.tibias[i], pied = o.pieds[i]; if (!cui || !tib || !pied) continue;
+      posM(cui, _v3); posM(tib, _v1); posM(pied, _v2); const L1 = _v3.distanceTo(_v1), Lg = _v1.distanceTo(_v2); let dy = _v1.y - ch;
+      if (dy > Lg && L1 > 1e-6) { // la cuisse descend : juste ce qu'il faut, 20° au plus
+        _t1.subVectors(_v1, _v3).divideScalar(L1); const h = Math.hypot(_t1.x, _t1.z), e0 = Math.atan2(_t1.y, h);
+        const e1 = Math.max(e0 - CUISSE_MAX, Math.asin(Math.max(-1, Math.min(1, _t1.y - (dy - Lg) / L1))));
+        if (e1 < e0 && h > 1e-6) { _t2.set(_t1.x / h * Math.cos(e1), Math.sin(e1), _t1.z / h * Math.cos(e1)); _q1.setFromUnitVectors(_t1, _t2); tournerMonde(cui, _qk.identity().slerp(_q1, k)); posM(tib, _v1); dy = _v1.y - ch; }
+      }
       _v4.subVectors(_v1, _v3); _v4.y = 0; if (_v4.lengthSq() < 1e-8) _v4.set(Math.sin(a.g.rotation.y), 0, Math.cos(a.g.rotation.y)); _v4.normalize();
-      if (dy >= Lg) _v5.copy(_v1).y -= Lg; else _v5.copy(_v1).addScaledVector(_v4, Math.sqrt(Lg * Lg - dy * dy)).y -= dy;
+      let s = 1; if (dy >= Lg) { s = Math.min(ETIRE_MAX, dy / Lg); _v5.copy(_v1).y -= Lg * s; } else _v5.copy(_v1).addScaledVector(_v4, Math.sqrt(Lg * Lg - dy * dy)).y -= dy;
       _v5.lerp(_v2, 1 - k);
       _q1.setFromUnitVectors(_t1.subVectors(_v2, _v1).normalize(), _t2.subVectors(_v5, _v1).normalize()); tournerMonde(tib, _q1);
+      tib.scale.y = 1 + (s - 1) * k; tib.updateMatrixWorld(true); // (le tibia, sans enfant, s'allonge le long de son os)
       pied.position.copy(pied.parent.worldToLocal(_t1.copy(_v5))); pied.updateMatrixWorld(true); // (les pieds de l'UACP sont des os d'IK, enfants de la racine)
     }
   }
@@ -421,7 +449,7 @@ const CLIENTS3D = (() => {
       else { a.joieT = JOIE; if (c.hab) a.geste = { nom: 'oui', t: 0 }; }
     }
     if (c.or && c.pris && !a.prisVu) { a.prisVu = true; a.geste = { nom: 'oui', t: 0 }; }
-    if (assis && a.etatP !== 'assis') { a.assisT = a.neuf ? 9 : 0; a.leveT = 0; } // (un client installé d'office, déjà assis : la fin du clip)
+    if (assis && a.etatP !== 'assis') { a.assisT = a.neuf ? 9 : 0; a.leveT = 0; a.sacPose = a.neuf ? 1 : 0; } // (un client installé d'office, déjà assis : la fin du clip, son sac déjà par terre)
     a.etatP = c.etat; a.neuf = false;
     g.visible = c.alpha > 0.05; const sc = s * (0.75 + 0.25 * Math.min(1, c.alpha)); g.scale.setScalar(sc);
     // le cap : face à sa marche (même quand la file avance de côté), sinon celui de VIE
@@ -448,13 +476,13 @@ const CLIENTS3D = (() => {
     a.salut = Math.max(0, Math.min(1, a.salut + (a.salutT > 0 && a.joieT <= 0 ? dt * 4 : -dt * 3))); couche(a, '__salut', a.salut);
     // (le mélangeur n'écrit une valeur que si elle change : un clip figé ne réécrit plus le bras, les jambes ni la tête ; on rend donc aux os
     //  que l'IK et les gestes touchent la pose du clip avant chaque mise à jour, sinon ils s'empileraient d'une image à l'autre)
-    for (const [b, q, p] of a.sauve) { b.quaternion.copy(q); b.position.copy(p); }
+    for (const [b, q, p] of a.sauve) { b.quaternion.copy(q); b.position.copy(p); b.scale.y = 1; } // (et l'allonge des tibias)
     a.mixer.update(dt);
     for (const sv of a.sauve) { sv[1].copy(sv[0].quaternion); sv[2].copy(sv[0].position); }
     // la place : debout au point de VIE ; assis, le bassin sur le siège (la hauteur d'assise, le centre mesuré au gabarit) ; il s'en dégage en se levant
-    const kA = leve ? Math.max(0, 1 - a.leveT / 0.25) : assis ? Math.min(1, a.assisT / Math.max(0.2, CL.SitDown.duration * 0.9)) : 0;
-    let y = 0, ox = 0, oz = 0;
-    if ((assis || leve) && c.siege) { const ys = ASSISE[c.siege.zone] || 16; y = (ys - pr.assise * sc) * kA; const d = -pr.assiseZ * sc * kA; ox = Math.sin(a.yaw) * d; oz = Math.cos(a.yaw) * d; }
+    const kA = a.kA = leve ? Math.max(0, 1 - a.leveT / 0.25) : assis ? Math.min(1, a.assisT / Math.max(0.2, CL.SitDown.duration * 0.9)) : 0;
+    let y = -pr.sol * sc * (1 - kA), ox = 0, oz = 0; // (debout : les semelles posées sur le sol, le bas du modèle est un peu sous son origine)
+    if ((assis || leve) && c.siege) { const ys = ASSISE[c.siege.zone] || 16; y += (ys - pr.assise * sc) * kA; const d = -pr.assiseZ * sc * kA; ox = Math.sin(a.yaw) * d; oz = Math.cos(a.yaw) * d; }
     g.position.set(x + ox, y, z + oz); g.updateMatrixWorld(true);
     // assis : les pieds au sol ; le repas (toutes les 2,6 s environ, la main monte à la bouche : le croissant, ou la tasse)
     const o = a.os, cyc = (E.t * 0.38 + a.graine * 7) % 1, mange = assis && !leve && kA >= 1;
@@ -464,9 +492,10 @@ const CLIENTS3D = (() => {
       if (k > 0) { posM(o.tete, _v4); _v4.x += Math.sin(a.yaw) * BOUCHE[2] * pr.hauteur * sc; _v4.z += Math.cos(a.yaw) * BOUCHE[2] * pr.hauteur * sc; _v4.y += BOUCHE[1] * pr.hauteur * sc; ikBras(a, _v4, k); }
     } else if (assis && !leve && kA > 0.6) piedsAuSol(a, (kA - 0.6) / 0.4);
     else if (leve && kA > 0) piedsAuSol(a, kA);
-    // les gestes de la tête : oui (hocher), non (secouer) ; l'impatience du mystère (plus de 6 s sans être touché) : il regarde autour de lui et tape du pied
+    // les gestes de la tête : oui (hocher), non (secouer) ; l'impatience (plus de 6 s immobile dans la file, comme les chibis : le mystère qu'on
+    // ne touche pas) : il regarde autour de lui et tape du pied
     a.attente = c.etat === 'attend' && !c.glisse ? a.attente + dt : 0;
-    const impatient = c.or && !c.pris && a.attente > 6;
+    const impatient = a.attente > 6;
     if (a.geste) {
       const gs = a.geste; gs.t += dt; const D = gs.nom === 'oui' ? 0.9 : 1.1, u = gs.t / D;
       if (u >= 1) a.geste = null;
@@ -484,7 +513,7 @@ const CLIENTS3D = (() => {
       posM(o.main, _v1); posM(o.avant, _v2); _v3.subVectors(_v1, _v2).normalize().multiplyScalar(PRISE * pr.hauteur * sc); _v1.add(_v3);
       _q1.setFromEuler(_e.set(rx, a.yaw, 0, 'YXZ')); tenir(b, _v1, _q1, taille / 16 * K * (c.taille || 1));
     }
-    poserSac(a, c, assis, leve, sc, K);
+    poserSac(a, c, assis, leve, sc, K, dt);
     porter(o.lunettes, a.lunettes); porter(o.bonnet, a.bonnet); porter(o.cheveux, !a.bonnet); // (le bonnet mis : les cheveux de dessus repliés dedans)
     // le halo du mystère qui attend (dressé derrière lui ; 54 × 70 pour un client de 73 de haut, comme les chibis)
     const avecHalo = c.or && !c.pris && c.etat === 'attend';
@@ -492,26 +521,36 @@ const CLIENTS3D = (() => {
     if (a.halo) { const k = Math.sin(E.t * 3), u = pr.hauteur / 73; a.halo.position.set(0, 36 * u, -8 * u); a.halo.scale.set((54 + k * 4) * u, (70 + k * 5) * u, 1); }
   }
   // le sac : en main droite (servi, en sortant), en main gauche en allant s'asseoir (la droite tient le croissant), posé par terre assis (là
-  // où les mains le ramassent), dans la main droite dès l'instant du clip où elle touche le sol
-  function poserSac(a, c, assis, leve, sc, K) {
+  // où la main droite le ramassera : en s'asseyant, il y descend de la main gauche, devant les genoux, en 0,4 s), dans la main droite dès
+  // l'instant du clip où elle touche le sol. Un peu plus petit que celui des chibis (SAC : leurs mains pendent plus bas ; à la taille des
+  // chibis, il frôlerait le sol au bas du balancement des bras)
+  function poserSac(a, c, assis, leve, sc, K, dt) {
     const o = a.os, b = o.sac; if (!b) return;
-    if (!c.sac) { tenir(b, null); a.sacSol = null; return; }
-    const k = (c.taille || 1) * K, pr = a.pr;
+    if (!c.sac) { tenir(b, null); a.sacSol = null; a.sacLieu = ''; return; }
+    const k = (c.taille || 1) * K * SAC, pr = a.pr;
     if ((assis && !leve) || (leve && a.actions.PickUp && a.actions.PickUp.time < pr.ramasse.t)) {
       if (!a.sacSol || !leve) { // posé à l'endroit où la main droite descend (repère du personnage debout, à sa place)
         const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw), x = c.x, z = a.zp;
         a.sacSol = a.sacSol || new T.Vector3(); a.sacSol.set(x + cy * pr.ramasse.x * sc + sy * pr.ramasse.z * sc, 13 * k * 0.5 + 0.2, z - sy * pr.ramasse.x * sc + cy * pr.ramasse.z * sc);
       }
       _q1.setFromAxisAngle(AXE_Y, a.yaw + 0.5); _v1.copy(a.sacSol); _v1.y = 13 * k + 0.2 + 3.2 * k; // (l'origine du sac est en haut de l'anse)
-      tenir(b, _v1, _q1, k); return;
+      const pose = assis && !leve && a.sacPose < 1 && !!o.mainG;
+      if (pose) { // il descend de la main gauche au sol, en passant devant les genoux
+        a.sacPose = Math.min(1, a.sacPose + dt / 0.4); const u = a.sacPose * a.sacPose * (3 - 2 * a.sacPose), av = 6 * k * Math.sin(Math.PI * u);
+        posM(o.mainG, _v2); _v2.y -= 1.5 * k; _v1.lerpVectors(_v2, _v1, u); _v1.x += Math.sin(a.yaw) * av; _v1.z += Math.cos(a.yaw) * av;
+        _q1.slerpQuaternions(_q3.setFromAxisAngle(AXE_Y, a.yaw), _q4.copy(_q1), u);
+      }
+      tenir(b, _v1, _q1, k); a.sacLieu = pose ? 'pose' : 'sol'; return;
     }
     const main = c.etat === 'vaTable' && o.mainG ? o.mainG : o.main; // en allant s'asseoir : la main gauche
-    posM(main, _v1); _v1.y -= 1.5 * k; _q1.setFromAxisAngle(AXE_Y, a.yaw); tenir(b, _v1, _q1, k);
+    posM(main, _v1); _v1.y -= 1.5 * k; _q1.setFromAxisAngle(AXE_Y, a.yaw); tenir(b, _v1, _q1, k); a.sacLieu = main === o.main ? 'main' : 'mainG';
   }
   // le haut de la tête d'un acteur (monde) : le calque y pose le prénom de l'habitué ; et sa hauteur
   function tete(a) { if (!a || !a.os.tete) return null; const p = posM(a.os.tete, new T.Vector3()); p.y += a.pr.dessus * a.g.scale.y; return p; }
+  // (pour les tests) le bas et le haut du corps d'un acteur, en y monde : ses sommets posés par les os, sans les accessoires
+  function mesure(a) { let bas = Infinity, haut = -Infinity; a.g.updateMatrixWorld(true); sommetsMonde(a.S, a.pr.sommets, (i, x, y) => { if (y < bas) bas = y; if (y > haut) haut = y; }); return { bas, haut }; }
 
-  Object.assign(API, { actif: true, permis, demander, preparer, acteur, poser, rendre, tete, liberer, chauffer, rentrer, PERSONNAGES, CL, PROTOS });
+  Object.assign(API, { actif: true, permis, demander, preparer, acteur, poser, rendre, tete, mesure, liberer, chauffer, rentrer, echantillon, PERSONNAGES, CL, PROTOS, ASSISE });
   Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0) }, etat) }); // (pour les tests : la réserve, la cuisson)
   return API;
 })();

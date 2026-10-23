@@ -2,8 +2,8 @@
 // en gardant l'identité du quartier (src/vie.js decor(q, s) ; src/meubles.js standing ; src/hd.js lots luxe1, luxe3, luxe5).
 // 1) Sans navigateur : les bornes des paliers (n°1-5 → 0, 6-10 → 1… 26 et au-delà → 5), le palier fixé d'une visite, la photo (champ l).
 // 2) Dans Chromium, téléphone 390 × 844 : chaque palier 0 à 5, au village et à la capitale, en haute et en éco → captures dans
-//    test/shots/standing/ ; un décor distinct par palier ; les modèles cuits du palier en haute (fournil/hd/luxe/, ≤ 150 Ko, et la boutique
-//    entière < 400 Ko) ; le budget d'appels de dessin au pire palier, tout le mobilier au max (éco ≤ 72, haute ≤ 80) ; l'annonce « Ta boutique
+//    test/shots/standing/ ; un décor distinct par palier ; les modèles cuits du palier en haute (fournil/hd/luxe/, ≤ 150 Ko, et les décors de
+//    la boutique entière < 400 Ko ; ses clients 3D, leur lot à part, ≤ 500 Ko) ; le budget d'appels de dessin au pire palier, tout le mobilier au max (éco ≤ 72, haute ≤ 80) ; l'annonce « Ta boutique
 //    monte en gamme » au passage de la n°5 à la n°6 (et pas de la n°6 à la n°7) ; la ligne « Standing » des feuilles Étoiles et Parcours ;
 //    la visite d'un copain au palier 3 ; une vieille photo (sans l) → palier 0 ; aucune erreur dans la page.
 // 2 bis) Le soir et à Noël (budgets) ; le cache des textures de salle borné ; en 390 × 844 et 360 × 640, les pièces du standing (colonnes,
@@ -105,10 +105,13 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     check(pire.decor <= max, `${qual} : le pire palier (${pire.ou}) fait ${pire.decor} appels de dessin pour le décor (≤ ${max}), dont ${pire.standing} pour le standing`);
     if (qual === 'haute') {
       const luxe = [...new Set(demandes.filter((d) => /\/hd\/luxe\//.test(d)))], poidsL = luxe.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
-      const tout = [...new Set(demandes)], poidsB = tout.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
+      // (les décors : tout sauf les clients 3D, qui ont leur lot à eux, src/clients3d.js, et leur budget, vérifié juste après)
+      const tout = [...new Set(demandes.filter((d) => !/\/hd\/clients\//.test(d)))], poidsB = tout.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
       const dossier = fs.readdirSync(path.join(root, 'fournil', 'hd', 'luxe')).filter((f) => f.endsWith('.glb')).reduce((n, f) => n + fs.statSync(path.join(root, 'fournil', 'hd', 'luxe', f)).size, 0);
       check(luxe.length >= 4 && poidsL <= 150 * 1024 && dossier <= 150 * 1024, `les modèles cuits du standing : ${luxe.length} demandés, ${Math.round(poidsL / 1024)} Ko (dossier fournil/hd/luxe : ${Math.round(dossier / 1024)} Ko ≤ 150 Ko)`);
-      check(poidsB < 400e3, `la boutique en haute, standing compris : ${Math.round(poidsB / 1024)} Ko de modèles (< 400 Ko)`);
+      check(poidsB < 400e3, `la boutique en haute, standing compris : ${Math.round(poidsB / 1024)} Ko de modèles pour les décors (< 400 Ko)`);
+      const okC = await attendre(() => ev(() => HDM.pret('clients')), 30000), cl = demandes.filter((d) => /\/hd\/clients\//.test(d)), clU = [...new Set(cl)], poidsC = clU.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
+      check(okC && clU.length === 7 && cl.length === 7 && poidsC <= 500 * 1024, `et ses clients 3D, leur lot à part : ${clU.length} fichiers, chacun demandé une fois (${cl.length} demandes), ${Math.round(poidsC / 1024)} Ko (≤ 500 Ko)`);
     } else check(demandes.length === 0, `en éco, aucun modèle HD demandé (${demandes.length})`);
     // les textures du sol et du mur : un décor par quartier ET par palier (12 vus ici) ; le cache n'en garde que les 3 derniers (sol + mur)
     const enCache = await ev(() => MEUBLES.sallesEnCache);

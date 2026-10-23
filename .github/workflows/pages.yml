@@ -164,8 +164,31 @@ jobs:
           PORT_STANDING: '8874'
           PORT_AMENAGE: '8875'
           PORT_BATTERIE: '8876'
+  # Une cinquième tâche en parallèle : les clients 3D de la boutique (src/clients3d.js), en qualité haute (leur lot, la vie image par image,
+  # les replis, la visite d'un copain, les allers-retours avec la Maison hantée, le processeur ralenti ×4) : une douzaine de minutes à elle seule.
+  fournil5:
+    name: Le Fournil, clients 3D de la boutique (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les clients 3D
+        run: |
+          node build.js
+          node test/fournil-clients3d.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_CLIENTS3D: '8877'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

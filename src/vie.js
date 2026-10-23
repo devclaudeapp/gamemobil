@@ -216,7 +216,7 @@ const VIE = (() => {
       boulanger: { x: W * 0.45, y: T * 0.53 },
       lanes: [0.57, 0.64, 0.71].map((f) => T * f), fourSlots: [0.16, 0.20, 0.24].map((f) => W * f), comptoirSlots: [0.255, 0.27, 0.285].map((f) => W * f),
       file: [0.61, 0.55, 0.49, 0.43].map((f) => ({ x: W * f, y: T * 0.76 })), debord: [{ x: W * 0.70, y: T * 0.66 }, { x: W * 0.70, y: T * 0.58 }],
-      mystere: { x: W * 0.35, y: T * 0.78 }, allee, alleeHaut: T * 0.40,
+      mystere: { x: W * 0.35, y: T * 0.78 }, allee, alleeHaut: T * 0.48, // (le couloir de la porte du fond passe devant la grande plante de la déco, pas au travers)
       textes: { x: W * 0.50, y: T * 0.60 }, ardoise: { x: W * 0.57, y: dev + 15 * K }, // l'ardoise du jour, dehors, à gauche de la porte
       chien, // le chien du quartier, couché entre le coin salon et le présentoir
       // la salle : les sièges, les tables, le bar, le coin salon, la devanture et le trottoir

@@ -615,7 +615,8 @@ const SCENE = (() => {
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}|${c.deg || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
   function rendreAuPool(g) { if (g.userData.c3d) { C3.rendre(g.userData.c3d); return; } if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
-  // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
+  // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; le boulanger et les apprentis restent des chibis (les
+  //     clients ont leur lot à eux, plus bas : CLIENTS3D) ───
   let hdDecor = null, hdCle = '', hdDemande = false;
   // des plantes, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
@@ -633,18 +634,26 @@ const SCENE = (() => {
     if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 22, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte, au-delà de la colonne droite du portique (x1 + 9 ± 5 : src/meubles.js standing, mêmes mesures) et de son cordon (x1 + 3) */ }
     habiller(g); scene.add(g);
   }
-  // les clients 3D : le contexte de CLIENTS3D.poser ; la chauffe de leur réserve (dessinée une fois hors champ, l'image où elle arrive) ; la réserve
-  // rendue (sa mémoire) quand la HD reste interdite plus de 10 s (l'éco, la HD coupée dans les Réglages)
-  const ctxC3 = { wz, K: 1 }; let c3Chauffe = null, c3Interdit = 0;
+  // les clients 3D : le contexte de CLIENTS3D.poser ; leur programme (le Lambert skinné ou son jumeau MeshStandard) compilé hors de l'image
+  // (compileAsync : le navigateur compile en arrière-plan quand il le sait, KHR_parallel_shader_compile ; sinon tout de suite), puis la
+  // chauffe de leur réserve (dessinée une fois hors champ, l'image où elle arrive) : les clients deviennent 3D ensuite ; la réserve rendue
+  // (sa mémoire) quand la HD reste interdite plus de 10 s (l'éco, la HD coupée dans les Réglages)
+  const ctxC3 = { wz, K: 1 }; let c3Chauffe = null, c3Interdit = 0, c3Compile = 0; // c3Compile : 0 à faire, 1 en cours, 2 fait
+  function compilerC3() {
+    c3Compile = 1; const g = C3.echantillon(), fini = () => { c3Compile = 2; }; if (!g) { fini(); return; }
+    habiller(g);
+    try { const p = renderer.compileAsync ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); }
+  }
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)
     if (modeHD) { synchroniserHD(E, dt); return; }
     vus.clear();
-    const c3 = C3 && C3.pret && C3.permis(renderer) ? C3 : null; ctxC3.K = V.K;
+    const c3p = C3 && C3.pret && C3.permis(renderer); if (c3p && !c3Compile) compilerC3();
+    const c3 = c3p && c3Compile === 2 ? C3 : null; ctxC3.K = V.K;
     if (c3) { c3Interdit = 0; c3Chauffe = c3.chauffer(); if (c3Chauffe) for (const g of c3Chauffe) { habiller(g); scene.add(g); } }
-    else if (C3 && C3.pret && (c3Interdit += dt) > 10) C3.liberer(); // (rien à rendre : il ne fait rien)
+    else if (C3 && C3.pret && !c3p && (c3Interdit += dt) > 10) C3.liberer(); // (sans effet si la réserve est déjà rendue, ou si un acteur est encore en service)
     for (const c of V.clients) {
-      let g = acteurs.get(c.id); const glb = !!c3 && !c.deg; // (les clients déguisés de la boutique hantée procédurale restent des chibis : leur costume)
+      let g = acteurs.get(c.id); const glb = !!c3 && !EVV && !c.deg; // (la boutique hantée procédurale garde ses chibis : leurs costumes, et le client mystère avec eux)
       if (C3 && g && !!g.userData.c3d !== glb) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; }
       if (!g && glb) { const a = c3.acteur(c); if (a) { g = a.g; habiller(g); scene.add(g); acteurs.set(c.id, g); } }
       if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
@@ -956,10 +965,11 @@ const SCENE = (() => {
       if (!C3) return null; let glb = 0, chibis = 0; const liste = [], p = new THREE.Vector3();
       for (const c of V.clients) { const g = acteurs.get(c.id); if (!g) continue; const a = g.userData.c3d; if (!a) { chibis++; continue; } glb++; const t = C3.tete(a), o = a.os, vu = (b) => !!b && b.scale.x > 0, y = (b) => p.setFromMatrixPosition(b.matrixWorld).y;
         let mailles = 0; g.traverse((m) => { if (m.isMesh && m.visible) mailles++; });
-        liste.push({ id: c.id, etat: c.etat, siege: c.siege ? c.siege.zone : '', leve: c.leveT != null, nom: a.pr.nom, clip: a.joue, joie: a.joieT > 0, salut: +a.salut.toFixed(2), geste: a.geste ? a.geste.nom : '', or: !!c.or, pris: !!c.pris, hab: c.hab || '', coiffure: c.coiffure,
-          sac: vu(o.sac), sacY: vu(o.sac) ? +y(o.sac).toFixed(1) : null, croissant: vu(o.cr), tasse: vu(o.tasse), lunettes: vu(o.lunettes), bonnet: vu(o.bonnet), halo: !!a.halo, mailles, pieds: +Math.min(...o.pieds.map(y)).toFixed(1),
+        liste.push({ id: c.id, etat: c.etat, siege: c.siege ? c.siege.zone : '', leve: c.leveT != null, nom: a.pr.nom, clip: a.joue, joie: a.joieT > 0, salut: +a.salut.toFixed(2), geste: a.geste ? a.geste.nom : '', or: !!c.or, pris: !!c.pris, hab: c.hab || '', coiffure: c.coiffure, raye: !!a.raye, attente: +a.attente.toFixed(1),
+          sac: vu(o.sac), sacY: vu(o.sac) ? +y(o.sac).toFixed(1) : null, sacLieu: vu(o.sac) ? a.sacLieu : '', croissant: vu(o.cr), tasse: vu(o.tasse), objetY: vu(o.cr) ? +y(o.cr).toFixed(1) : vu(o.tasse) ? +y(o.tasse).toFixed(1) : null, lunettes: vu(o.lunettes), bonnet: vu(o.bonnet), halo: !!a.halo, mailles, pieds: +Math.min(...o.pieds.map(y)).toFixed(1),
+          assise: +(g.position.y + a.pr.assise * g.scale.y).toFixed(2), assisK: +(a.kA || 0).toFixed(2), // (le dessous du pantalon, assis : sur le siège ; assisK : 1 une fois assis)
           x: g.position.x, y: g.position.y, z: g.position.z, echelle: g.scale.x, tete: t ? { x: t.x, y: t.y, z: t.z, ecran: projeterY(t.y, t.z) } : null }); }
-      return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
+      return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), compile: c3Compile, erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
     },
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)

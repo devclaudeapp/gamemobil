@@ -1,5 +1,6 @@
 // Les modèles HD du Fournil (src/hd.js, fournil/hd/) sur la vraie page, téléphone en portrait, au 2e jour de l'événement « Le Quartier » :
-// en qualité haute, la boutique reçoit ses décors (personnages inchangés) et la Planque ses meubles, sa rue de nuit et son équipe animée ;
+// en qualité haute, la boutique reçoit ses décors et ses clients 3D (le lot « clients » ; leur vie : test/fournil-clients3d.cjs), aucun personnage
+// de la Planque, et la Planque ses meubles, sa rue de nuit et son équipe animée ;
 // en éco ou avec ?hd=0, aucun modèle HD n'est demandé et le rendu habituel reste. Aucune erreur dans la page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hd.cjs
 'use strict';
@@ -60,10 +61,13 @@ async function calme(page) {
   check(await page.evaluate(() => typeof FOURNIL_HD.GLTFLoader === 'function' && typeof FOURNIL_HD.EffectComposer === 'undefined' && typeof FOURNIL_HD.N8AOPostPass === 'undefined' && typeof HDM.effets === 'undefined') && paquet < 100e3,
     `le paquet du jeu n'embarque que le chargeur (sans postprocessing ni n8ao, réservés à la maquette) : ${Math.round(paquet / 1024)} Ko (< 100 Ko)`);
   check(await attendre(() => page.evaluate(() => SCENE.decorHD > 0)), 'après les premières images, la boutique reçoit ses décors HD');
-  // les personnages de la boutique restent ceux de toujours (PERSOS) : ils arrivent (clients) alors qu'aucun modèle de personnage HD n'est demandé
+  // la boutique : ses personnages arrivent (des clients) ; aucun personnage de la Planque n'est demandé (ses clients 3D ont leur lot, « clients »)
   const acteurs = await attendre(() => page.evaluate(() => window.__fournil.stats().acteurs > 0), 20000), nActeurs = await page.evaluate(() => window.__fournil.stats().acteurs);
-  check(acteurs && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage HD : ${nActeurs} personnage(s) habituel(s) dans la salle, ${demandes.length} modèles demandés, tous des décors`);
-  const poidsB = demandes.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
+  check(acteurs && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage de la Planque : ${nActeurs} personnage(s) dans la salle, ${demandes.length} modèles demandés, des décors et ses clients`);
+  const decorsB = demandes.filter((d) => !/\/clients\//.test(d)), poidsB = decorsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
+  check(await attendre(() => page.evaluate(() => HDM.pret('clients')), 30000), 'puis ses clients 3D arrivent (le lot « clients »)');
+  const clientsB = [...new Set(demandes.filter((d) => /\/clients\//.test(d)))], poidsC = clientsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
+  check(clientsB.length === 7 && demandes.filter((d) => /\/clients\//.test(d)).length === 7 && poidsC <= 500 * 1024, `ses clients : ${clientsB.length} fichiers demandés une fois, ${Math.round(poidsC / 1024)} Ko (≤ 500 Ko)`);
 
   console.log('── qualité haute : la Planque ──');
   await page.evaluate(() => { window.__fournil.quartier(); }); await sleep(500);
