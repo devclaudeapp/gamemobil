@@ -635,14 +635,15 @@ const SCENE = (() => {
     habiller(g); scene.add(g);
   }
   // les clients 3D : le contexte de CLIENTS3D.poser ; leur programme (le Lambert skinné ou son jumeau MeshStandard) compilé hors de l'image
-  // (compileAsync : le navigateur compile en arrière-plan quand il le sait, KHR_parallel_shader_compile ; sinon tout de suite), puis la
-  // chauffe de leur réserve (dessinée une fois hors champ, l'image où elle arrive) : les clients deviennent 3D ensuite ; la réserve rendue
-  // (sa mémoire) quand la HD reste interdite plus de 10 s (l'éco, la HD coupée dans les Réglages)
+  // (compileAsync : le navigateur compile en arrière-plan quand il le sait, KHR_parallel_shader_compile ; sinon tout de suite, renderer.compile :
+  // sans l'extension, compileAsync n'y gagne rien et la r158 l'écrit en avertissement à chaque lancement), puis la chauffe de leur réserve
+  // (dessinée une fois hors champ, l'image où elle arrive) : les clients deviennent 3D ensuite ; la réserve rendue (sa mémoire) quand la HD
+  // reste interdite plus de 10 s (l'éco, la HD coupée dans les Réglages)
   const ctxC3 = { wz, K: 1 }; let c3Chauffe = null, c3Interdit = 0, c3Compile = 0; // c3Compile : 0 à faire, 1 en cours, 2 fait
   function compilerC3() {
     c3Compile = 1; const g = C3.echantillon(), fini = () => { c3Compile = 2; }; if (!g) { fini(); return; }
     habiller(g);
-    try { const p = renderer.compileAsync ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); }
+    try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); } // (extensions.has se tait, extensions.get avertit)
   }
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)

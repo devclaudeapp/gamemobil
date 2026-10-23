@@ -62,8 +62,9 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   const hd = await ev(() => typeof HDM !== 'undefined' && HDM.actif && !HDM.coupe() && SCENE.stats.qualite !== 'eco');
   if (hd) await ev(() => { HDM.charger('boutique'); if (typeof CLIENTS3D !== 'undefined' && CLIENTS3D.actif) CLIENTS3D.demander(); });
   for (let t = 0; t < 120 && hd; t++) { const ok = await ev(() => HDM.pret('boutique') && (typeof KENNEY === 'undefined' || !KENNEY || KENNEY.pret || KENNEY.erreur) && (typeof CLIENTS3D === 'undefined' || !CLIENTS3D.actif || (HDM.pret('clients') && (() => { for (let k = 0; k < 400 && !CLIENTS3D.preparer() && !CLIENTS3D.erreur; k++); return CLIENTS3D.pret; })()) || (HDM.etat.clients && HDM.etat.clients.erreur))); if (ok) break; await dodo(500); }
-  // le programme des clients 3D : compilé hors de l'image (src/scene.js, compileAsync) à la première image où ils sont permis ; on l'attend ici,
-  // avant que les minuteurs de la page se taisent (__depart : l'attente de compileAsync passe par setTimeout)
+  // le programme des clients 3D : compilé hors de l'image (src/scene.js : compileAsync si le pilote compile en parallèle, sinon tout de suite)
+  // à la première image où ils sont permis ; on l'attend ici, avant que les minuteurs de la page se taisent (__depart : l'attente de
+  // compileAsync passe par setTimeout)
   if (hd) { await ev(() => { const F = window.__fournil; F.SCENE.frame(1 / 30, F.st, Date.now(), 33, false); }); for (let t = 0; t < 120; t++) { if (await ev(() => !window.__fournil.SCENE.clients3d || !window.__fournil.SCENE.clients3d.pret || window.__fournil.SCENE.clients3d.compile === 2)) break; await dodo(250); } }
   await dodo(1200); await fermer();
   // (les toasts, et la feuille « Pendant ton absence » que le détecteur de gel du jeu ouvre quand un pas d'images bloque la page plus de 5 s)

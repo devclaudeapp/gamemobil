@@ -12,10 +12,11 @@
      sont rangés : UN appel de dessin par client. Chaque client a ses couleurs de sommets, teintes aux couleurs que VIE lui tire (la palette du
      quartier) ; la marinière (au bord de la mer, un haut blanc) raye son haut.
    · Une réserve d'acteurs : quatre par personnage, bâtis dès le lot préparé ; src/scene.js compile leur programme hors de l'image
-     (compileAsync), puis les chauffe (dessinés une fois hors champ) : alors seulement les clients deviennent 3D. Rendus à la réserve quand le
-     client s'en va, la mémoire (géométries, textures des os) ne bouge plus ensuite. Un client prend un acteur de son personnage, sinon un autre
-     libre ; au-delà, la réserve grandit. La HD interdite plus de 10 s, la réserve rend sa mémoire ; permise de nouveau, elle revient à petits
-     pas (un acteur par image, quatre par personnage en tout), puis elle est chauffée de nouveau.
+     (compileAsync si le pilote compile en parallèle, sinon renderer.compile), puis les chauffe (dessinés une fois hors champ) : alors
+     seulement les clients deviennent 3D. Rendus à la réserve quand le client s'en va, la mémoire (géométries, textures des os) ne bouge plus
+     ensuite. Un client prend un acteur de son personnage, sinon un autre libre ; au-delà, la réserve grandit. La HD interdite plus de 10 s,
+     la réserve rend sa mémoire ; permise de nouveau, elle revient à petits pas (un acteur par image, quatre par personnage en tout), puis
+     elle est chauffée de nouveau.
    · La vie (VIE, mêmes états que les chibis : entre, attend, vaTable, assis, sort) : il entre en saluant de la main (Wave, le haut du corps
      par-dessus la marche, cadencée sur le pas réel ; les semelles posées sur le sol) et attend son tour ; plus de 6 s immobile dans la file
      (le client mystère qu'on ne touche pas), il s'impatiente comme les chibis : il regarde autour de lui et tape du pied. Servi, il lève les

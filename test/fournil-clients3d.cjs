@@ -16,7 +16,8 @@
 // · en qualité moyenne aussi (leur jumeau MeshStandard) ; les replis : un personnage manquant (omis : cinq), l'hiver le lot réduit aux
 //   personnages à chapeau ou à crête (les clients en bonnet vont tête nue, la scène continue ; un client sans personnage possible reste un
 //   chibi, bâti une fois), les clips manquants (le lot échoue : les chibis, sans erreur), ?clients=0 et la qualité éco (aucun fichier des
-//   clients demandé, les chibis). Aucune erreur dans la page.
+//   clients demandé, les chibis). Aucune erreur dans la page, aucun avertissement de three.js (KHR_parallel_shader_compile : compileAsync
+//   seulement si le pilote compile en parallèle).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-clients3d.cjs   (port : PORT_CLIENTS3D)
 'use strict';
 const { chromium } = require('playwright');
@@ -60,7 +61,7 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [], avertissements = [];
     page.on('pageerror', (e) => erreurs.push(e.message));
-    page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(t + (m.location() && m.location().url))) erreurs.push(t); if (m.type() === 'warning' && /Clients 3D|HD :/.test(t)) avertissements.push(t); });
+    page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(t + (m.location() && m.location().url))) erreurs.push(t); if (m.type() === 'warning' && /Clients 3D|HD :|THREE\./.test(t)) avertissements.push(t); }); // (THREE. : ceux de three.js, comme « KHR_parallel_shader_compile extension not supported »)
     demandes.length = 0;
     await page.goto(`http://localhost:${PORT}/fournil/${requete}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 60000 }); await sleep(600);
     const ev = (fn, arg) => page.evaluate(fn, arg);
@@ -292,7 +293,7 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     check(mems[2].g <= mems[0].g + 6 && mems[2].t <= mems[0].t && mems[2].acteurs === mems[0].acteurs, `trois allers-retours : la mémoire est stable (géométries ${mems.map((m) => m.g).join(' → ')}, textures ${mems.map((m) => m.t).join(' → ')}, acteurs ${mems.map((m) => m.acteurs).join(' → ')})`);
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
-  check(avertissements.length === 0, `aucun avertissement des clients 3D ni de la HD (${avertissements.slice(0, 2).join(' | ')})`);
+  check(avertissements.length === 0, `aucun avertissement des clients 3D, de la HD ni de three.js (${avertissements.slice(0, 2).join(' | ')})`);
   await ctx.close();
 
   // ═══════════════════════════════ la boutique hantée procédurale ═══════════════════════════════
@@ -325,6 +326,7 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     const i = await ev(() => window.__fournil.SCENE.clients3d.info);
     check(i.modeles.length === 5 && !i.modeles.some((m) => m.nom === 'Suit_Male'), `cinq personnages (${i.modeles.map((m) => m.nom).join(', ')})`);
     check(avertissements.some((t) => /client manquant/.test(t)), 'un avertissement le dit (console.warn)');
+    check(avertissements.every((t) => /client manquant Suit_Male/.test(t)), `et aucun autre, de three.js non plus (${avertissements.filter((t) => !/client manquant/.test(t)).slice(0, 2).join(' | ') || 'aucun'})`);
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
