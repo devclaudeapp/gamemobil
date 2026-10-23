@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-23-a', date: '2026-10-23', titre: 'De vrais clients en 3D dans ta boutique',
+      points: [
+        'En qualité Haute et Moyenne, tes clients sont maintenant de vrais personnages animés : ils font la queue, saluent en entrant, sautent de joie quand tu les sers, mangent leur croissant ou boivent leur café à table, puis repartent avec leur sac.',
+        'Le client mystère brille tout en or, tes habitués gardent leur prénom au-dessus de la tête, et l’hiver venu, sortez les bonnets. Les boutiques de tes copains en profitent aussi.',
+        'En qualité Éco, ou si « Décors en HD » est coupé, les petits personnages d’avant restent là, pour ménager les téléphones plus anciens.',
+        'En refermant l’arrière-salle, la boutique reprend bien la main : une fête gagnée pendant une partie n’est plus perdue.',
+      ],
+    },
+    {
       id: '2026-10-22-b', date: '2026-10-22', titre: 'L’arrière-salle reste fluide',
       points: [
         'Au BlackJack et à la roulette, le jeu ne ralentit plus jamais pour ménager la batterie : toutes les images, même en Économie et en qualité Éco, même sans toucher l’écran.',
