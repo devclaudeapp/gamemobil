@@ -347,8 +347,11 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       check(await ev2(() => { const F = window.__fournil; return F.st[F.evHantee.cle].ameliorations.marche === true; }) && pApres === pAvant / 2 && /−50 % ×1/.test(apres.petit) && apres.prix !== avant.prix, `le Marché des sorcières acheté : un niveau de citrouilles passe de « ${avant.prix} » à « ${apres.prix} » (${apres.petit})`);
       await ev2(() => document.querySelector('#ht-cartes').scrollTo(0, 0)); }
     // v6.7 : les paliers 17 à 20 s'ouvrent les deux derniers jours : le téléphone passe au lundi 2 novembre, 10 h (rechargé, comme pour le
-    // bilan plus bas), avec 70 Bd de bonbons ; les paliers 15 à 20 arrivent d'eux-mêmes, comme le 13e
-    await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; F.save(); });
+    // bilan plus bas), avec 70 Bd de bonbons ; les paliers 15 à 20 arrivent d'eux-mêmes, comme le 13e. La boucle du jeu et ses minuteurs
+    // s'arrêtent d'abord : l'écran du Manoir, encore ouvert, donnerait sinon les 15e et 16e (ouverts dès le 31) à sa prochaine image, avant
+    // le rechargement, si la machine chargée laisse passer une image entre ces lignes (la feuille du 17e venait alors la première)
+    await ev2(() => { const r = requestAnimationFrame(() => {}), fin = setTimeout(() => {}, 0); for (let i = 1; i <= r; i++) cancelAnimationFrame(i); for (let i = 1; i <= fin; i++) { clearTimeout(i); clearInterval(i); }
+      window.requestAnimationFrame = () => 0; const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; F.save(); }); // (l'image déjà demandée aussi)
     decal = HT.parisMs(2026, 11, 2, 10) - Date.now();
     await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
     await charger2();
