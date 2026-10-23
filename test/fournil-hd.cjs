@@ -1,6 +1,6 @@
 // Les modèles HD du Fournil (src/hd.js, fournil/hd/) sur la vraie page, téléphone en portrait, au 2e jour de l'événement « Le Quartier » :
-// en qualité haute, la boutique reçoit ses décors et ses clients 3D (le lot « clients » ; leur vie : test/fournil-clients3d.cjs), aucun personnage
-// de la Planque, et la Planque ses meubles, sa rue de nuit et son équipe animée ;
+// en qualité haute, la boutique reçoit ses décors (< 400 Ko) et ses clients 3D (le lot « clients », ≤ 500 Ko ; leur vie : test/fournil-clients3d.cjs ;
+// le tout < 900 Ko, 400 Ko avant eux), aucun personnage de la Planque, et la Planque ses meubles, sa rue de nuit et son équipe animée ;
 // en éco ou avec ?hd=0, aucun modèle HD n'est demandé et le rendu habituel reste. Aucune erreur dans la page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hd.cjs
 'use strict';
@@ -68,6 +68,9 @@ async function calme(page) {
   check(await attendre(() => page.evaluate(() => HDM.pret('clients')), 30000), 'puis ses clients 3D arrivent (le lot « clients »)');
   const clientsB = [...new Set(demandes.filter((d) => /\/clients\//.test(d)))], poidsC = clientsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
   check(clientsB.length === 7 && demandes.filter((d) => /\/clients\//.test(d)).length === 7 && poidsC <= 500 * 1024, `ses clients : ${clientsB.length} fichiers demandés une fois, ${Math.round(poidsC / 1024)} Ko (≤ 500 Ko)`);
+  // le tout : 400 Ko au plus avant les clients 3D ; leur lot fait relever ce budget total à 900 Ko (les décors < 400 Ko, les clients ≤ 500 Ko)
+  const poidsT = [...new Set(demandes)].reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
+  check(poidsT < 900e3, `en tout, la boutique en haute a téléchargé ${Math.round(poidsT / 1024)} Ko de modèles, décors et clients 3D (< 900 Ko ; le budget total était de 400 Ko avant les clients 3D)`);
 
   console.log('── qualité haute : la Planque ──');
   await page.evaluate(() => { window.__fournil.quartier(); }); await sleep(500);
