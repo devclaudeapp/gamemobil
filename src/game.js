@@ -386,6 +386,9 @@
   // la chauve-souris : gagnée au bestiaire de la Maison hantée (src/hantee.js : les neuf sortes de clients-monstres servies dix fois, q.chauvesouris).
   // Lue sur st.hantee, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme le chien du quartier.
   const chauveSourisDuManoir = (st) => { const q = st && st.hantee; return !!q && typeof q === 'object' && q.chauvesouris === true; };
+  // le pigeon voyageur : un objet rare de « Ma chaîne de boutiques » (src/chaine.js), acheté en jetons de chaîne ; lu sur st.chaine.objets.
+  // Sans aucun bonus (décision du joueur : les objets rares n'accélèrent pas la boulangerie)
+  const pigeonDeLaChaine = (st) => { const c = st && st.chaine; return !!c && typeof c === 'object' && Array.isArray(c.objets) && c.objets.includes('pigeon'); };
   const COMPAGNONS = [
     { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, bonus: { pourboire: 5 }, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
     { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', bonus: { absence: 0.5 }, phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
@@ -402,6 +405,7 @@
     { id: 'teckel', nom: 'Teckel-baguette', espece: 'teckel', prix: 180, condition: null, nomDefaut: 'Tradition', cri: 'wouf', bonus: { gains: { pct: 4 } }, phrase: 'Son corps est une baguette dorée. Croustillant dehors, fidèle dedans.' },
     { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, bonus: { vitesse: 5 }, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
     { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, bonus: { vitesse: 7 }, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
+    { id: 'pigeon', nom: 'Pigeon voyageur', espece: 'pigeon', prix: null, condition: pigeonDeLaChaine, gagne: 'Gagné dans « Ma chaîne »', verrou: 'La boutique des jetons : 120 jetons de chaîne', nomDefaut: 'Facteur', cri: null, bonus: {}, phrase: 'Il porte les nouvelles d’une boutique à l’autre.' },
   ];
   const COMPAGNON_PAR_ID = new Map(COMPAGNONS.map((c) => [c.id, c]));
   const compagnon = (id) => (id && COMPAGNON_PAR_ID.get(id)) || null; // (lu à chaque fournée, par bonusCompagnon : une table, sans rien allouer)
@@ -610,6 +614,12 @@
     ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
     // le trophée du palier bonus 20 de la Maison hantée (après le maître) : une seule pièce, sans ensemble, distincte de la tenue en or
     ajouter(vet('hantee-lueur-chapeau', 'Chapeau phosphorescent', 'tete', 'hantee-lueur', 'chapeau', { vitesse: 1 }, 'epique', 'Le palier 20 du Manoir. Il brille dans le noir.'));
+    // « Ma chaîne de boutiques » (src/chaine.js) : la tenue du patron, achetée pièce par pièce en jetons de chaîne (60 chacune) ; sans aucun
+    // bonus et sans ensemble (décision du joueur : les objets rares n'accélèrent pas la boulangerie), comme la casquette néon
+    ajouter(vet('chaine-toque', 'Toque à galon', 'tete', 'chaine', 'toque', {}, 'epique', 'Celle du patron de la chaîne.'));
+    ajouter(vet('chaine-veste', 'Veste de patron', 'haut', 'chaine', 'tablier', {}, 'epique', 'Croisée, boutons dorés.'));
+    ajouter(vet('chaine-souliers', 'Souliers vernis', 'pieds', 'chaine', 'chaussures', {}, 'epique', 'Pour passer d’une boutique à l’autre.'));
+    ajouter(vet('chaine-cles', 'Trousseau de clés', 'accessoire', 'chaine', 'chaine', {}, 'epique', 'Une clé par boutique : il tinte à chaque pas.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
@@ -749,6 +759,8 @@
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', compagnons: [], compagnon: null, saison: null, saisonAnnoncee: '', collection: {},
       // st.quartier (src/quartier.js) et st.hantee (src/hantee.js) : l'état des événements, créés à la première visite par leurs règles
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
+      // « Ma chaîne de boutiques » (src/chaine.js, CHAINE.etat la remet d'aplomb et, une seule fois, y rouvre les anciennes boutiques : cree)
+      chaine: { v: 1, cree: 0, jetons: 0, gagnes: 0, objets: [], bj: '', bn: 0, b: [] },
     };
   }
 
@@ -1501,11 +1513,17 @@
     st.coins -= prix; st.ameliorations[id] = true; noter(st, 'bonus', 1); gagnerXp(st, 6); if (id === 'franchise') st.stats.franchise = true;
     return { ok: true, a, prix, points };
   }
+  // le crochet du prestige : « Ma chaîne de boutiques » (src/chaine.js, CHAINE.rejoindre) s'y branche au chargement. Appelé juste avant
+  // l'effacement, il reçoit la boutique quittée telle qu'elle est (caisse comprise) et { n, nom, q } : son numéro, son nom et son quartier,
+  // déjà remplacés par ceux de la nouvelle. Il n'écrit que st.chaine. Sans chaîne chargée (les tests econ et longevite) : rien.
+  let surPrestige = null;
+  const brancherPrestige = (f) => { surPrestige = typeof f === 'function' ? f : null; };
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
     const defi = defiPassage(st); if (defi && !defi.fait) return { ok: false, defi }; // le défi de passage d'abord
     parcours(st); const avant = recettesConnues(st);
+    const quittee = surPrestige ? { n: st.boutiques || 1, nom: st.nomBoutique || '', q: quartier(st) } : null; // (lus avant que la nouvelle ne les remplace)
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.quartierFixe = quartierDe(st.boutiques); st.defi = creerDefi(st, st.boutiques); // le défi de la nouvelle boutique (dès la n°6), posé maintenant
     recettesBoutique(st); const recette = recettesConnues(st) > avant ? PRODUITS[recettesConnues(st) - 1] : null; // la recette que cette boutique apporte (à vie), sinon null
@@ -1514,6 +1532,7 @@
     // les objectifs du jour réussis mais pas réclamés : réclamés ici, une fois (le savoir-faire, l'étoile du 3e) ; leur prime tombe dans la caisse, qui repart à zéro
     const reclames = []; if (st.jour) st.jour.objectifs.forEach((o, k) => { if (o.fait && !o.reclame) { const r = reclamer(st, k); if (r.ok) reclames.push({ k, prime: r.prime, etoile: r.etoile }); } });
     const main = annulerMainArriere(st); // une main de BlackJack en cours : annulée, sa mise rendue à la caisse qui part avec la boutique (jamais dans la suivante)
+    if (surPrestige) surPrestige(st, nowMs, quittee); // l'ancienne boutique rejoint la chaîne, au lieu d'être effacée
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le compagnon (et ceux achetés) et la collection restent
     st.lastSeen = nowMs;
@@ -1630,7 +1649,7 @@
     palierMult, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
-    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, annulerMainArriere, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
+    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, brancherPrestige, annulerMainArriere, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,

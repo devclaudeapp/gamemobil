@@ -15,6 +15,10 @@ check(ids.every((id) => { const o = GR.objets[id]; return o.id === id && typeof 
 check(['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'quartier-chaine'].every((id) => GR.objets[id] && GR.objets[id].collection === 'quartier') && ['quartier-or-casquette', 'quartier-or-sweat', 'quartier-or-baskets', 'quartier-or-chaine'].every((id) => GR.objets[id] && GR.objets[id].collection === 'quartier-or'), 'les ids de l’événement : quartier-casquette / sweat / baskets / chaine, et quartier-or-…');
 for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or']) check(GR.pieces.every((p) => ids.some((id) => GR.objets[id].collection === c && GR.objets[id].piece === p)) && GR.ensembles[c] && GR.ensembles[c].nom && GR.ensembles[c].bonus, `collection « ${c} » : une pièce par emplacement, un ensemble { nom, bonus }`);
 check(['toque-blanche', 'tablier-blanc', 'sabots', 'lunettes-rondes'].every((id) => GR.objets[id] && GR.objets[id].collection === 'base' && !Object.keys(GR.objets[id].bonus).length), 'la tenue de base (toque, tablier, sabots, lunettes rondes) : sans bonus');
+// « Ma chaîne de boutiques » : la tenue du patron, achetée en jetons de chaîne (src/chaine.js) ; sans bonus ni ensemble (décision du joueur)
+check(['chaine-toque', 'chaine-veste', 'chaine-souliers', 'chaine-cles'].map((id) => GR.objets[id] && `${GR.objets[id].piece}:${GR.objets[id].forme}`).join() === 'tete:toque,haut:tablier,pieds:chaussures,accessoire:chaine'
+  && ids.filter((id) => GR.objets[id].collection === 'chaine').length === 4 && ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'chaine-cles'].every((id) => !Object.keys(GR.objets[id].bonus).length && GR.objets[id].rarete === 'epique') && !GR.ensembles.chaine,
+  'la collection « chaine » (Ma chaîne) : toque à galon, veste de patron, souliers vernis, trousseau de clés ; formes existantes, sans bonus, sans ensemble');
 
 console.log('── l’état neuf, les vieilles sauvegardes ──');
 let st = G.newState(T0);
