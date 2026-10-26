@@ -13,7 +13,8 @@
 //   zoom trop poussé revient dans ses bornes ; la planète se redresse ;
 // · toucher le fanion d'une boutique : onToucher(n), elle vient devant, de près, puis son étiquette (son n°, son quartier, son gérant, ses
 //   jetons), qui tient dans le cadre de l'écran « Ma chaîne » (la boutique entre le titre et l'étiquette) ; « Entrer » : le plongeon, puis
-//   onEntrer(n), une seule fois (pas d'entrée en rafale) ; viser(n) ; toucher le ciel : l'étiquette part, la caméra recule ;
+//   onEntrer(n), une seule fois (pas d'entrée en rafale) ; l'écran qui referme la planète dans onEntrer (il entre dans la boutique) : elle
+//   part proprement ; viser(n) ; toucher le ciel : l'étiquette part, la caméra recule ;
 // · photo(q) : la carte postale d'une région (un JPEG), la vue rendue telle qu'elle était ;
 // · l'heure : la nuit (les vitres allumées), le soir, le jour ;
 // · cinq ouvertures et fermetures : la planète rebâtie à l'identique (géométries, textures), le sol et le décor repris du cache, son canvas
@@ -38,10 +39,11 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   async function ouvrirPage(requete) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
-    // les contextes WebGL de la page : créés, rendus (webglcontextlost)
+    // les contextes WebGL de la page, gardés ici (un canvas parti peut être ramassé avant que sa perte ne soit annoncée) : combien sont encore vivants
     await ctx.addInitScript(() => {
-      const C = window.__contextes = { crees: 0, perdus: 0 }, avant = HTMLCanvasElement.prototype.getContext, vus = new WeakSet();
-      HTMLCanvasElement.prototype.getContext = function (type, o) { const g = avant.call(this, type, o); if (g && /webgl/.test(type) && !vus.has(this)) { vus.add(this); C.crees++; this.addEventListener('webglcontextlost', () => { C.perdus++; }); } return g; };
+      const L = [], avant = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (type, o) { const g = avant.call(this, type, o); if (g && /webgl/.test(type) && !L.some((x) => x.c === this)) L.push({ c: this, g }); return g; };
+      window.__contextes = () => ({ crees: L.length, vivants: L.filter((x) => !x.g.isContextLost()).length });
     });
     const page = await ctx.newPage(), erreurs = []; page.setDefaultTimeout(180000);
     page.on('pageerror', (e) => erreurs.push(e.message));
@@ -203,6 +205,11 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await ev(() => PLANETE.heure(12)); h = await ciel();
   check(h.phase === 'jour' && h.lueur === 0 && !/pl-soir/.test(h.cl), `à midi, le jour (lueur ${h.lueur})`);
 
+  // ─── « Entrer » dans le jeu : l'écran referme la planète dans onEntrer (il entre dans la boutique) ; elle part proprement ───
+  await J.planete(31, { fermerEnEntrant: true });
+  const ent = await ev(() => { ESSAI.journal.length = 0; PLANETE.viser(13); PLANETE.essai.image(1 / 30, 80); PLANETE.essai.entrer(13); PLANETE.essai.image(1 / 30, 30); return { j: ESSAI.journal.join(), ouvert: PLANETE.ouvert, reste: !!document.querySelector('.pl-toile, .pl-etiquette') }; });
+  check(ent.j === 'entrer 13' && !ent.ouvert && !ent.reste && !J.erreurs.length, `l'écran referme la planète dans onEntrer : elle part proprement, sans erreur (${ent.j})`);
+
   // ─── fermer ; cinq ouvertures et fermetures : la mémoire reste ───
   await ev(() => ESSAI.fermer());
   check(await ev(() => !PLANETE.ouvert && PLANETE.stats === null && !document.querySelector('.pl-toile, .pl-drap, .pl-etiquette')), 'fermer : la planète part (son canvas, ses fanions, son étiquette)');
@@ -213,10 +220,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     geos.push(await ev(() => `${PLANETE.stats.geometries}/${PLANETE.stats.textures}`)); memo.push(await ev(() => PLANETE.stats.memo));
     await ev(() => ESSAI.fermer()); tass.push(await J.tas());
   }
-  const ctxs = await ev(() => Object.assign({ canvas: document.querySelectorAll('canvas').length }, window.__contextes));
+  const ctxs = await ev(() => Object.assign({ canvas: document.querySelectorAll('canvas').length }, window.__contextes()));
   check(new Set(geos).size === 1, `la planète rebâtie à l'identique à chaque ouverture (géométries/textures : ${geos.join(' · ')})`);
   check(memo.every(Boolean), `le sol et le décor repris du cache à chaque réouverture (ouvrir : ${temps.join(', ')} ms)`);
-  check(ctxs.canvas === 0 && ctxs.crees === ctxs.perdus, `son canvas part avec elle, son contexte WebGL est rendu à chaque fermeture (${ctxs.crees} créés, ${ctxs.perdus} rendus)`);
+  check(ctxs.canvas === 0 && ctxs.crees === 11 && ctxs.vivants === 0, `son canvas part avec elle, son contexte WebGL est rendu à chaque fermeture (${ctxs.crees} créés en onze ouvertures, ${ctxs.vivants} encore vivant)`);
   const dTas = (tass[4] - tass[0]) / 1024;
   check(dTas < 1536, `le tas JS stable sur cinq ouvertures (${(tass[0] / 1048576).toFixed(1)} → ${(tass[4] / 1048576).toFixed(1)} Mo, ${dTas >= 0 ? '+' : ''}${dTas.toFixed(0)} Ko ; avant la 1re : ${(tas0 / 1048576).toFixed(1)} Mo)`);
   check(!J.erreurs.length, `aucune erreur (${J.erreurs.slice(0, 3).join(' | ')})`);

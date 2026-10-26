@@ -529,7 +529,8 @@ const PLANETE = (() => {
     const j = f.jauge && +f.jauge.max > 0 ? { fait: borne(Math.floor(+f.jauge.fait) || 0, 0, Math.floor(+f.jauge.max)), max: Math.floor(+f.jauge.max), niv: Math.max(0, Math.floor(+f.jauge.niv) || 0) } : null;
     const g = f.gerant && typeof f.gerant === 'object' ? { rythme: Math.max(0, Math.floor(+f.gerant.rythme) || 0), duree: Math.max(0, Math.floor(+f.gerant.duree) || 0),
       part: Number.isFinite(+f.gerant.part) ? +f.gerant.part : null, heures: Number.isFinite(+f.gerant.heures) ? +f.gerant.heures : null, reste: Number.isFinite(+f.gerant.reste) ? Math.max(0, +f.gerant.reste) : null } : null;
-    const nom = typeof f.nom === 'string' && f.nom.trim() ? f.nom.trim().slice(0, 40) : (QS[q] && QS[q].enseigne) || `Boutique n°${n}`;
+    const brut = typeof f.nom === 'string' ? f.nom.trim().replace(new RegExp(`\\s*n°\\s*${n}$`), '') : ''; // (le nom par défaut, « Le Fournil des Cimes n°27 » : la pastille de l'étiquette porte déjà le numéro)
+    const nom = brut ? brut.slice(0, 40) : (QS[q] && QS[q].enseigne) || `Boutique n°${n}`;
     return { n, q, s, jetons: Math.max(0, Math.floor(+f.jetons) || 0), gerant: g, or: !!f.or, nom, jauge: j };
   }
   const lireFiches = (fiches) => (Array.isArray(fiches) ? fiches : []).map(normaliser).filter((f, i, a) => a.findIndex((g) => g.n === f.n) === i).sort((a, b) => a.n - b.n);
@@ -1056,7 +1057,7 @@ const PLANETE = (() => {
     if (T) {
       T.t += dt; const k = T.mou ? 1 - Math.pow(1 - Math.min(1, T.t / T.duree), 3) : T.entre ? Math.pow(Math.min(1, T.t / T.duree), 2.2) : doux(Math.min(1, T.t / T.duree));
       E.q.slerpQuaternions(T.q0, T.q1, k); E.z = lerp(T.z0, T.z1, k); E.cadre = lerp(T.c0, T.c1, k); if (T.i1 != null) E.incl = lerp(T.i0, T.i1, k);
-      if (T.t >= T.duree) { E.tween = null; if (T.fin) T.fin(); }
+      if (T.t >= T.duree) { E.tween = null; if (T.fin) T.fin(); if (!E) return; } // (onEntrer peut refermer la planète : l'écran entre dans la boutique)
     } else if (!E.doigts.size && !E.entree) {
       if (Math.abs(E.vx) + Math.abs(E.vy) > 0.002) { tourner(E.vx * dt, E.vy * dt); const k = Math.exp(-dt * 3.4); E.vx *= k; E.vy *= k; } else { E.vx = 0; E.vy = 0; }
       // le retour doux : le zoom revient dans ses bornes, la planète se redresse (son nord en haut), et, au repos, tourne lentement
@@ -1155,7 +1156,7 @@ const PLANETE = (() => {
   function choisir(n, signaler) {
     const x = E.parN[n]; if (!x || E.entree) return false;
     if (!E.choisi) E.zAvant = E.z; E.choisi = n; cacherEtiquette(); E.cleLod = ''; majDrapeaux(); E.touche = true;
-    const c = E.choix = cadrage(x, mesurerEtiquette(x.f));
+    const h = mesurerEtiquette(x.f), c = E.choix = cadrage(x, h); E.choixH = h;
     const q1 = orientationVers(x.p, _v2.copy(x.pl.f).negate()), a = 2 * Math.acos(borne(Math.abs(q1.dot(E.q)), 0, 1));
     E.tween = { q0: E.q.clone(), q1, z0: E.z, z1: c.z, c0: E.cadre, c1: c.cadre, i0: E.incl, i1: c.incl, t: 0, duree: E.reduit ? 0.3 : 0.75 + 0.45 * a / Math.PI, fin: () => { if (E && E.choisi === n) montrerEtiquette(n); } };
     E.vx = 0; E.vy = 0; E.geste = performance.now();
@@ -1303,8 +1304,9 @@ const PLANETE = (() => {
     if (E.halo) { E.halo.material.opacity = lisse(0.9, 0.4, E.z); E.halo.quaternion.copy(E.camera.quaternion); }
   }
   function image(dt) {
+    if (!E) return;
     E.t += dt; E.uniformes.uT.value = E.t;
-    controle(dt);
+    controle(dt); if (!E) return; // (refermée pendant le tour : « Entrer »)
     E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
     placerCamera();
     trierBoutiques(); for (const f of E.anime) f(E.t);
@@ -1320,7 +1322,7 @@ const PLANETE = (() => {
     const cadence = vif ? 0 : E.eco ? 20 : 30; // au repos (la planète tourne lentement, le moulin, le train) : 30 images par seconde, 20 en éco
     if (cadence && now - E.derniere < 1000 / cadence - 2) return;
     const dt = Math.min(0.1, Math.max(0, (now - E.derniere) / 1000)); E.derniere = now;
-    const t0 = performance.now(); image(dt); E.ms = E.ms * 0.9 + (performance.now() - t0) * 0.1;
+    const t0 = performance.now(), e = E; image(dt); if (E === e) E.ms = E.ms * 0.9 + (performance.now() - t0) * 0.1;
   }
   // la taille de la planète : elle tient entre le titre (opts.haut, 64 px : celui de l'écran flotte sur elle) et la légende (opts.bas, 54 px),
   // et dans la largeur ; son centre au milieu de cette bande. Choisie, une boutique se pose à mi-hauteur, son étiquette dessous.
@@ -1337,7 +1339,7 @@ const PLANETE = (() => {
     const x = E.choisi && !E.entree && E.parN[E.choisi];
     if (x) {
       const vue = E.etiquetteVue; if (vue) cacherEtiquette();
-      const c = E.choix = cadrage(x, mesurerEtiquette(x.f));
+      const h = mesurerEtiquette(x.f), c = E.choix = cadrage(x, h); E.choixH = h;
       if (E.tween && E.tween.fin) { E.tween.z1 = c.z; E.tween.c1 = c.cadre; E.tween.i1 = c.incl; if (E.tween.i0 == null) E.tween.i0 = E.incl; } else { E.tween = null; E.z = c.z; E.cadre = c.cadre; E.incl = c.incl; } // (en route vers elle : le tour continue, vers le nouveau cadrage)
       if (vue) montrerEtiquette(E.choisi);
     }
@@ -1427,7 +1429,11 @@ const PLANETE = (() => {
     for (const f of nv) { const x = E.parN[f.n]; if (x) { x.f = f; teintes(x); x.haut = hauteurDe(x.s, f.or) * x.k; } }
     for (const d of E.drapeaux) d.local.copy(d.x0.p).multiplyScalar(d.x0.h + d.x0.haut + 0.002);
     E.cleLod = ''; majDrapeaux(); E.legendeQ = -1;
-    if (E.choisi && E.etiquetteVue) montrerEtiquette(E.choisi);
+    if (E.choisi && E.etiquetteVue) {
+      montrerEtiquette(E.choisi);
+      const x = E.parN[E.choisi], h = E.etiquette.offsetHeight; // (une jauge devenue l'or, par exemple : l'étiquette change de hauteur, le cadrage suit, en douceur)
+      if (x && h && Math.abs(h - (E.choixH || 0)) > 3 && !E.tween) { const c = E.choix = cadrage(x, h); E.choixH = h; E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: c.z, c0: E.cadre, c1: c.cadre, i0: E.incl, i1: c.incl, t: 0, duree: E.reduit ? 0.15 : 0.35 }; }
+    }
   }
   // la carte postale d'une région : sa vue rapprochée, un peu penchée vers son repère, rendue à part (540 × 360) sur le ciel de l'heure (le
   // même cadrage quelle que soit la taille de l'écran), puis un bord blanc et le nom du quartier dessous, comme une vraie carte
@@ -1470,78 +1476,79 @@ const PLANETE = (() => {
     memoMinuteur = setTimeout(oublier, MEMO_MS); // (le sol et le décor calculés, gardés un moment : rouvrir la planète ne les recalcule pas)
   }
 
-  // ─── la feuille de style de la planète : posée en tête du document (la feuille du jeu, après elle, peut l'ajuster) ───
+  // ─── la feuille de style de la planète : posée en tête du document ; ses règles sont toutes portées par .pl-conteneur (la feuille du jeu,
+  //     chargée après elle, ne les écrase donc pas à spécificité égale ; pour en ajuster une, un sélecteur plus précis : #chaine .pl-legende) ───
   const CSS = `.pl-conteneur { position: relative; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
-.pl-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
-.pl-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
-.pl-drap { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform, opacity; }
-.pl-drap span { position: absolute; left: -1px; bottom: 0; display: block; padding: 0 0 12px 2px; }
-.pl-drap span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 0; width: 2px; border-radius: 1px; background: #6E5B52; }
-.pl-drap b { position: relative; display: block; min-width: 21px; padding: 2px 7px 2px 5px; border-radius: 2px 9px 9px 2px; background: var(--acc); color: var(--enc); overflow: hidden;
+.pl-conteneur .pl-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+.pl-conteneur .pl-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.pl-conteneur .pl-drap { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform, opacity; }
+.pl-conteneur .pl-drap span { position: absolute; left: -1px; bottom: 0; display: block; padding: 0 0 12px 2px; }
+.pl-conteneur .pl-drap span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 0; width: 2px; border-radius: 1px; background: #6E5B52; }
+.pl-conteneur .pl-drap b { position: relative; display: block; min-width: 21px; padding: 2px 7px 2px 5px; border-radius: 2px 9px 9px 2px; background: var(--acc); color: var(--enc); overflow: hidden;
   font: 700 12.5px/1.15 var(--titre, "Fredoka", "Nunito", system-ui, sans-serif); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .95), 0 2px 4px rgba(74, 51, 40, .22); }
-.pl-drap b.jg { padding-bottom: 6px; }
-.pl-drap .pl-jg { position: absolute; left: 5px; right: 7px; bottom: 2.5px; height: 2.5px; }
-.pl-drap .pl-jg::before { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--enc); opacity: .25; }
-.pl-drap .pl-jg i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--enc); }
-.pl-drap.gauche .pl-jg { left: 7px; right: 5px; }
-.pl-drap.gauche span { left: auto; right: -1px; padding: 0 2px 12px 0; }
-.pl-drap.gauche span::before { left: auto; right: 0; }
-.pl-drap.gauche b { border-radius: 9px 2px 2px 9px; padding: 2px 5px 2px 7px; }
-.pl-drap.gauche .pl-jet { right: auto; left: -6px; }
-.pl-drap .pl-jet { position: absolute; top: -5px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre, #FFC84A); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(74, 51, 40, .3); }
-.pl-drap.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--acc), 0 4px 10px rgba(74, 51, 40, .3); }
-.pl-drap.brume b { filter: saturate(.35) brightness(1.08); }
-.pl-drap.or b { background: linear-gradient(180deg, #FFE493 0%, #FFC84A 55%, #F2A93B 100%); color: #4A3328; box-shadow: 0 0 0 1.5px #fff, 0 0 9px 1px rgba(255, 196, 64, .85), 0 2px 4px rgba(74, 51, 40, .22); }
-.pl-drap.or.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px #F2A93B, 0 0 14px 3px rgba(255, 196, 64, .8); }
-.pl-drap.or b svg { display: inline-block; width: 10px; height: 10px; margin: 0 2px -1px 0; vertical-align: baseline; }
-.pl-etiquette { position: absolute; left: 0; top: 0; width: min(310px, calc(100% - 20px)); padding: 12px; border-radius: 22px; background: #fff; color: var(--texte, #4A3328);
+.pl-conteneur .pl-drap b.jg { padding-bottom: 6px; }
+.pl-conteneur .pl-drap .pl-jg { position: absolute; left: 5px; right: 7px; bottom: 2.5px; height: 2.5px; }
+.pl-conteneur .pl-drap .pl-jg::before { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--enc); opacity: .25; }
+.pl-conteneur .pl-drap .pl-jg i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--enc); }
+.pl-conteneur .pl-drap.gauche .pl-jg { left: 7px; right: 5px; }
+.pl-conteneur .pl-drap.gauche span { left: auto; right: -1px; padding: 0 2px 12px 0; }
+.pl-conteneur .pl-drap.gauche span::before { left: auto; right: 0; }
+.pl-conteneur .pl-drap.gauche b { border-radius: 9px 2px 2px 9px; padding: 2px 5px 2px 7px; }
+.pl-conteneur .pl-drap.gauche .pl-jet { right: auto; left: -6px; }
+.pl-conteneur .pl-drap .pl-jet { position: absolute; top: -5px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre, #FFC84A); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(74, 51, 40, .3); }
+.pl-conteneur .pl-drap.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--acc), 0 4px 10px rgba(74, 51, 40, .3); }
+.pl-conteneur .pl-drap.brume b { filter: saturate(.35) brightness(1.08); }
+.pl-conteneur .pl-drap.or b { background: linear-gradient(180deg, #FFE493 0%, #FFC84A 55%, #F2A93B 100%); color: #4A3328; box-shadow: 0 0 0 1.5px #fff, 0 0 9px 1px rgba(255, 196, 64, .85), 0 2px 4px rgba(74, 51, 40, .22); }
+.pl-conteneur .pl-drap.or.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px #F2A93B, 0 0 14px 3px rgba(255, 196, 64, .8); }
+.pl-conteneur .pl-drap.or b svg { display: inline-block; width: 10px; height: 10px; margin: 0 2px -1px 0; vertical-align: baseline; }
+.pl-conteneur .pl-etiquette { position: absolute; left: 0; top: 0; width: min(310px, calc(100% - 20px)); padding: 12px; border-radius: 22px; background: #fff; color: var(--texte, #4A3328);
   box-shadow: 0 12px 30px rgba(74, 51, 40, .2), 0 2px 0 rgba(74, 51, 40, .05); opacity: 0; transition: opacity .2s ease-out; pointer-events: auto; will-change: transform; z-index: 3; }
-.pl-etiquette.pl-vue { opacity: 1; }
-.pl-etiquette.or { background: linear-gradient(160deg, #FFFFFF 40%, #FFF8E2); }
-.pl-pointe { position: absolute; top: -7px; left: var(--pointe, 50%); width: 16px; height: 16px; margin-left: -8px; border-radius: 3px; background: #fff; transform: rotate(45deg); }
-.pl-etiquette.dessus .pl-pointe { top: auto; bottom: -7px; }
-.pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
-.pl-et-tete > div { min-width: 0; }
-.pl-et-tete .pl-et-nom { display: block; font: 700 17px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-tete small { display: block; margin-top: 2px; font: 700 12.5px/1.25 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc);
+.pl-conteneur .pl-etiquette.pl-vue { opacity: 1; }
+.pl-conteneur .pl-etiquette.or { background: linear-gradient(160deg, #FFFFFF 40%, #FFF8E2); }
+.pl-conteneur .pl-pointe { position: absolute; top: -7px; left: var(--pointe, 50%); width: 16px; height: 16px; margin-left: -8px; border-radius: 3px; background: #fff; transform: rotate(45deg); }
+.pl-conteneur .pl-etiquette.dessus .pl-pointe { top: auto; bottom: -7px; }
+.pl-conteneur .pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
+.pl-conteneur .pl-et-tete > div { min-width: 0; }
+.pl-conteneur .pl-et-tete .pl-et-nom { display: block; font: 700 17px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-et-tete small { display: block; margin-top: 2px; font: 700 12.5px/1.25 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc);
   font: 700 20px/1 var(--titre, "Fredoka", system-ui, sans-serif); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
-.pl-et-jauge { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 800 12px/1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; }
-.pl-et-jauge > i { position: relative; flex: 1 1 auto; height: 7px; border-radius: 4px; background: var(--creme, #FFF7EC); box-shadow: inset 0 0 0 1px rgba(74, 51, 40, .06); overflow: hidden; }
-.pl-et-jauge > i > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, var(--beurre, #FFC84A), #F2A93B); }
-.pl-et-jauge b { color: var(--texte, #4A3328); font-variant-numeric: tabular-nums; }
-.pl-et-or { display: flex; align-items: center; gap: 7px; margin-top: 10px; padding: 4px 10px 4px 6px; border-radius: 12px; background: var(--or-clair, #FFF3C4); white-space: nowrap; }
-.pl-et-or svg { width: 22px; height: 22px; flex: 0 0 auto; }
-.pl-et-or b { flex: 0 0 auto; font: 700 14px/1.1 var(--titre, "Fredoka", system-ui, sans-serif); }
-.pl-et-or small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 12px/1.1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); }
-.pl-et-bas { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.pl-et-infos { flex: 1 1 auto; min-width: 0; display: grid; gap: 5px; }
-.pl-et-infos > span { display: flex; align-items: center; gap: 5px; min-width: 0; font: 800 12.5px/1.2 var(--texte-font, "Nunito", system-ui, sans-serif); white-space: nowrap; }
-.pl-et-infos > span > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-infos svg { width: 17px; height: 17px; flex: 0 0 auto; }
-.pl-et-infos .sans { color: var(--texte-2, #8C6F62); }
-.pl-et-infos .sans svg { opacity: .5; filter: grayscale(1); }
-.pl-et-infos .arret > span { color: var(--fraise-sombre, #E1496C); }
-.pl-et-infos .a > span { padding: 1px 6px; border-radius: 6px; background: var(--or-clair, #FFF3C4); }
-.pl-etiquette .pl-et-entrer { flex: 0 0 auto; min-width: 84px; min-height: 44px; padding: 0 14px; border-radius: 15px; }
-.pl-etiquette .pl-et-entrer b { font: 700 17px/1 var(--titre, "Fredoka", system-ui, sans-serif); }
-.pl-etiquette.pl-compacte { padding: 10px 10px 10px 11px; border-radius: 20px; }
-.pl-etiquette.pl-compacte .pl-et-tete .pl-et-num { min-width: 36px; height: 36px; font-size: 18px; border-radius: 11px 11px 11px 4px; }
-.pl-etiquette.pl-compacte .pl-et-tete .pl-et-nom { font-size: 15.5px; }
-.pl-etiquette.pl-compacte .pl-et-tete small { font-size: 12px; }
-.pl-etiquette.pl-compacte :is(.pl-et-jauge, .pl-et-or, .pl-et-bas) { margin-top: 8px; }
-.pl-etiquette.pl-compacte .pl-et-or { padding-top: 3px; padding-bottom: 3px; }
-.pl-etiquette.pl-compacte .pl-et-or svg { width: 20px; height: 20px; }
-.pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px;
+.pl-conteneur .pl-et-jauge { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 800 12px/1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; }
+.pl-conteneur .pl-et-jauge > i { position: relative; flex: 1 1 auto; height: 7px; border-radius: 4px; background: var(--creme, #FFF7EC); box-shadow: inset 0 0 0 1px rgba(74, 51, 40, .06); overflow: hidden; }
+.pl-conteneur .pl-et-jauge > i > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, var(--beurre, #FFC84A), #F2A93B); }
+.pl-conteneur .pl-et-jauge b { color: var(--texte, #4A3328); font-variant-numeric: tabular-nums; }
+.pl-conteneur .pl-et-or { display: flex; align-items: center; gap: 7px; margin-top: 10px; padding: 4px 10px 4px 6px; border-radius: 12px; background: var(--or-clair, #FFF3C4); white-space: nowrap; }
+.pl-conteneur .pl-et-or svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.pl-conteneur .pl-et-or b { flex: 0 0 auto; font: 700 14px/1.1 var(--titre, "Fredoka", system-ui, sans-serif); }
+.pl-conteneur .pl-et-or small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 12px/1.1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); }
+.pl-conteneur .pl-et-bas { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pl-conteneur .pl-et-infos { flex: 1 1 auto; min-width: 0; display: grid; gap: 5px; margin: 0; }
+.pl-conteneur .pl-et-infos > span { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 0; border-radius: 0; background: none; font: 800 12.5px/1.2 var(--texte-font, "Nunito", system-ui, sans-serif); white-space: nowrap; }
+.pl-conteneur .pl-et-infos > span > span { display: block; min-width: 0; padding: 0; background: none; overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-et-infos svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.pl-conteneur .pl-et-infos .sans { color: var(--texte-2, #8C6F62); }
+.pl-conteneur .pl-et-infos .sans svg { opacity: .5; filter: grayscale(1); }
+.pl-conteneur .pl-et-infos .arret > span { color: var(--fraise-sombre, #E1496C); }
+.pl-conteneur .pl-et-infos .a > span { padding: 1px 6px; border-radius: 6px; background: var(--or-clair, #FFF3C4); }
+.pl-conteneur .pl-etiquette .pl-et-entrer { flex: 0 0 auto; width: auto; min-width: 84px; min-height: 44px; padding: 0 14px; border-radius: 15px; }
+.pl-conteneur .pl-etiquette .pl-et-entrer b { font: 700 17px/1 var(--titre, "Fredoka", system-ui, sans-serif); }
+.pl-conteneur .pl-etiquette.pl-compacte { padding: 10px 10px 10px 11px; border-radius: 20px; }
+.pl-conteneur .pl-etiquette.pl-compacte .pl-et-tete .pl-et-num { min-width: 36px; height: 36px; font-size: 18px; border-radius: 11px 11px 11px 4px; }
+.pl-conteneur .pl-etiquette.pl-compacte .pl-et-tete .pl-et-nom { font-size: 15.5px; }
+.pl-conteneur .pl-etiquette.pl-compacte .pl-et-tete small { font-size: 12px; }
+.pl-conteneur .pl-etiquette.pl-compacte :is(.pl-et-jauge, .pl-et-or, .pl-et-bas) { margin-top: 8px; }
+.pl-conteneur .pl-etiquette.pl-compacte .pl-et-or { padding-top: 3px; padding-bottom: 3px; }
+.pl-conteneur .pl-etiquette.pl-compacte .pl-et-or svg { width: 20px; height: 20px; }
+.pl-conteneur .pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px;
   background: rgba(255, 255, 255, .88); box-shadow: 0 4px 14px rgba(74, 51, 40, .1); white-space: nowrap; pointer-events: none; transition: opacity .2s; }
-.pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
-.pl-legende b { font: 700 16px/1 var(--titre, "Fredoka", system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; }
-.pl-legende small { font-size: 12.5px; color: var(--texte-2, #8C6F62); overflow: hidden; text-overflow: ellipsis; }
-.pl-legende svg { width: 20px; height: 20px; flex: 0 0 auto; }
-.pl-legende.indice { white-space: normal; border-radius: 18px; padding: 7px 14px 7px 10px; }
-.pl-legende.indice small { font-size: 13px; line-height: 1.25; color: var(--texte, #4A3328); text-wrap: balance; }
-.pl-legende.cache { opacity: 0; }
-.pl-voile { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(60% 50% at 50% 55%, #FFFDF8, #FFF1E2); transition: opacity .45s ease-in; }
+.pl-conteneur .pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
+.pl-conteneur .pl-legende b { font: 700 16px/1 var(--titre, "Fredoka", system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-legende small { font-size: 12.5px; color: var(--texte-2, #8C6F62); overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-legende svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.pl-conteneur .pl-legende.indice { white-space: normal; border-radius: 18px; padding: 7px 14px 7px 10px; }
+.pl-conteneur .pl-legende.indice small { font-size: 13px; line-height: 1.25; color: var(--texte, #4A3328); text-wrap: balance; }
+.pl-conteneur .pl-legende.cache { opacity: 0; }
+.pl-conteneur .pl-voile { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(60% 50% at 50% 55%, #FFFDF8, #FFF1E2); transition: opacity .45s ease-in; }
 .pl-conteneur.pl-entree .pl-voile { opacity: 1; }
 .pl-conteneur.pl-aube { background: radial-gradient(115% 62% at 50% 46%, #FFFBF6 0%, #FFEFE8 36%, #F6E4F2 64%, #FFE3D4 100%); }
 .pl-conteneur.pl-soir { background: radial-gradient(115% 62% at 50% 46%, #FFF8F0 0%, #FFE8DA 34%, #F8D6E2 62%, #F1C8D2 100%); }
@@ -1552,7 +1559,7 @@ const PLANETE = (() => {
   radial-gradient(2.5px 2.5px at 40% 9%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 58% 88%, #fff 60%, transparent), radial-gradient(2px 2px at 93% 40%, #fff 60%, transparent),
   radial-gradient(115% 62% at 50% 46%, #E8E8FA 0%, #C6C8EE 34%, #A2A6DC 62%, #8C89C6 100%); }
 .pl-conteneur:is(.pl-nuit, .pl-crepuscule) .pl-legende.indice small { color: #3F3A72; }
-@media (prefers-reduced-motion: reduce) { .pl-voile, .pl-etiquette, .pl-legende { transition: none; } }`;
+@media (prefers-reduced-motion: reduce) { .pl-conteneur .pl-voile, .pl-conteneur .pl-etiquette, .pl-conteneur .pl-legende { transition: none; } }`;
   function feuille() {
     if (document.getElementById('pl-style')) return;
     const s = document.createElement('style'); s.id = 'pl-style'; s.textContent = CSS; (document.head || document.documentElement).insertBefore(s, (document.head || document.documentElement).firstChild);

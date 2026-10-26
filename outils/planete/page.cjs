@@ -64,7 +64,8 @@ ${avecChaine ? '<script src="../src/chaine.js"></script>\n' : ''}<script src="..
     }
     return out;
   };
-  // ouvrir la planète à la n°N : son cadre (plein ou écran), puis PLANETE.ouvrir ; o : { heure, qualite, fiches, varie, vraies }
+  // ouvrir la planète à la n°N : son cadre (plein ou écran), puis PLANETE.ouvrir ; o : { heure, qualite, fiches, varie, vraies, fermerEnEntrant
+  // (onEntrer referme la planète, comme l'écran qui entre dans la boutique) }
   ESSAI.ouvrir = (N, o) => {
     o = o || {}; ESSAI.fermer();
     el = document.createElement('div'); el.id = 'essai'; el.className = cadre;
@@ -74,7 +75,7 @@ ${avecChaine ? '<script src="../src/chaine.js"></script>\n' : ''}<script src="..
     document.body.appendChild(el);
     ESSAI.vues = f;
     return PLANETE.ouvrir(el.querySelector('.zone'), f, { qualite: o.qualite || qualite, boutiques: N, heure: o.heure == null ? 12 : o.heure,
-      onToucher: (n) => ESSAI.journal.push('toucher ' + n), onEntrer: (n) => ESSAI.journal.push('entrer ' + n) });
+      onToucher: (n) => ESSAI.journal.push('toucher ' + n), onEntrer: (n) => { ESSAI.journal.push('entrer ' + n); if (o.fermerEnEntrant) ESSAI.fermer(); } });
   };
   ESSAI.fermer = () => { if (PLANETE.ouvert) PLANETE.fermer(); if (el) el.remove(); el = null; };
 })();

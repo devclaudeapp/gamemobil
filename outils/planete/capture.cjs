@@ -5,8 +5,8 @@
 // usage : node capture.cjs [--captures] [--video 9] [--mesures] [--port 9660] [--sortie <dossier>]
 //   --captures : haute et éco, en plein écran et dans le cadre de l'écran « Ma chaîne » (la planète en haut, la liste dessous), à 5, 15 et
 //                30 boutiques ; une boutique touchée (son étiquette : sa jauge, son gérant, ses jetons) ; en haute, une Boutique d'or et un
-//                gérant de près, la nuit, 150 et 300 boutiques (les îlots) ; le soir, l'autre face, chaque région de près (la planche) ; trois
-//                cartes postales.
+//                gérant de près, la nuit, 150 et 300 boutiques (les îlots) ; le petit téléphone (360 × 640) ; le soir, l'autre face, chaque
+//                région de près (la planche) ; trois cartes postales.
 //   --video s  : s secondes à 30 images/s, dans le cadre de l'écran : l'arrivée, un glissé et son inertie, pincer, toucher une boutique, son
 //                étiquette, « Entrer » (le plongeon) → planete.mp4
 //   --mesures  : appels de dessin et triangles (la pire des vues : chaque région, sept zooms, deux caps ; à 30, 59, 150 et 300 boutiques,
@@ -25,8 +25,9 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  async function jeu(qualite, dpr, cadre) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: dpr || 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  async function jeu(qualite, dpr, cadre, taille) {
+    const [W, H] = taille || [390, 844];
+    const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: dpr || 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     // les appels de dessin WebGL neutralisables (la mesure « sans dessin »)
     await ctx.addInitScript(() => {
@@ -74,6 +75,15 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
         if (J.errs.length) console.log('erreurs', pre, J.errs.slice(0, 5));
         await J.ctx.close();
       }
+    }
+    // le petit téléphone (360 × 640 : la planète de l'écran ne fait que 342 px de haut) : la vue d'arrivée, une boutique touchée, une Boutique d'or
+    for (const q of ['haute', 'eco']) {
+      const P = await jeu(q, 2, 'ecran', [360, 640]), pre = `${q}-ecran-360x640`;
+      await P.planete(31); await P.ev(() => PLANETE.essai.touche()); await photo(P, `${pre}-30-boutiques`);
+      await P.planete(16); const n = await toucherBoutique(P, [13, 9, 6, 1, 8, 3]); await photo(P, `${pre}-boutique-touchee-n${n}`);
+      await P.planete(31); await P.ev(() => { PLANETE.viser(24); PLANETE.essai.image(1 / 30, 90); }); await photo(P, `${pre}-boutique-or-n24`);
+      if (P.errs.length) console.log('erreurs', pre, P.errs.slice(0, 5));
+      await P.ctx.close();
     }
     // plein écran, haute : le soir, l'autre face, chaque région de près (la planche), des cartes postales
     const J = await jeu('haute', 2, 'plein');
