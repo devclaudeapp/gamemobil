@@ -96,6 +96,19 @@ console.log('── 4) les gérants ──');
   let total = 0; for (let k = 0; k < 5; k++) { const r = R.ameliorerGerant(st, 3, 'rythme'); total += r.prix; } for (let k = 0; k < 4; k++) { const r = R.ameliorerGerant(st, 3, 'duree'); total += r.prix; }
   const attendu = [...R.GERANT.prixRythme, ...R.GERANT.prixDuree].reduce((a, x) => a + x, 0);
   check(R.partGerant(b) === 0.3 && R.heuresGerant(b) === 16 && total === attendu && attendu === 236 && !R.ameliorerGerant(st, 3, 'rythme').ok, `gérant au maximum : 30 % du rythme, 16 h (${total} jetons de niveaux)`);
+  // 8 h au plus PAR ABSENCE, même payée en deux fois (une heure sûre arrivée en retard : le lancement paie, puis le saut) : le plafond
+  {
+    const deja = (r, n) => { const d = r.detail.find((x) => x.n === n); return d ? d.secs * 1000 : 0; }; // ce que le lancement a déjà payé (ms)
+    const sp = partieAvancee(6); R.etat(sp, T); R.embaucherGerant(sp, 2, T); const g = R.boutique(sp, 2), r2 = R.partGerant(g) * R.rythme(sp, g);
+    const a = R.encaisserTout(sp, T + 8 * H); // le lancement : 8 h (l'heure du téléphone, l'heure sûre pas encore là)
+    const s = R.encaisserTout(sp, T + 12 * H, (b) => Math.max(0, Math.min(4 * H, R.heuresGerant(b) * H - deja(a, b.n)))); // le saut de 4 h
+    check(a.detail[0].secs === 8 * 3600 && s.total === 0 && g.vu === T + 12 * H, `une absence de 12 h payée en deux fois : 8 h au lancement, 0 au saut (plafond nul), et vu revient à maintenant`);
+    const m = R.encaisserTout(sp, T + 12 * H + 61e3, 120e3), m2 = R.encaisserTout(sp, T + 12 * H + 61e3 + 10 * H, 120e3); // une minute de jeu ; puis un trou de 10 h en jouant
+    check(Math.abs(m.detail[0].secs - 61) < 1e-9 && m2.detail[0].secs === 120 && Math.abs(g.c - r2 * (8 * 3600 + 61 + 120)) < 1e-6 * g.c, 'en jouant (plafond de 2 min) : la minute payée, jamais le saut ni un trou de 10 h');
+    const sp2 = partieAvancee(6); R.etat(sp2, T); R.embaucherGerant(sp2, 2, T); R.etat(sp2).jetons = 100; R.ameliorerGerant(sp2, 2, 'duree'); R.ameliorerGerant(sp2, 2, 'duree'); // 12 h
+    const a2 = R.encaisserTout(sp2, T + 8 * H), s2 = R.encaisserTout(sp2, T + 20 * H, (b) => Math.max(0, Math.min(12 * H, R.heuresGerant(b) * H - deja(a2, b.n))));
+    check(R.heuresGerant(R.boutique(sp2, 2)) === 12 && s2.detail[0].secs === 4 * 3600, 'un gérant de 12 h : 8 h au lancement, le saut complète jusqu’à 12 h (4 h), pas plus');
+  }
   const v = R.ouvrir(st, 4, T + 60 * H); const tout = R.encaisserTout(st, T + 70 * H);
   check(!tout.detail.some((d) => d.n === 4), 'la boutique ouverte (on y joue) : son gérant ne travaille pas en même temps');
   R.fermer(st, v, T + 70 * H); check(R.VUE.ouverte === 0, 'fermée : la vue est rendue');
@@ -116,7 +129,9 @@ console.log('── 5) la boutique des jetons ──');
 console.log('── 6) aucune fuite vers la boulangerie (ni étoiles, ni fortune, ni points, ni objectifs, ni stats, ni grades) ──');
 {
   const st = partieAvancee(15); G.objectifsDuJour(st, T); R.etat(st, T); st.chaine.jetons = 300;
-  const garde = (s) => JSON.stringify(Object.assign({}, s, { chaine: null, boosts: null, now: null }));
+  // la garde-robe : la tenue de la chaîne y entre (ses pièces, son compteur de version), rien d'autre (ni stats, ni journal : contrat § 1.7)
+  const sansTenue = (g) => { if (!g) return g; const ids = Object.keys(g.objets).filter((id) => /^chaine-/.test(id)); const o = Object.assign({}, g.objets); ids.forEach((id) => delete o[id]); return Object.assign({}, g, { v: g.v - ids.length, objets: o }); };
+  const garde = (s) => JSON.stringify(Object.assign({}, s, { chaine: null, boosts: null, now: null, garderobe: sansTenue(s.garderobe) }));
   const avant = garde(st);
   const v = R.ouvrir(st, 7, T); v.coins = 1e25;
   for (let t = 0; t < 120; t++) { v.stations.forEach((x, i) => { if (x.niv > 0 && !x.actif) R.lancer(v, i); }); R.tick(st, v, 1, T + t * 1000); }
@@ -124,7 +139,9 @@ console.log('── 6) aucune fuite vers la boulangerie (ni étoiles, ni fortune
   for (const a of G.AMELIORATIONS) R.amelioration(st, v, a.id); for (const m of G.MOBILIER) R.ameliorerMeuble(st, v, m.id);
   R.amenager(st, v, { v: 1, tables: [[2, 5], null, null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] }); R.fermer(st, v, T + 200e3);
   R.prendreTout(st); R.embaucherGerant(st, 7, T); R.ameliorerGerant(st, 7, 'rythme'); R.encaisserTout(st, T + 9 * H); R.acheterObjet(st, 'chaine-plan'); R.poser(st, 7, [['chaine-plan', 'm1']]);
-  check(garde(st) === avant, 'toutes les actions de la chaîne : la boulangerie est identique octet pour octet (hors st.chaine)');
+  st.chaine.jetons += 300; const ach = ['chaine-toque', 'chaine-cles', 'pigeon'].map((id) => R.acheterObjet(st, id).ok);
+  check(ach.every(Boolean) && G.possede(st, 'chaine-toque') && G.possede(st, 'chaine-cles') && G.aCompagnon(st, 'pigeon'), 'la toque, le trousseau (la tenue de la chaîne) et le pigeon achetés : à soi');
+  check(garde(st) === avant, 'toutes les actions de la chaîne (tenue et pigeon compris) : la boulangerie est identique octet pour octet (hors st.chaine ; stats, journal, garde-robe hors la tenue)');
   check(st.lifetime === 1e24 / 3 && st.lifetimeRun === 5e21 && st.coins === 4e20 && st.etoiles === 2500, 'fortune (lifetime), gains de la boutique (lifetimeRun), caisse et étoiles inchangés : rien à changer au classement');
   const b7 = R.boutique(st, 7); check(b7.c > 0 && b7.s[0] > 1 && b7.b > 0 && b7.m.length === 9 && b7.am, 'tout est allé dans la boutique n°7 : sa caisse, ses niveaux, ses bonus, ses meubles, son plan');
   check(R.acheterBoost(st, 'x2', T).ok && garde(st) === avant && st.boosts.reserve.length === 1, 'un boost acheté : seule la réserve de boosts change');

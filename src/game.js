@@ -675,10 +675,13 @@
   }
   const possede = (st, id) => !!garderobe(st).objets[id];
   const niveauVetement = (st, id) => { const o = garderobe(st).objets[id]; return o ? o.niv : 0; };
-  function donnerVetement(st, id) { // une pièce gagnée (podium, palier de l'événement) ; déjà possédée : rien ne change
+  // une pièce gagnée (podium, palier de l'événement) ; déjà possédée : rien ne change. o.muet : la pièce seule, sans compter dans les stats ni
+  // écrire au journal (la tenue de « Ma chaîne », achetée en jetons : la chaîne ne touche jamais st.stats, contrat § 1.7)
+  function donnerVetement(st, id, o) {
     const v = vetement(id); if (!v) return { nouveau: false, objet: null };
     const g = garderobe(st); if (g.objets[id]) return { nouveau: false, objet: v };
-    g.objets[id] = { niv: 1, depuis: st.now || 0 }; g.v++; inc(st, 'vetements'); note(st, `Garde-robe : ${v.nom}`);
+    g.objets[id] = { niv: 1, depuis: st.now || 0 }; g.v++;
+    if (!(o && o.muet)) { inc(st, 'vetements'); note(st, `Garde-robe : ${v.nom}`); }
     return { nouveau: true, objet: v };
   }
   const donnerCollection = (st, collection) => Object.values(GARDEROBE.objets).filter((v) => v.collection === collection).map((v) => donnerVetement(st, v.id)).filter((r) => r.nouveau).map((r) => r.objet); // les quatre pièces d'un coup ; rend les nouvelles

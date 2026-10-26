@@ -11,7 +11,9 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
-  let absencePrete = false, absencePayee = 0, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
+  // gerantsPayes : pour la même absence, ce que chaque gérant de la chaîne a déjà touché (n → ms) : le saut d'une heure sûre en retard le complète
+  // jusqu'à sa durée, jamais au-delà (CHAINE.encaisserTout, contrat § 1.5)
+  let absencePrete = false, absencePayee = 0, gerantsPayes = {}, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -1223,8 +1225,12 @@ const UI = (() => {
     on('[data-a="close"]', closeSheet);
   }
   // les gérants de la chaîne : payés sur l'heure du jeu, à côté de chaque GAME.absence (le lancement, le retour, les sauts de l'heure sûre),
-  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser)
-  function encaisserChaine(t) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant()); } catch (e) { return null; } }
+  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser).
+  // plafond (CHAINE.encaisserTout) : rien au lancement et au retour ; le reste de chaque gérant au saut d'heure ; EN_JEU en jouant (une minute
+  // entre deux appels : un trou plus long est une absence, déjà réglée par le lancement, le retour ou le saut)
+  const EN_JEU = 120e3;
+  function encaisserChaine(t, plafond) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant(), plafond); } catch (e) { return null; } }
+  const payesDe = (enc) => { const m = {}; if (enc) for (const d of enc.detail) m[d.n] = d.secs * 1000; return m; };
   const montrerRetour = (abs, enc) => abs.secs > 90 && (abs.total > 0 || !!(enc && enc.total > 0));
 
   // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
@@ -2169,7 +2175,7 @@ const UI = (() => {
       CE.cartes.rendre(); CE.bandeau($('#chaine-bandeau'), chaineVue.v);
     } else renderCards();
     hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant()); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
+    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant(), EN_JEU); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     else if (chaineVue && !couvert) { const t = HORLOGE.maintenant(); chaineVue.v.now = t; SCENE.frame(dt, chaineVue.v, t, msImage, espacee); } // dans une boutique de la chaîne : la scène montre la vue, jamais st
     else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t, msImage, espacee); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
@@ -2199,7 +2205,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); eveiller(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -2263,11 +2269,15 @@ const UI = (() => {
   // pour une même absence (avec ce qui a été payé au lancement ou au retour, jamais plus que heuresAbsence) ; voir src/horloge.js (d)
   function payerSaut(r) {
     if (!st || !absencePrete || retourEnCours || fige) return; // au lancement et au retour, l'absence part de l'ancien lastSeen : le saut y est déjà
-    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3);
-    if (!(paye > 0)) return;
-    const now = HORLOGE.maintenant();
+    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3), now = HORLOGE.maintenant();
+    // les gérants d'abord, et même quand la boulangerie n'a plus rien à toucher : chacun reçoit le reste de SA durée pour cette absence (8 à
+    // 16 h en tout, pas celle des apprentis), au plus le saut ; vu revient à maintenant (sans quoi l'encaissement d'une minute plus tard
+    // repaierait tout le saut)
+    const enc = encaisserChaine(now, (b) => HORLOGE.sautAPayer(r.saut, gerantsPayes[b.n] || 0, CH.heuresGerant(b) * 3600e3));
+    if (enc) for (const d of enc.detail) gerantsPayes[d.n] = (gerantsPayes[d.n] || 0) + d.secs * 1000;
+    if (!(paye > 0)) { if (enc && enc.total > 0) { majCoinChaine(); save(); } return; }
     st.lastSeen = now - paye;
-    const abs = G.absence(st, now), enc = encaisserChaine(now);
+    const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
     if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
     const montre = montrerRetour(abs, enc);
@@ -2310,7 +2320,7 @@ const UI = (() => {
     if (CE) {
       CE.init({ st: () => st, maintenant: () => HORLOGE.maintenant(), save, toast, son: Object.assign({}, son, { pieces: son.pourboire }), buzz, audio, openSheet, closeSheet, on, confettis, fete: () => SCENE.fete(), reduit: reduceMotion,
         qualite: () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; }, heure: () => { try { const f = VIE.force; return f && f.heure != null ? f.heure : G.heureParis(HORLOGE.maintenant()); } catch (e) { return 12; } }, // (le ciel de la planète : celui de la boutique)
-        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant()), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
+        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
         ferme: () => { eveiller(); lastFrame = performance.now(); cleCoinChaine = ''; majCoinChaine(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } },
         amenager: () => { if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); } });
       $('#b-chaine').addEventListener('click', () => { audio(); son.tap(); ouvrirChaine(); });
@@ -2387,7 +2397,7 @@ const UI = (() => {
     // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, AVANT l'absence (ses bonus de
     // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
     const rattrape = fresh ? [] : G.rattraperParcours(st);
-    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
+    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
     absencePrete = true;
     if (essaiCopie) save(); // (la vraie partie copiée : sauvée sous les clés de l'essai, jamais sous les siennes)
     if (essaiVide) { const montrer = () => sheetEssaiCode(); if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
@@ -2440,8 +2450,8 @@ const UI = (() => {
       chaine: CH ? { get etat() { return CH.etat(st); }, ouvrir: (n) => entrerChaine(n, 'test', true), fermer: () => sortirChaine(), get vue() { return chaineVue ? chaineVue.v : null; }, get n() { return chaineVue ? chaineVue.n : 0; },
         ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
         donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
-        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
-        encaisser: () => encaisserChaine(HORLOGE.maintenant()), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); gerantsPayes = payesDe(enc); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
+        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

@@ -193,20 +193,36 @@
   // ─── le gérant ───
   const partGerant = (b) => (b.g ? GERANT.part[b.g[0]] : 0);
   const heuresGerant = (b) => (b.g ? GERANT.heures[b.g[1]] : 0);
-  // ce que le gérant a gagné depuis vu (8 h au plus), sans le verser ; idempotent, sur l'horloge du jeu (l'heure sûre : HORLOGE.maintenant())
-  function enAttente(st, b, now) { if (!b.g) return { secs: 0, gain: 0 }; const secs = Math.min(heuresGerant(b) * 3600, Math.max(0, (now - b.vu) / 1000)); return { secs, gain: partGerant(b) * rythme(st, b) * secs }; }
+  // ce que le gérant a gagné depuis vu (sa durée au plus : 8 à 16 h), sans le verser ; idempotent, sur l'horloge du jeu (l'heure sûre :
+  // HORLOGE.maintenant()). plafondMs (facultatif) : ce qu'il reste à payer pour la même absence (voir encaisserTout)
+  function enAttente(st, b, now, plafondMs) {
+    if (!b.g) return { secs: 0, gain: 0 };
+    let secs = Math.min(heuresGerant(b) * 3600, Math.max(0, (now - b.vu) / 1000));
+    if (plafondMs != null) secs = Math.min(secs, Math.max(0, Number.isFinite(plafondMs) ? plafondMs / 1000 : 0));
+    return { secs, gain: partGerant(b) * rythme(st, b) * secs };
+  }
   // verser à la caisse ce qu'a gagné le gérant, et remettre vu à maintenant. Sans gérant : vu suit l'heure (rien ne s'accumule).
   // Appelé au lancement, au retour, aux sauts d'heure (aux mêmes endroits que GAME.absence) et à l'ouverture de « Ma chaîne » : comme vu
   // avance à chaque versement, l'appeler deux fois ne paie jamais deux fois. Une heure qui recule (vu dans le futur) : vu = maintenant, rien de versé.
-  function encaisser(st, b, now) {
-    const x = enAttente(st, b, now);
+  // plafondMs : voir encaisserTout ; vu revient à maintenant dans tous les cas (ce qui dépasse le plafond est perdu, comme pour les apprentis)
+  function encaisser(st, b, now, plafondMs) {
+    const x = enAttente(st, b, now, plafondMs);
     if (x.gain > 0) b.c += x.gain;
     b.vu = now; // (une heure revenue en arrière : vu revient à maintenant, rien n'est versé)
     return { n: b.n, secs: x.secs, gain: x.gain };
   }
-  function encaisserTout(st, now) { // la ligne « Tes gérants ont rapporté… » de la feuille du retour ; rend { total, detail }
+  // la ligne « Tes gérants ont rapporté… » de la feuille du retour ; rend { total, detail }.
+  // plafond : 8 h au plus PAR ABSENCE (contrat § 1.5), même quand elle est payée en deux fois. Sans plafond (le lancement, le retour) : depuis vu,
+  // la durée du gérant au plus. Un nombre (ms) : le même pour tous (en jouant, une fois par minute : un trou plus long est une absence que le
+  // lancement, le retour ou le saut d'heure ont déjà réglée). Une fonction (b) → ms : le reste de chaque gérant pour cette absence (le saut
+  // d'une heure sûre arrivée en retard, après ce que le lancement a déjà payé).
+  function encaisserTout(st, now, plafond) {
     const c = etat(st, now), detail = []; let total = 0;
-    for (const b of c.b) { if (VUE.ouverte === b.n) continue; const r = encaisser(st, b, now); if (r.gain > 0) { detail.push(r); total += r.gain; } }
+    for (const b of c.b) {
+      if (VUE.ouverte === b.n) continue;
+      const p = typeof plafond === 'function' ? plafond(b) : plafond;
+      const r = encaisser(st, b, now, p); if (r.gain > 0) { detail.push(r); total += r.gain; }
+    }
     return { total, detail };
   }
   function embaucherGerant(st, n, now) {
@@ -318,7 +334,8 @@
     if (c.objets.includes(id)) return { ok: false, raison: 'possede' };
     if (c.jetons < o.prix) return { ok: false, raison: 'jetons', prix: o.prix };
     c.jetons -= o.prix; c.objets.push(id);
-    if (o.famille === 'tenue' && typeof G.donnerVetement === 'function' && G.vetement && G.vetement(id)) G.donnerVetement(st, id);
+    // la pièce rejoint la garde-robe, sans compter dans st.stats ni écrire au journal de la boulangerie (contrat § 1.7)
+    if (o.famille === 'tenue' && typeof G.donnerVetement === 'function' && G.vetement && G.vetement(id)) G.donnerVetement(st, id, { muet: true });
     return { ok: true, prix: o.prix, objet: o };
   }
 
