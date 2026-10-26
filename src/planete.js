@@ -948,7 +948,9 @@ const PLANETE = (() => {
     for (const x of E.magasins) { // les matrices : la boutique, sa forme minuscule (à ses dimensions), son gérant devant la vitrine, son enseigne sur le toit
       const s = x.s; x.mat = poser(new THREE.Matrix4(), x.p, x.h - 0.002, x.pl.f, x.k);
       x.matMicro = x.mat.clone().multiply(_m.makeScale(DIM.larg[s], (0.08 + DIM.haut[s]) / 1, DIM.prof[s]));
-      x.matGerant = x.mat.clone().multiply(_m.makeTranslation(-DIM.larg[s] * 0.3, 0, DIM.prof[s] / 2 + 0.44)).multiply(_m2.makeScale(1.25, 1.25, 1.25)); // (devant le bord du store : vu d'en haut, on le voit en entier)
+      // le gérant : devant le bord du store (vu d'en haut, on le voit en entier), debout sur le sol à sa place (le relief y monte ou y descend un peu)
+      const gx = -DIM.larg[s] * 0.3, gz = DIM.prof[s] / 2 + 0.44; _v.set(gx, 0, gz).applyMatrix4(x.mat); const gl = _v.length(), gy = borne((altitude(_v.normalize()) - gl) / x.k, -0.4, 1.2);
+      x.matGerant = x.mat.clone().multiply(_m.makeTranslation(gx, gy, gz)).multiply(_m2.makeScale(1.25, 1.25, 1.25));
       x.matOr = x.mat.clone().multiply(_m.makeTranslation(0, 0.08 + DIM.haut[s] + 0.02, DIM.prof[s] / 2 - 0.08)).multiply(_m2.makeScale(DIM.larg[s] * 0.6, DIM.larg[s] * 0.6, DIM.larg[s] * 0.6));
       x.haut = hauteurDe(s, x.f.or) * x.k; x.avant = (DIM.prof[s] / 2 + 0.62) * x.k; // (le pied de l'étiquette : devant le gérant, la devanture reste visible)
       teintes(x);
