@@ -163,10 +163,27 @@ const EVENEMENTS = (() => {
       if (f.ouvert && qq && Array.isArray(qq.postes) && qq.annonce && (qq.majeur || !F.porte) && !qq.masque && !ouvert() && !sheetOuverte && $('#feuille').hidden && Q.paliersDus(Q.etat(s, now())).length) { rattraper(); montrerSheetsEnAttente(); return true; }
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
       const neuf = q(); neuf.annonce = true; d.save();
-      d.openSheet(F.t.annonce(f));
+      d.openSheet(F.t.annonce(f)); lancerMedia();
       if (F.prechargerAnnonce && typeof SCENE !== 'undefined' && SCENE.precharger) { try { SCENE.precharger(F.lot); } catch (e) { /* rien : elle se chargera à l'ouverture */ } } // la Maison hantée : sa HD se charge pendant qu'on lit l'annonce
       d.on('[data-a="pq-entrer"]', () => { d.son.tap(); d.closeSheet(); ouvrir(); });
       d.on('[data-a="pq-tard"]', () => { d.son.tap(); d.closeSheet(); });
+      return true;
+    }
+    // la vidéo de l'annonce (la Maison hantée) : muette, elle part d'elle-même ; si le téléphone ne la lit pas, son affiche reste à sa place ;
+    // ni vidéo ni affiche (des fichiers absents), le cadre s'efface : la feuille reste juste, sans média
+    function lancerMedia() {
+      const box = $('#feuille .ht-annonce-media'), v = box && box.querySelector('video'); if (!v) return;
+      let rates = 0; const rate = () => { if (++rates >= 2) box.hidden = true; };
+      const src = v.querySelector('source'); if (src) src.addEventListener('error', rate, { once: true }); else v.addEventListener('error', rate, { once: true });
+      const img = new Image(); img.onerror = rate; img.src = v.getAttribute('poster') || '';
+      v.muted = true; v.defaultMuted = true; // (muette, sans quoi un iPhone ne la lance pas tout seul)
+      try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* l'affiche reste */ }
+    }
+    // « Comment ça marche ? » (la feuille des paliers) : l'annonce, relue à tout moment pendant l'événement ; « C'est compris » ramène aux paliers
+    function revoir(depuis) {
+      if (!F.revoir || !d || !F.t.annonce) return false;
+      d.openSheet(F.t.annonce(fen(), { revoir: true })); lancerMedia();
+      d.on('[data-a="pq-compris"]', () => { d.son.tap(); if (depuis === 'paliers') sheetPaliers(); else d.closeSheet(); });
       return true;
     }
     function ouvrir() {
@@ -482,10 +499,12 @@ const EVENEMENTS = (() => {
       const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
       const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>
+        ${F.revoir ? '<button type="button" class="ht-aide" data-a="pq-revoir"><i aria-hidden="true">?</i><b>Comment ça marche ?</b><span aria-hidden="true">›</span></button>' : ''}
         <div class="pq-paliers">${lignes}</div>
         <p class="note">${esc(F.t.paliersNote)}</p>
         <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
       d.on('[data-a="pq-retour"]', () => d.closeSheet());
+      if (F.revoir) d.on('[data-a="pq-revoir"]', () => { d.son.tap(); revoir('paliers'); });
     }
 
     // ─── le bilan de fin : la boutique de l'événement a fermé, tout le reste reste ───
@@ -829,7 +848,7 @@ const EVENEMENTS = (() => {
     }
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
-    return { init, ouvrir, fermer, annoncer, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
+    return { init, ouvrir, fermer, annoncer, revoir, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
       mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
@@ -1462,6 +1481,20 @@ const EVENEMENTS = (() => {
     // l'habillage des coups de pouce donné par H1 (FICHE.evenements : nom, annonce, bouton, detail, fin) → les champs de la bannière
     const HE = HF.evenements || null, coupsType = {};
     if (HE) for (const [type, e] of Object.entries(HE)) { if (!e) continue; const x = {}; if (e.nom) x.titre = e.nom; if (e.annonce) x.debut = e.annonce; if (e.bouton) x.bouton = e.bouton; if (e.fin) { x.fin = e.fin; x.perte = (m) => `${e.fin} (−${m})`; } if (typeof e.detail === 'function') x.detail = (ev) => esc(e.detail(ev)); coupsType[type] = x; }
+    // « Comment jouer » (l'annonce et sa relecture) : six points courts, chacun son icône
+    const COMMENT_JOUER = [
+      ['taper', 'Sers les monstres.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les apparitions et livre les commandes de la nuit.'],
+      ['mult', 'Le ×6 s’endort.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
+      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris.'],
+      ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’Halloween, la tenue de sorcière, le chat noir ; au 20e, le titre « Légende du Manoir ».'],
+      ['classement', 'Le classement.', 'Les 15 premiers de l’événement sont récompensés.'],
+      ['date', 'Jusqu’au lundi 2\u00a0novembre, 20\u00a0h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
+    ];
+    const icoRegle = (k) => (k === 'classement' ? (ICONS.coupe ? ICONS.coupe('or') : '') : k === 'date' ? ICONS.HANTEE.citrouille : k === 'bestiaire' ? (ICONS.HANTEE.bestiaire || ICONS.HANTEE.manoir) : ICONS.HANTEE[k] || ICONS.HANTEE.citrouille);
+    // la vidéo : seulement dans la page du jeu (fournil/index.html pose FOURNIL_ACCUEIL) ; l'artefact Claude n'a pas ses fichiers
+    const MEDIA = typeof window !== 'undefined' && window.FOURNIL_ACCUEIL ? 'media/' : '';
+    const mediaAnnonce = () => (MEDIA ? `<div class="ht-annonce-media"><video class="ht-annonce-video" muted playsinline autoplay loop preload="auto" poster="${MEDIA}maison-hantee-affiche.jpg" aria-label="La Maison hantée en vidéo : la boutique hantée, ses monstres, les fournées parfaites, les apparitions, les commandes de la nuit, le bestiaire, les paliers et la Légende du Manoir"><source src="${MEDIA}maison-hantee.mp4" type="video/mp4"></video></div>`
+      : `<div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${ICONS.HANTEE.manoir}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>`);
     const F = {
       cle, p: 'ht', racine: '#hantee', ecran: 'manoir', classe: 'ht', R: HR, nom, lieu, porte: false, lot: 'hantee', couleurs,
       fmt: bonbons, fmtPhrase: bonbons, prix: (n) => `${nombre(n)}<i class="bb" aria-hidden="true"></i>`, solde: (n) => `${nombre(n)}<small class="bb-mot">${nomDevise}</small>`,
@@ -1481,7 +1514,7 @@ const EVENEMENTS = (() => {
       scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // la vraie boutique, hantée (src/boutiquehantee.js) ; ?boutique=0 : le Manoir d'avant
       sons: 'hantee', // le jeu de sons de l'écran (src/sons.js, JEUX.hantee : fournil/sons/hantee/)
       activites: typeof HANTEE_ACTIVITES !== 'undefined' ? HANTEE_ACTIVITES : null, // les choses à FAIRE du Manoir (src/hanteeactivites.js) : le ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, la commande de la nuit
-      prechargerAnnonce: true,
+      prechargerAnnonce: true, revoir: true, // « Comment ça marche ? » dans la feuille des paliers : l'annonce, relue
       // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
       // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
       // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
@@ -1521,12 +1554,18 @@ const EVENEMENTS = (() => {
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
         bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
         bilanVide: txt('bilan', 'Le manoir a fermé ses volets. À l’année prochaine !'),
-        annonce: (f) => `<div class="pq-sheet ht ht-annonce"><div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${ICONS.HANTEE.manoir}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>
-          <h2>${esc(txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
-          <p class="sous">${esc(txt('annonce', `Jusqu’au lundi 2 novembre à 20 h : une boutique à part, « ${lieu} », où tout le monde part de zéro. Ses ${nomDevise} rapportent des récompenses pour ta boulangerie : étoiles, boosts, décos d’Halloween, une tenue de sorcière à vie, et le chat noir.`))}</p>
-          <p class="encadre">${esc(txt('annonceEncadre', 'Un peu effrayant, surtout mignon : pour tous les âges. Fantômes, momie et citrouilles t’attendent.'))}</p>
+        // l'annonce (une fois, à l'ouverture) et sa relecture (« Comment ça marche ? », dans la feuille des paliers : o.revoir) : la vidéo de
+        // présentation en tête (fournil/media/, capturée dans le jeu : outils/annonce-hantee/video.cjs ; muette, en boucle, son affiche en
+        // attendant ; sans fichier, l'artefact Claude : pas de média), puis « Comment jouer » en six points, et le bouton pour entrer
+        annonce: (f, o) => `<div class="pq-sheet ht ht-annonce${o && o.revoir ? ' ht-revoir' : ''}">${mediaAnnonce()}
+          <h2>${esc(o && o.revoir ? `Comment ça marche ?` : txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
+          <p class="sous">${esc(o && o.revoir ? `${lieu} : une boutique à part, où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.` : `Ta boutique, hantée pour Halloween : «\u00a0${lieu}\u00a0», une boutique à part où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.`)}</p>
+          <h3 class="titre-section ht-regles-titre">Comment jouer</h3>
+          <ul class="ht-regles">${COMMENT_JOUER.map(([k, b, t]) => `<li><span class="ht-regle-ico" aria-hidden="true">${icoRegle(k)}</span><p><b>${esc(b)}</b> ${esc(t)}</p></li>`).join('')}</ul>
+          ${o && o.revoir ? `<button type="button" class="btn large ht-btn" data-a="pq-compris" style="margin-top:14px"><b>C’est compris !</b></button>`
+            : `<p class="encadre">${esc(txt('annonceEncadre', 'Un peu effrayant, surtout mignon : pour tous les âges. Fantômes, momie et citrouilles t’attendent.'))}</p>
           <button type="button" class="btn large ht-btn" data-a="pq-entrer" style="margin-top:12px"><b>${esc(txt('ouvrir', 'Entrer dans le manoir'))}</b></button>
-          <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button></div>`,
+          <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button>`}</div>`,
       },
     };
     if (HE) { F.coups.taper = Object.assign({}, F.coups.taper, { reussite: (m) => `Bien joué, tout est sauf : +${m}` }); F.coups.livrer = Object.assign({}, F.coups.livrer, { badge: 'On attend ta commande', attend: 'prêt à servir', reussite: (m) => `Commande servie : +${m}` }); F.coups.attraper = Object.assign({}, F.coups.attraper, { reussite: (m) => `Attrapé : +${m}` }); }

@@ -16,6 +16,13 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-27-a', date: '2026-10-27', titre: 'La Maison hantée est ouverte',
+      points: [
+        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',
+        'Une courte vidéo te montre tout à l’ouverture. Tu peux la revoir quand tu veux : les paliers du Manoir › « Comment ça marche ? ».',
+      ],
+    },
+    {
       id: '2026-10-23-a', date: '2026-10-23', titre: 'De vrais clients en 3D dans ta boutique',
       points: [
         'En qualité Haute et Moyenne, tes clients sont maintenant de vrais personnages animés : ils font la queue, saluent en entrant, sautent de joie quand tu les sers, mangent leur croissant ou boivent leur café à table, puis repartent avec leur sac.',

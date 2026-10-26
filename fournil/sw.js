@@ -23,9 +23,28 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   const local = url.origin === self.location.origin;
+  if (local && /[/]media[/][^/]+[.]mp4$/.test(url.pathname)) { e.respondWith(video(req, url)); return; } // la vidéo de l'annonce : en cache entière, servie par morceaux
   if (local && (url.pathname.endsWith('.webmanifest') || url.pathname === new URL('./config.js', self.location).pathname)) { e.respondWith(fetch(req).then((res) => enCache(req, res)).catch(() => caches.match(req))); return; } // le manifeste et la configuration : le réseau d'abord
   if (local || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => enCache(req, res))));
 });
+// La vidéo de présentation d'un événement (fournil/media/*.mp4, l'annonce de la Maison hantée) : mise en cache ENTIÈRE à sa première lecture
+// (une requête sans Range, sous l'adresse seule), puis servie depuis la copie. Les lecteurs vidéo (Safari, toujours) demandent des morceaux
+// (Range: bytes=…) : on les découpe dans la copie (206 et Content-Range), sinon iPhone refuse de la lire. Hors ligne et jamais vue : une erreur
+// réseau, la feuille garde l'affiche (fournil/media/*.jpg, mise en cache comme toute image du site).
+function morceau(req, res) {
+  const r = /bytes=(\d*)-(\d*)/.exec(req.headers.get('range') || '');
+  if (!r || (!r[1] && !r[2])) return res;
+  return res.arrayBuffer().then((buf) => {
+    const n = buf.byteLength, debut = r[1] ? +r[1] : Math.max(0, n - +r[2]), fin = r[1] && r[2] ? Math.min(+r[2], n - 1) : n - 1;
+    if (debut >= n || debut > fin) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${n}` } });
+    return new Response(buf.slice(debut, fin + 1), { status: 206, statusText: 'Partial Content', headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Content-Range': `bytes ${debut}-${fin}/${n}`, 'Content-Length': String(fin - debut + 1), 'Accept-Ranges': 'bytes' } });
+  });
+}
+function video(req, url) {
+  const cle = url.origin + url.pathname;
+  return caches.match(cle).then((hit) => hit || fetch(cle).then((res) => { if (res.status === 200) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(cle, copy)).catch(() => {}); } return res; }))
+    .then((res) => (res.status === 200 ? morceau(req, res) : res)).catch(() => Response.error());
+}
 // Les notifications (Web Push, version 6 du classement) : la fonction « notifier » de Supabase envoie { titre, texte, url, type } chiffré pour cet
 // abonnement ; on l'affiche avec l'icône du jeu, une seule à la fois par type (tag). Toucher la notification ramène la fenêtre du jeu au
 // premier plan, ou l'ouvre. Les textes viennent de notre serveur, mais restent bornés ; l'adresse n'ouvre jamais qu'une page de ce site.
