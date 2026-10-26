@@ -948,7 +948,7 @@ const PLANETE = (() => {
     for (const x of E.magasins) { // les matrices : la boutique, sa forme minuscule (à ses dimensions), son gérant devant la vitrine, son enseigne sur le toit
       const s = x.s; x.mat = poser(new THREE.Matrix4(), x.p, x.h - 0.002, x.pl.f, x.k);
       x.matMicro = x.mat.clone().multiply(_m.makeScale(DIM.larg[s], (0.08 + DIM.haut[s]) / 1, DIM.prof[s]));
-      x.matGerant = x.mat.clone().multiply(_m.makeTranslation(-DIM.larg[s] * 0.3, 0, DIM.prof[s] / 2 + 0.28));
+      x.matGerant = x.mat.clone().multiply(_m.makeTranslation(-DIM.larg[s] * 0.3, 0, DIM.prof[s] / 2 + 0.44)).multiply(_m2.makeScale(1.25, 1.25, 1.25)); // (devant le bord du store : vu d'en haut, on le voit en entier)
       x.matOr = x.mat.clone().multiply(_m.makeTranslation(0, 0.08 + DIM.haut[s] + 0.02, DIM.prof[s] / 2 - 0.08)).multiply(_m2.makeScale(DIM.larg[s] * 0.6, DIM.larg[s] * 0.6, DIM.larg[s] * 0.6));
       x.haut = hauteurDe(s, x.f.or) * x.k; x.avant = (DIM.prof[s] / 2 + 0.62) * x.k; // (le pied de l'étiquette : devant le gérant, la devanture reste visible)
       teintes(x);
@@ -1114,7 +1114,7 @@ const PLANETE = (() => {
   function plusProche(x, y) {
     const r = E.cv.getBoundingClientRect(); x -= r.left; y -= r.top; let best = 0, bd = 34;
     for (const dr of E.drapeaux) {
-      if (!dr.vu || dr.a < 0.35) continue;
+      if (!dr.vu || dr.a < 0.3) continue; // (les fanions estompés autour d'une boutique choisie, à 35 %, se touchent encore : on passe à la voisine)
       const dx = Math.max(0, Math.abs(x - (dr.x + (dr.gauche ? -dr.w / 2 : dr.w / 2))) - dr.w / 2 - 4), dy = Math.max(0, Math.abs(y - (dr.y - 22)) - 12), d1 = Math.hypot(dx, dy), d2 = Math.hypot(x - dr.bx, y - dr.by) - 8; // le fanion ou la boutique
       const d = Math.min(d1, d2); if (d < bd) { bd = d; best = dr.n; }
     }
@@ -1437,6 +1437,20 @@ const PLANETE = (() => {
   }
   // la carte postale d'une région : sa vue rapprochée, un peu penchée vers son repère, rendue à part (540 × 360) sur le ciel de l'heure (le
   // même cadrage quelle que soit la taille de l'écran), puis un bord blanc et le nom du quartier dessous, comme une vraie carte
+  // le point de vue d'une carte postale : le centre de la région, son nord en haut. Le bord de mer, dont le centre est dans l'eau : sa côte
+  // (le premier point de terre en allant vers le village), la mer devant, la plage et ses boutiques derrière
+  let VUE_MER = null;
+  function vuePostale(R) {
+    if (R.id !== 'mer') return { p: R.c, nord: HAUT };
+    if (!VUE_MER) {
+      const v = RI.village.c, a = angle(R.c, v); let p;
+      const sur = (t) => R.c.clone().multiplyScalar(Math.sin((1 - t) * a)).addScaledVector(v, Math.sin(t * a)).normalize();
+      let t = 0; while (t < 1 && altitude(sur(t)) < MER + 0.004) t += 0.01;
+      p = sur(Math.min(1, t + 0.07 / a)); // (un peu en deçà de la côte : les boutiques au milieu de la carte, la mer devant)
+      VUE_MER = { p, nord: v.clone() };
+    }
+    return VUE_MER;
+  }
   function photo(q) {
     if (!E) return Promise.resolve(null); const R = REG[typeof q === 'string' ? REG.findIndex((x) => x.id === q) : q]; if (!R) return Promise.resolve(null);
     let rt = null, fond = null; const garde = { q: E.q.clone(), z: E.z, cadre: E.cadre, rs: E.rs, incl: E.incl, aspect: E.camera.aspect, H: E.H, loin: E.loin };
@@ -1445,7 +1459,7 @@ const PLANETE = (() => {
       const c = (CIELS[E.phase] || CIELS.jour).fond, cv0 = document.createElement('canvas'); cv0.width = 4; cv0.height = 64; const x0 = cv0.getContext('2d'), g0 = x0.createLinearGradient(0, 0, 0, 64);
       g0.addColorStop(0, c[0]); g0.addColorStop(1, c[1]); x0.fillStyle = g0; x0.fillRect(0, 0, 4, 64); fond = new THREE.CanvasTexture(cv0); fond.colorSpace = THREE.SRGBColorSpace;
       E.H = h; E.loin = Math.sqrt(Math.pow((h / 2) / Math.tan(CAM.fov * DEG / 2) / (h * 0.48), 2) + 1) - 1.02;
-      E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -0.12)); E.z = 0.58; E.cadre = 0.56; E.incl = 0; E.rs = altitude(R.c); E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
+      const vue = vuePostale(R); E.q.copy(orientationVers(vue.p, vue.nord)).premultiply(_qa.setFromAxisAngle(AXE_X, -0.12)); E.z = 0.58; E.cadre = 0.56; E.incl = 0; E.rs = altitude(vue.p); E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
       E.camera.aspect = w / h; E.camera.updateProjectionMatrix(); placerCamera(); E.cleLod = ''; trierBoutiques(); visibilites(); if (E.halo) E.halo.visible = false;
       E.scene.background = fond; E.renderer.setRenderTarget(rt); E.renderer.render(E.scene, E.camera); E.renderer.setRenderTarget(null); E.scene.background = null;
       const px = new Uint8Array(w * h * 4); E.renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
@@ -1510,7 +1524,7 @@ const PLANETE = (() => {
 .pl-conteneur .pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
 .pl-conteneur .pl-et-tete > div { min-width: 0; }
 .pl-conteneur .pl-et-tete .pl-et-nom { display: block; font: 700 17px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-conteneur .pl-et-tete small { display: block; margin-top: 2px; font: 700 12.5px/1.25 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-conteneur .pl-et-tete small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 2px; font: 700 12.5px/1.25 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); overflow: hidden; } /* (le quartier et le standing : deux lignes au besoin, « Le coin de rue parisien · Boutique de quartier ») */
 .pl-conteneur .pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc);
   font: 700 20px/1 var(--titre, "Fredoka", system-ui, sans-serif); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
 .pl-conteneur .pl-et-jauge { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 800 12px/1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; }
@@ -1577,7 +1591,7 @@ const PLANETE = (() => {
     essai: {
       pause(on) { if (!E) return; E.pause = !!on; E.essai = !!on; cancelAnimationFrame(E.raf); if (!on) { E.derniere = performance.now(); E.raf = requestAnimationFrame(boucle); } },
       image(dt, n) { if (!E) return; for (let k = 0; k < (n || 1); k++) image(dt == null ? 1 / 60 : dt); },
-      ecran(n) { const d = E && E.drapeaux.find((x) => x.n === n); if (!d) return null; const r = E.cv.getBoundingClientRect(); return { x: r.left + d.x + (d.gauche ? -d.w / 2 : d.w / 2), y: r.top + d.y - 22, bx: r.left + d.bx, by: r.top + d.by, vu: d.vu && d.a > 0.35 }; },
+      ecran(n) { const d = E && E.drapeaux.find((x) => x.n === n); if (!d) return null; const r = E.cv.getBoundingClientRect(); return { x: r.left + d.x + (d.gauche ? -d.w / 2 : d.w / 2), y: r.top + d.y - 22, bx: r.left + d.bx, by: r.top + d.by, vu: d.vu && d.a >= 0.3 }; },
       journal() { return E ? E.journal : null; }, temps() { return E ? E.temps : null; },
       etat() { return E ? { q: E.q.toArray().map((v) => +v.toFixed(4)), z: E.z, choisi: E.choisi, etiquette: !!E.etiquetteVue, tween: !!E.tween, vx: E.vx, vy: E.vy, entree: E.entree } : null; },
       repos() { if (!E) return; E.tween = null; E.q.copy(E.qRepos); E.z = 0; E.incl = 0; E.vx = 0; E.vy = 0; E.cadre = E.cadreBase; },

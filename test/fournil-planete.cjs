@@ -184,7 +184,11 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     const ret = await ev((n) => { PLANETE.essai.entrer(n); return PLANETE.stats.entree; }, cible.n);
     await image(30, 1 / 30);
     check(!ret && await ev(() => PLANETE.stats.etiquette), 'sans entrée de l\'écran, la planète revient à l\'étiquette ; une nouvelle entrée attend une seconde (pas de rafale)');
-    await touche('touchStart', [[300, 140]]); await touche('touchEnd', []); await image(60, 1 / 30);
+    const ciel = await ev(() => { // (un point du ciel loin de tout fanion encore touchable et de l'étiquette)
+      const f = []; for (let n = 1; n <= 40; n++) { const e = PLANETE.essai.ecran(n); if (e && e.vu) f.push(e); } const et = document.querySelector('.pl-etiquette').getBoundingClientRect();
+      for (const [x, y] of [[300, 140], [90, 140], [195, 110], [330, 220], [60, 220], [195, 170]]) if (f.every((e) => Math.hypot(e.x - x, e.y - y) > 60 && Math.hypot(e.bx - x, e.by - y) > 60) && !(x > et.left - 10 && x < et.right + 10 && y > et.top - 10 && y < et.bottom + 10)) return [x, y];
+      return [300, 140]; });
+    await touche('touchStart', [ciel]); await touche('touchEnd', []); await image(60, 1 / 30);
     check(await ev(() => !PLANETE.stats.etiquette && PLANETE.stats.choisi === 0 && PLANETE.stats.z < 0.2), 'toucher le ciel : l\'étiquette part, la caméra recule');
   }
   // de près : les budgets tiennent aussi

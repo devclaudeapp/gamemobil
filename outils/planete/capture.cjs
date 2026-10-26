@@ -6,7 +6,7 @@
 //   --captures : haute et éco, en plein écran et dans le cadre de l'écran « Ma chaîne » (la planète en haut, la liste dessous), à 5, 15 et
 //                30 boutiques ; une boutique touchée (son étiquette : sa jauge, son gérant, ses jetons) ; en haute, une Boutique d'or et un
 //                gérant de près, la nuit, 150 et 300 boutiques (les îlots) ; le petit téléphone (360 × 640) ; le soir, l'autre face, chaque
-//                région de près (la planche) ; trois cartes postales.
+//                région de près (la planche) ; quatre cartes postales.
 //   --video s  : s secondes à 30 images/s, dans le cadre de l'écran : l'arrivée, un glissé et son inertie, pincer, toucher une boutique, son
 //                étiquette, « Entrer » (le plongeon) → planete.mp4
 //   --mesures  : appels de dessin et triangles (la pire des vues : chaque région, sept zooms, deux caps ; à 30, 59, 150 et 300 boutiques,
@@ -95,7 +95,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     execFileSync('montage', [...fichiers, '-tile', '5x2', '-geometry', '390x844+6+6', '-background', '#FFF8EE', path.join(SORTIE, 'planche-regions.png')]);
     for (const f of fichiers) fs.unlinkSync(f);
     console.log('capture', path.join(SORTIE, 'planche-regions.png'));
-    for (const id of ['village', 'capitale', 'ile']) {
+    for (const id of ['village', 'mer', 'capitale', 'ile']) {
       const url = await J.ev((id) => PLANETE.photo(id), id);
       if (url) { const f = path.join(SORTIE, `carte-postale-${id}.jpg`); fs.writeFileSync(f, Buffer.from(url.split(',')[1], 'base64')); console.log('capture', f); }
     }
