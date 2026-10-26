@@ -1925,7 +1925,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(typeof PLANETE_ECRAN !== 'undefined' && PLANETE_ECRAN.ouvert); // (la petite planète, ?planete=1 : elle couvre tout l'écran) // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte
     // pas ici) ; on le retrouve en refermant. Les autres continuent : le coup de feu, le meunier et l'anniversaire ne demandent rien (les ventes

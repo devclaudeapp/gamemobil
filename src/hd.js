@@ -61,7 +61,7 @@ const HDM = (() => {
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
   // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre, avec sa raison
   // ('non:écran noir', 'non:joueur' ; un ancien 'non' tout court vaut 'joueur'), pour que le petit texte des Réglages reste juste après un rechargement
-  let coupeMem = null; const CLE = 'fournil.hd';
+  let coupeMem = null; const CLE = typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE('fournil.hd') : 'fournil.hd'; // (la version d'essai : « fournil.essai.hd »)
   const coupe = () => {
     if (coupeMem === null) { let v = null; try { v = localStorage.getItem(CLE); } catch (e) { /* rien */ } coupeMem = v === 'non' || /^non:/.test(v || ''); API.raison = coupeMem ? v.slice(4) || 'joueur' : ''; }
     return coupeMem;
