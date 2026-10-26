@@ -167,6 +167,19 @@ function vieille() {
   check(await ev(() => /0\/6 posées/.test(document.querySelector('#feuille .cn-compte').textContent)), 'rangée : 0/6 posées');
   await ev(() => { document.querySelectorAll('#feuille details.repli').forEach((d) => { d.open = true; }); }); await ev(() => { document.querySelector('#feuille').scrollTop = 900; }); await capture('carnet-familles');
   await fermerFeuille();
+  // le mode Déplacer (Aménager) : une déco posée se prend au doigt, aimantée à une place de son type (vert, CHAINE.peutPoser), et le lâcher
+  // écrit st.decos (la fusion : ui.js → VIE.proposerDeco → SCENE.glisserDeco / setDeplacerDecos)
+  const tiroirAvant = await ev(() => { const f = window.__fournil, t = f.tiroir(); f.tiroir('ferme'); f.st.decos = { v: 1, d: CHAINE.codeDecos([['chaine-statue', 's1']]) }; f.save(); f.SCENE.decos([['chaine-statue', 's1']]); f.amenager(true); return t; });
+  await sleep(600); await ev(() => document.querySelector('#b-deplacer').click()); await sleep(400);
+  const plD = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), c = (id) => { const q = VIE.LAY.decos.find((x) => x.id === id).r; return [r.left + q.x + q.w / 2, r.top + q.y + q.h / 2]; }; return { s1: c('s1'), s3: c('s3') }; });
+  await page.mouse.move(...plD.s1); await page.mouse.down(); await page.mouse.move(plD.s1[0] + 20, plD.s1[1] + 5, { steps: 4 }); await page.mouse.move(...plD.s3, { steps: 8 }); await sleep(300);
+  const gd = await ev(() => { const S = window.__fournil.SCENE, g = S.glisseDeco; return { dd: S.deplacerDecos, place: g && g.place, ok: g && g.ok }; });
+  await capture('decos-deplacer');
+  await page.mouse.up(); await sleep(600);
+  const gd2 = await ev(() => { const f = window.__fournil; return { dd: f.SCENE.deplacerDecos, poses: CHAINE.decosDepuisCode(f.st.decos.d), scene: f.SCENE.decosPosees }; });
+  check(gd.dd && gd.place === 's3' && gd.ok && !gd2.dd && JSON.stringify(gd2.poses) === '[["chaine-statue","s3"]]' && (gd2.scene || []).some((x) => x[0] === 'chaine-statue' && x[1] === 's3'),
+    `le mode Déplacer : la statue prise au doigt, en vert sur s3 (${gd.place}, ${gd.ok}), lâchée : st.decos = ${JSON.stringify(gd2.poses)}, la scène suit`);
+  await ev((t) => { const f = window.__fournil; f.amenager(false); delete f.st.decos; f.SCENE.decos(null); f.save(); f.tiroir(t); }, tiroirAvant); await sleep(400);
 
   console.log('── trois allers-retours planète → boutique → boulangerie : la mémoire GPU stable ──');
   const mem = [];

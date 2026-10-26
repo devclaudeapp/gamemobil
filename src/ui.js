@@ -435,6 +435,7 @@ const UI = (() => {
   }
   // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
   function debutGlisse(e, sx, sy) {
+    if (debutGlisseDeco(e, sx, sy)) return; // une déco posée sous le doigt (« Mes décos ») passe avant le meuble
     const m = VIE.mobileSous(sx, sy, false); if (!m) return;
     if (!VIE.mobileAchete(m)) { son.non(); montrerToast('Ce meuble n’est pas encore acheté : sa place lui est gardée.'); return; }
     glisse = { id: m.id, pid: e.pointerId, dx: m.x - sx, dy: m.y - sy, x0: sx, y0: sy, bouge: false, cle: '', p: null };
@@ -443,13 +444,21 @@ const UI = (() => {
   }
   function majGlisse(sx, sy) {
     const g = glisse; if (!g) return; if (Math.hypot(sx - g.x0, sy - g.y0) > 6) g.bouge = true;
+    if (g.deco) { // une déco : aimantée à la place de son type la plus proche, vert ou rouge (CHAINE.peutPoser)
+      const p = VIE.proposerDeco(g.poses, g.id, sx, sy, qualiteDecos()); if (!p) return;
+      const avant = g.p; g.p = p; if (avant && avant.place === p.place) return; // la même place : rien à refaire
+      SCENE.glisserDeco(p); if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
+      return;
+    }
     const p = VIE.proposer(amenCible(), g.id, sx + g.dx, sy + g.dy); if (!p) return;
     const cle = JSON.stringify(p.a); if (cle === g.cle) return; // la même case : rien à refaire
     const avant = g.p; g.cle = cle; g.p = p; SCENE.glisser({ id: g.id, rect: p.rect, ok: p.ok, raison: p.raison, x: p.x, y: p.y, autre: p.autre });
     if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
   }
   function finGlisse(annule) {
-    const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
+    const g = glisse; glisse = null; SCENE.glisser(null);
+    if (g && g.deco) { SCENE.glisserDeco(null); SCENE.setDeplacerDecos(false); finGlisseDeco(g, annule); return; }
+    if (!g || !g.p || annule || !g.bouge) return;
     const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
     const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
@@ -459,6 +468,25 @@ const UI = (() => {
     son.achat(); buzz(10); save(); $('#b-origine').hidden = !amenCible().amenagement;
   }
   const amenCible = () => (chaineVue ? chaineVue.v : st); // le plan que Déplacer modifie : celui de la boutique de la chaîne où l'on est, sinon la boulangerie
+  // une déco posée (« Mes décos », contrat « Ma chaîne » § 6.3) se prend aussi au doigt en mode Déplacer : aimantée à la place de son type
+  // la plus proche (VIE.proposerDeco ; vert ou rouge par CHAINE.peutPoser), la scène dessine les 12 places (SCENE.setDeplacerDecos). Une
+  // place prise : les deux décos s'échangent. Seulement une disposition déjà faite : au plan d'origine, le carnet « Mes décos » la commence.
+  const qualiteDecos = () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; };
+  function debutGlisseDeco(e, sx, sy) {
+    if (!CE || !CH || !SCENE.decoSous || !SCENE.setDeplacerDecos || !SCENE.glisserDeco || !VIE.proposerDeco) return false;
+    const id = SCENE.decoSous(sx, sy), poses = id ? CE.posesDe(chaineVue ? chaineVue.n : 0) : null; if (!id || !poses || !poses.length) return false;
+    glisse = { deco: true, id, poses, pid: e.pointerId, x0: sx, y0: sy, bouge: false, p: null };
+    SCENE.setDeplacerDecos(true);
+    try { $('#scene').setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
+    son.tap(); buzz(6); majGlisse(sx, sy); return true;
+  }
+  function finGlisseDeco(g, annule) {
+    if (!g.p || annule || !g.bouge) return;
+    if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} La déco reste à sa place.`); return; }
+    const l = CH.nettoyerPoses(g.p.poses); if (JSON.stringify(l) === JSON.stringify(g.poses)) return;
+    if (chaineVue) CH.poser(st, chaineVue.n, l); else st.decos = { v: 1, d: CH.codeDecos(l) }; // (la boulangerie : st.decos, comme le carnet)
+    son.achat(); buzz(10); save(); decosScene();
+  }
   function planOrigine() {
     if (!amenCible().amenagement) return;
     openSheet(`<h2>Revenir au plan d’origine ?</h2><p class="sous">Les tables, le bar, le coin salon et la terrasse retournent à leur place du premier jour. Tu pourras les déplacer encore.</p><button type="button" class="btn large" data-a="oui"><b>Oui, le plan d’origine</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde mes places</b></button>`);
