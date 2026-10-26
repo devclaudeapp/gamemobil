@@ -8,7 +8,9 @@
 //    le chat et le client en route recasés quand un meuble bouge, un plan qui ne tient pas sur l'écran (Déplacer part du plan affiché),
 //    un écran large (grille bornée au code compact), les colonnes et les cordons du trottoir sans recouvrement.
 // Les décos de la Maison hantée gagnées (citrouilles, toiles, chaudron, fantôme, toque, et l'étagère aux bocaux de monstres du bestiaire)
-// posées en plus, tout au max : le budget tient encore ; et la lanterne de la légende (le 20e palier, lot 6) : deux appels de plus, au plus
+// posées en plus, tout au max : le budget tient encore ; et la lanterne de la légende (le 20e palier, lot 6). Depuis « Mes décos » (lot de la
+// chaîne), les décos et les petits décors fixes sont fusionnés en deux maillages (src/meubles.js fusion : « petits » et « lueurs ») : une
+// déco de plus n'ajoute plus AUCUN appel de dessin (l'étagère en coûtait 1, la lanterne 2) ; le budget reste le même, ≤ 72 en éco
 // (captures acharnes-*.png dans SHOTS_ACHARNES). Captures 390×844 dans test/shots/meubles/ (et, celle des bocaux, dans SHOTS_BESTIAIRE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-meubles.cjs   (--plan : la partie 1 seule)
 'use strict';
@@ -293,40 +295,37 @@ const server = http.createServer((req, res) => {
   const ap = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, salle: a.tables + a.bar + a.banquette + a.terrasse + a.couverts }; });
   check(ap.decor <= 72 && ap.salle <= 7, `éco, tout au max : ${ap.decor} appels de dessin pour le décor (≤ 72), dont ${ap.salle} pour les tables, le bar, le salon, la terrasse et tous les couverts`);
   { // les décos de la Maison hantée, toutes gagnées (le bestiaire compris : l'étagère aux bocaux de monstres), en plus de tout le reste
-    const appels = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, bocaux: a['ht-bestiaire'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
+    // (la fusion : l'étagère est dans le maillage des petits décors, « petits » ; les décos ensemble : petits + lueurs, 3 appels au plus)
+    const appels = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, sansC: decor - (a.couverts || 0), fusion: (a.petits || 0) + (a.lueurs || 0), vues: window.__fournil.SCENE.decosHanteeVues }; }); // (sansC : sans les couverts, qui vont et viennent avec les clients assis)
     await ev(() => window.__fournil.SCENE.decosHantee(['bestiaire'])); await sleep(1500); const seule = await appels();
-    check(seule.vues.includes('bestiaire') && seule.bocaux === 1 && seule.decor <= 72 && seule.decor <= ap.decor + 1, `éco, tout au max et l’étagère aux bocaux de monstres (le bestiaire) : ${seule.decor} appels de dessin pour le décor (≤ 72), dont ${seule.bocaux} pour elle`);
+    check(seule.vues.includes('bestiaire') && seule.fusion <= 3 && seule.decor <= 72 && seule.sansC <= ap.decor, `éco, tout au max et l’étagère aux bocaux de monstres (le bestiaire) : ${seule.decor} appels de dessin pour le décor (≤ 72) ; elle n’en ajoute aucun (fusionnée : ${seule.fusion} pour les petits décors et les décos ; 1 de plus avant la fusion)`);
     await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille'])); await sleep(1500); const sans = await appels();
     await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire'])); await sleep(1500); const aph = await appels();
-    // (les décos des paliers de la Maison hantée, d'avant le bestiaire, dépassent déjà les 72 ensemble : l'étagère n'y ajoute qu'un appel)
-    check(aph.vues.includes('bestiaire') && aph.decor === sans.decor + 1, `avec toutes les décos de la Maison hantée : ${sans.decor} → ${aph.decor} appels (l’étagère aux bocaux n’en ajoute qu’un ; ${aph.vues.join(', ')})`);
+    // (les décos des paliers de la Maison hantée dépassaient les 72 ensemble avant la fusion ; fusionnées, elles tiennent, et l'étagère n'ajoute rien)
+    check(aph.vues.includes('bestiaire') && aph.sansC === sans.sansC && aph.decor <= 72 && aph.fusion <= 3, `avec toutes les décos de la Maison hantée : ${sans.decor} → ${aph.decor} appels (≤ 72 ; l’étagère aux bocaux n’en ajoute aucun ; ${aph.vues.join(', ')})`);
     const fz = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY.fenetre; return { x: r.left + L.x, y: r.top, w: L.w }; });
     await page.screenshot({ path: path.join(out, 'decos-hantee-eco.png') });
     await page.screenshot({ path: path.join(out, 'bocaux-eco.png'), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
     if (out3) { fs.copyFileSync(path.join(out, 'decos-hantee-eco.png'), path.join(out3, 'bestiaire-decor-boutique.png')); fs.copyFileSync(path.join(out, 'bocaux-eco.png'), path.join(out3, 'bestiaire-decor.png')); }
     // les acharnés (lot 6) : la lanterne de la légende (le 20e palier de la Maison hantée), seule puis avec toutes les autres : deux appels de plus
-    const appelsL = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, lanterne: a['ht-legende'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
+    // (la lanterne : son fer dans « petits », sa flamme dans « lueurs », toujours là pour les aiguilles de l'horloge : aucun appel de plus ; 2 avant la fusion)
+    const appelsL = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, sansC: decor - (a.couverts || 0), fusion: (a.petits || 0) + (a.lueurs || 0), vues: window.__fournil.SCENE.decosHanteeVues }; }); // (sansC : sans les couverts, qui vont et viennent avec les clients assis)
     await ev(() => window.__fournil.SCENE.decosHantee(['legende'])); await sleep(1500); const leg = await appelsL();
-    check(leg.vues.includes('legende') && leg.lanterne === 2 && leg.decor <= 72 && leg.decor <= ap.decor + 2, `éco, tout au max et la lanterne de la légende : ${leg.decor} appels de dessin pour le décor (≤ 72), dont ${leg.lanterne} pour elle (le fer, la flamme)`);
+    check(leg.vues.includes('legende') && leg.fusion <= 3 && leg.decor <= 72 && leg.sansC <= ap.decor, `éco, tout au max et la lanterne de la légende : ${leg.decor} appels de dessin pour le décor (≤ 72) ; elle n’en ajoute aucun (le fer et la flamme fusionnés : ${leg.fusion} pour les petits décors et les décos)`);
     await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire', 'legende'])); await sleep(1500); const tout = await appelsL();
-    check(tout.vues.includes('legende') && tout.decor === aph.decor + 2, `avec toutes les décos de la Maison hantée et la lanterne : ${aph.decor} → ${tout.decor} appels (la lanterne n’en ajoute que deux)`);
+    check(tout.vues.includes('legende') && tout.sansC === aph.sansC && tout.decor <= 72, `avec toutes les décos de la Maison hantée et la lanterne : ${aph.decor} → ${tout.decor} appels (≤ 72 ; la lanterne n’en ajoute aucun)`);
     { const L = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), l = VIE.LAY, li = VIE.LAY.lanes; return { top: r.top, murH: l.murH, plan: l.plan, lanes: li, fs: l.fourSlots, grille: l.grille.y0 }; });
       check(L.plan.y > L.murH + 60 && L.grille > L.murH + 80 && L.fs[0] > 390 * 0.045 + 25, `la lanterne (au pied du fournil, à gauche) : hors de la grille des meubles (qui commence à ${Math.round(L.grille)} px) et loin des apprentis (le premier four à ${Math.round(L.fs[0])} px)`);
       const dir = process.env.SHOTS_ACHARNES; if (dir) { fs.mkdirSync(dir, { recursive: true }); await page.screenshot({ path: path.join(dir, 'acharnes-decos-toutes.png') }); await page.screenshot({ path: path.join(dir, 'acharnes-lanterne.png'), clip: { x: 0, y: Math.max(0, L.top + L.murH - 40), width: 200, height: 170 } }); } }
     await ev(() => window.__fournil.SCENE.decosHantee([])); await sleep(500);
   }
   { // § 2.b de la base saine : l'enseigne néon (le Quartier) et l'étagère aux bocaux (le bestiaire) partagent la fenêtre ; les deux gagnées, le néon
-    // remonte au-dessus des couvercles. Les boîtes des deux groupes, projetées à l'écran par la vraie caméra, ne se recoupent pas
-    const boites = async () => {
-      await prendreScene(ev); await attendre(() => ev(() => !!(window.__scene3 && window.__camera3)), 10000);
-      return ev(() => {
-        const S = window.__scene3, cam = window.__camera3, r = document.querySelector('#scene').getBoundingClientRect(), b = new THREE.Box3(), v = new THREE.Vector3();
-        const ecran = (nom) => { const g = S && S.children.find((x) => x.userData.nom === nom); if (!g || !cam) return null; b.setFromObject(g); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-          for (let i = 0; i < 8; i++) { v.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(cam); const px = r.left + (v.x + 1) / 2 * r.width, py = r.top + (1 - v.y) / 2 * r.height; x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py); }
-          return { x0, y0, x1, y1 }; };
-        return { neon: ecran('neon'), bocaux: ecran('bocaux') };
-      });
-    };
+    // remonte au-dessus des couvercles. Leurs boîtes (fusionnées, chacune la sienne : SCENE.decosBoites, projetées à l'écran par la vraie caméra) ne se recoupent pas
+    const boites = () => ev(() => {
+      const r = document.querySelector('#scene').getBoundingClientRect(), b = window.__fournil.SCENE.decosBoites;
+      const ecran = (id) => { const q = b[id]; return q ? { x0: r.left + q.x, y0: r.top + q.y, x1: r.left + q.x + q.w, y1: r.top + q.y + q.h } : null; };
+      return { neon: ecran('neon'), bocaux: ecran('bestiaire') };
+    });
     const recoupe = (a, b) => !!(a && b) && a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1, txt = (a) => (a ? `${Math.round(a.y0)}-${Math.round(a.y1)} px` : 'absent');
     await ev(() => { window.__fournil.SCENE.decosQuartier(['neon']); window.__fournil.SCENE.decosHantee([]); }); await sleep(1200); const seul = await boites();
     await ev(() => window.__fournil.SCENE.decosHantee(['bestiaire'])); await sleep(1500); const deux = await boites();
