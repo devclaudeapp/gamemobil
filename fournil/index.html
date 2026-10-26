@@ -16,7 +16,7 @@
 // la page du jeu vit dans fournil/ : servie ailleurs (une vieille copie en cache à la racine), ses chemins relatifs (../vendor, ../icons) casseraient
 (function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]fournil[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'fournil/'); } catch (e) { /* rien */ } })();
 </script>
-<script>window.FOURNIL_CLE = (k) => k;</script>
+<script>window.FOURNIL_CLE = window.FOURNIL_CLE || ((k) => k);</script>
 <title>Le Fournil</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2095,59 +2095,10 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
 .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
 
-/* ─── « Ma chaîne de boutiques » (src/chaine-ecran.js, src/planete.js) ───
-   La petite planète : la toile, les fanions numérotés des boutiques, l'étiquette d'une boutique, la légende de la région face à soi, le ciel
-   qui suit l'heure (classes posées par PLANETE) ; puis l'écran « Ma chaîne » (#chaine : la planète en haut, la liste dessous), le bandeau
-   d'une boutique de la chaîne au-dessus de la scène, la boutique des jetons, le carnet « Mes décos », la feuille du retour, l'essai */
-.pl-conteneur { position: relative; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
-.pl-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
-.pl-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
-.pl-drap { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform, opacity; }
-.pl-drap span { position: absolute; left: -1px; bottom: 0; display: block; padding: 0 0 12px 2px; }
-.pl-drap span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 0; width: 2px; border-radius: 1px; background: #6E5B52; }
-.pl-drap b { display: block; min-width: 21px; padding: 2px 7px 2px 5px; border-radius: 2px 9px 9px 2px; background: var(--acc); color: var(--enc); font: 700 12.5px/1.15 var(--titre);
-  text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .95), 0 2px 4px rgba(74, 51, 40, .22); }
-.pl-drap.gauche span { left: auto; right: -1px; padding: 0 2px 12px 0; }
-.pl-drap.gauche span::before { left: auto; right: 0; }
-.pl-drap.gauche b { border-radius: 9px 2px 2px 9px; padding: 2px 5px 2px 7px; }
-.pl-drap.gauche .pl-jet { right: auto; left: -6px; }
-.pl-drap .pl-jet { position: absolute; top: -5px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(74, 51, 40, .3); }
-.pl-drap.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--acc), 0 4px 10px rgba(74, 51, 40, .3); }
-.pl-drap.brume b { filter: saturate(.35) brightness(1.08); }
-.pl-etiquette { position: absolute; left: 0; top: 0; width: min(282px, calc(100% - 24px)); padding: 12px 14px 14px; border-radius: 22px; background: #fff; color: var(--texte);
-  box-shadow: 0 12px 30px rgba(74, 51, 40, .2), 0 2px 0 rgba(74, 51, 40, .05); opacity: 0; transition: opacity .2s ease-out; pointer-events: auto; will-change: transform; z-index: 3; }
-.pl-etiquette.vue { opacity: 1; }
-.pl-pointe { position: absolute; top: -7px; left: var(--pointe, 50%); width: 16px; height: 16px; margin-left: -8px; border-radius: 3px; background: #fff; transform: rotate(45deg); }
-.pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
-.pl-et-tete > div { min-width: 0; }
-.pl-et-tete b { display: block; font: 700 18px/1.15 var(--titre); }
-.pl-et-tete small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2); }
-.pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc); font: 700 20px/1 var(--titre); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
-.pl-et-infos { display: grid; gap: 6px; margin: 10px 0 12px; }
-.pl-et-infos span { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--creme); font-size: 14px; }
-.pl-et-infos span.or { background: var(--or-clair); }
-.pl-et-infos svg { width: 22px; height: 22px; flex: 0 0 auto; }
-.pl-et-entrer { width: 100%; min-height: 48px; border-radius: 16px; font: 700 17px/1 var(--titre); }
-.pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px);
-  padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .88); box-shadow: 0 4px 14px rgba(74, 51, 40, .1); white-space: nowrap; pointer-events: none; transition: opacity .2s; }
-.pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
-.pl-legende b { font: 700 16px/1 var(--titre); overflow: hidden; text-overflow: ellipsis; }
-.pl-legende small { font-size: 12.5px; color: var(--texte-2); }
-.pl-legende.cache, .pl-indice.cache { opacity: 0; }
-.pl-indice.cache { animation: none; }
-.pl-indice { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); text-align: center;
-  font-size: 13px; color: var(--texte-2); pointer-events: none; transition: opacity .4s; animation: plIndice 1s .9s both; }
-@keyframes plIndice { from { opacity: 0; } to { opacity: 1; } }
-/* le ciel suit l'heure (PLANETE, option heure) : l'aube, le soir, le crépuscule, la nuit étoilée ; le jour garde le fond de #chaine */
-.pl-conteneur.pl-aube { background: radial-gradient(115% 62% at 50% 46%, #FFFBF6 0%, #FFEFE8 36%, #F6E4F2 64%, #FFE3D4 100%); }
-.pl-conteneur.pl-soir { background: radial-gradient(115% 62% at 50% 46%, #FFF8F0 0%, #FFE8DA 34%, #F8D6E2 62%, #F1C8D2 100%); }
-.pl-conteneur.pl-crepuscule { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent),
-  radial-gradient(115% 62% at 50% 46%, #F4EFFF 0%, #DDD5F6 36%, #C2B9E9 64%, #CDAED8 100%); }
-.pl-conteneur.pl-nuit { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 70% 26%, #fff 60%, transparent),
-    radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 88% 70%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 8% 60%, #fff 60%, transparent),
-    radial-gradient(2.5px 2.5px at 40% 9%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 58% 88%, #fff 60%, transparent), radial-gradient(2px 2px at 93% 40%, #fff 60%, transparent),
-    radial-gradient(115% 62% at 50% 46%, #E8E8FA 0%, #C6C8EE 34%, #A2A6DC 62%, #8C89C6 100%); }
-.pl-conteneur:is(.pl-nuit, .pl-crepuscule) .pl-indice { color: #3F3A72; }
+/* ─── « Ma chaîne de boutiques » (src/chaine-ecran.js) ───
+   La petite planète a sa propre feuille de style (src/planete.js, règles .pl-*, posée en tête du document). Ici : l'écran « Ma chaîne »
+   (#chaine : la planète en haut, la liste dessous), le bandeau d'une boutique de la chaîne au-dessus de la scène, la boutique des jetons,
+   le carnet « Mes décos », la feuille du retour, l'essai */
 
 /* l'écran « Ma chaîne » : plein écran, sous les feuilles (la boutique des jetons, le gérant, le carnet s'ouvrent par-dessus) */
 #chaine { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; animation: atEntre .22s ease-out;
@@ -2518,7 +2469,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'dd2837400890';</script>
+<script>window.FOURNIL_VERSION = '2fae51b80c6c';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -21972,7 +21923,7 @@ const UI = (() => {
   //     Jamais une écriture sur une clé du vrai jeu. Rien trouvé (sur iPhone, le jeu de l'écran d'accueil a son propre stockage) : la
   //     feuille « coller le code », après le lancement.
   let essaiVide = false, essaiCopie = false;
-  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' });
+  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' }); // essai : la vraie partie, lue seulement
   function idbVraieLire() {
     return new Promise((res) => {
       let fini = false; const fin = (v) => { if (!fini) { fini = true; res(v); } };
@@ -21997,7 +21948,7 @@ const UI = (() => {
     if (!s) { essaiVide = true; return null; }
     s.essaiCopie = HORLOGE.maintenant(); essaiCopie = true;
     // les coupes du podium (la vitrine, Mes décos) : une copie de fournil.classement, SANS l'identité (id, jeton), sous la clé de l'essai
-    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ }
+    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ } // essai : la vraie partie, lue seulement
     return s;
   }
   // « Recommencer l'essai » : les seules clés de l'essai effacées (le préfixe de FOURNIL_CLE, la base de l'essai), puis la page relue la recopie
@@ -22339,6 +22290,7 @@ const UI = (() => {
   }
   // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
   function debutGlisse(e, sx, sy) {
+    if (debutGlisseDeco(e, sx, sy)) return; // une déco posée sous le doigt (« Mes décos ») passe avant le meuble
     const m = VIE.mobileSous(sx, sy, false); if (!m) return;
     if (!VIE.mobileAchete(m)) { son.non(); montrerToast('Ce meuble n’est pas encore acheté : sa place lui est gardée.'); return; }
     glisse = { id: m.id, pid: e.pointerId, dx: m.x - sx, dy: m.y - sy, x0: sx, y0: sy, bouge: false, cle: '', p: null };
@@ -22347,13 +22299,21 @@ const UI = (() => {
   }
   function majGlisse(sx, sy) {
     const g = glisse; if (!g) return; if (Math.hypot(sx - g.x0, sy - g.y0) > 6) g.bouge = true;
+    if (g.deco) { // une déco : aimantée à la place de son type la plus proche, vert ou rouge (CHAINE.peutPoser)
+      const p = VIE.proposerDeco(g.poses, g.id, sx, sy, qualiteDecos()); if (!p) return;
+      const avant = g.p; g.p = p; if (avant && avant.place === p.place) return; // la même place : rien à refaire
+      SCENE.glisserDeco(p); if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
+      return;
+    }
     const p = VIE.proposer(amenCible(), g.id, sx + g.dx, sy + g.dy); if (!p) return;
     const cle = JSON.stringify(p.a); if (cle === g.cle) return; // la même case : rien à refaire
     const avant = g.p; g.cle = cle; g.p = p; SCENE.glisser({ id: g.id, rect: p.rect, ok: p.ok, raison: p.raison, x: p.x, y: p.y, autre: p.autre });
     if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
   }
   function finGlisse(annule) {
-    const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
+    const g = glisse; glisse = null; SCENE.glisser(null);
+    if (g && g.deco) { SCENE.glisserDeco(null); SCENE.setDeplacerDecos(false); finGlisseDeco(g, annule); return; }
+    if (!g || !g.p || annule || !g.bouge) return;
     const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
     const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
@@ -22363,6 +22323,25 @@ const UI = (() => {
     son.achat(); buzz(10); save(); $('#b-origine').hidden = !amenCible().amenagement;
   }
   const amenCible = () => (chaineVue ? chaineVue.v : st); // le plan que Déplacer modifie : celui de la boutique de la chaîne où l'on est, sinon la boulangerie
+  // une déco posée (« Mes décos », contrat « Ma chaîne » § 6.3) se prend aussi au doigt en mode Déplacer : aimantée à la place de son type
+  // la plus proche (VIE.proposerDeco ; vert ou rouge par CHAINE.peutPoser), la scène dessine les 12 places (SCENE.setDeplacerDecos). Une
+  // place prise : les deux décos s'échangent. Seulement une disposition déjà faite : au plan d'origine, le carnet « Mes décos » la commence.
+  const qualiteDecos = () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; };
+  function debutGlisseDeco(e, sx, sy) {
+    if (!CE || !CH || !SCENE.decoSous || !SCENE.setDeplacerDecos || !SCENE.glisserDeco || !VIE.proposerDeco) return false;
+    const id = SCENE.decoSous(sx, sy), poses = id ? CE.posesDe(chaineVue ? chaineVue.n : 0) : null; if (!id || !poses || !poses.length) return false;
+    glisse = { deco: true, id, poses, pid: e.pointerId, x0: sx, y0: sy, bouge: false, p: null };
+    SCENE.setDeplacerDecos(true);
+    try { $('#scene').setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
+    son.tap(); buzz(6); majGlisse(sx, sy); return true;
+  }
+  function finGlisseDeco(g, annule) {
+    if (!g.p || annule || !g.bouge) return;
+    if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} La déco reste à sa place.`); return; }
+    const l = CH.nettoyerPoses(g.p.poses); if (JSON.stringify(l) === JSON.stringify(g.poses)) return;
+    if (chaineVue) CH.poser(st, chaineVue.n, l); else st.decos = { v: 1, d: CH.codeDecos(l) }; // (la boulangerie : st.decos, comme le carnet)
+    son.achat(); buzz(10); save(); decosScene();
+  }
   function planOrigine() {
     if (!amenCible().amenagement) return;
     openSheet(`<h2>Revenir au plan d’origine ?</h2><p class="sous">Les tables, le bar, le coin salon et la terrasse retournent à leur place du premier jour. Tu pourras les déplacer encore.</p><button type="button" class="btn large" data-a="oui"><b>Oui, le plan d’origine</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde mes places</b></button>`);
