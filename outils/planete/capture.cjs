@@ -109,10 +109,17 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     await J.ev(() => ESSAI.ouvrir(16, { heure: 12 }));
     await J.page.waitForFunction(() => PLANETE.ouvert && PLANETE.stats.kit, null, { timeout: 30000 }).catch(() => {});
     await J.ev(() => { ESSAI.ouvrir(16, { heure: 12 }); PLANETE.essai.pause(true); }); // (de nouveau, le kit en cache : l'arrivée filmée depuis le début)
+    // le temps du film : une image prend bien plus de 1/30 s à rendre et à capturer ; les fondus CSS (l'étiquette, la légende, le voile
+    // d'« Entrer ») et les minuteurs de la page (le retour après « Entrer ») sont donc ralentis au pas des images, sinon ils iraient 5 à
+    // 10 fois trop vite dans le film (le voile couvrirait le plongeon d'un coup, et la planète reviendrait aussitôt)
+    await J.cdp.send('Animation.enable');
+    await J.ev(() => { const st = window.setTimeout; window.__lent = 1; window.setTimeout = (f, d, ...a) => st(f, (+d || 0) * window.__lent, ...a); });
+    let lent = 1, w = 0; const caler = async () => { const l = Math.max(1, w * FPS); if (Math.abs(l - lent) / lent > 0.1) { lent = l; await J.cdp.send('Animation.setPlaybackRate', { playbackRate: 1 / l }); await J.ev((l) => { window.__lent = l; }, l); } };
+    { const t0 = Date.now(), f = path.join(dir, 'essai.png'); await J.ev(() => PLANETE.essai.image(0, 1)); await dodo(30); await J.page.screenshot({ path: f }); fs.unlinkSync(f); w = (Date.now() - t0) / 1000; await caler(); } // (une image d'essai, à l'arrêt : le premier pas)
     let ts = Date.now() / 1000; const T = (k) => k / FPS, Y = 250; // (le milieu de la planète, dans le cadre de l'écran)
     const cible = { n: 0 };
     for (let k = 0; k < n; k++) {
-      const t = T(k);
+      const t = T(k), t0 = Date.now();
       // un glissé vers la gauche (1,4 → 2,15 s), puis l'inertie
       if (t >= 1.4 && t < 2.15) { const u = (t - 1.4) / 0.75, x = 310 - u * 220, y = Y + Math.sin(u * 3) * 10; await J.touche(k === Math.round(1.4 * FPS) ? 'touchStart' : 'touchMove', [[x, y]], ts += 1 / FPS); }
       if (k === Math.round(2.15 * FPS)) await J.touche('touchEnd', [], ts += 1 / FPS);
@@ -129,8 +136,10 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
       if (k === Math.round(7.9 * FPS)) { const b = await J.ev(() => { const e = document.querySelector('.pl-et-entrer'); if (!e || !PLANETE.stats.etiquette) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); if (b) { await J.touche('touchStart', [b], ts += 1 / FPS); await J.touche('touchEnd', [], ts += 0.05); } }
       await J.image(1, 1 / FPS); await dodo(30);
       await J.page.screenshot({ path: path.join(dir, `i${String(k).padStart(4, '0')}.png`) });
+      const d = (Date.now() - t0) / 1000; w = w ? w * 0.8 + d * 0.2 : d; if (k % 5 === 4) await caler(); // (le pas moyen d'une image, en secondes)
       if (k % 30 === 0) process.stdout.write(`${k}/${n} `);
     }
+    console.log(`\n(une image du film : ${(w * 1000).toFixed(0)} ms à rendre et capturer ; fondus et minuteurs ralentis ×${lent.toFixed(1)})`);
     const out = path.join(SORTIE, 'planete.mp4');
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, 'i%04d.png'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '21', '-preset', 'medium', '-movflags', '+faststart', out]);
     fs.rmSync(dir, { recursive: true, force: true });
