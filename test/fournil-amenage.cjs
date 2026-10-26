@@ -160,6 +160,17 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   check(zs.every((z) => z.w >= 44 && z.h >= 44 && z.bas <= z.tiroir + 1), `aménagé : les zones de touche de la salle font au moins 44 px et restent au-dessus du tiroir fermé (${zs.map((z) => `${z.id} ${z.w}×${z.h}`).join(', ')})`);
   const nb = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return decor; });
   check(nb <= 72, `éco, aménagé : ${nb} appels de dessin pour le décor (≤ 72)`);
+  { // « Mes décos » (lot de la chaîne) : les 6 décos les plus lourdes posées dans la boutique aménagée, fusionnées avec les petits décors (src/meubles.js
+    // fusion) : le budget reste le même ; leurs places (src/vie.js LAY.decos : au mur, à la fenêtre, au pied du fournil, le coin du chien) ne touchent aucun meuble déplacé
+    const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], ['neon', 'm2'], ['bestiaire', 'm1'], ['toiles', 'r1']];
+    await ev((l) => window.__fournil.SCENE.decos(l), LOURDES); await attendre(() => ev(() => (window.__fournil.SCENE.decosPosees || []).length === 6), 8000); await sleep(800);
+    const r = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe, L = VIE.LAY; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v;
+      const inter = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h, sol = L.decos.filter((p) => p.type === 'sol');
+      return { decor, decos: (a.petits || 0) + (a.lueurs || 0), touche: L.mobiles.filter((m) => m.dedans && sol.some((p) => inter(m.r, p.r))).map((m) => m.id) }; });
+    check(r.decor <= 72 && r.decos <= 3 && !r.touche.length, `éco, aménagé, les 6 décos les plus lourdes posées : ${r.decor} appels pour le décor (≤ 72), dont ${r.decos} pour les décos ; aucune place du sol sous un meuble déplacé ${r.touche.join(' ')}`);
+    await page.screenshot({ path: path.join(out, '5b-tout-deplace-decos.png') });
+    await ev(() => window.__fournil.SCENE.decos(null)); await sleep(400);
+  }
   await d.toucherEl('#b-fini'); await sleep(500);
   check(await ev(() => !window.__fournil.SCENE.amenager && !window.__fournil.SCENE.deplacer && document.querySelector('#amenage-barre').hidden), '« Terminé » : on quitte Aménager (et Déplacer)');
   // un client qui vient s'asseoir passe par sa nouvelle voie
