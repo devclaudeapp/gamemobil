@@ -1,15 +1,35 @@
 La petite planète de « Ma chaîne » (src/planete.js), qualité haute et moyenne : le kit planete.glb, tout en CC0.
 
-planete.glb : 11 modèles dans un seul GLB (un maillage nommé par modèle), cuits par outils/planete/kit.mjs à partir de
-outils/planete/selection.json : couleurs de sommets (l'atlas cuit, sans texture ni normales), base posée sur y = 0, meshopt.
-La planète elle-même (le sol, l'eau, les dix régions, les boutiques à six standings, les repères : le moulin, l'immeuble d'angle,
-le phare, le chalet, le gratte-ciel, la halle de la gare et son petit train, le château, la tour Eiffel…) est faite main dans src/planete.js ; le kit
-n'ajoute que quelques modèles en qualité haute. Sans lui (éco, ?hd=0, l'artefact), la planète reste entière.
-- immeuble_a, immeuble_b, immeuble_c : KayKit City Builder Bits 1.0 (Kay Lousberg, kaylousberg.com ; github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0, 63976910),
-  building_A/B/C_withoutBase, teintes pâlies (pastel 0,32) — la grande ville
-- voilier : Kenney Watercraft Kit 2.1 (kenney.nl/assets/watercraft-pack), boat-sail-a — le bord de mer
-- coffre : Kenney Pirate Kit 2.1 (kenney.nl/assets/pirate-kit), chest — l'île
-- fontaine : Kenney Fantasy Town Kit 2.0 (kenney.nl/assets/fantasy-town-kit), fountain-square — la capitale
-- etal_rouge, etal_vert : Kenney Fantasy Town Kit 2.0, stall-red, stall-green — le marché du village
-- fleurs_rouges, fleurs_jaunes, fleurs_mauves : Kenney Nature Kit 2.1 (kenney.nl/assets/nature-kit), flower_redA/yellowA/purpleA — le village
-Les licences de chaque pack sont à côté (LICENCE-*.txt). Le crédit (Kenney, Kay Lousberg) est apprécié, pas obligatoire.
+planete.glb (45 Ko) : 11 modèles dans un seul GLB, un maillage nommé par modèle, cuits par outils/planete/kit.mjs à partir de
+outils/planete/selection.json : la couleur de l'atlas devenue couleur de sommets (ni texture, ni UV, ni normales : la planète les
+calcule à facettes), la base posée sur y = 0, soudure, quantification, meshopt. Lu une fois par le lot « planete » de src/hd.js.
+
+La planète elle-même est faite main dans src/planete.js : le sol et l'eau, les dix régions et leurs repères (le moulin du village,
+l'immeuble d'angle parisien, le phare, l'hôtel de la montagne, le gratte-ciel, la halle de la gare et son petit train, l'île et sa
+paillote, le château, la station de ski et son télésiège, la tour Eiffel), les boutiques à six standings, les gérants, les enseignes
+d'or, les arbres, les maisons, les nuages. Le kit n'ajoute que ces quelques modèles ; sans lui (éco, ?hd=0, l'artefact), la planète
+reste entière.
+
+Les modèles, leur pack, leur version, leur source :
+- immeuble_a, immeuble_b, immeuble_c — la grande ville (teintes pâlies : pastel 0,32)
+  KayKit City Builder Bits 1.0 (Kay Lousberg), building_A/B/C_withoutBase
+  https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0
+- voilier — le bord de mer
+  Kenney Watercraft Kit 2.1, boat-sail-a — https://kenney.nl/assets/watercraft-pack
+- coffre — le coffre au trésor sur la plage de l'île
+  Kenney Pirate Kit 2.1, chest — https://kenney.nl/assets/pirate-kit
+- fontaine — la capitale
+  Kenney Fantasy Town Kit 2.0, fountain-square — https://kenney.nl/assets/fantasy-town-kit
+- etal_rouge, etal_vert — le marché du village
+  Kenney Fantasy Town Kit 2.0, stall-red, stall-green
+- fleurs_rouges, fleurs_jaunes, fleurs_mauves — les prés du village
+  Kenney Nature Kit 2.1, flower_redA, flower_yellowA, flower_purpleA — https://kenney.nl/assets/nature-kit
+
+Le Holiday Kit de Kenney n'est pas utilisé : le petit train, les sapins enneigés et les chalets sont faits main.
+
+Les licences : LICENCE-kenney.txt (les quatre packs Kenney) et LICENCE-kaykit.txt (City Builder Bits), telles que livrées dans
+les packs. Tout est en CC0 (domaine public) : le crédit (Kenney, www.kenney.nl ; Kay Lousberg, www.kaylousberg.com) est apprécié,
+pas obligatoire.
+
+Recuire le kit (depuis un dossier qui a @gltf-transform 4, meshoptimizer et sharp) :
+  node outils/planete/kit.mjs <racine des packs> outils/planete/selection.json fournil/hd/planete/planete.glb

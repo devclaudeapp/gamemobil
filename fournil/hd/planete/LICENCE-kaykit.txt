@@ -1,3 +1,10 @@
+Les modèles KayKit de la petite planète (planete.glb) : un pack, sous la licence Creative Commons Zero (CC0).
+Ci-dessous, le fichier de licence du pack, tel qu'il est livré dans le pack.
+
+====================================================================================================
+KayKit : City Builder Bits 1.0 (Kay Lousberg, kaylousberg.com) — https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0
+Modèles repris : immeuble_a, immeuble_b, immeuble_c (building_A_withoutBase, building_B_withoutBase, building_C_withoutBase)
+====================================================================================================
 
 	KayKit : City Builder Bits (1.0)
 

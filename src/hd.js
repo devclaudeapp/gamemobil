@@ -31,7 +31,7 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
-    // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, ≈ 60 Ko) : son kit de modèles libres (Kenney,
+    // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
     planete: { planete: ['planete'] },
   };

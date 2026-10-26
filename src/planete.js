@@ -5,8 +5,11 @@
    capitale) et une boutique par numéro de la chaîne, posée dans sa région, de plus en plus luxueuse avec son standing (six paliers).
    Au-dessus de chaque boutique, son fanion numéroté : un filet pour la jauge de la Boutique d'or, un point doré quand il y a des jetons à
    prendre, tout doré pour une Boutique d'or. Devant sa porte, son gérant s'il en a un ; sur le toit d'une Boutique d'or, l'enseigne dorée.
-   Toucher une boutique fait tourner la planète et zoome dessus, puis montre son étiquette (son nom, son quartier et son standing, la jauge,
-   le gérant, les jetons à prendre, « Entrer ») ; « Entrer » plonge vers sa porte, puis appelle onEntrer.
+   Toucher une boutique fait tourner la planète et l'approche, sa façade vers nous, puis montre son étiquette dessous (son numéro, son nom,
+   son quartier et son standing, la jauge, le gérant et le temps qu'il lui reste, les jetons à prendre, « Entrer ») ; son fanion s'efface
+   alors (l'étiquette porte son numéro). Le cadrage est calculé pour que la boutique tienne entre le titre de l'écran et son étiquette : la
+   planète de l'écran « Ma chaîne » (340 à 490 px de haut) a une étiquette compacte (130 px) et s'approche moins. « Entrer » plonge vers
+   sa porte, puis appelle onEntrer, une seule fois (une seconde de garde après).
    Tout est procédural (0 Ko) ; en qualité haute et moyenne, la HD permise, quelques modèles libres (le kit fournil/hd/planete/planete.glb :
    Kenney et KayKit, CC0, cuits en couleurs de sommets par outils/planete/kit.mjs ; le lot « planete » de src/hd.js) s'y ajoutent. En éco :
    le sol moins fin, un décor réduit, des boutiques simplifiées, ni nuages ni animations.
@@ -516,7 +519,7 @@ const PLANETE = (() => {
 
   // ─── l'état de la planète ouverte ───
   let E = null;
-  const CAM = { fov: 30, fovPres: 44, pres: 0.62, inclin: 60 * DEG, penche: 0.36, choix: 0.72 };
+  const CAM = { fov: 30, fovPres: 44, pres: 0.62, inclin: 60 * DEG, penche: 0.36, choix: 0.72, choixMin: 0.24, inclChoix: 48 * DEG }; // (choix : le zoom d'une boutique choisie, au plus ; inclChoix : son inclinaison, au moins ; voir cadrage)
   const capital = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
   // une fiche de CHAINE.liste, bornée : ce que la planète en garde (le reste, la caisse, le rythme, ne la regarde pas)
   function normaliser(f) {
@@ -727,8 +730,9 @@ const PLANETE = (() => {
       }
       case 'ile':
         repere('paillote', autour(R, 0.03, 2.2), 0.05, 0.05, 0.06);
-        semer('palmier', 10, 0.02, 0.2, 0.055, 0.075, { ombre: 0.6, eco: 0.4 }); semer('palmier', 2 * ILOTS_ACTIFS.ile, 0.3, 0.66, 0.045, 0.06, { ombre: 0.6, eco: 0.3, sur: (p) => angle(p, R.c) > 0.33 }); // (l'île, puis ses îlots) semer('voilier', 2, 0.3, 0.5, 0.07, 0.08, { eau: true, libre: true, eco: 0, enfonce: 0 }); // (les voiliers du kit, 390 triangles pièce, gardés pour le bord de mer)
+        semer('palmier', 10, 0.02, 0.2, 0.055, 0.075, { ombre: 0.6, eco: 0.4 }); semer('palmier', 2 * ILOTS_ACTIFS.ile, 0.3, 0.66, 0.045, 0.06, { ombre: 0.6, eco: 0.3, sur: (p) => angle(p, R.c) > 0.33 }); // (l'île, puis ses îlots)
         semer('ponton', 1, 0.19, 0.22, 0.05, 0.05, { libre: true, plage: true, eco: 0, face: versCentre, fin: true }); semer('paillote', 2, 0.05, 0.17, 0.04, 0.045, { eco: 0, ombre: 0.9, fin: true });
+        if (kit) semer('kit:coffre', 1, 0.12, 0.28, 0.022, 0.024, { plage: true, ombre: 0.8, fin: true }); // le coffre au trésor sur la plage (le kit : 232 triangles, de près seulement)
         break;
       case 'chateau':
         repere('chateau', R.c, 0.125, 0.13, 0.14);
@@ -1018,16 +1022,22 @@ const PLANETE = (() => {
   const distance = (z) => E.loin * Math.pow(CAM.pres / E.loin, borne(z, -0.35, 1.2));
   const inclinaison = (z) => CAM.inclin * lisse(0.12, 0.9, z);
   const _qi = new THREE.Quaternion(), _va = new V3();
-  function placerCamera() {
-    const cam = E.camera, d = distance(E.z), t = inclinaison(E.z), rs = E.rs, fov = fovDe(E.z);
-    cam.fov = fov; E.fpx = (E.H / 2) / Math.tan(fov * DEG / 2);
+  // une caméra au zoom z, sa cible (le sol au rayon rs, devant la planète) à la hauteur cadre de l'écran (fraction depuis le haut)
+  function cameraPour(cam, z, cadre, rs, incl) {
+    const d = distance(z), t = inclinaison(z) + (incl || 0), fov = fovDe(z);
+    cam.fov = fov; cam.aspect = E.camera.aspect;
     cam.position.set(0, -Math.sin(t) * d, rs + Math.cos(t) * d); cam.up.set(0, 1, 0); cam.lookAt(0, 0, rs);
-    cam.rotateX(-Math.atan((1 - 2 * E.cadre) * Math.tan(fov * DEG / 2))); // la cible à sa hauteur dans l'écran (E.cadre : fraction depuis le haut)
+    cam.rotateX(-Math.atan((1 - 2 * cadre) * Math.tan(fov * DEG / 2)));
     cam.near = Math.max(0.004, d * 0.06); cam.far = d + 4; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+    return d;
+  }
+  function placerCamera() {
+    const cam = E.camera, d = cameraPour(cam, E.z, E.cadre, E.rs, E.incl);
+    E.fpx = (E.H / 2) / Math.tan(cam.fov * DEG / 2);
     E.camLocal.copy(cam.position).applyQuaternion(_qi.copy(E.q).invert()); // (la caméra dans le repère de la planète : l'horizon, le LOD)
     // la lumière d'appoint vient de la caméra, un peu sur la gauche, vers ce qu'elle regarde : faible de loin (la planète garde son volume),
     // plus forte de près (les devantures, tournées vers nous, ne restent pas dans l'ombre du soleil qui vient d'en haut)
-    E.appoint.position.copy(cam.position).add(_va.set(-0.6 * d, 0.25 * d, 0)); E.appoint.target.position.set(0, 0, rs); E.appoint.target.updateMatrixWorld();
+    E.appoint.position.copy(cam.position).add(_va.set(-0.6 * d, 0.25 * d, 0)); E.appoint.target.position.set(0, 0, E.rs); E.appoint.target.updateMatrixWorld();
     E.appoint.intensity = E.appointMax * lerp(0.12, 1, lisse(0.2, 0.75, E.z));
   }
   // l'orientation qui amène le point p devant la caméra, la tangente « nord » vers le haut de l'écran
@@ -1045,7 +1055,7 @@ const PLANETE = (() => {
     const T = E.tween;
     if (T) {
       T.t += dt; const k = T.mou ? 1 - Math.pow(1 - Math.min(1, T.t / T.duree), 3) : T.entre ? Math.pow(Math.min(1, T.t / T.duree), 2.2) : doux(Math.min(1, T.t / T.duree));
-      E.q.slerpQuaternions(T.q0, T.q1, k); E.z = lerp(T.z0, T.z1, k); E.cadre = lerp(T.c0, T.c1, k);
+      E.q.slerpQuaternions(T.q0, T.q1, k); E.z = lerp(T.z0, T.z1, k); E.cadre = lerp(T.c0, T.c1, k); if (T.i1 != null) E.incl = lerp(T.i0, T.i1, k);
       if (T.t >= T.duree) { E.tween = null; if (T.fin) T.fin(); }
     } else if (!E.doigts.size && !E.entree) {
       if (Math.abs(E.vx) + Math.abs(E.vy) > 0.002) { tourner(E.vx * dt, E.vy * dt); const k = Math.exp(-dt * 3.4); E.vx *= k; E.vy *= k; } else { E.vx = 0; E.vy = 0; }
@@ -1057,6 +1067,7 @@ const PLANETE = (() => {
         if (performance.now() - E.geste > 7000 && !E.essai && !E.reduit) tourner(0.03 * dt, 0);
       }
       if (!E.choisi) E.cadre += (E.cadreBase - E.cadre) * (1 - Math.exp(-dt * 6));
+      if (E.incl && !E.etiquetteVue) { E.incl *= Math.exp(-dt * 3); if (E.incl < 1e-3) E.incl = 0; } // (on a quitté la boutique choisie du doigt : la caméra se redresse)
     }
     // le rayon visé suit le sol sous le centre de l'écran (de près, la caméra garde sa hauteur au-dessus des collines)
     const rs = altitude(devant()); E.rs += (Math.max(MER, rs) - E.rs) * (1 - Math.exp(-dt * 7));
@@ -1076,7 +1087,7 @@ const PLANETE = (() => {
     const dx = e.clientX - d.x, dy = e.clientY - d.y; d.x = e.clientX; d.y = e.clientY; E.geste = performance.now();
     if (Math.hypot(d.x - d.x0, d.y - d.y0) > 8) { E.tap = false; if (E.choisi && E.etiquetteVue) cacherEtiquette(); }
     if (E.doigts.size === 1) {
-      const k = vitesse(), ax = dx * k, ay = dy * k / Math.max(0.4, Math.cos(inclinaison(E.z)));
+      const k = vitesse(), ax = dx * k, ay = dy * k / Math.max(0.4, Math.cos(inclinaison(E.z) + E.incl));
       tourner(ax, ay); const t = e.timeStamp || performance.now(); E.echant.push({ t, ax, ay }); while (E.echant.length > 2 && t - E.echant[1].t > 160) E.echant.shift(); // (l'heure de l'événement, pas celle de son traitement : un téléphone occupé les livre en paquets)
     } else if (E.doigts.size === 2) {
       const [a, b] = [...E.doigts.values()], l = Math.hypot(a.x - b.x, a.y - b.y);
@@ -1108,30 +1119,63 @@ const PLANETE = (() => {
     }
     return best;
   }
-  function toucher(x, y) { const n = plusProche(x, y); if (n) choisir(n, true); else if (E.choisi) relacher(); }
+  function toucher(x, y) {
+    const n = plusProche(x, y); if (n) { choisir(n, true); return; }
+    if (!E.choisi) return;
+    // la boutique choisie elle-même (son fanion s'est effacé sous son étiquette) : la toucher de nouveau ne la lâche pas ; ailleurs, oui
+    const d = E.etiquetteVue && E.drapeaux.find((v) => v.n === E.choisi), r = E.cv.getBoundingClientRect();
+    if (d && Math.hypot(x - r.left - d.bx, y - r.top - d.by + 24) < 44) return;
+    relacher();
+  }
+  // le cadrage d'une boutique choisie : à quelle hauteur de l'écran la poser et de combien s'approcher, pour qu'elle tienne entre le titre
+  // (opts.haut) et son étiquette, dessous, sans être démesurée. La planète de l'écran « Ma chaîne » (340 à 490 px de haut)
+  // s'approche donc moins qu'une planète en plein écran, et un palais moins qu'une boutique de quartier. Mesuré avec une caméra d'essai, la
+  // boutique déjà devant (là où le tour l'amène : sa façade vers nous, sa place au centre, son sol au rayon visé)
+  const _camC = new THREE.PerspectiveCamera(), _pc2 = new V3();
+  function cadrage(x, hEt) {
+    const H = E.H, titre = E.haut + 8, yPiedMax = H - 18 - hEt, hMax = borne(H * 0.3, 70, 170), a = Math.atan(x.avant);
+    const incl = (z) => Math.max(0, CAM.inclChoix - inclinaison(z)); // (de moins près, la caméra se penche quand même : on voit sa façade, pas son toit)
+    const yDe = (z, cadre, y, r) => { cameraPour(_camC, z, cadre, x.h, incl(z)); _pc2.set(0, y, r).project(_camC); return (1 - _pc2.y) * H / 2; };
+    const tient = (z, cadre) => { const yt = yDe(z, cadre, 0, x.h + x.haut + 0.002); return yt >= titre && cadre * H - yt <= hMax; }; // (son toit sous le titre ; son fanion s'efface quand l'étiquette paraît)
+    let cadre = Math.min(0.5, (yPiedMax - 14) / H), z = CAM.choix;
+    for (let passe = 0; passe < 2; passe++) {
+      for (z = CAM.choix; z > CAM.choixMin && !tient(z, cadre); z -= 0.02);
+      z = Math.max(z, CAM.choixMin);
+      const ecart = yDe(z, cadre, -Math.sin(a) * (x.h + 0.004), Math.cos(a) * (x.h + 0.004)) - cadre * H; // (le pied, devant la devanture : là où pointe l'étiquette)
+      cadre = borne((yPiedMax - ecart) / H, 0.3, 0.5);
+    }
+    return { z, cadre, incl: incl(z) };
+  }
+  // la hauteur de l'étiquette d'une boutique, mesurée cachée (son contenu dépend de la boutique : un nom, une jauge ou l'or)
+  function mesurerEtiquette(f) {
+    const el = E.etiquette; el.innerHTML = contenuEtiquette(f); el.classList.toggle('or', f.or);
+    el.style.visibility = 'hidden'; el.hidden = false; const h = el.offsetHeight; el.hidden = true; el.style.visibility = '';
+    return h || (E.compacte ? 132 : 160);
+  }
   function choisir(n, signaler) {
     const x = E.parN[n]; if (!x || E.entree) return false;
     if (!E.choisi) E.zAvant = E.z; E.choisi = n; cacherEtiquette(); E.cleLod = ''; majDrapeaux(); E.touche = true;
+    const c = E.choix = cadrage(x, mesurerEtiquette(x.f));
     const q1 = orientationVers(x.p, _v2.copy(x.pl.f).negate()), a = 2 * Math.acos(borne(Math.abs(q1.dot(E.q)), 0, 1));
-    E.tween = { q0: E.q.clone(), q1, z0: E.z, z1: Math.max(E.z, CAM.choix), c0: E.cadre, c1: E.cadreChoix, t: 0, duree: E.reduit ? 0.3 : 0.75 + 0.45 * a / Math.PI, fin: () => { if (E && E.choisi === n) montrerEtiquette(n); } };
+    E.tween = { q0: E.q.clone(), q1, z0: E.z, z1: c.z, c0: E.cadre, c1: c.cadre, i0: E.incl, i1: c.incl, t: 0, duree: E.reduit ? 0.3 : 0.75 + 0.45 * a / Math.PI, fin: () => { if (E && E.choisi === n) montrerEtiquette(n); } };
     E.vx = 0; E.vy = 0; E.geste = performance.now();
     if (signaler && E.opts.onToucher) try { E.opts.onToucher(n); } catch (e) { /* rien */ }
     return true;
   }
   function relacher() {
     if (!E || !E.choisi || E.entree) return; E.choisi = 0; E.cleLod = ''; cacherEtiquette(); majDrapeaux();
-    E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: Math.min(E.z, E.zAvant == null ? 0 : E.zAvant), c0: E.cadre, c1: E.cadreBase, t: 0, duree: E.reduit ? 0.3 : 0.8 };
+    E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: Math.min(E.z, E.zAvant == null ? 0 : E.zAvant), c0: E.cadre, c1: E.cadreBase, i0: E.incl, i1: 0, t: 0, duree: E.reduit ? 0.3 : 0.8 };
   }
   // « Entrer » : la caméra plonge vers la porte, le ciel voile l'écran, puis onEntrer(n) ; si l'écran garde la planète ouverte (il n'est pas
   // entré), elle revient à l'étiquette au bout d'un moment. Pas d'entrée en rafale : un seul plongeon à la fois, et une seconde de garde après.
   function entrer(n) {
     if (!E || E.entree || performance.now() - (E.sortie || 0) < 1000 || !E.parN[n]) return;
     const e0 = E; E.entree = n; cacherEtiquette(); E.conteneur.classList.add('pl-entree');
-    E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: 1.16, c0: E.cadre, c1: 0.56, t: 0, duree: E.reduit ? 0.2 : 0.55, entre: true, fige: true, fin: () => {
+    E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: 1.16, c0: E.cadre, c1: 0.56, i0: E.incl, i1: 0, t: 0, duree: E.reduit ? 0.2 : 0.55, entre: true, fige: true, fin: () => {
       if (E !== e0) return;
       try { if (E.opts.onEntrer) E.opts.onEntrer(n); } catch (x) { /* rien */ }
       if (E !== e0) return; // (l'écran a fermé la planète : elle est partie)
-      E.minuteurEntree = setTimeout(() => { if (E !== e0) return; E.entree = 0; E.sortie = performance.now(); E.conteneur.classList.remove('pl-entree'); E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: CAM.choix, c0: E.cadre, c1: E.cadreChoix, t: 0, duree: 0.5, fin: () => { if (E === e0 && E.choisi === n) montrerEtiquette(n); } }; }, 1200);
+      E.minuteurEntree = setTimeout(() => { if (E !== e0) return; E.entree = 0; E.sortie = performance.now(); E.conteneur.classList.remove('pl-entree'); const c = E.choix || { z: CAM.choix, cadre: 0.47, incl: 0 }; E.tween = { q0: E.q.clone(), q1: E.q.clone(), z0: E.z, z1: c.z, c0: E.cadre, c1: c.cadre, i0: E.incl, i1: c.incl, t: 0, duree: 0.5, fin: () => { if (E === e0 && E.choisi === n) montrerEtiquette(n); } }; }, 1200);
     } };
   }
 
@@ -1172,8 +1216,8 @@ const PLANETE = (() => {
     const cam = E.camera, W = E.W, H = E.H, mw = E.monde.matrixWorld, loin = E.z > 0.45, cand = [];
     for (const d of E.drapeaux) {
       _n.copy(d.normale).applyQuaternion(E.q); _p.copy(d.local).applyMatrix4(mw); _vers.copy(cam.position).sub(_p); const dist = _vers.length(); _vers.divideScalar(dist);
-      let a = d.x0.vu && d.x0.lod < 3 ? lisse(0.06, 0.32, _n.dot(_vers)) : 0; if (loin) a *= lisse(2.2, 1.2, dist); if (E.choisi && d.n !== E.choisi && E.etiquetteVue) a *= 0.35;
-      if (E.entree) a = 0;
+      let a = d.x0.vu && d.x0.lod < 3 ? lisse(0.06, 0.32, _n.dot(_vers)) : 0; if (loin && d.n !== E.choisi) a *= lisse(2.2, 1.2, dist); if (E.choisi && d.n !== E.choisi && E.etiquetteVue) a *= 0.35;
+      if (E.entree || (d.n === E.choisi && E.etiquetteVue)) a = 0; // (la boutique choisie : son étiquette porte son numéro, son fanion s'efface)
       if (a >= 0.03) { _p.project(cam); const px = (_p.x + 1) * W / 2; a *= lisse(-8, 4, px) * lisse(W + 8, W - 4, px); d.px = Math.round((_p.x + 1) * W / 2 * 2) / 2; d.py = Math.round((1 - _p.y) * H / 2 * 2) / 2; } // (contre un bord de l'écran, le fanion qui en sortirait s'efface)
       d.ac = a; d.dist = dist; if (a >= 0.03) cand.push(d);
     }
@@ -1200,24 +1244,35 @@ const PLANETE = (() => {
     }
     E.drapeauxVus = vus;
   }
+  // l'étiquette d'une boutique : son numéro, son nom, son quartier et son standing ; la jauge vers la Boutique d'or (ou l'or) ; son gérant (le
+  // temps qu'il lui reste, ou « à l'arrêt » : passer le voir) et ses jetons à prendre, l'un sous l'autre, « Entrer » à côté. Une mise en
+  // page, deux tailles : compacte dans la planète de l'écran « Ma chaîne » (340 à 490 px de haut, l'étiquette y fait 130 px environ)
+  function texteGerant(f) {
+    const g = f.gerant; if (!g) return { t: 'Pas de gérant', c: 'sans' };
+    if (g.reste != null) { const r = Math.max(0, g.reste - (performance.now() - E.tFiches) / 1000); return r > 0 ? { t: `Gérant · encore ${duree(r)}`, c: '' } : { t: 'Gérant à l’arrêt', c: 'arret' }; } // (le temps qu'il lui restait à la fiche, moins le temps passé depuis)
+    return { t: g.heures != null ? `Gérant · ${g.heures} h au plus` : 'Gérant', c: '' };
+  }
   function contenuEtiquette(f) {
-    const R = REG[f.q], j = f.jauge, g = f.gerant;
-    const jauge = f.or ? `<div class="pl-et-or">${ico('enseigneOr', SVG_OR)}<span><b>Boutique d’or</b><small>L’enseigne dorée brille sur son toit</small></span></div>`
-      : j ? `<div class="pl-et-jauge"><span>Vers la Boutique d’or</span><b>${j.fait}/${j.max}</b><i style="width:${Math.min(100, j.fait / j.max * 100).toFixed(1)}%"></i></div>` : '';
-    // deux cases côte à côte : le gérant (sa part du rythme, le temps qu'il lui reste, ou « à l'arrêt » : passer le voir), les jetons à prendre
-    const detail = g ? [g.part != null ? `${Math.round(g.part * 100)} %` : '', g.reste != null ? (g.reste > 0 ? `encore ${duree(g.reste)}` : 'à l’arrêt') : g.heures != null ? `${g.heures} h` : ''].filter(Boolean).join(' · ') : 'à embaucher';
-    const ger = `<span class="pl-et-case${g ? '' : ' sans'}">${ico('gerant', SVG_GERANT)}<span><b>${g ? 'Gérant' : 'Pas de gérant'}</b><small>${detail}</small></span></span>`;
-    const jet = `<span class="pl-et-case${f.jetons ? ' or' : ' sans'}">${ico('cleChaine', SVG_CLE)}<span><b>${f.jetons ? pluriel(f.jetons, 'jeton') : 'Aucun jeton'}</b><small>à prendre</small></span></span>`;
-    return `<i class="pl-pointe"></i><div class="pl-et-tete"><b class="pl-et-num">${f.n}</b><div><b class="pl-et-nom">${esc(f.nom)}</b><small>${esc(capital(R.nom))} · ${esc(NOMS_STANDING[f.s])}</small></div></div>
-      ${jauge}<div class="pl-et-cases">${ger}${jet}</div><button type="button" class="btn pl-et-entrer">Entrer</button>`;
+    const R = REG[f.q], j = f.jauge, ger = texteGerant(f);
+    const jauge = f.or ? `<div class="pl-et-or">${ico('enseigneOr', SVG_OR)}<b>Boutique d’or</b><small>l’enseigne brille</small></div>`
+      : j ? `<div class="pl-et-jauge"><span>Vers l’or</span><i><i style="width:${Math.min(100, j.fait / j.max * 100).toFixed(1)}%"></i></i><b>${j.fait}/${j.max}</b></div>` : '';
+    return `<i class="pl-pointe"></i><div class="pl-et-tete"><b class="pl-et-num">${f.n}</b><div><b class="pl-et-nom">${esc(f.nom)}</b><small>${esc(capital(R.nom))} · ${esc(NOMS_STANDING[f.s])}</small></div></div>${jauge}
+      <div class="pl-et-bas"><div class="pl-et-infos"><span class="pl-et-ger ${ger.c}">${ico('gerant', SVG_GERANT)}<span>${ger.t}</span></span>
+        <span class="pl-et-jet ${f.jetons ? 'a' : 'sans'}">${ico('cleChaine', SVG_CLE)}<span>${f.jetons ? `${pluriel(f.jetons, 'jeton')} à prendre` : 'Aucun jeton'}</span></span></div>
+        <button type="button" class="btn pl-et-entrer"><b>Entrer</b></button></div>`;
   }
   function montrerEtiquette(n) {
     const x = E.parN[n]; if (!x) return; const f = x.f, R = REG[f.q], acc = accentDe(f), el = E.etiquette;
     el.style.setProperty('--acc', acc); el.style.setProperty('--enc', clair(acc) ? '#4A3328' : '#FFFFFF');
     el.innerHTML = contenuEtiquette(f); el.classList.toggle('or', f.or);
     el.querySelector('.pl-et-entrer').addEventListener('click', (e) => { e.stopPropagation(); entrer(n); });
-    el.setAttribute('aria-label', `Boutique n°${f.n}, ${f.nom}, ${R.nom}`); el.hidden = false; E.etiquetteVue = true; placerEtiquette(); requestAnimationFrame(() => { if (E && E.etiquetteVue) el.classList.add('pl-vue'); });
+    el.setAttribute('aria-label', `Boutique n°${f.n}, ${f.nom}, ${R.nom}`); el.hidden = false; E.etiquetteVue = true; E.gerantVu = 0; placerEtiquette(); void el.offsetWidth; el.classList.add('pl-vue'); // (le fondu part de la mise en page qui vient d'être calculée, sans attendre une image)
     E.legende.classList.add('cache');
+  }
+  function majGerantEtiquette() { // une fois par seconde, l'étiquette ouverte : le temps qu'il reste au gérant
+    const now = performance.now(); if (!E.etiquetteVue || now - E.gerantVu < 1000) return; E.gerantVu = now;
+    const x = E.parN[E.choisi], s = x && x.f.gerant && E.etiquette.querySelector('.pl-et-ger'); if (!s) return;
+    const g = texteGerant(x.f), t = s.lastElementChild; if (t.textContent !== g.t) { t.textContent = g.t; s.className = 'pl-et-ger ' + g.c; }
   }
   function cacherEtiquette() { if (!E || !E.etiquette) return; E.etiquette.classList.remove('pl-vue'); E.etiquette.hidden = true; E.etiquetteVue = false; E.legende.classList.remove('cache'); }
   function placerEtiquette() { // sous l'avant de la boutique (sa devanture reste visible) ; s'il n'y a pas la place dessous, au-dessus de son fanion
@@ -1256,7 +1311,7 @@ const PLANETE = (() => {
     if (E.nuages) E.nuages.rotation.y = E.t * 0.012;
     visibilites();
     E.renderer.render(E.scene, E.camera);
-    placerDrapeaux(); placerEtiquette(); if (!E.choisi) majLegende();
+    placerDrapeaux(); placerEtiquette(); majGerantEtiquette(); if (!E.choisi) majLegende();
     E.images++;
   }
   function boucle(now) {
@@ -1272,12 +1327,20 @@ const PLANETE = (() => {
   function redimensionner() {
     if (!E) return; const r = E.conteneur.getBoundingClientRect(), W = Math.max(1, Math.round(r.width)), H = Math.max(1, Math.round(r.height)); if (W === E.W && H === E.H) return;
     E.W = W; E.H = H; E.renderer.setSize(W, H, false); E.camera.aspect = W / H; E.camera.updateProjectionMatrix();
-    const haut = Number.isFinite(+E.opts.haut) ? +E.opts.haut : 64, bas = Number.isFinite(+E.opts.bas) ? +E.opts.bas : 54;
+    const haut = E.haut = Number.isFinite(+E.opts.haut) ? +E.opts.haut : 64, bas = Number.isFinite(+E.opts.bas) ? +E.opts.bas : 54;
     E.f = (H / 2) / Math.tan(CAM.fov * DEG / 2); const rpx = Math.max(50, Math.min(W * 0.45, (H - haut - bas) * 0.48)), Dc = Math.sqrt(Math.pow(E.f / rpx, 2) + 1); E.loin = Dc - 1.02;
-    E.cadreBase = borne((haut + (H - bas)) / 2 / H, 0.3, 0.6); E.cadreChoix = H < 620 ? 0.4 : 0.47;
+    E.cadreBase = borne((haut + (H - bas)) / 2 / H, 0.3, 0.6);
     if (!E.tween && !E.choisi) E.cadre = E.cadreBase;
-    E.etiquette.classList.toggle('pl-compacte', H < 620);
+    E.compacte = H < 620; E.etiquette.classList.toggle('pl-compacte', E.compacte); // (la planète de l'écran « Ma chaîne » : 340 à 490 px de haut)
     for (const d of E.drapeaux || []) d.cle = '';
+    // une boutique choisie (l'écran a tourné, la fenêtre a changé) : son cadrage refait, l'étiquette replacée
+    const x = E.choisi && !E.entree && E.parN[E.choisi];
+    if (x) {
+      const vue = E.etiquetteVue; if (vue) cacherEtiquette();
+      const c = E.choix = cadrage(x, mesurerEtiquette(x.f));
+      if (E.tween && E.tween.fin) { E.tween.z1 = c.z; E.tween.c1 = c.cadre; E.tween.i1 = c.incl; if (E.tween.i0 == null) E.tween.i0 = E.incl; } else { E.tween = null; E.z = c.z; E.cadre = c.cadre; E.incl = c.incl; } // (en route vers elle : le tour continue, vers le nouveau cadrage)
+      if (vue) montrerEtiquette(E.choisi);
+    }
   }
 
   // ─── le repos : la planète tournée vers ses boutiques (leur centre), son nord en haut ; sans boutique, le village ───
@@ -1332,9 +1395,9 @@ const PLANETE = (() => {
     etiquette.hidden = true; etiquette.setAttribute('role', 'group'); legende.setAttribute('aria-live', 'polite'); calque.setAttribute('aria-hidden', 'true');
     conteneur.classList.add('pl-conteneur'); conteneur.append(cv, calque, etiquette, legende, voile);
     E = { conteneur, cv, renderer, scene, camera, monde, hemi, soleil, appoint, calque, etiquette, legende, voile, qualite, eco: qualite === 'eco', opts, reduit: reduit(), textures: [], geos: { P: [], L: [] }, groupes: [], maillesB: [], magasins: [], parN: {}, anime: [], drapeaux: [], regions: [], fins: [], ecoutes: [],
-      doigts: new Map(), echant: [], q: new THREE.Quaternion(), camLocal: new V3(0, 0, 5), z: 0, cadre: 0.5, cadreBase: 0.5, cadreChoix: 0.47, rs: 1.02, vx: 0, vy: 0, t: 0, images: 0, ms: 0, derniere: performance.now(), geste: performance.now(),
+      doigts: new Map(), echant: [], q: new THREE.Quaternion(), camLocal: new V3(0, 0, 5), z: 0, cadre: 0.5, cadreBase: 0.5, choix: null, haut: 64, compacte: false, incl: 0, rs: 1.02, vx: 0, vy: 0, t: 0, images: 0, ms: 0, derniere: performance.now(), geste: performance.now(),
       W: 0, H: 0, f: 1, fpx: 1, loin: 8, appointMax: 0.9, choisi: 0, entree: 0, legendeQ: -1, kitOk: false, tap: false, pince: 0, touche: false, lod: null, regionsVues: 0, drapeauxVus: 0 };
-    E.fiches = lireFiches(fiches);
+    E.fiches = lireFiches(fiches); E.tFiches = performance.now();
     E.N = Math.max(Math.floor(+opts.boutiques) || 0, E.fiches.reduce((m, f) => Math.max(m, f.n + 1), 1));
     E.kitOk = !E.eco && !!kitPermis() && renderer.capabilities.isWebGL2;
     cv.setAttribute('aria-label', `La petite planète de ta chaîne : ${pluriel(E.fiches.length, 'boutique')} dans les quartiers.`);
@@ -1359,7 +1422,7 @@ const PLANETE = (() => {
   function maj(fiches) {
     if (!E) return; const nv = lireFiches(fiches);
     const memes = nv.length === E.fiches.length && nv.every((f, i) => f.n === E.fiches[i].n && f.q === E.fiches[i].q && f.s === E.fiches[i].s);
-    E.fiches = nv;
+    E.fiches = nv; E.tFiches = performance.now();
     if (!memes) { E.N = Math.max(Math.floor(+E.opts.boutiques) || 0, nv.reduce((m, f) => Math.max(m, f.n + 1), 1)); rebatir(); if (E.choisi && !E.parN[E.choisi]) { E.choisi = 0; cacherEtiquette(); } return; }
     for (const f of nv) { const x = E.parN[f.n]; if (x) { x.f = f; teintes(x); x.haut = hauteurDe(x.s, f.or) * x.k; } }
     for (const d of E.drapeaux) d.local.copy(d.x0.p).multiplyScalar(d.x0.h + d.x0.haut + 0.002);
@@ -1370,13 +1433,13 @@ const PLANETE = (() => {
   // même cadrage quelle que soit la taille de l'écran), puis un bord blanc et le nom du quartier dessous, comme une vraie carte
   function photo(q) {
     if (!E) return Promise.resolve(null); const R = REG[typeof q === 'string' ? REG.findIndex((x) => x.id === q) : q]; if (!R) return Promise.resolve(null);
-    let rt = null, fond = null; const garde = { q: E.q.clone(), z: E.z, cadre: E.cadre, rs: E.rs, aspect: E.camera.aspect, H: E.H, loin: E.loin };
+    let rt = null, fond = null; const garde = { q: E.q.clone(), z: E.z, cadre: E.cadre, rs: E.rs, incl: E.incl, aspect: E.camera.aspect, H: E.H, loin: E.loin };
     try {
       const w = 540, h = 360; rt = new THREE.WebGLRenderTarget(w, h, { samples: E.renderer.capabilities.isWebGL2 ? 4 : 0 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
       const c = (CIELS[E.phase] || CIELS.jour).fond, cv0 = document.createElement('canvas'); cv0.width = 4; cv0.height = 64; const x0 = cv0.getContext('2d'), g0 = x0.createLinearGradient(0, 0, 0, 64);
       g0.addColorStop(0, c[0]); g0.addColorStop(1, c[1]); x0.fillStyle = g0; x0.fillRect(0, 0, 4, 64); fond = new THREE.CanvasTexture(cv0); fond.colorSpace = THREE.SRGBColorSpace;
       E.H = h; E.loin = Math.sqrt(Math.pow((h / 2) / Math.tan(CAM.fov * DEG / 2) / (h * 0.48), 2) + 1) - 1.02;
-      E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -0.12)); E.z = 0.58; E.cadre = 0.56; E.rs = altitude(R.c); E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
+      E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -0.12)); E.z = 0.58; E.cadre = 0.56; E.incl = 0; E.rs = altitude(R.c); E.monde.quaternion.copy(E.q); E.monde.updateMatrixWorld(true);
       E.camera.aspect = w / h; E.camera.updateProjectionMatrix(); placerCamera(); E.cleLod = ''; trierBoutiques(); visibilites(); if (E.halo) E.halo.visible = false;
       E.scene.background = fond; E.renderer.setRenderTarget(rt); E.renderer.render(E.scene, E.camera); E.renderer.setRenderTarget(null); E.scene.background = null;
       const px = new Uint8Array(w * h * 4); E.renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
@@ -1394,7 +1457,7 @@ const PLANETE = (() => {
       return Promise.resolve(cv.toDataURL('image/jpeg', 0.88));
     } catch (e) { return Promise.resolve(null); } finally {
       if (rt) rt.dispose(); if (fond) fond.dispose(); if (E) { E.scene.background = null; if (E.halo) E.halo.visible = true;
-        Object.assign(E, { q: garde.q, z: garde.z, cadre: garde.cadre, rs: garde.rs, H: garde.H, loin: garde.loin }); E.camera.aspect = garde.aspect; E.camera.updateProjectionMatrix(); E.cleLod = ''; placerCamera(); trierBoutiques(); }
+        Object.assign(E, { q: garde.q, z: garde.z, cadre: garde.cadre, rs: garde.rs, incl: garde.incl, H: garde.H, loin: garde.loin }); E.camera.aspect = garde.aspect; E.camera.updateProjectionMatrix(); E.cleLod = ''; placerCamera(); trierBoutiques(); }
     }
   }
   function fermer() {
@@ -1431,7 +1494,7 @@ const PLANETE = (() => {
 .pl-drap.or b { background: linear-gradient(180deg, #FFE493 0%, #FFC84A 55%, #F2A93B 100%); color: #4A3328; box-shadow: 0 0 0 1.5px #fff, 0 0 9px 1px rgba(255, 196, 64, .85), 0 2px 4px rgba(74, 51, 40, .22); }
 .pl-drap.or.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px #F2A93B, 0 0 14px 3px rgba(255, 196, 64, .8); }
 .pl-drap.or b svg { display: inline-block; width: 10px; height: 10px; margin: 0 2px -1px 0; vertical-align: baseline; }
-.pl-etiquette { position: absolute; left: 0; top: 0; width: min(290px, calc(100% - 24px)); padding: 12px 14px 14px; border-radius: 22px; background: #fff; color: var(--texte, #4A3328);
+.pl-etiquette { position: absolute; left: 0; top: 0; width: min(310px, calc(100% - 20px)); padding: 12px; border-radius: 22px; background: #fff; color: var(--texte, #4A3328);
   box-shadow: 0 12px 30px rgba(74, 51, 40, .2), 0 2px 0 rgba(74, 51, 40, .05); opacity: 0; transition: opacity .2s ease-out; pointer-events: auto; will-change: transform; z-index: 3; }
 .pl-etiquette.pl-vue { opacity: 1; }
 .pl-etiquette.or { background: linear-gradient(160deg, #FFFFFF 40%, #FFF8E2); }
@@ -1440,33 +1503,35 @@ const PLANETE = (() => {
 .pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
 .pl-et-tete > div { min-width: 0; }
 .pl-et-tete .pl-et-nom { display: block; font: 700 17px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-tete small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2, #8C6F62); }
+.pl-et-tete small { display: block; margin-top: 2px; font: 700 12.5px/1.25 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc);
   font: 700 20px/1 var(--titre, "Fredoka", system-ui, sans-serif); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
-.pl-et-jauge { position: relative; display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; padding-bottom: 9px; font: 800 12px/1.2 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); }
+.pl-et-jauge { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 800 12px/1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; }
+.pl-et-jauge > i { position: relative; flex: 1 1 auto; height: 7px; border-radius: 4px; background: var(--creme, #FFF7EC); box-shadow: inset 0 0 0 1px rgba(74, 51, 40, .06); overflow: hidden; }
+.pl-et-jauge > i > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, var(--beurre, #FFC84A), #F2A93B); }
 .pl-et-jauge b { color: var(--texte, #4A3328); font-variant-numeric: tabular-nums; }
-.pl-et-jauge::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; border-radius: 3px; background: var(--creme, #FFF7EC); }
-.pl-et-jauge i { position: absolute; left: 0; bottom: 0; height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--beurre, #FFC84A), #F2A93B); }
-.pl-et-or { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 10px; border-radius: 12px; background: var(--or-clair, #FFF3C4); }
-.pl-et-or svg { width: 24px; height: 24px; flex: 0 0 auto; }
-.pl-et-or b { display: block; font: 700 14.5px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); }
-.pl-et-or small { display: block; font-size: 12px; line-height: 1.2; color: var(--texte-2, #8C6F62); }
-.pl-et-cases { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 9px 0 12px; }
-.pl-et-case { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 8px 5px 6px; border-radius: 12px; background: var(--creme, #FFF7EC); }
-.pl-et-case > span { min-width: 0; }
-.pl-et-case b { display: block; font: 700 13.5px/1.15 var(--titre, "Fredoka", system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-case small { display: block; font: 700 11.5px/1.2 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-et-case svg { width: 22px; height: 22px; flex: 0 0 auto; }
-.pl-et-case.or { background: var(--or-clair, #FFF3C4); }
-.pl-et-case.sans b { color: var(--texte-2, #8C6F62); }
-.pl-et-case.sans svg { opacity: .55; }
-.pl-et-entrer { width: 100%; min-height: 46px; border-radius: 16px; font: 700 17px/1 var(--titre, "Fredoka", system-ui, sans-serif); }
-.pl-etiquette.pl-compacte { padding: 10px 12px 12px; }
-.pl-etiquette.pl-compacte .pl-et-tete .pl-et-num { min-width: 36px; height: 36px; font-size: 18px; }
-.pl-etiquette.pl-compacte .pl-et-tete .pl-et-nom { font-size: 16px; }
-.pl-etiquette.pl-compacte .pl-et-jauge, .pl-etiquette.pl-compacte .pl-et-or { margin-top: 8px; }
-.pl-etiquette.pl-compacte .pl-et-cases { margin: 7px 0 9px; }
-.pl-etiquette.pl-compacte .pl-et-entrer { min-height: 42px; }
+.pl-et-or { display: flex; align-items: center; gap: 7px; margin-top: 10px; padding: 4px 10px 4px 6px; border-radius: 12px; background: var(--or-clair, #FFF3C4); white-space: nowrap; }
+.pl-et-or svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.pl-et-or b { flex: 0 0 auto; font: 700 14px/1.1 var(--titre, "Fredoka", system-ui, sans-serif); }
+.pl-et-or small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 12px/1.1 var(--texte-font, "Nunito", system-ui, sans-serif); color: var(--texte-2, #8C6F62); }
+.pl-et-bas { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pl-et-infos { flex: 1 1 auto; min-width: 0; display: grid; gap: 5px; }
+.pl-et-infos > span { display: flex; align-items: center; gap: 5px; min-width: 0; font: 800 12.5px/1.2 var(--texte-font, "Nunito", system-ui, sans-serif); white-space: nowrap; }
+.pl-et-infos > span > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pl-et-infos svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.pl-et-infos .sans { color: var(--texte-2, #8C6F62); }
+.pl-et-infos .sans svg { opacity: .5; filter: grayscale(1); }
+.pl-et-infos .arret > span { color: var(--fraise-sombre, #E1496C); }
+.pl-et-infos .a > span { padding: 1px 6px; border-radius: 6px; background: var(--or-clair, #FFF3C4); }
+.pl-etiquette .pl-et-entrer { flex: 0 0 auto; min-width: 84px; min-height: 44px; padding: 0 14px; border-radius: 15px; }
+.pl-etiquette .pl-et-entrer b { font: 700 17px/1 var(--titre, "Fredoka", system-ui, sans-serif); }
+.pl-etiquette.pl-compacte { padding: 10px 10px 10px 11px; border-radius: 20px; }
+.pl-etiquette.pl-compacte .pl-et-tete .pl-et-num { min-width: 36px; height: 36px; font-size: 18px; border-radius: 11px 11px 11px 4px; }
+.pl-etiquette.pl-compacte .pl-et-tete .pl-et-nom { font-size: 15.5px; }
+.pl-etiquette.pl-compacte .pl-et-tete small { font-size: 12px; }
+.pl-etiquette.pl-compacte :is(.pl-et-jauge, .pl-et-or, .pl-et-bas) { margin-top: 8px; }
+.pl-etiquette.pl-compacte .pl-et-or { padding-top: 3px; padding-bottom: 3px; }
+.pl-etiquette.pl-compacte .pl-et-or svg { width: 20px; height: 20px; }
 .pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px;
   background: rgba(255, 255, 255, .88); box-shadow: 0 4px 14px rgba(74, 51, 40, .1); white-space: nowrap; pointer-events: none; transition: opacity .2s; }
 .pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
@@ -1508,8 +1573,8 @@ const PLANETE = (() => {
       ecran(n) { const d = E && E.drapeaux.find((x) => x.n === n); if (!d) return null; const r = E.cv.getBoundingClientRect(); return { x: r.left + d.x + (d.gauche ? -d.w / 2 : d.w / 2), y: r.top + d.y - 22, bx: r.left + d.bx, by: r.top + d.by, vu: d.vu && d.a > 0.35 }; },
       journal() { return E ? E.journal : null; }, temps() { return E ? E.temps : null; },
       etat() { return E ? { q: E.q.toArray().map((v) => +v.toFixed(4)), z: E.z, choisi: E.choisi, etiquette: !!E.etiquetteVue, tween: !!E.tween, vx: E.vx, vy: E.vy, entree: E.entree } : null; },
-      repos() { if (!E) return; E.tween = null; E.q.copy(E.qRepos); E.z = 0; E.vx = 0; E.vy = 0; E.cadre = E.cadreBase; },
-      regarder(i, z, penche) { if (!E) return; const R = REG[i]; E.tween = null; E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -(penche || 0))); E.z = z == null ? 0.6 : z; E.vx = 0; E.vy = 0; E.rs = altitude(R.c); },
+      repos() { if (!E) return; E.tween = null; E.q.copy(E.qRepos); E.z = 0; E.incl = 0; E.vx = 0; E.vy = 0; E.cadre = E.cadreBase; },
+      regarder(i, z, penche) { if (!E) return; const R = REG[i]; E.tween = null; E.incl = 0; E.q.copy(orientationVers(R.c, HAUT)).premultiply(_qa.setFromAxisAngle(AXE_X, -(penche || 0))); E.z = z == null ? 0.6 : z; E.vx = 0; E.vy = 0; E.rs = altitude(R.c); },
       tourner(ax, ay) { if (E) tourner(ax, ay); }, zoom(z) { if (E) E.z = z; }, cadre(c) { if (E) E.cadre = c; },
       scene() { return E ? E.scene : null; }, entrer(n) { if (E) entrer(n); }, touche() { if (E && !E.touche) { E.touche = true; majLegende(true); } },
       geoBoutique: (s, eco) => geoBoutique(s, eco), modele(type, arg) { const L = new Lot(false); MODELES[type](L, tirage(3), arg); return L.geo(); }, materiaux: () => (E ? E.mats : null),
