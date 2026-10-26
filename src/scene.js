@@ -355,7 +355,7 @@ const SCENE = (() => {
     q('toque-or', QDECO['toque-or'] && '1'); q('toque-citrouille', HDECO['toque-citrouille'] && (QDECO['toque-or'] ? 'bas' : '1')); // la toque du Manoir plus bas si les deux sont là
     return out;
   }
-  let FUS = { boites: {}, vus: new Set(), parts: 0, tri: 0, liste: [] }, scooterVu = false;
+  let FUS = { boites: {}, vus: new Set(), parts: 0, tri: 0, liste: [] }, scooterVu = false; const VIVES = new Set();
   function construireFusion(E, c, base) {
     const k = [], fixes = [];
     for (const [id, cle] of FIXES) { if (EVV && SANS_EV.has(id)) continue; const v = cle(E); if (v != null) { fixes.push([id, v]); k.push(id + ':' + v); } }
@@ -371,6 +371,7 @@ const SCENE = (() => {
       const l = MEUBLES.decoParties(id, c, p, o); if (!l) continue; parts.push(...l); vus.add(id);
     }
     const f = MEUBLES.fusion(parts), gp = new THREE.Group(), gl = new THREE.Group(); gp.userData.nom = 'petits'; gl.userData.nom = 'lueurs';
+    for (const m of [f.petits, f.lueurs]) if (m) { const g = m.geometry; VIVES.add(g); g.addEventListener('dispose', () => VIVES.delete(g)); } // (les géométries fusionnées encore vivantes : pour les tests de mémoire)
     if (f.petits) gp.add(f.petits); if (f.lueurs) { gl.add(f.lueurs); gl.userData.anime = f.anime; }
     FUS = { boites: f.boites, vus, parts: f.parts, tri: f.tri, liste: liste.map((x) => x.slice()) };
     remplacer('petits', f.petits ? gp : null); remplacer('lueurs', f.lueurs ? gl : null);
@@ -1010,7 +1011,7 @@ const SCENE = (() => {
     get placesDecos() { if (!LAY) return []; const l = posees() || [], E = dernier, auto = E ? { c1: fleursVues(E), c2: SAISON.cle(E) != null, s2: sapinVu(E) } : {}; return LAY.decos.map((p) => { const e = l.find((x) => x[1] === p.id); return { id: p.id, type: p.type, nom: p.nom, r: { ...p.r }, deco: e ? e[0] : null, auto: !!auto[p.id] }; }); },
     get decosBoites() { const out = {}; for (const [id, b] of Object.entries(FUS.boites)) { const r = rectDe(b); if (r) out[id] = r; } if (groupes.trophees) { const r = rectDe(groupes.trophees); if (r) out['vitrine-coupes'] = r; } return out; },
     get decosMonde() { const o = {}; for (const [id, b] of Object.entries(FUS.boites)) if (!b.isEmpty()) o[id] = { x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z }; const cp = groupes.comptoir; return { boites: o, dessusY: cp ? cp.userData.dessusY : null }; }, // leurs boîtes monde (le pied sur le sol, le comptoir ; contre le mur)
-    get fusionVue() { return { parts: FUS.parts, tri: FUS.tri, ids: [...FUS.vus], liste: FUS.liste.map((x) => x.slice()), maxParts: MEUBLES.MAX_VIFS }; },
+    get fusionVue() { return { parts: FUS.parts, tri: FUS.tri, ids: [...FUS.vus], liste: FUS.liste.map((x) => x.slice()), maxParts: MEUBLES.MAX_VIFS, vivantes: VIVES.size }; },
     get deplacerDecos() { return deplacerDecos; }, get glisseDeco() { return glisseDeco; },
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
     get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)

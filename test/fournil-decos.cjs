@@ -35,7 +35,7 @@ const NEUVES = [
   [['chaine-cloche', 'c2'], ['souvenir-montagne', 'm3'], ['souvenir-paris', 's3']],
   [['chaine-globe', 'c2'], ['souvenir-cimes', 'm4'], ['souvenir-ville', 'r1']],
 ];
-const capture = async (page, nom) => { const f = path.join(out, nom); await page.screenshot({ path: f }); if (copie) fs.copyFileSync(f, path.join(copie, nom)); };
+const capture = async (page, nom) => { const f = path.join(out, nom); await page.screenshot({ path: f, timeout: 120000 }); if (copie) fs.copyFileSync(f, path.join(copie, nom)); }; // (le rendu logiciel est lent quand la machine est chargée)
 
 (async () => {
   const { chromium } = require('playwright');
@@ -56,9 +56,11 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     return { ctx, page, erreurs, ev };
   }
   const appels = (ev) => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, decos: (a.petits || 0) + (a.lueurs || 0), petits: a.petits || 0, lueurs: a.lueurs || 0 }; });
-  const palier = (ev, s, hd) => attendre(() => ev(([s, hd]) => { const S = window.__fournil.SCENE, v = S.standingVu; return v.palier === s && v.mailles > 0 && (!hd || (v.hd && S.meublesHD.length === 4)); }, [s, hd]), 90000);
+  const palier = (ev, s, hd) => attendre(() => ev(([s, hd]) => { const S = window.__fournil.SCENE, v = S.standingVu; return v.palier === s && v.mailles > 0 && (!hd || (v.hd && S.meublesHD.length === 4)); }, [s, hd]), hd ? 240000 : 90000); // (les modèles HD : plus long quand la machine est chargée)
   // poser une disposition (null : le plan d'origine), puis attendre que la scène l'ait bâtie
-  const poser = async (ev, l, n) => { await ev((l) => window.__fournil.SCENE.decos(l), l); await attendre(() => ev(([l, n]) => { const S = window.__fournil.SCENE, p = S.decosPosees; return l === null ? p === null : !!p && p.length === (n == null ? l.length : n); }, [l, n]), 10000); await sleep(700); };
+  // (bâtie : la fusion porte la disposition effective, ou, au plan d'origine, aucune place typée ; la machine chargée, une image peut tarder)
+  const poser = async (ev, l, n) => { await ev((l) => window.__fournil.SCENE.decos(l), l); await attendre(() => ev(([l, n]) => { const S = window.__fournil.SCENE, p = S.decosPosees, f = S.fusionVue.liste;
+    return l === null ? p === null && f.every((x) => !/^[mscrx]\d$/.test(x[1])) : !!p && p.length === (n == null ? l.length : n) && JSON.stringify(f) === JSON.stringify(p); }, [l, n]), 20000); await sleep(700); };
   // chaque déco posée : à l'écran, dans sa place (8 px de marge), dans l'écran ; sur son appui (le sol, le comptoir, l'appui de la fenêtre, contre le mur)
   const enPlace = (ev) => ev(() => {
     const S = window.__fournil.SCENE, L = VIE.LAY, b = S.decosBoites, m = S.decosMonde, ko = [], m8 = 8;
@@ -107,7 +109,9 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     await capture(page, 'origine-toutes-eco.png');
     const boitesAvant = await ev(() => JSON.stringify(window.__fournil.SCENE.decosBoites));
     await poser(ev, LOURDES); await poser(ev, null);
-    check(await ev((av) => JSON.stringify(window.__fournil.SCENE.decosBoites) === av, boitesAvant), '« Plan d’origine » (SCENE.decos(null)) : après une disposition, tout revient à l’identique, au pixel');
+    { const diff = () => ev((av) => { const a = JSON.parse(av), b = window.__fournil.SCENE.decosBoites; return [...new Set(Object.keys(a).concat(Object.keys(b)))].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])); }, boitesAvant);
+      await attendre(async () => !(await diff()).length, 6000); const d = await diff();
+      check(!d.length, `« Plan d’origine » (SCENE.decos(null)) : après une disposition, tout revient à l’identique, au pixel ${d.join(' ')}`); }
 
     console.log('── poser, ranger, déplacer ──');
     await ev(() => { const S = window.__fournil.SCENE; S.decosQuartier([]); S.decosHantee([]); S.recompenses({}); });
@@ -184,10 +188,12 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
       const acc = await ev(() => { const ko = [], L = VIE.LAY; for (const f of CHAINE.FAMILLES) if (f.posable) for (const x of f.items) { const d = MEUBLES.DECOS[x.id]; if (!d || d.type !== x.place) ko.push(`${x.id} (${x.place} / ${d && d.type})`); } for (const p of CHAINE.PLACES) { const q = L.decos.find((y) => y.id === p.id); if (!q || q.type !== p.type || q.code !== p.code) ko.push('place ' + p.id); } return { ko, n: L.decos.length, nr: CHAINE.PLACES.length }; });
       check(!acc.ko.length && acc.n === 12 && acc.nr === 12, `le catalogue de la scène d’accord avec les règles : chaque déco posable a son modèle et le même type de place ; les 12 places (types, codes) ${acc.ko.join(' | ')}`);
     } else console.log('  (les règles, src/chaine.js, ne sont pas dans cette page : la photo et l’accord avec le catalogue se vérifient après leur fusion)');
-    const mem = [];
-    // (les clients vont et viennent : le compte bouge de quelques géométries ; une fuite des deux maillages fusionnés en ajouterait 2 à chaque fois)
-    for (let k = 0; k < 12; k++) { await poser(ev, k % 2 ? LOURDES : NEUVES[0]); mem.push(await ev(() => window.__fournil.SCENE.stats.geometries)); }
-    check(mem[11] - mem[1] <= 6 && mem[10] - mem[0] <= 6, `poser et changer de disposition douze fois : la mémoire graphique ne grandit pas (géométries ${mem.join(' → ')})`);
+    const mem = [], vives = [];
+    // (le compte de toute la page, renderer.info, bouge avec les clients qui vont et viennent, comme sur master : 84 → 101 géométries en
+    // 16 s sans rien poser, mesuré le 26 oct. ; on compte donc les géométries des maillages fusionnés encore vivantes, libérées ou non :
+    // jamais plus de deux, « petits » et « lueurs », quel que soit le nombre de dispositions posées)
+    for (let k = 0; k < 12; k++) { await poser(ev, k % 2 ? LOURDES : NEUVES[0]); const m = await ev(() => { const S = window.__fournil.SCENE; return [S.stats.geometries, S.fusionVue.vivantes]; }); mem.push(m[0]); vives.push(m[1]); }
+    check(vives.every((n) => n >= 1 && n <= 2), `poser et changer de disposition douze fois : la mémoire graphique ne grandit pas (maillages fusionnés vivants ${vives.join(' → ')} ; toute la page : géométries ${mem.join(' → ')})`);
     const bas = await ev(async () => {
       const f = window.__fournil, avant = VIE.clients.length + VIE.apprentis.length; VIE.basculer('chaine'); const vide = VIE.clients.length + VIE.apprentis.length, mode = VIE.mode;
       await new Promise((r) => setTimeout(r, 400)); VIE.basculer(''); return { avant, vide, mode, apres: VIE.clients.length + VIE.apprentis.length, retour: VIE.mode };
