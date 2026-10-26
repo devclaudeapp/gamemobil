@@ -2320,6 +2320,7 @@ const UI = (() => {
     if (CE) {
       CE.init({ st: () => st, maintenant: () => HORLOGE.maintenant(), save, toast, son: Object.assign({}, son, { pieces: son.pourboire }), buzz, audio, openSheet, closeSheet, on, confettis, fete: () => SCENE.fete(), reduit: reduceMotion,
         qualite: () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; }, heure: () => { try { const f = VIE.force; return f && f.heure != null ? f.heure : G.heureParis(HORLOGE.maintenant()); } catch (e) { return 12; } }, // (le ciel de la planète : celui de la boutique)
+        sceneDe: () => (visite || (EVS && EVS.ouvert) ? -1 : chaineVue ? chaineVue.n : 0), // la boutique que montre la scène (le carnet y lit les places tenues par un décor automatique)
         recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
         ferme: () => { eveiller(); lastFrame = performance.now(); cleCoinChaine = ''; majCoinChaine(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } },
         amenager: () => { if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); } });
@@ -2398,7 +2399,10 @@ const UI = (() => {
     // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
     const rattrape = fresh ? [] : G.rattraperParcours(st);
     if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
-    absencePrete = true;
+    // le détecteur de réveil repart du lancement : un lancement lent (plus de 5 s, l'heure sûre attendue comprise) n'est pas une page gelée.
+    // Sans cela, son premier passage voyait un « gel » et lançait un retour qui payait le reste d'une heure sûre en retard comme une nouvelle
+    // absence (la boulangerie et les gérants : 12 h pour une absence de 12 h, au lieu de 8), sans passer par payerSaut
+    absencePrete = true; reveilW = Date.now(); reveilP = performance.now();
     if (essaiCopie) save(); // (la vraie partie copiée : sauvée sous les clés de l'essai, jamais sous les siennes)
     if (essaiVide) { const montrer = () => sheetEssaiCode(); if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }

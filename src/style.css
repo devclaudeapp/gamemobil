@@ -2052,7 +2052,7 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 /* ─── « Tout déplaçable » (le mode Aménager) : Déplacer / Améliorer et Plan d'origine, en haut à gauche ; l'enseigne s'efface ─── */
 #amenage-barre { position: absolute; top: 8px; left: 10px; z-index: 2; display: flex; gap: 6px; max-width: calc(100% - 130px); flex-wrap: wrap; }
 #amenage-barre[hidden] { display: none; }
-#amenage-barre button { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 0 13px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); color: var(--texte); white-space: nowrap; }
+#amenage-barre button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 13px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); color: var(--texte); white-space: nowrap; }
 #amenage-barre button:active { transform: translateY(3px); box-shadow: none; }
 #amenage-barre button[aria-pressed="true"] { background: var(--menthe-clair); box-shadow: 0 3px 0 var(--menthe-sombre); }
 #amenage-barre .ico { width: 20px; height: 20px; display: inline-grid; }
@@ -2172,16 +2172,19 @@ body.essai #chaine { top: 24px; }
 .chaine-carte .compte .ico svg { width: 16px; height: 16px; }
 .chaine-carte .chev svg { width: 18px; height: 18px; }
 
-/* dans une boutique de la chaîne : le bandeau au-dessus de la scène (le retour, son nom, sa jauge d'or, ses jetons), ses cartes ; ni objectifs,
-   ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
-.chaine-bandeau { position: absolute; top: 8px; left: 10px; right: 10px; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px; border-radius: 20px;
+/* dans une boutique de la chaîne : le bandeau sous l'en-tête, AU-DESSUS de la scène et hors d'elle (le retour, son nom, sa jauge d'or, ses
+   jetons) : la scène commence dessous, rien du mur ni de la fenêtre (les décos m1 à m4, r1, r2, l'horloge, le diplôme) n'est caché ; ses
+   cartes ; ni objectifs, ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
+.chaine-bandeau { position: relative; flex: 0 0 auto; z-index: 3; display: flex; align-items: center; gap: 8px; min-height: 56px; margin: 0 10px 6px; padding: 6px; border-radius: 20px;
   background: rgba(255, 255, 255, .94); box-shadow: 0 4px 14px rgba(74, 51, 40, .14), inset 0 -3px 0 var(--acc); }
 .cb-retour { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 10px 0 4px; border-radius: 14px; background: var(--creme); font: 700 12px/1.1 var(--titre); text-align: left; white-space: nowrap; }
 .cb-retour .ico svg { width: 20px; height: 20px; transform: rotate(180deg); }
 .cb-retour:active, .cb-prendre:active, .cb-planete:active { transform: translateY(2px); }
 .cb-titre { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; padding: 2px 4px; text-align: left; }
 .cb-titre small { display: block; font: 800 11px/1.1 var(--texte-font); color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cb-nom { display: block; font: 700 16px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* le nom tient sur deux lignes (un nom d'office, « Le Grand Fournil de la Capitale n°30 », est presque toujours plus long qu'une) */
+.cb-nom { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font: 700 15px/1.1 var(--titre); overflow-wrap: anywhere; }
+@media (max-width: 379px) { .cb-nom { font-size: 13.5px; } .cb-retour { padding-right: 8px; font-size: 11.5px; } .chaine-bandeau { gap: 6px; margin-inline: 8px; } }
 .cb-jauge { position: relative; display: block; height: 6px; margin-top: 2px; border-radius: 3px; background: var(--creme); overflow: hidden; }
 .cb-jauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); }
 .cb-or { display: inline-flex; align-items: center; gap: 4px; font: 800 11.5px/1 var(--texte-font); color: #B07A00; }
@@ -2197,8 +2200,8 @@ body.essai #chaine { top: 24px; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
 body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
-body.chaine-dans.amenage .chaine-bandeau { display: none; }
-#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
+#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }
 
 /* le carnet « Mes décos » : où l'on pose, les familles et leurs objets (gagnés en couleur, à gagner grisés avec comment les obtenir) */
@@ -2225,11 +2228,13 @@ body.chaine-dans.amenage .chaine-bandeau { display: none; }
 .cn-vig img { width: 100%; height: 100%; object-fit: cover; }
 .cn-vig .ico svg { width: 32px; height: 32px; }
 .cn-vig.gris .ico svg { filter: grayscale(1); opacity: .4; }
-.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; }
+.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 44px; }
 .cn-places { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 2px 54px; }
-.cn-place { min-height: 40px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
+.cn-place { min-height: 44px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
 .cn-place.prise { background: var(--gris); color: var(--gris-texte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .cn-place.annuler { background: #fff; color: var(--texte-2); box-shadow: 0 3px 0 var(--gris-sombre); }
+.cn-attente { color: #B4560F; font-weight: 800; } /* une déco posée dont la place est tenue ce mois-ci par un décor de saison : elle attend */
+.at-titre small.ch-sous { white-space: normal; line-height: 1.2; } /* (« 30 boutiques · 10 gérants · 3 Boutiques d’or » : à la ligne plutôt que coupé) */
 
 /* la feuille du retour : ce que les gérants ont versé aux caisses de la chaîne */
 .retour-gerants { margin: 10px 0 12px; }
@@ -2245,8 +2250,10 @@ body.chaine-dans.amenage .chaine-bandeau { display: none; }
   background: repeating-linear-gradient(-45deg, #FFE4C2 0 10px, #FFD9AA 10px 20px); color: #8A4B10; font: 700 12px/1 var(--texte-font); white-space: nowrap; overflow: hidden; }
 .essai-bandeau span { overflow: hidden; text-overflow: ellipsis; }
 .essai-bandeau b { font-family: var(--titre); }
-.essai-bandeau button { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; color: #fff; font: 700 13px/1 var(--titre); position: relative; }
-.essai-bandeau button::after { content: ''; position: absolute; inset: -12px -10px; } /* une cible de 44 px sous le doigt */
+/* le « ? » : le bouton lui-même fait 44 × 24 (toute la hauteur du bandeau, qui rogne ce qui dépasse) ; le rond orange est dessiné dessous */
+.essai-bandeau button { flex: 0 0 auto; position: relative; display: grid; place-items: center; width: 44px; height: 24px; margin-right: -6px; color: #fff; font: 700 13px/1 var(--titre); }
+.essai-bandeau button::before { content: ''; position: absolute; left: 12px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; z-index: -1; }
+.essai-bandeau button { isolation: isolate; }
 .essai-quoi { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.4; }
 .essai-quoi li + li { margin-top: 6px; }
 a.essai-lien { margin-top: 8px; text-decoration: none; }

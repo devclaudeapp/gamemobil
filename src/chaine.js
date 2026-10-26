@@ -455,8 +455,14 @@
     const l = []; for (let k = 0; k < s.length; k += 3) { const id = ORDRE[parseInt(s.slice(k, k + 2), 36)], p = PLACES.find((x) => x.code === s[k + 2]); if (!id || !p) return null; l.push([id, p.id]); }
     return nettoyerPoses(l);
   }
-  // la disposition d'office d'une boutique de la chaîne : son souvenir de quartier, à la première place libre de son type
-  function posesDOffice(b) { const s = SOUVENIRS[b.q]; const p = PLACES.find((x) => x.type === s.place); return p ? [[s.id, p.id]] : []; }
+  // la disposition d'office d'une boutique de la chaîne : son souvenir de quartier, à la première place libre de son type. Sur le comptoir, la
+  // place de la recette (c2) avant celle des fleurs (c1) : les fleurs du standing tiennent c1 toute l'année, la recette c2 le temps d'une saison
+  const OFFICE_ORDRE = { comptoir: ['c2', 'c1'] };
+  function posesDOffice(b) {
+    const s = SOUVENIRS[b.q], ordre = OFFICE_ORDRE[s.place];
+    const p = (ordre && PLACES.find((x) => x.id === ordre[0])) || PLACES.find((x) => x.type === s.place);
+    return p ? [[s.id, p.id]] : [];
+  }
   const posesDe = (b) => { const l = b && typeof b.d === 'string' ? decosDepuisCode(b.d) : null; return l || posesDOffice(b); };
   function poser(st, n, l) { const b = boutique(st, n); if (!b) return null; const p = nettoyerPoses(l); b.d = codeDecos(p); return p; } // n : une boutique de la chaîne (la principale : st.decos = { d: code } , même code)
 

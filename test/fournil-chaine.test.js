@@ -156,6 +156,9 @@ console.log('── 7) la vue pour la scène (comme la visite d’un copain) ─
   check(v.mobilier.tables === 4 && v.mobilier.four === 4 && v.amenagement && v.amenagement.tables[0].join() === '3,4' && v.garderobe === st.garderobe && v.xp === st.xp, 'ses meubles, son plan ; la tenue et le grade du boulanger en lecture seule');
   check(v.evTimer === 1e9 && v.mystereTimer === 1e9 && v.chatAttente === null, 'rien ne surgit (ni événement, ni client mystère, ni chat à la porte)');
   check(R.posesDe(b).length === 1 && R.posesDe(b)[0][0] === R.SOUVENIRS[b.q].id, `sa déco d’office : le souvenir de son quartier (${R.SOUVENIRS[b.q].nom})`);
+  // sur le comptoir, la place de la recette (c2) d'abord : celle des fleurs (c1) est tenue par les fleurs du standing toute l'année
+  const auComptoir = R.SOUVENIRS.map((s, q) => [s, q]).filter(([s]) => s.place === 'comptoir').map(([s, q]) => R.posesDOffice({ n: 1, q })[0]);
+  check(auComptoir.length === 3 && auComptoir.every((x) => x[1] === 'c2'), `les souvenirs du comptoir (moulin, coquillage, tour Eiffel) d’office en c2 : ${auComptoir.map((x) => x.join('@')).join(', ')}`);
   R.fermer(st, v, T);
 }
 

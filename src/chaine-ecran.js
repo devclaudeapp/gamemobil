@@ -236,6 +236,7 @@ const CHAINE_ECRAN = (() => {
   // cible : 0 = la boulangerie (st.decos = { v: 1, d: code } ; absent : le plan d'origine), n = la boutique n° de la chaîne (CHAINE.poser)
   const PLACES_NOM = { m1: 'au mur, le cadre', m2: 'au-dessus de l’étagère', m3: 'la porte du fond', m4: 'entre l’horloge et le diplôme', s1: 'le coin déco', s2: 'la place du sapin', s3: 'le coin de la porte',
     c1: 'le comptoir, aux fleurs', c2: 'le comptoir, à la recette', r1: 'la fenêtre, à gauche', r2: 'la fenêtre, à droite', x1: 'le trottoir' };
+  const AUTO_NOM = { c1: 'les fleurs', c2: 'la recette de saison', s2: 'le sapin' }; // les petits décors automatiques qui gardent leur place
   const TYPES = { mur: 'au mur', sol: 'au sol', comptoir: 'sur le comptoir', rebord: 'sur la fenêtre', dehors: 'dehors' };
   const A_VENIR = [['feves', 'Les fèves', 'En janvier, avec la galette'], ['rares', 'Les recettes rares', 'Le livre de recettes'], ['apprentis', 'Les apprentis rares', 'Des apprentis à rareté']];
   let carnetEtat = { cible: 0, choix: '', ouvertes: {} };
@@ -263,21 +264,36 @@ const CHAINE_ECRAN = (() => {
     D.save(); if (D.decosChangees) D.decosChangees(cible);
   }
   const qualite = () => (D.qualite ? D.qualite() : 'eco');
+  // la disposition vue dans la salle (contrat § 4.2), quand la boutique du carnet est celle que montre la scène : un décor automatique (les
+  // fleurs en c1, la recette de saison en c2, le sapin en s2) garde sa place ; la déco passe à la place libre suivante de son type, sinon elle
+  // attend (« Pas de place ce mois-ci »). Même règle que SCENE (placesEffectives), sur la liste du carnet : juste dès qu'on pose ou range.
+  function placesAuto(cible) {
+    const a = {}; if (!D.sceneDe || D.sceneDe() !== cible || typeof SCENE === 'undefined') return a;
+    try { for (const p of SCENE.placesDecos || []) if (p.auto) a[p.id] = true; } catch (e) { /* rien */ }
+    return a;
+  }
+  function effectives(liste, auto) { // → Map id → place réelle (null : elle attend)
+    const prises = new Set(Object.keys(auto)), ou = new Map(), deplacees = [];
+    for (const [id, p] of liste) { if (prises.has(p)) deplacees.push(id); else { prises.add(p); ou.set(id, p); } }
+    for (const id of deplacees) { const d = liste.find((x) => x[0] === id), t = (CH.PLACES.find((q) => q.id === d[1]) || {}).type, libre = CH.PLACES.find((q) => q.type === t && !prises.has(q.id)); if (libre) { prises.add(libre.id); ou.set(id, libre.id); } else ou.set(id, null); }
+    return ou;
+  }
   function carnet(o) {
     if (o) carnetEtat = { cible: o.cible || 0, choix: '', ouvertes: carnetEtat.ouvertes || {} };
     const s = st(), cible = carnetEtat.cible, b = cible ? CH.boutique(s, cible) : null;
     if (cible && !b) return;
     const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
-    const places = new Set(liste.map((x) => x[1]));
+    const places = new Set(liste.map((x) => x[1])), auto = placesAuto(cible), reel = effectives(origine ? [] : liste, auto); // (le plan d'origine : la scène montre les places de toujours)
     const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
     const vignette = (f, x) => { const src = CARNET_IMAGES[x.id]; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${src && x.gagne ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`}</span>`; };
     const objet = (f, x) => {
       if (!f.posable || !x.place) return `<li class="cn-objet${x.gagne ? '' : ' gris'}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b>${x.gagne ? '' : `<small>${esc(x.obtenir)}</small>`}</span></li>`;
       const pose = liste.find((p) => p[0] === x.id), ici = TYPES[x.place] || '';
+      const posee = (pp) => { const r = reel.get(pp[0]); return r === null ? '<span class="cn-attente">Pas de place ce mois-ci</span>' : `Posée : ${esc(PLACES_NOM[r || pp[1]] || r || pp[1])}`; };
       let act = '';
       if (x.gagne && carnetEtat.choix !== x.id) act = pose ? `<button type="button" class="btn non cn-btn" data-ranger="${x.id}"><b>Ranger</b></button>` : `<button type="button" class="btn ${liste.length < CH.DECOS_MAX ? 'menthe' : 'non'} cn-btn" data-poser="${x.id}"><b>Poser</b></button>`;
-      const choix = x.gagne && carnetEtat.choix === x.id ? `<div class="cn-places" role="group" aria-label="Où poser ${esc(x.nom)} ?">${CH.PLACES.filter((p) => p.type === x.place).map((p) => { const libre = !places.has(p.id), ok = libre && CH.peutPoser(liste, x.id, p.id, qualite()).ok; return `<button type="button" class="cn-place${ok ? '' : ' prise'}" data-place="${p.id}" data-deco="${x.id}"${ok ? '' : ' aria-disabled="true"'}>${esc(PLACES_NOM[p.id] || p.id)}${libre ? '' : ' · prise'}</button>`; }).join('')}<button type="button" class="cn-place annuler" data-place="" data-deco="">Annuler</button></div>` : '';
-      return `<li class="cn-objet posable${x.gagne ? '' : ' gris'}${pose ? ' pose' : ''}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b><small>${x.gagne ? (pose ? `Posée : ${esc(PLACES_NOM[pose[1]] || pose[1])}` : `Se pose ${ici}`) : esc(x.obtenir)}</small></span>${act}${choix}</li>`;
+      const choix = x.gagne && carnetEtat.choix === x.id ? `<div class="cn-places" role="group" aria-label="Où poser ${esc(x.nom)} ?">${CH.PLACES.filter((p) => p.type === x.place).map((p) => { const libre = !places.has(p.id) && !auto[p.id], ok = libre && CH.peutPoser(liste, x.id, p.id, qualite()).ok; return `<button type="button" class="cn-place${ok ? '' : ' prise'}" data-place="${p.id}" data-deco="${x.id}"${ok ? '' : ' aria-disabled="true"'}>${esc(PLACES_NOM[p.id] || p.id)}${libre ? '' : auto[p.id] && !places.has(p.id) ? ` · prise (${esc(AUTO_NOM[p.id] || 'ce mois-ci')})` : ' · prise'}</button>`; }).join('')}<button type="button" class="cn-place annuler" data-place="" data-deco="">Annuler</button></div>` : '';
+      return `<li class="cn-objet posable${x.gagne ? '' : ' gris'}${pose ? ' pose' : ''}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b><small>${x.gagne ? (pose ? posee(pose) : `Se pose ${ici}`) : esc(x.obtenir)}</small></span>${act}${choix}</li>`;
     };
     const famille = (f) => {
       const g = f.items.filter((x) => x.gagne), m = f.items.filter((x) => !x.gagne), ouverte = !!carnetEtat.ouvertes[f.id];
@@ -285,9 +301,10 @@ const CHAINE_ECRAN = (() => {
         ${g.length ? `<ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${g.map((x) => objet(f, x)).join('')}</ul>` : '<p class="note">Rien encore dans cette famille.</p>'}
         ${m.length ? `<details class="repli"${ouverte ? ' open' : ''} data-repli="${f.id}"><summary><span>${m.length === 1 ? 'Le dernier à gagner' : `Les ${m.length} à gagner`}</span><i class="ico chev">${ico('chevron')}</i></summary><ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${m.map((x) => objet(f, x)).join('')}</ul></details>` : ''}</div>`;
     };
-    const ou = cible ? `${esc(CH.nomDe(b))} · n°${cible}` : 'Ta boulangerie';
+    const enAttente = [...reel.values()].filter((r) => r === null).length;
+    const ou = cible ? (b.nm ? `${esc(CH.nomDe(b))} · n°${cible}` : esc(CH.nomDe(b))) : 'Ta boulangerie'; // (le nom d'office finit déjà par « n°N »)
     D.openSheet(`<div class="ch-fiche-tete"><i class="ico">${ico('decos')}</i><div><h2>Mes décos</h2><p class="sous">${gagnes}/${total} objets dans ton carnet</p></div></div>
-      <div class="cn-ici"><span><small>Les décos de</small><b>${ou}</b></span><span class="cn-compte${liste.length >= CH.DECOS_MAX ? ' plein' : ''}">${origine ? 'plan d’origine' : `${liste.length}/${CH.DECOS_MAX} posées`}</span></div>
+      <div class="cn-ici"><span><small>Les décos de</small><b>${ou}</b></span><span class="cn-compte${liste.length >= CH.DECOS_MAX ? ' plein' : ''}">${origine ? 'plan d’origine' : `${liste.length}/${CH.DECOS_MAX} posées${enAttente ? ` · ${enAttente} en attente` : ''}`}</span></div>
       ${origine ? `<p class="note">Tes décos gagnées sont à leurs places de toujours. Poser ou ranger en fait ta disposition, ${CH.DECOS_MAX} au plus ; « Plan d’origine » la remet comme avant.</p>`
     : `<div class="cn-outils"><button type="button" class="lien" data-a="origine">${cible ? 'Revenir à sa déco d’office' : 'Plan d’origine'}</button></div>`}
       ${fam.map(famille).join('')}
@@ -301,15 +318,16 @@ const CHAINE_ECRAN = (() => {
     D.on('[data-poser]', (x) => {
       const id = x.dataset.poser, d = fam.reduce((a, f) => a.concat(f.items), []).find((y) => y.id === id); if (!d) return;
       if (liste.length >= CH.DECOS_MAX) { D.son.non(); D.toast(`${CH.DECOS_MAX} décos au plus par boutique : range-en une d’abord.`); return; }
-      const libres = CH.PLACES.filter((p) => p.type === d.place && !places.has(p.id) && CH.peutPoser(liste, id, p.id, qualite()).ok);
-      if (!libres.length) { D.son.non(); D.toast(`Plus de place ${TYPES[d.place] || ''} : range une déco de ce côté-là.`); return; }
-      if (libres.length === 1) { poserListe(cible, [...liste, [id, libres[0].id]]); D.son.achat(); D.toast(`${d.nom} : posée, ${PLACES_NOM[libres[0].id]}.`); garderPlace(() => carnet()); return; }
-      D.son.tap(); carnetEtat.choix = id; garderPlace(() => carnet());
+      const toutes = CH.PLACES.filter((p) => p.type === d.place && !places.has(p.id) && CH.peutPoser(liste, id, p.id, qualite()).ok), libres = toutes.filter((p) => !auto[p.id]);
+      if (!toutes.length) { D.son.non(); D.toast(`Plus de place ${TYPES[d.place] || ''} : range une déco de ce côté-là.`); return; }
+      if (!libres.length) { poserListe(cible, [...liste, [id, toutes[0].id]]); D.son.achat(); D.toast(`${d.nom} : pas de place ce mois-ci, elle attend dans le carnet.`); garderPlace(() => carnet()); return; } // (un décor de saison tient la place : elle viendra après)
+      if (toutes.length === 1) { poserListe(cible, [...liste, [id, libres[0].id]]); D.son.achat(); D.toast(`${d.nom} : posée, ${PLACES_NOM[libres[0].id]}.`); garderPlace(() => carnet()); return; }
+      D.son.tap(); carnetEtat.choix = id; garderPlace(() => carnet()); // (plusieurs places de ce type : le carnet demande où ; celle d'un décor automatique est marquée « prise »)
     });
     D.on('[data-place]', (x) => {
       const id = x.dataset.deco, p = x.dataset.place; carnetEtat.choix = '';
       if (!id || !p) { garderPlace(() => carnet()); return; }
-      if (places.has(p) || !CH.peutPoser(liste, id, p, qualite()).ok) { D.son.non(); D.toast('Cette place est déjà prise.'); garderPlace(() => carnet()); return; }
+      if (places.has(p) || auto[p] || !CH.peutPoser(liste, id, p, qualite()).ok) { D.son.non(); D.toast('Cette place est déjà prise.'); garderPlace(() => carnet()); return; }
       poserListe(cible, [...liste, [id, p]]); D.son.achat(); garderPlace(() => carnet());
     });
   }
@@ -437,7 +455,7 @@ const CHAINE_ECRAN = (() => {
     const cle = `${b.n}|${CH.nomDe(b)}|${j.fait}/${j.max}|${b.or}|${b.jp}`; if (!force && cle === cleBandeau) return; cleBandeau = cle;
     const acc = b.or ? '#FFC84A' : accent(b.q, G.standingDe(b.n)); box.style.setProperty('--acc', acc); box.style.setProperty('--enc', clair(acc) ? L : '#FFFFFF');
     box.innerHTML = `<button type="button" class="cb-retour" data-cb="retour" aria-label="Revenir à ma boulangerie"><i class="ico">${ico('chevron')}</i><span>Ma<br>boulangerie</span></button>
-      <button type="button" class="cb-titre" data-cb="nom" aria-label="Renommer la boutique n°${b.n}"><small>Boutique n°${b.n} · Ma chaîne</small><b class="cb-nom">${esc(CH.nomDe(b))}</b>${b.or ? `<span class="cb-or"><i class="ico">${OR_ICO()}</i>Boutique d’or</span>` : `<span class="cb-jauge" role="img" aria-label="Vers la Boutique d’or : ${j.fait} paliers sur ${j.max}"><i style="width:${pct(j.fait, j.max)}"></i></span>`}</button>
+      <button type="button" class="cb-titre" data-cb="nom" aria-label="Renommer la boutique n°${b.n}"><small>N°${b.n} · Ma chaîne</small><b class="cb-nom">${esc(CH.nomDe(b))}</b>${b.or ? `<span class="cb-or"><i class="ico">${OR_ICO()}</i>Boutique d’or</span>` : `<span class="cb-jauge" role="img" aria-label="Vers la Boutique d’or : ${j.fait} paliers sur ${j.max}"><i style="width:${pct(j.fait, j.max)}"></i></span>`}</button>
       ${b.jp ? `<button type="button" class="cb-prendre" data-cb="prendre" aria-label="Prendre ${jetonsTxt(b.jp)} de chaîne"><i class="ico">${CLE()}</i><span><small>Prendre</small><b>${G.fmt(b.jp)}</b></span></button>` : `<button type="button" class="cb-planete" data-cb="chaine" aria-label="Ma chaîne : la petite planète"><i class="ico">${PLANETE_ICO()}</i></button>`}`;
   }
   function bandeauClic(e, v) { // rend 'retour', 'chaine', ou '' (déjà fait ici)

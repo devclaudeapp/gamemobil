@@ -2058,7 +2058,7 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 /* ─── « Tout déplaçable » (le mode Aménager) : Déplacer / Améliorer et Plan d'origine, en haut à gauche ; l'enseigne s'efface ─── */
 #amenage-barre { position: absolute; top: 8px; left: 10px; z-index: 2; display: flex; gap: 6px; max-width: calc(100% - 130px); flex-wrap: wrap; }
 #amenage-barre[hidden] { display: none; }
-#amenage-barre button { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 0 13px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); color: var(--texte); white-space: nowrap; }
+#amenage-barre button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 13px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); color: var(--texte); white-space: nowrap; }
 #amenage-barre button:active { transform: translateY(3px); box-shadow: none; }
 #amenage-barre button[aria-pressed="true"] { background: var(--menthe-clair); box-shadow: 0 3px 0 var(--menthe-sombre); }
 #amenage-barre .ico { width: 20px; height: 20px; display: inline-grid; }
@@ -2178,16 +2178,19 @@ body.essai #chaine { top: 24px; }
 .chaine-carte .compte .ico svg { width: 16px; height: 16px; }
 .chaine-carte .chev svg { width: 18px; height: 18px; }
 
-/* dans une boutique de la chaîne : le bandeau au-dessus de la scène (le retour, son nom, sa jauge d'or, ses jetons), ses cartes ; ni objectifs,
-   ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
-.chaine-bandeau { position: absolute; top: 8px; left: 10px; right: 10px; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px; border-radius: 20px;
+/* dans une boutique de la chaîne : le bandeau sous l'en-tête, AU-DESSUS de la scène et hors d'elle (le retour, son nom, sa jauge d'or, ses
+   jetons) : la scène commence dessous, rien du mur ni de la fenêtre (les décos m1 à m4, r1, r2, l'horloge, le diplôme) n'est caché ; ses
+   cartes ; ni objectifs, ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
+.chaine-bandeau { position: relative; flex: 0 0 auto; z-index: 3; display: flex; align-items: center; gap: 8px; min-height: 56px; margin: 0 10px 6px; padding: 6px; border-radius: 20px;
   background: rgba(255, 255, 255, .94); box-shadow: 0 4px 14px rgba(74, 51, 40, .14), inset 0 -3px 0 var(--acc); }
 .cb-retour { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 10px 0 4px; border-radius: 14px; background: var(--creme); font: 700 12px/1.1 var(--titre); text-align: left; white-space: nowrap; }
 .cb-retour .ico svg { width: 20px; height: 20px; transform: rotate(180deg); }
 .cb-retour:active, .cb-prendre:active, .cb-planete:active { transform: translateY(2px); }
 .cb-titre { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; padding: 2px 4px; text-align: left; }
 .cb-titre small { display: block; font: 800 11px/1.1 var(--texte-font); color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cb-nom { display: block; font: 700 16px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* le nom tient sur deux lignes (un nom d'office, « Le Grand Fournil de la Capitale n°30 », est presque toujours plus long qu'une) */
+.cb-nom { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font: 700 15px/1.1 var(--titre); overflow-wrap: anywhere; }
+@media (max-width: 379px) { .cb-nom { font-size: 13.5px; } .cb-retour { padding-right: 8px; font-size: 11.5px; } .chaine-bandeau { gap: 6px; margin-inline: 8px; } }
 .cb-jauge { position: relative; display: block; height: 6px; margin-top: 2px; border-radius: 3px; background: var(--creme); overflow: hidden; }
 .cb-jauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); }
 .cb-or { display: inline-flex; align-items: center; gap: 4px; font: 800 11.5px/1 var(--texte-font); color: #B07A00; }
@@ -2203,8 +2206,8 @@ body.essai #chaine { top: 24px; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
 body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
-body.chaine-dans.amenage .chaine-bandeau { display: none; }
-#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
+#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }
 
 /* le carnet « Mes décos » : où l'on pose, les familles et leurs objets (gagnés en couleur, à gagner grisés avec comment les obtenir) */
@@ -2231,11 +2234,13 @@ body.chaine-dans.amenage .chaine-bandeau { display: none; }
 .cn-vig img { width: 100%; height: 100%; object-fit: cover; }
 .cn-vig .ico svg { width: 32px; height: 32px; }
 .cn-vig.gris .ico svg { filter: grayscale(1); opacity: .4; }
-.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; }
+.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 44px; }
 .cn-places { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 2px 54px; }
-.cn-place { min-height: 40px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
+.cn-place { min-height: 44px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
 .cn-place.prise { background: var(--gris); color: var(--gris-texte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .cn-place.annuler { background: #fff; color: var(--texte-2); box-shadow: 0 3px 0 var(--gris-sombre); }
+.cn-attente { color: #B4560F; font-weight: 800; } /* une déco posée dont la place est tenue ce mois-ci par un décor de saison : elle attend */
+.at-titre small.ch-sous { white-space: normal; line-height: 1.2; } /* (« 30 boutiques · 10 gérants · 3 Boutiques d’or » : à la ligne plutôt que coupé) */
 
 /* la feuille du retour : ce que les gérants ont versé aux caisses de la chaîne */
 .retour-gerants { margin: 10px 0 12px; }
@@ -2251,8 +2256,10 @@ body.chaine-dans.amenage .chaine-bandeau { display: none; }
   background: repeating-linear-gradient(-45deg, #FFE4C2 0 10px, #FFD9AA 10px 20px); color: #8A4B10; font: 700 12px/1 var(--texte-font); white-space: nowrap; overflow: hidden; }
 .essai-bandeau span { overflow: hidden; text-overflow: ellipsis; }
 .essai-bandeau b { font-family: var(--titre); }
-.essai-bandeau button { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; color: #fff; font: 700 13px/1 var(--titre); position: relative; }
-.essai-bandeau button::after { content: ''; position: absolute; inset: -12px -10px; } /* une cible de 44 px sous le doigt */
+/* le « ? » : le bouton lui-même fait 44 × 24 (toute la hauteur du bandeau, qui rogne ce qui dépasse) ; le rond orange est dessiné dessous */
+.essai-bandeau button { flex: 0 0 auto; position: relative; display: grid; place-items: center; width: 44px; height: 24px; margin-right: -6px; color: #fff; font: 700 13px/1 var(--titre); }
+.essai-bandeau button::before { content: ''; position: absolute; left: 12px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; z-index: -1; }
+.essai-bandeau button { isolation: isolate; }
 .essai-quoi { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.4; }
 .essai-quoi li + li { margin-top: 6px; }
 a.essai-lien { margin-top: 8px; text-decoration: none; }
@@ -2270,13 +2277,13 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
+<div id="chaine-bandeau" class="chaine-bandeau" hidden></div>
 <div id="corps">
   <div id="scene-wrap">
     <canvas id="scene" aria-label="La boutique en 3D, vue d’en haut : le fournil, le comptoir, le salon de thé ; les clients entrent, achètent, s’attablent et repartent."></canvas>
     <canvas id="scene-ui" aria-hidden="true"></canvas>
     <div id="sans-3d" hidden><b>La 3D n’est pas disponible sur cet appareil.</b><span>La boutique tourne quand même : tes fournées, tes apprentis et tes clients sont là.</span></div>
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
-    <div id="chaine-bandeau" class="chaine-bandeau" hidden></div>
     <div id="coin">
       <button id="b-chaine" class="rond chaine" type="button" aria-label="Ma chaîne" hidden><i class="ico" data-ico="planete"></i><i class="rang-pastille ch-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
@@ -3138,10 +3145,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   const possede = (st, id) => !!garderobe(st).objets[id];
   const niveauVetement = (st, id) => { const o = garderobe(st).objets[id]; return o ? o.niv : 0; };
-  function donnerVetement(st, id) { // une pièce gagnée (podium, palier de l'événement) ; déjà possédée : rien ne change
+  // une pièce gagnée (podium, palier de l'événement) ; déjà possédée : rien ne change. o.muet : la pièce seule, sans compter dans les stats ni
+  // écrire au journal (la tenue de « Ma chaîne », achetée en jetons : la chaîne ne touche jamais st.stats, contrat § 1.7)
+  function donnerVetement(st, id, o) {
     const v = vetement(id); if (!v) return { nouveau: false, objet: null };
     const g = garderobe(st); if (g.objets[id]) return { nouveau: false, objet: v };
-    g.objets[id] = { niv: 1, depuis: st.now || 0 }; g.v++; inc(st, 'vetements'); note(st, `Garde-robe : ${v.nom}`);
+    g.objets[id] = { niv: 1, depuis: st.now || 0 }; g.v++;
+    if (!(o && o.muet)) { inc(st, 'vetements'); note(st, `Garde-robe : ${v.nom}`); }
     return { nouveau: true, objet: v };
   }
   const donnerCollection = (st, collection) => Object.values(GARDEROBE.objets).filter((v) => v.collection === collection).map((v) => donnerVetement(st, v.id)).filter((r) => r.nouveau).map((r) => r.objet); // les quatre pièces d'un coup ; rend les nouvelles
@@ -4317,20 +4327,36 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // ─── le gérant ───
   const partGerant = (b) => (b.g ? GERANT.part[b.g[0]] : 0);
   const heuresGerant = (b) => (b.g ? GERANT.heures[b.g[1]] : 0);
-  // ce que le gérant a gagné depuis vu (8 h au plus), sans le verser ; idempotent, sur l'horloge du jeu (l'heure sûre : HORLOGE.maintenant())
-  function enAttente(st, b, now) { if (!b.g) return { secs: 0, gain: 0 }; const secs = Math.min(heuresGerant(b) * 3600, Math.max(0, (now - b.vu) / 1000)); return { secs, gain: partGerant(b) * rythme(st, b) * secs }; }
+  // ce que le gérant a gagné depuis vu (sa durée au plus : 8 à 16 h), sans le verser ; idempotent, sur l'horloge du jeu (l'heure sûre :
+  // HORLOGE.maintenant()). plafondMs (facultatif) : ce qu'il reste à payer pour la même absence (voir encaisserTout)
+  function enAttente(st, b, now, plafondMs) {
+    if (!b.g) return { secs: 0, gain: 0 };
+    let secs = Math.min(heuresGerant(b) * 3600, Math.max(0, (now - b.vu) / 1000));
+    if (plafondMs != null) secs = Math.min(secs, Math.max(0, Number.isFinite(plafondMs) ? plafondMs / 1000 : 0));
+    return { secs, gain: partGerant(b) * rythme(st, b) * secs };
+  }
   // verser à la caisse ce qu'a gagné le gérant, et remettre vu à maintenant. Sans gérant : vu suit l'heure (rien ne s'accumule).
   // Appelé au lancement, au retour, aux sauts d'heure (aux mêmes endroits que GAME.absence) et à l'ouverture de « Ma chaîne » : comme vu
   // avance à chaque versement, l'appeler deux fois ne paie jamais deux fois. Une heure qui recule (vu dans le futur) : vu = maintenant, rien de versé.
-  function encaisser(st, b, now) {
-    const x = enAttente(st, b, now);
+  // plafondMs : voir encaisserTout ; vu revient à maintenant dans tous les cas (ce qui dépasse le plafond est perdu, comme pour les apprentis)
+  function encaisser(st, b, now, plafondMs) {
+    const x = enAttente(st, b, now, plafondMs);
     if (x.gain > 0) b.c += x.gain;
     b.vu = now; // (une heure revenue en arrière : vu revient à maintenant, rien n'est versé)
     return { n: b.n, secs: x.secs, gain: x.gain };
   }
-  function encaisserTout(st, now) { // la ligne « Tes gérants ont rapporté… » de la feuille du retour ; rend { total, detail }
+  // la ligne « Tes gérants ont rapporté… » de la feuille du retour ; rend { total, detail }.
+  // plafond : 8 h au plus PAR ABSENCE (contrat § 1.5), même quand elle est payée en deux fois. Sans plafond (le lancement, le retour) : depuis vu,
+  // la durée du gérant au plus. Un nombre (ms) : le même pour tous (en jouant, une fois par minute : un trou plus long est une absence que le
+  // lancement, le retour ou le saut d'heure ont déjà réglée). Une fonction (b) → ms : le reste de chaque gérant pour cette absence (le saut
+  // d'une heure sûre arrivée en retard, après ce que le lancement a déjà payé).
+  function encaisserTout(st, now, plafond) {
     const c = etat(st, now), detail = []; let total = 0;
-    for (const b of c.b) { if (VUE.ouverte === b.n) continue; const r = encaisser(st, b, now); if (r.gain > 0) { detail.push(r); total += r.gain; } }
+    for (const b of c.b) {
+      if (VUE.ouverte === b.n) continue;
+      const p = typeof plafond === 'function' ? plafond(b) : plafond;
+      const r = encaisser(st, b, now, p); if (r.gain > 0) { detail.push(r); total += r.gain; }
+    }
     return { total, detail };
   }
   function embaucherGerant(st, n, now) {
@@ -4442,7 +4468,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (c.objets.includes(id)) return { ok: false, raison: 'possede' };
     if (c.jetons < o.prix) return { ok: false, raison: 'jetons', prix: o.prix };
     c.jetons -= o.prix; c.objets.push(id);
-    if (o.famille === 'tenue' && typeof G.donnerVetement === 'function' && G.vetement && G.vetement(id)) G.donnerVetement(st, id);
+    // la pièce rejoint la garde-robe, sans compter dans st.stats ni écrire au journal de la boulangerie (contrat § 1.7)
+    if (o.famille === 'tenue' && typeof G.donnerVetement === 'function' && G.vetement && G.vetement(id)) G.donnerVetement(st, id, { muet: true });
     return { ok: true, prix: o.prix, objet: o };
   }
 
@@ -4562,8 +4589,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const l = []; for (let k = 0; k < s.length; k += 3) { const id = ORDRE[parseInt(s.slice(k, k + 2), 36)], p = PLACES.find((x) => x.code === s[k + 2]); if (!id || !p) return null; l.push([id, p.id]); }
     return nettoyerPoses(l);
   }
-  // la disposition d'office d'une boutique de la chaîne : son souvenir de quartier, à la première place libre de son type
-  function posesDOffice(b) { const s = SOUVENIRS[b.q]; const p = PLACES.find((x) => x.type === s.place); return p ? [[s.id, p.id]] : []; }
+  // la disposition d'office d'une boutique de la chaîne : son souvenir de quartier, à la première place libre de son type. Sur le comptoir, la
+  // place de la recette (c2) avant celle des fleurs (c1) : les fleurs du standing tiennent c1 toute l'année, la recette c2 le temps d'une saison
+  const OFFICE_ORDRE = { comptoir: ['c2', 'c1'] };
+  function posesDOffice(b) {
+    const s = SOUVENIRS[b.q], ordre = OFFICE_ORDRE[s.place];
+    const p = (ordre && PLACES.find((x) => x.id === ordre[0])) || PLACES.find((x) => x.type === s.place);
+    return p ? [[s.id, p.id]] : [];
+  }
   const posesDe = (b) => { const l = b && typeof b.d === 'string' ? decosDepuisCode(b.d) : null; return l || posesDOffice(b); };
   function poser(st, n, l) { const b = boutique(st, n); if (!b) return null; const p = nettoyerPoses(l); b.d = codeDecos(p); return p; } // n : une boutique de la chaîne (la principale : st.decos = { d: code } , même code)
 
@@ -7852,7 +7885,7 @@ const VIE = (() => {
     libererPlace(c);
     const envie = Math.min(0.9, 0.45 + 0.1 * Math.min(4, places.tables) + 0.03 * (places.bar + places.banquette + places.terrasse)), siege = !c.or && (force.assis || c.hab || Math.random() < envie) ? siegeLibre(c) : null;
     if (siege) { c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, ...siege.voie, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable'; }
-    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique hantée : il fête son achat sur place (Cheer) avant de repartir
+    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '' && modeVie !== 'chaine') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique d'un événement (la hantée) : il fête son achat sur place (Cheer) avant de repartir ; pas dans une boutique de la chaîne, qui vit comme la boulangerie
   }
   function libererPlace(c) { // sa place dans la file se libère : ceux de derrière avancent d'un cran
     const slotLibre = c.slot; c.slot = -2;
@@ -21617,6 +21650,7 @@ const CHAINE_ECRAN = (() => {
   // cible : 0 = la boulangerie (st.decos = { v: 1, d: code } ; absent : le plan d'origine), n = la boutique n° de la chaîne (CHAINE.poser)
   const PLACES_NOM = { m1: 'au mur, le cadre', m2: 'au-dessus de l’étagère', m3: 'la porte du fond', m4: 'entre l’horloge et le diplôme', s1: 'le coin déco', s2: 'la place du sapin', s3: 'le coin de la porte',
     c1: 'le comptoir, aux fleurs', c2: 'le comptoir, à la recette', r1: 'la fenêtre, à gauche', r2: 'la fenêtre, à droite', x1: 'le trottoir' };
+  const AUTO_NOM = { c1: 'les fleurs', c2: 'la recette de saison', s2: 'le sapin' }; // les petits décors automatiques qui gardent leur place
   const TYPES = { mur: 'au mur', sol: 'au sol', comptoir: 'sur le comptoir', rebord: 'sur la fenêtre', dehors: 'dehors' };
   const A_VENIR = [['feves', 'Les fèves', 'En janvier, avec la galette'], ['rares', 'Les recettes rares', 'Le livre de recettes'], ['apprentis', 'Les apprentis rares', 'Des apprentis à rareté']];
   let carnetEtat = { cible: 0, choix: '', ouvertes: {} };
@@ -21644,21 +21678,36 @@ const CHAINE_ECRAN = (() => {
     D.save(); if (D.decosChangees) D.decosChangees(cible);
   }
   const qualite = () => (D.qualite ? D.qualite() : 'eco');
+  // la disposition vue dans la salle (contrat § 4.2), quand la boutique du carnet est celle que montre la scène : un décor automatique (les
+  // fleurs en c1, la recette de saison en c2, le sapin en s2) garde sa place ; la déco passe à la place libre suivante de son type, sinon elle
+  // attend (« Pas de place ce mois-ci »). Même règle que SCENE (placesEffectives), sur la liste du carnet : juste dès qu'on pose ou range.
+  function placesAuto(cible) {
+    const a = {}; if (!D.sceneDe || D.sceneDe() !== cible || typeof SCENE === 'undefined') return a;
+    try { for (const p of SCENE.placesDecos || []) if (p.auto) a[p.id] = true; } catch (e) { /* rien */ }
+    return a;
+  }
+  function effectives(liste, auto) { // → Map id → place réelle (null : elle attend)
+    const prises = new Set(Object.keys(auto)), ou = new Map(), deplacees = [];
+    for (const [id, p] of liste) { if (prises.has(p)) deplacees.push(id); else { prises.add(p); ou.set(id, p); } }
+    for (const id of deplacees) { const d = liste.find((x) => x[0] === id), t = (CH.PLACES.find((q) => q.id === d[1]) || {}).type, libre = CH.PLACES.find((q) => q.type === t && !prises.has(q.id)); if (libre) { prises.add(libre.id); ou.set(id, libre.id); } else ou.set(id, null); }
+    return ou;
+  }
   function carnet(o) {
     if (o) carnetEtat = { cible: o.cible || 0, choix: '', ouvertes: carnetEtat.ouvertes || {} };
     const s = st(), cible = carnetEtat.cible, b = cible ? CH.boutique(s, cible) : null;
     if (cible && !b) return;
     const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
-    const places = new Set(liste.map((x) => x[1]));
+    const places = new Set(liste.map((x) => x[1])), auto = placesAuto(cible), reel = effectives(origine ? [] : liste, auto); // (le plan d'origine : la scène montre les places de toujours)
     const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
     const vignette = (f, x) => { const src = CARNET_IMAGES[x.id]; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${src && x.gagne ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`}</span>`; };
     const objet = (f, x) => {
       if (!f.posable || !x.place) return `<li class="cn-objet${x.gagne ? '' : ' gris'}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b>${x.gagne ? '' : `<small>${esc(x.obtenir)}</small>`}</span></li>`;
       const pose = liste.find((p) => p[0] === x.id), ici = TYPES[x.place] || '';
+      const posee = (pp) => { const r = reel.get(pp[0]); return r === null ? '<span class="cn-attente">Pas de place ce mois-ci</span>' : `Posée : ${esc(PLACES_NOM[r || pp[1]] || r || pp[1])}`; };
       let act = '';
       if (x.gagne && carnetEtat.choix !== x.id) act = pose ? `<button type="button" class="btn non cn-btn" data-ranger="${x.id}"><b>Ranger</b></button>` : `<button type="button" class="btn ${liste.length < CH.DECOS_MAX ? 'menthe' : 'non'} cn-btn" data-poser="${x.id}"><b>Poser</b></button>`;
-      const choix = x.gagne && carnetEtat.choix === x.id ? `<div class="cn-places" role="group" aria-label="Où poser ${esc(x.nom)} ?">${CH.PLACES.filter((p) => p.type === x.place).map((p) => { const libre = !places.has(p.id), ok = libre && CH.peutPoser(liste, x.id, p.id, qualite()).ok; return `<button type="button" class="cn-place${ok ? '' : ' prise'}" data-place="${p.id}" data-deco="${x.id}"${ok ? '' : ' aria-disabled="true"'}>${esc(PLACES_NOM[p.id] || p.id)}${libre ? '' : ' · prise'}</button>`; }).join('')}<button type="button" class="cn-place annuler" data-place="" data-deco="">Annuler</button></div>` : '';
-      return `<li class="cn-objet posable${x.gagne ? '' : ' gris'}${pose ? ' pose' : ''}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b><small>${x.gagne ? (pose ? `Posée : ${esc(PLACES_NOM[pose[1]] || pose[1])}` : `Se pose ${ici}`) : esc(x.obtenir)}</small></span>${act}${choix}</li>`;
+      const choix = x.gagne && carnetEtat.choix === x.id ? `<div class="cn-places" role="group" aria-label="Où poser ${esc(x.nom)} ?">${CH.PLACES.filter((p) => p.type === x.place).map((p) => { const libre = !places.has(p.id) && !auto[p.id], ok = libre && CH.peutPoser(liste, x.id, p.id, qualite()).ok; return `<button type="button" class="cn-place${ok ? '' : ' prise'}" data-place="${p.id}" data-deco="${x.id}"${ok ? '' : ' aria-disabled="true"'}>${esc(PLACES_NOM[p.id] || p.id)}${libre ? '' : auto[p.id] && !places.has(p.id) ? ` · prise (${esc(AUTO_NOM[p.id] || 'ce mois-ci')})` : ' · prise'}</button>`; }).join('')}<button type="button" class="cn-place annuler" data-place="" data-deco="">Annuler</button></div>` : '';
+      return `<li class="cn-objet posable${x.gagne ? '' : ' gris'}${pose ? ' pose' : ''}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b><small>${x.gagne ? (pose ? posee(pose) : `Se pose ${ici}`) : esc(x.obtenir)}</small></span>${act}${choix}</li>`;
     };
     const famille = (f) => {
       const g = f.items.filter((x) => x.gagne), m = f.items.filter((x) => !x.gagne), ouverte = !!carnetEtat.ouvertes[f.id];
@@ -21666,9 +21715,10 @@ const CHAINE_ECRAN = (() => {
         ${g.length ? `<ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${g.map((x) => objet(f, x)).join('')}</ul>` : '<p class="note">Rien encore dans cette famille.</p>'}
         ${m.length ? `<details class="repli"${ouverte ? ' open' : ''} data-repli="${f.id}"><summary><span>${m.length === 1 ? 'Le dernier à gagner' : `Les ${m.length} à gagner`}</span><i class="ico chev">${ico('chevron')}</i></summary><ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${m.map((x) => objet(f, x)).join('')}</ul></details>` : ''}</div>`;
     };
-    const ou = cible ? `${esc(CH.nomDe(b))} · n°${cible}` : 'Ta boulangerie';
+    const enAttente = [...reel.values()].filter((r) => r === null).length;
+    const ou = cible ? (b.nm ? `${esc(CH.nomDe(b))} · n°${cible}` : esc(CH.nomDe(b))) : 'Ta boulangerie'; // (le nom d'office finit déjà par « n°N »)
     D.openSheet(`<div class="ch-fiche-tete"><i class="ico">${ico('decos')}</i><div><h2>Mes décos</h2><p class="sous">${gagnes}/${total} objets dans ton carnet</p></div></div>
-      <div class="cn-ici"><span><small>Les décos de</small><b>${ou}</b></span><span class="cn-compte${liste.length >= CH.DECOS_MAX ? ' plein' : ''}">${origine ? 'plan d’origine' : `${liste.length}/${CH.DECOS_MAX} posées`}</span></div>
+      <div class="cn-ici"><span><small>Les décos de</small><b>${ou}</b></span><span class="cn-compte${liste.length >= CH.DECOS_MAX ? ' plein' : ''}">${origine ? 'plan d’origine' : `${liste.length}/${CH.DECOS_MAX} posées${enAttente ? ` · ${enAttente} en attente` : ''}`}</span></div>
       ${origine ? `<p class="note">Tes décos gagnées sont à leurs places de toujours. Poser ou ranger en fait ta disposition, ${CH.DECOS_MAX} au plus ; « Plan d’origine » la remet comme avant.</p>`
     : `<div class="cn-outils"><button type="button" class="lien" data-a="origine">${cible ? 'Revenir à sa déco d’office' : 'Plan d’origine'}</button></div>`}
       ${fam.map(famille).join('')}
@@ -21682,15 +21732,16 @@ const CHAINE_ECRAN = (() => {
     D.on('[data-poser]', (x) => {
       const id = x.dataset.poser, d = fam.reduce((a, f) => a.concat(f.items), []).find((y) => y.id === id); if (!d) return;
       if (liste.length >= CH.DECOS_MAX) { D.son.non(); D.toast(`${CH.DECOS_MAX} décos au plus par boutique : range-en une d’abord.`); return; }
-      const libres = CH.PLACES.filter((p) => p.type === d.place && !places.has(p.id) && CH.peutPoser(liste, id, p.id, qualite()).ok);
-      if (!libres.length) { D.son.non(); D.toast(`Plus de place ${TYPES[d.place] || ''} : range une déco de ce côté-là.`); return; }
-      if (libres.length === 1) { poserListe(cible, [...liste, [id, libres[0].id]]); D.son.achat(); D.toast(`${d.nom} : posée, ${PLACES_NOM[libres[0].id]}.`); garderPlace(() => carnet()); return; }
-      D.son.tap(); carnetEtat.choix = id; garderPlace(() => carnet());
+      const toutes = CH.PLACES.filter((p) => p.type === d.place && !places.has(p.id) && CH.peutPoser(liste, id, p.id, qualite()).ok), libres = toutes.filter((p) => !auto[p.id]);
+      if (!toutes.length) { D.son.non(); D.toast(`Plus de place ${TYPES[d.place] || ''} : range une déco de ce côté-là.`); return; }
+      if (!libres.length) { poserListe(cible, [...liste, [id, toutes[0].id]]); D.son.achat(); D.toast(`${d.nom} : pas de place ce mois-ci, elle attend dans le carnet.`); garderPlace(() => carnet()); return; } // (un décor de saison tient la place : elle viendra après)
+      if (toutes.length === 1) { poserListe(cible, [...liste, [id, libres[0].id]]); D.son.achat(); D.toast(`${d.nom} : posée, ${PLACES_NOM[libres[0].id]}.`); garderPlace(() => carnet()); return; }
+      D.son.tap(); carnetEtat.choix = id; garderPlace(() => carnet()); // (plusieurs places de ce type : le carnet demande où ; celle d'un décor automatique est marquée « prise »)
     });
     D.on('[data-place]', (x) => {
       const id = x.dataset.deco, p = x.dataset.place; carnetEtat.choix = '';
       if (!id || !p) { garderPlace(() => carnet()); return; }
-      if (places.has(p) || !CH.peutPoser(liste, id, p, qualite()).ok) { D.son.non(); D.toast('Cette place est déjà prise.'); garderPlace(() => carnet()); return; }
+      if (places.has(p) || auto[p] || !CH.peutPoser(liste, id, p, qualite()).ok) { D.son.non(); D.toast('Cette place est déjà prise.'); garderPlace(() => carnet()); return; }
       poserListe(cible, [...liste, [id, p]]); D.son.achat(); garderPlace(() => carnet());
     });
   }
@@ -21818,7 +21869,7 @@ const CHAINE_ECRAN = (() => {
     const cle = `${b.n}|${CH.nomDe(b)}|${j.fait}/${j.max}|${b.or}|${b.jp}`; if (!force && cle === cleBandeau) return; cleBandeau = cle;
     const acc = b.or ? '#FFC84A' : accent(b.q, G.standingDe(b.n)); box.style.setProperty('--acc', acc); box.style.setProperty('--enc', clair(acc) ? L : '#FFFFFF');
     box.innerHTML = `<button type="button" class="cb-retour" data-cb="retour" aria-label="Revenir à ma boulangerie"><i class="ico">${ico('chevron')}</i><span>Ma<br>boulangerie</span></button>
-      <button type="button" class="cb-titre" data-cb="nom" aria-label="Renommer la boutique n°${b.n}"><small>Boutique n°${b.n} · Ma chaîne</small><b class="cb-nom">${esc(CH.nomDe(b))}</b>${b.or ? `<span class="cb-or"><i class="ico">${OR_ICO()}</i>Boutique d’or</span>` : `<span class="cb-jauge" role="img" aria-label="Vers la Boutique d’or : ${j.fait} paliers sur ${j.max}"><i style="width:${pct(j.fait, j.max)}"></i></span>`}</button>
+      <button type="button" class="cb-titre" data-cb="nom" aria-label="Renommer la boutique n°${b.n}"><small>N°${b.n} · Ma chaîne</small><b class="cb-nom">${esc(CH.nomDe(b))}</b>${b.or ? `<span class="cb-or"><i class="ico">${OR_ICO()}</i>Boutique d’or</span>` : `<span class="cb-jauge" role="img" aria-label="Vers la Boutique d’or : ${j.fait} paliers sur ${j.max}"><i style="width:${pct(j.fait, j.max)}"></i></span>`}</button>
       ${b.jp ? `<button type="button" class="cb-prendre" data-cb="prendre" aria-label="Prendre ${jetonsTxt(b.jp)} de chaîne"><i class="ico">${CLE()}</i><span><small>Prendre</small><b>${G.fmt(b.jp)}</b></span></button>` : `<button type="button" class="cb-planete" data-cb="chaine" aria-label="Ma chaîne : la petite planète"><i class="ico">${PLANETE_ICO()}</i></button>`}`;
   }
   function bandeauClic(e, v) { // rend 'retour', 'chaine', ou '' (déjà fait ici)
@@ -21850,7 +21901,9 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
-  let absencePrete = false, absencePayee = 0, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
+  // gerantsPayes : pour la même absence, ce que chaque gérant de la chaîne a déjà touché (n → ms) : le saut d'une heure sûre en retard le complète
+  // jusqu'à sa durée, jamais au-delà (CHAINE.encaisserTout, contrat § 1.5)
+  let absencePrete = false, absencePayee = 0, gerantsPayes = {}, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -23062,8 +23115,12 @@ const UI = (() => {
     on('[data-a="close"]', closeSheet);
   }
   // les gérants de la chaîne : payés sur l'heure du jeu, à côté de chaque GAME.absence (le lancement, le retour, les sauts de l'heure sûre),
-  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser)
-  function encaisserChaine(t) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant()); } catch (e) { return null; } }
+  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser).
+  // plafond (CHAINE.encaisserTout) : rien au lancement et au retour ; le reste de chaque gérant au saut d'heure ; EN_JEU en jouant (une minute
+  // entre deux appels : un trou plus long est une absence, déjà réglée par le lancement, le retour ou le saut)
+  const EN_JEU = 120e3;
+  function encaisserChaine(t, plafond) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant(), plafond); } catch (e) { return null; } }
+  const payesDe = (enc) => { const m = {}; if (enc) for (const d of enc.detail) m[d.n] = d.secs * 1000; return m; };
   const montrerRetour = (abs, enc) => abs.secs > 90 && (abs.total > 0 || !!(enc && enc.total > 0));
 
   // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
@@ -24008,7 +24065,7 @@ const UI = (() => {
       CE.cartes.rendre(); CE.bandeau($('#chaine-bandeau'), chaineVue.v);
     } else renderCards();
     hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant()); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
+    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant(), EN_JEU); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     else if (chaineVue && !couvert) { const t = HORLOGE.maintenant(); chaineVue.v.now = t; SCENE.frame(dt, chaineVue.v, t, msImage, espacee); } // dans une boutique de la chaîne : la scène montre la vue, jamais st
     else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t, msImage, espacee); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
@@ -24038,7 +24095,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); eveiller(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -24102,11 +24159,15 @@ const UI = (() => {
   // pour une même absence (avec ce qui a été payé au lancement ou au retour, jamais plus que heuresAbsence) ; voir src/horloge.js (d)
   function payerSaut(r) {
     if (!st || !absencePrete || retourEnCours || fige) return; // au lancement et au retour, l'absence part de l'ancien lastSeen : le saut y est déjà
-    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3);
-    if (!(paye > 0)) return;
-    const now = HORLOGE.maintenant();
+    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3), now = HORLOGE.maintenant();
+    // les gérants d'abord, et même quand la boulangerie n'a plus rien à toucher : chacun reçoit le reste de SA durée pour cette absence (8 à
+    // 16 h en tout, pas celle des apprentis), au plus le saut ; vu revient à maintenant (sans quoi l'encaissement d'une minute plus tard
+    // repaierait tout le saut)
+    const enc = encaisserChaine(now, (b) => HORLOGE.sautAPayer(r.saut, gerantsPayes[b.n] || 0, CH.heuresGerant(b) * 3600e3));
+    if (enc) for (const d of enc.detail) gerantsPayes[d.n] = (gerantsPayes[d.n] || 0) + d.secs * 1000;
+    if (!(paye > 0)) { if (enc && enc.total > 0) { majCoinChaine(); save(); } return; }
     st.lastSeen = now - paye;
-    const abs = G.absence(st, now), enc = encaisserChaine(now);
+    const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
     if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
     const montre = montrerRetour(abs, enc);
@@ -24149,7 +24210,8 @@ const UI = (() => {
     if (CE) {
       CE.init({ st: () => st, maintenant: () => HORLOGE.maintenant(), save, toast, son: Object.assign({}, son, { pieces: son.pourboire }), buzz, audio, openSheet, closeSheet, on, confettis, fete: () => SCENE.fete(), reduit: reduceMotion,
         qualite: () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; }, heure: () => { try { const f = VIE.force; return f && f.heure != null ? f.heure : G.heureParis(HORLOGE.maintenant()); } catch (e) { return 12; } }, // (le ciel de la planète : celui de la boutique)
-        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant()), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
+        sceneDe: () => (visite || (EVS && EVS.ouvert) ? -1 : chaineVue ? chaineVue.n : 0), // la boutique que montre la scène (le carnet y lit les places tenues par un décor automatique)
+        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
         ferme: () => { eveiller(); lastFrame = performance.now(); cleCoinChaine = ''; majCoinChaine(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } },
         amenager: () => { if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); } });
       $('#b-chaine').addEventListener('click', () => { audio(); son.tap(); ouvrirChaine(); });
@@ -24226,8 +24288,11 @@ const UI = (() => {
     // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, AVANT l'absence (ses bonus de
     // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
     const rattrape = fresh ? [] : G.rattraperParcours(st);
-    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
-    absencePrete = true;
+    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
+    // le détecteur de réveil repart du lancement : un lancement lent (plus de 5 s, l'heure sûre attendue comprise) n'est pas une page gelée.
+    // Sans cela, son premier passage voyait un « gel » et lançait un retour qui payait le reste d'une heure sûre en retard comme une nouvelle
+    // absence (la boulangerie et les gérants : 12 h pour une absence de 12 h, au lieu de 8), sans passer par payerSaut
+    absencePrete = true; reveilW = Date.now(); reveilP = performance.now();
     if (essaiCopie) save(); // (la vraie partie copiée : sauvée sous les clés de l'essai, jamais sous les siennes)
     if (essaiVide) { const montrer = () => sheetEssaiCode(); if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
@@ -24279,8 +24344,8 @@ const UI = (() => {
       chaine: CH ? { get etat() { return CH.etat(st); }, ouvrir: (n) => entrerChaine(n, 'test', true), fermer: () => sortirChaine(), get vue() { return chaineVue ? chaineVue.v : null; }, get n() { return chaineVue ? chaineVue.n : 0; },
         ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
         donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
-        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
-        encaisser: () => encaisserChaine(HORLOGE.maintenant()), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); gerantsPayes = payesDe(enc); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
+        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

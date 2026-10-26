@@ -5,8 +5,12 @@
 // Le premier gérant, offert. Une absence de 10 h : « Tes gérants ont rapporté… », exactement 8 h ; recharger ne repaie pas. La boutique des
 // jetons (un boost par semaine) et le carnet « Mes décos » (poser, ranger). Une nouvelle boutique : l'ancienne dans la chaîne avec ses niveaux.
 // La boulangerie n'a pas bougé (lifetime, lifetimeRun, points, jour, stats identiques). Le décor d'une boutique de la chaîne : ≤ 72 appels en
-// éco. Trois allers-retours planète → boutique → boulangerie : la mémoire GPU (renderer.info.memory) stable. La version d'essai côté écran :
+// éco. Le bandeau est hors de la scène : aucune déco ni petit décor du mur ou de la fenêtre dessous ; à 360 × 640, ni le nom ni la ligne du
+// haut ne sont coupés. La déco d'office d'une boutique pendant une saison (c1 et c2 tenues) : le carnet dit « Pas de place ce mois-ci ».
+// Trois allers-retours planète → boutique → boulangerie : la mémoire GPU (renderer.info.memory, relue stable) stable. La version d'essai côté écran :
 // la vraie partie copiée sous les clés de l'essai (la sienne intacte), le bandeau ; sans vraie partie, la feuille « coller le code ».
+// L'heure sûre en retard au lancement (12 h d'absence) : le gérant touche 8 h pour cette absence, pas plus, ni au saut d'heure, ni à
+// l'ouverture de « Ma chaîne », ni à l'encaissement d'une minute plus tard (≈ 70 s d'attente).
 // Aucune erreur dans la console. Captures dans test/shots/chaine/ (ou CAPTURES_CHAINE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-chaine.cjs   (PORT_CHAINE, défaut 8890)
 'use strict';
@@ -19,8 +23,10 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/s
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const attendre = async (f, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { if (await f()) return true; } catch (e) { /* la page se recharge */ } await sleep(150); } return false; };
+let decalServeur = 0; // (l'heure du serveur, en avance d'autant : une vraie absence, le serveur et le téléphone avancent ensemble)
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
+  res.setHeader('Date', new Date(Date.now() + decalServeur).toUTCString());
   if (req.method === 'HEAD') { res.writeHead(200); res.end(); return; }
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(d); });
 }).listen(PORT);
@@ -49,11 +55,15 @@ function vieille() {
   const fermerFeuille = () => ev(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); });
   const ouvrir = async (q) => {
     await page.goto(`http://localhost:${PORT}/fournil/?qualite=${q || 'eco'}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900);
-    await fermerFeuille(); await ev(() => { const f = window.__fournil; f.st.tuto = 99; f.scene({ heure: 11 }); });
+    await fermerFeuille(); await ev(() => { const f = window.__fournil; f.st.tuto = 99; f.st.chatAttente = 1e9; f.scene({ heure: 11 }); }); // (le chat de la porte ne vient pas : sa feuille couvrirait l'écran)
   };
   const capture = async (nom) => { await sleep(300); await page.screenshot({ path: path.join(out, nom + '.png') }); };
   // ce qui ne doit jamais bouger dans la boulangerie quand on joue dans la chaîne (contrat § 1.7)
   const boulangerie = () => ev(() => { const s = window.__fournil.st; return JSON.stringify({ lifetime: s.lifetime, lifetimeRun: s.lifetimeRun, coins: s.coins, points: s.points, jour: s.jour, stats: s.stats, apprentis: s.apprentis, xp: s.xp, stations: s.stations.map((x) => x.niv), mobilier: s.mobilier, amenagement: s.amenagement || null, boutiques: s.boutiques, etoiles: s.etoiles }); });
+
+  // chaque mesure attend que renderer.info.memory ne bouge plus (deux lectures égales à 500 ms d'écart) : un modèle HD ou un décor fusionné
+  // encore en route au moment de la lecture faisait varier le compte d'un tour à l'autre (la borne, elle, ne change pas)
+  const memStable = async () => { let a = null; for (let k = 0; k < 24; k++) { const m = await ev(() => { const s = window.__fournil.SCENE.stats; return { g: s.geometries, t: s.textures }; }); if (a && a.g === m.g && a.t === m.t) return m; a = m; await sleep(500); } return a; };
 
   console.log('── la vieille sauvegarde à la n°13 : la chaîne recréée une seule fois ──');
   await ouvrir('eco');
@@ -84,7 +94,7 @@ function vieille() {
   await capture('ma-chaine-liste');
 
   console.log('── entrer dans la n°10 (la gare, standing 1) ──');
-  const memAvant = await ev(() => { const s = window.__fournil.SCENE.stats; return { g: s.geometries, t: s.textures }; });
+  const memAvant = await memStable();
   await ev(() => { const b = document.querySelector('#chaine .ch-ligne[data-n="10"]'); b.scrollIntoView({ block: 'center' }); });
   await sleep(400);
   await page.tap('#chaine .ch-ligne[data-n="10"] [data-a="entrer"]');
@@ -95,12 +105,33 @@ function vieille() {
   check(v10.mode === 'chaine' && v10.clients === 0, `les clients de la boulangerie ne sont pas dans sa salle (VIE.mode ${v10.mode}, ${v10.clients} client)`);
   check(await attendre(() => ev(() => { const v = window.__fournil.SCENE.standingVu; return v.decor === 'gare-s1' && v.palier === 1; }), 20000), 'la scène montre la gare au standing 1 (décor gare-s1)');
   const hudTxt = await ev(() => ({ bandeau: document.querySelector('#chaine-bandeau').textContent.replace(/\s+/g, ' '), retour: document.querySelector('#chaine-bandeau [data-cb="retour"]').getAttribute('aria-label'), coins: document.querySelector('#coins').textContent, cartes: document.querySelectorAll('#chaine-cartes .carte:not([hidden])').length, principale: !document.querySelector('#cartes').hidden }));
-  check(/Boutique n°10 · Ma chaîne/.test(hudTxt.bandeau) && /Le Fournil de la Gare n°10/.test(hudTxt.bandeau) && hudTxt.retour === 'Revenir à ma boulangerie', `le bandeau : « ${hudTxt.bandeau.trim().slice(0, 70)} », et « ${hudTxt.retour} »`);
+  // (la ligne du haut : « N°10 · Ma chaîne », raccourcie pour tenir à 360 px ; « Boutique n°10 · Ma chaîne » y était coupée)
+  check(/N°10 · Ma chaîne/.test(hudTxt.bandeau) && /Le Fournil de la Gare n°10/.test(hudTxt.bandeau) && hudTxt.retour === 'Revenir à ma boulangerie', `le bandeau : « ${hudTxt.bandeau.trim().slice(0, 70)} », et « ${hudTxt.retour} »`);
   check(hudTxt.cartes >= 8 && !hudTxt.principale && /^0/.test(hudTxt.coins), `ses cartes (${hudTxt.cartes} recettes), sa caisse (${hudTxt.coins}), les cartes de la boulangerie cachées`);
   await sleep(1200); await capture('boutique-chaine');
+  // le bandeau est hors de la scène : six décos au mur et à la fenêtre (m1 à m4, r1, r2), et les petits décors (horloge, diplôme…), aucune dessous
+  const sousBandeau = async (l) => {
+    if (l) { await ev((l) => window.__fournil.SCENE.decos(l), l); await sleep(1500); }
+    return ev(() => { const S = window.__fournil.SCENE, sc = document.querySelector('#scene').getBoundingClientRect(), bd = document.querySelector('#chaine-bandeau').getBoundingClientRect(), wrap = document.querySelector('#scene-wrap').getBoundingClientRect(), out = [];
+      for (const [id, q] of Object.entries(S.decosBoites || {})) { const x = sc.left + q.x + q.w / 2, y = sc.top + q.y + q.h / 2, e = document.elementFromPoint(x, y); if (!e || e.closest('#chaine-bandeau')) out.push(id); }
+      return { sous: out, n: Object.keys(S.decosBoites || {}).length, posees: (S.decosPosees || []).length, bas: Math.round(bd.bottom), haut: Math.round(wrap.top) }; });
+  };
+  const murs = [['souvenir-montagne', 'm1'], ['souvenir-gare', 'm2'], ['souvenir-cimes', 'm3'], ['souvenir-chateau', 'm4'], ['souvenir-mer', 'r1'], ['souvenir-ville', 'r2']];
+  const sb = await sousBandeau(murs);
+  check(sb.posees === 6 && sb.n >= 6 && sb.sous.length === 0 && sb.bas <= sb.haut, `le bandeau au-dessus de la scène (bas ${sb.bas} ≤ haut de la scène ${sb.haut}) : ${sb.posees} décos au mur et à la fenêtre, ${sb.n} boîtes, aucune dessous${sb.sous.length ? ' (' + sb.sous.join(', ') + ')' : ''}`);
+  await capture('boutique-chaine-murs');
+  await ev(() => { const f = window.__fournil; f.SCENE.decos(CHAINE.posesDe(f.chaine.vue.b)); }); await sleep(600);
   // le budget du décor dans une boutique de la chaîne (éco)
   const appels = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return decor; });
   check(appels <= 72, `le décor de la n°10 : ${appels} appels de dessin (≤ 72 en éco)`);
+
+  // les clients servis sans place assise repartent tout de suite (ils ne s'arrêtent pas pour fêter leur achat, comme dans la Maison hantée)
+  // (une affluence de coup de feu le temps de la mesure : assez de clients servis pour la voir, quel que soit le tirage)
+  await ev(() => VIE.setRush(true));
+  let sorts = 0, fetes = 0; const t0c = Date.now();
+  while (Date.now() - t0c < 30000 && sorts < 4) { const r = await ev(() => { let s = 0, f = 0; for (const c of VIE.clients || []) if (c.etat === 'sort') { s++; if (c.joie > 0) f++; } return { s, f }; }); sorts += r.s; fetes += r.f; await sleep(250); }
+  await ev(() => VIE.setRush(false));
+  check(sorts > 0 && fetes === 0, `les clients servis repartent sans s’arrêter : ${fetes} sur ${sorts} relevés « sort » font la fête (la Maison hantée seule)`);
 
   console.log('── franchir un palier, puis « Prendre 1 jeton » ──');
   await ev(() => { const v = window.__fournil.chaine.vue; v.coins = 1e7; v.b.c = v.coins; });
@@ -152,25 +183,67 @@ function vieille() {
   await page.tap('#feuille [data-r="objets"]'); await page.tap('#feuille [data-o="chaine-cloche"]');
   check(await ev(() => window.__fournil.chaine.etat.objets.includes('chaine-cloche')), 'la cloche du gérant achetée (45 jetons) : elle rejoint le carnet');
   await fermerFeuille();
+  await ev(() => window.__fournil.scene({ heure: 11, saison: [] })); await sleep(300); // (hors saison : la recette de saison ne tient pas c2, quel que soit le jour du test)
   await ev(() => window.__fournil.chaine.carnet(0));
+  const cibles = await ev(() => [...document.querySelectorAll('#feuille .cn-btn')].map((b) => Math.round(b.getBoundingClientRect().height)));
+  check(cibles.length > 0 && cibles.every((h) => h >= 44), `les « Poser » / « Ranger » du carnet : ${cibles.length} boutons de ${Math.min(...cibles)} px de haut au moins (≥ 44)`);
   const cn = await ev(() => ({ familles: document.querySelectorAll('#feuille .cn-famille:not(.avenir)').length, avenir: document.querySelectorAll('#feuille .cn-famille.avenir').length, origine: /plan d’origine/.test(document.querySelector('#feuille .cn-compte').textContent) }));
   check(cn.familles >= 10 && cn.avenir === 3 && cn.origine, `le carnet : ${cn.familles} familles avec leur compteur, 3 « à venir » ; la boulangerie au plan d’origine`);
   await page.tap('#feuille [data-poser="chaine-cloche"]');
-  const choix = await ev(() => [...document.querySelectorAll('#feuille .cn-places [data-place]')].map((b) => b.dataset.place).filter(Boolean));
-  check(choix.length === 2 && choix.every((p) => /^c/.test(p)), `deux places libres sur le comptoir : le carnet demande où (${choix.join(', ')})`);
+  // (une place tenue par un décor automatique de la scène, la recette de saison en c2 ou les fleurs en c1, est marquée « prise » : on pose à l'autre)
+  const choix = await ev(() => [...document.querySelectorAll('#feuille .cn-places [data-place]')].filter((b) => b.dataset.place).map((b) => ({ p: b.dataset.place, prise: b.classList.contains('prise'), auto: !!(window.__fournil.SCENE.placesDecos.find((q) => q.id === b.dataset.place) || {}).auto })));
+  const ici = (choix.find((c) => !c.prise) || {}).p;
+  check(choix.length === 2 && choix.every((c) => /^c/.test(c.p) && c.prise === c.auto) && !!ici, `deux places sur le comptoir : le carnet demande où (${choix.map((c) => c.p + (c.prise ? ' prise' : '')).join(', ')})`);
+  const hPlaces = await ev(() => [...document.querySelectorAll('#feuille .cn-places .cn-place')].map((b) => Math.round(b.getBoundingClientRect().height)));
+  check(hPlaces.length === 3 && hPlaces.every((h) => h >= 44), `le choix de la place : ${hPlaces.join(', ')} px de haut (≥ 44)`);
   await capture('carnet-place');
-  await page.tap(`#feuille .cn-places [data-place="${choix[1]}"]`);
+  await page.tap(`#feuille .cn-places [data-place="${ici}"]`);
   const pose = await ev(() => { const s = window.__fournil.st; return { d: s.decos && s.decos.d, liste: s.decos ? CHAINE.decosDepuisCode(s.decos.d) : null, compte: document.querySelector('#feuille .cn-compte').textContent }; });
-  check(pose.liste && pose.liste.some((x) => x[0] === 'chaine-cloche' && x[1] === 'c2') && /1\/6 posées/.test(pose.compte), `la cloche posée sur le comptoir de la boulangerie (st.decos.d = « ${pose.d} », ${pose.compte})`);
+  check(pose.liste && pose.liste.some((x) => x[0] === 'chaine-cloche' && x[1] === ici) && /1\/6 posées/.test(pose.compte), `la cloche posée sur le comptoir de la boulangerie, ${ici} (st.decos.d = « ${pose.d} », ${pose.compte})`);
   await capture('carnet');
   await page.tap('#feuille [data-ranger="chaine-cloche"]');
   check(await ev(() => /0\/6 posées/.test(document.querySelector('#feuille .cn-compte').textContent)), 'rangée : 0/6 posées');
   await ev(() => { document.querySelectorAll('#feuille details.repli').forEach((d) => { d.open = true; }); }); await ev(() => { document.querySelector('#feuille').scrollTop = 900; }); await capture('carnet-familles');
   await fermerFeuille();
+  console.log('── la déco d’office pendant une saison ; le carnet d’une boutique ; le bandeau et « Ma chaîne » à 360 × 640 ──');
+  {
+    // la n°6 (le village : le petit moulin, sur le comptoir) pendant Halloween : la recette de saison tient c2 ; si les fleurs tiennent c1, le
+    // moulin attend : le carnet le dit (« Pas de place ce mois-ci »), sinon il dit la place où il est vraiment
+    await ev(() => { const f = window.__fournil; f.scene({ heure: 11, saison: ['halloween', 'feuilles'] }); f.chaine.ouvrir(6); }); await sleep(1800);
+    const sc6 = await ev(() => { const S = window.__fournil.SCENE; return { office: CHAINE.posesDe(window.__fournil.chaine.vue.b), auto: S.placesDecos.filter((p) => p.auto).map((p) => p.id), attente: S.decosEnAttente, posees: S.decosPosees }; });
+    await ev(() => window.__fournil.chaine.carnet(6)); await sleep(300);
+    const cn6 = await ev(() => { const li = document.querySelector('#feuille [data-ranger="souvenir-village"]'), o = li && li.closest('.cn-objet'); return { txt: o ? o.querySelector('small').textContent : '', ou: document.querySelector('#feuille .cn-ici b').textContent, compte: document.querySelector('#feuille .cn-compte').textContent }; });
+    const reel = (sc6.posees || []).find((x) => x[0] === 'souvenir-village');
+    check(sc6.office.length === 1 && sc6.office[0][1] === 'c2' && sc6.auto.includes('c2'), `la déco d’office au comptoir : le moulin en c2 (la recette de saison la tient : ${sc6.auto.join(', ')} automatiques)`);
+    check(sc6.attente.includes('souvenir-village') ? cn6.txt === 'Pas de place ce mois-ci' && /en attente/.test(cn6.compte) : !!reel && cn6.txt === `Posée : ${{ c1: 'le comptoir, aux fleurs', c2: 'le comptoir, à la recette' }[reel[1]]}`,
+      `le carnet dit ce que montre la salle (${sc6.attente.length ? 'en attente' : 'posé en ' + (reel && reel[1])}) : « ${cn6.txt} », ${cn6.compte}`);
+    check(cn6.ou === 'Au Fournil du Village n°6', `le carnet d’une boutique : « ${cn6.ou} » (son numéro une seule fois)`);
+    await capture('carnet-office-saison');
+    await fermerFeuille(); await ev(() => window.__fournil.chaine.fermer()); await ev(() => window.__fournil.scene({ heure: 11 })); await sleep(1100);
+    // à 360 × 640, dans la n°8 (« Le Fournil de la Plage n°8 ») avec « Prendre 208 » : rien de coupé dans le bandeau, rien dessous
+    await page.setViewportSize({ width: 360, height: 640 }); await sleep(500);
+    await ev(() => { const f = window.__fournil, b = f.chaine.etat.b.find((x) => x.n === 8); b.jp = 208; f.chaine.ouvrir(8); }); await sleep(1600);
+    const coupe = (sel) => ev((sel) => { const e = document.querySelector(sel); return e ? { w: e.scrollWidth - e.clientWidth, h: e.scrollHeight - e.clientHeight, txt: e.textContent } : null; }, sel);
+    const nom = await coupe('#chaine-bandeau .cb-nom'), haut = await coupe('#chaine-bandeau .cb-titre small');
+    check(nom && haut && nom.w <= 0 && nom.h <= 1 && haut.w <= 0, `à 360 × 640 : « ${haut && haut.txt} » et « ${nom && nom.txt} » entiers (dépassent de ${nom && nom.w}/${nom && nom.h} et ${haut && haut.w} px)`);
+    const sb360 = await sousBandeau(murs);
+    check(sb360.posees === 6 && sb360.sous.length === 0, `à 360 × 640 : les décos du mur et de la fenêtre, aucune sous le bandeau${sb360.sous.length ? ' (' + sb360.sous.join(', ') + ')' : ''}`);
+    await capture('boutique-chaine-360');
+    await ev(() => { const f = window.__fournil; f.chaine.vue.b.jp = 0; f.chaine.fermer(); }); await sleep(1100);
+    await ev(() => window.__fournil.chaine.ecran()); await attendre(() => ev(() => window.__fournil.chaine.ecranOuvert)); await sleep(600);
+    const sous = await coupe('#chaine .ch-sous');
+    check(sous && sous.w <= 0 && /12 boutiques · 1 gérant/.test(sous.txt), `« Ma chaîne » à 360 × 640 : « ${sous && sous.txt} » entier`);
+    await capture('ma-chaine-360');
+    await ev(() => window.__fournil.chaine.fermerEcran()); await page.setViewportSize({ width: 390, height: 844 }); await sleep(800);
+  }
+
   // le mode Déplacer (Aménager) : une déco posée se prend au doigt, aimantée à une place de son type (vert, CHAINE.peutPoser), et le lâcher
   // écrit st.decos (la fusion : ui.js → VIE.proposerDeco → SCENE.glisserDeco / setDeplacerDecos)
   const tiroirAvant = await ev(() => { const f = window.__fournil, t = f.tiroir(); f.tiroir('ferme'); f.st.decos = { v: 1, d: CHAINE.codeDecos([['chaine-statue', 's1']]) }; f.save(); f.SCENE.decos([['chaine-statue', 's1']]); f.amenager(true); return t; });
-  await sleep(600); await ev(() => document.querySelector('#b-deplacer').click()); await sleep(400);
+  await sleep(600);
+  const hDecos = await ev(() => Math.round(document.querySelector('#b-decos').getBoundingClientRect().height));
+  check(hDecos >= 44, `« Mes décos » dans Aménager : ${hDecos} px de haut (≥ 44)`);
+  await ev(() => document.querySelector('#b-deplacer').click()); await sleep(400);
   const plD = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), c = (id) => { const q = VIE.LAY.decos.find((x) => x.id === id).r; return [r.left + q.x + q.w / 2, r.top + q.y + q.h / 2]; }; return { s1: c('s1'), s3: c('s3') }; });
   await page.mouse.move(...plD.s1); await page.mouse.down(); await page.mouse.move(plD.s1[0] + 20, plD.s1[1] + 5, { steps: 4 }); await page.mouse.move(...plD.s3, { steps: 8 }); await sleep(300);
   const gd = await ev(() => { const S = window.__fournil.SCENE, g = S.glisseDeco; return { dd: S.deplacerDecos, place: g && g.place, ok: g && g.ok }; });
@@ -182,7 +255,10 @@ function vieille() {
   await ev((t) => { const f = window.__fournil; f.amenager(false); delete f.st.decos; f.SCENE.decos(null); f.save(); f.tiroir(t); }, tiroirAvant); await sleep(400);
 
   console.log('── trois allers-retours planète → boutique → boulangerie : la mémoire GPU stable ──');
-  const mem = [];
+  // la référence du premier tour : memBoucle, la boulangerie juste avant la boucle (et non plus memAvant, lue avant la n°10) : les contrôles
+  // ajoutés entre les deux (six souvenirs au mur, la déco d'office, la statue) bâtissent des géométries que la scène garde en cache, 35 à 40
+  // de plus selon le tirage ; ce n'est pas la boucle. La borne du premier tour (+40) et celle des tours suivants (+2, +1) ne changent pas.
+  const memBoucle = await memStable(), mem = [];
   for (let k = 0; k < 3; k++) {
     await sleep(1100);
     await page.tap('#b-chaine'); await attendre(() => ev(() => window.__fournil.chaine.ecranOuvert && CHAINE_ECRAN.planete));
@@ -195,9 +271,9 @@ function vieille() {
     await sleep(1300);
     await page.tap('#chaine-bandeau [data-cb="retour"]'); await attendre(() => ev(() => !window.__fournil.chaine.vue));
     await sleep(1500);
-    mem.push(await ev(() => { const s = window.__fournil.SCENE.stats; return { g: s.geometries, t: s.textures }; }));
+    mem.push(await memStable());
   }
-  check(mem[2].g <= mem[0].g + 2 && mem[2].t <= mem[0].t + 1 && mem[0].g <= memAvant.g + 40, `géométries ${memAvant.g} → ${mem.map((m) => m.g).join(' → ')} ; textures ${memAvant.t} → ${mem.map((m) => m.t).join(' → ')}`);
+  check(mem[2].g <= mem[0].g + 2 && mem[2].t <= mem[0].t + 1 && mem[0].g <= memBoucle.g + 40, `géométries ${memAvant.g} (avant la n°10), ${memBoucle.g} → ${mem.map((m) => m.g).join(' → ')} ; textures ${memAvant.t}, ${memBoucle.t} → ${mem.map((m) => m.t).join(' → ')}`);
   check(await ev(() => !PLANETE.ouvert), 'la planète refermée (son contexte WebGL rendu)');
 
   console.log('── une nouvelle boutique : l’ancienne rejoint la chaîne avec ses niveaux ──');
@@ -231,6 +307,12 @@ function vieille() {
     const bases = await p2.evaluate(() => (indexedDB.databases ? indexedDB.databases().then((l) => l.map((d) => d.name)) : null));
     check(!bases || !bases.includes('fournil'), `aucune base « fournil » créée par l’essai (${bases ? bases.join(', ') : '—'})`);
     await p2.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
+    // le « ? » : la zone qui répond vraiment au doigt (balayée par elementFromPoint), 44 px de large sur toute la hauteur du bandeau
+    const q = await p2.evaluate(() => { const bd = document.querySelector('#essai-bandeau').getBoundingClientRect(), b = document.querySelector('#essai-bandeau [data-a="essai"]'); let n = 0, h = 0;
+      for (let x = Math.floor(bd.left); x < bd.right; x++) { const e = document.elementFromPoint(x + 0.5, bd.top + bd.height / 2); if (e && (e === b || b.contains(e))) n++; }
+      for (let y = Math.floor(bd.top); y < bd.bottom; y++) { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, y + 0.5); if (e && (e === b || b.contains(e))) h++; }
+      return { n, h, haut: Math.round(bd.height) }; });
+    check(q.n >= 44 && q.h >= q.haut, `le « ? » du bandeau d’essai : ${q.n} px de large sous le doigt (≥ 44), ${q.h} px de haut (tout le bandeau, ${q.haut} px)`);
     await p2.screenshot({ path: path.join(out, 'essai-bandeau.png') });
     await p2.tap('#essai-bandeau [data-a="essai"]'); await sleep(300); await p2.screenshot({ path: path.join(out, 'essai-feuille.png') });
     await c2.close();
@@ -243,6 +325,48 @@ function vieille() {
     check(await attendre(() => p3.evaluate(() => /Ta vraie partie n’est pas ici/.test(document.querySelector('#feuille-contenu').textContent) && !!document.querySelector('#feuille [data-r="entree"]')), 6000), 'sans vraie partie : la feuille « coller le code » (ou commencer une partie neuve)');
     await sleep(300); await p3.screenshot({ path: path.join(out, 'essai-coller-code.png') });
     await c3.close();
+  }
+
+  console.log('── l’heure sûre en retard au lancement : le gérant, 8 h pour une absence de 12 h, ni plus au saut, ni une minute après ──');
+  {
+    // le téléphone : son heure avance avec celle du serveur (test.tel, relue à chaque chargement) ; une vieille sauvegarde à la n°3, le gérant
+    // offert à la n°1 ; puis 12 h d'absence, l'heure sûre retardée de 4,5 s au lancement (le jeu démarre sur l'heure du téléphone, le saut suit)
+    const fauxTelephone = () => { let d = 0; try { const v = localStorage.getItem('test.tel'); if (v != null) d = +v; } catch (e) { /* rien */ }
+      const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } }
+      window.Date = FauxDate; window.__sansEvenements = true; window.__sansQuartier = true; };
+    const s0 = G.newState(Date.now() - 60e3); s0.boutiques = 3; s0.tuto = 99; s0.lastSeen = Date.now() - 60e3; delete s0.chaine;
+    const c4 = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await c4.addInitScript(fauxTelephone);
+    await c4.addInitScript((seed) => { try { if (!localStorage.getItem('fournil.v2') && !sessionStorage.getItem('graine')) { localStorage.setItem('fournil.v2', seed); sessionStorage.setItem('graine', '1'); } } catch (e) { /* rien */ } }, JSON.stringify(s0));
+    await c4.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
+    let p4 = await c4.newPage(); p4.on('pageerror', (e) => erreurs.push('heure en retard : ' + e.message));
+    const pret = async () => { await p4.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(800); };
+    await p4.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await pret();
+    const e4 = await p4.evaluate(() => { const st = window.__fournil.st, r = CHAINE.embaucherGerant(st, 1, HORLOGE.maintenant()); window.__fournil.save(); return r.ok; });
+    // la page fermée AVANT que l'heure du serveur avance (ouverte, elle redemanderait l'heure sûre et verrait le serveur sauter de 12 h : un
+    // saut payé sur l'ancienne page, puis une autre absence au lancement — pas le cas mesuré ici) ; le téléphone avancera au prochain chargement
+    await p4.evaluate((d) => { window.__fournil.save(); localStorage.setItem('test.tel', String(d)); }, 12 * 3600e3); await p4.close();
+    decalServeur = 12 * 3600e3;
+    p4 = await c4.newPage(); p4.on('pageerror', (e) => erreurs.push('heure en retard : ' + e.message));
+    await p4.route('**/*heure=*', async (r) => { await sleep(4500); try { await r.continue(); } catch (e) { /* rien */ } });
+    await p4.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await pret();
+    const heures = () => p4.evaluate(() => { const st = window.__fournil.st, b = CHAINE.boutique(st, 1), r = CHAINE.partGerant(b) * CHAINE.rythme(st, b); const j = st.journalRetours || [], k = j.map((x) => x.r).lastIndexOf('lancement');
+      return { h: b.c / r / 3600, src: HORLOGE.info().source, feuille: (document.querySelector('#feuille-contenu') || {}).textContent || '', lancement: k >= 0 ? j[k] : null, apres: k >= 0 ? j.slice(k + 1).map((x) => x.r) : [] }; });
+    const h1 = await heures();
+    // (le journal des retours dit sur quelle heure le lancement a compté : h = 0, celle du téléphone, l'heure sûre pas encore là)
+    check(e4 && h1.lancement && h1.lancement.h === 0 && Math.abs(h1.h - 8) < 0.01 && /Tes gérants ont rapporté/.test(h1.feuille), `au lancement, sur l’heure du téléphone (journal : h = ${h1.lancement && h1.lancement.h}) : ${h1.h.toFixed(3)} h payées au gérant, la feuille du retour le dit`);
+    await attendre(() => p4.evaluate(() => HORLOGE.info().source !== 'telephone'), 12000);
+    const h2 = await heures();
+    await p4.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); window.__fournil.chaine.ecran(); }); await sleep(1500);
+    const h3 = await heures(); await p4.evaluate(() => window.__fournil.chaine.fermerEcran());
+    check(h2.src !== 'telephone' && h2.h < 8 + 0.01 && h3.h < 8 + 0.01, `l’heure sûre arrivée (${h2.src}) : ${h2.h.toFixed(3)} h, rien de plus pour le saut de 4 h ; « Ma chaîne » ouverte : ${h3.h.toFixed(3)} h`);
+    await sleep(66000); // l'encaissement d'une minute en jouant (la boucle de l'écran)
+    const h4 = await heures();
+    check(h4.h < 8 + 75 / 3600, `une minute de jeu plus tard : ${h4.h.toFixed(3)} h (8 h et la minute jouée, jamais le saut : 12 h avant la réparation)`);
+    // un lancement lent (l'heure sûre attendue, la 3D bâtie : plus de 5 s sur un téléphone chargé) n'est pas une page gelée : aucun retour
+    // derrière lui (il payait le reste du saut comme une nouvelle absence, à la boulangerie comme aux gérants)
+    check(h4.apres.length === 0, `aucun retour lancé derrière le lancement (${h4.apres.join(', ') || 'aucun'})`);
+    decalServeur = 0; await c4.close();
   }
 
   check(erreurs.length === 0, `aucune erreur dans la console${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);

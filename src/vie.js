@@ -437,7 +437,7 @@ const VIE = (() => {
     libererPlace(c);
     const envie = Math.min(0.9, 0.45 + 0.1 * Math.min(4, places.tables) + 0.03 * (places.bar + places.banquette + places.terrasse)), siege = !c.or && (force.assis || c.hab || Math.random() < envie) ? siegeLibre(c) : null;
     if (siege) { c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, ...siege.voie, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable'; }
-    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique hantée : il fête son achat sur place (Cheer) avant de repartir
+    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '' && modeVie !== 'chaine') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique d'un événement (la hantée) : il fête son achat sur place (Cheer) avant de repartir ; pas dans une boutique de la chaîne, qui vit comme la boulangerie
   }
   function libererPlace(c) { // sa place dans la file se libère : ceux de derrière avancent d'un cran
     const slotLibre = c.slot; c.slot = -2;
