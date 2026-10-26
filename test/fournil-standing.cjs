@@ -81,6 +81,7 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     await ctx.addInitScript(() => { window.__sansEvenements = true; window.__sansQuartier = true; Object.defineProperty(window, 'confetti', { configurable: true, get: () => () => null, set: () => {} }); }); // des confettis comptés mais pas dessinés (des captures nettes)
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [];
+    page.setDefaultTimeout(120000); // (le rendu logiciel est lent quand la machine est chargée : les captures attendent plus longtemps)
     page.on('pageerror', (e) => erreurs.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) erreurs.push(m.text()); });
     await page.goto(`http://localhost:${PORT}/fournil/?qualite=${q}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(800);
@@ -97,7 +98,7 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     demandes.length = 0;
     await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } f.tiroir('ferme'); });
     await ev((l) => window.__fournil.SCENE.decos(l), LOURDES); // les 6 décos les plus lourdes posées, tout du long (à Noël, le sapin garde sa place : 5)
-    if (qual === 'haute') check(await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000), 'en haute, les meubles de la salle en KayKit');
+    if (qual === 'haute') check(await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 180000), 'en haute, les meubles de la salle en KayKit');
     let pire = { decor: 0 }; const max = qual === 'haute' ? 80 : 72;
     for (const [qn, qi] of QS) for (let s = 0; s <= 5; s++) {
       await poser(ev, qi, s);
@@ -240,7 +241,7 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
     await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } f.tiroir('ferme'); });
     await ev((l) => window.__fournil.SCENE.decos(l), LOURDES); // (les décos posées : leurs places au mur, au sol, à la fenêtre, jamais sur la grille des meubles)
-    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000);
+    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 180000);
     for (const [qn, qi] of QS) {
       await poser(ev, qi, 5);
       // un aménagement libre : des tables, le coin salon et deux tables de la terrasse déplacés, chacun sur une place valide loin de la sienne
