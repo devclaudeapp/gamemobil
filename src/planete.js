@@ -1,0 +1,1 @@
+/* LE FOURNIL — la petite planète de « Ma chaîne de boutiques » (global PLANETE) : livrée par le constructeur planète ; ce fichier vide la remplace en attendant (build.js la charge avant scene.js). */

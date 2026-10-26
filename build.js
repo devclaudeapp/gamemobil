@@ -4,27 +4,45 @@
 // Le classement en ligne lit fournil/config.js (adresse et clé PUBLIQUE Supabase, édité à la main), chargé seulement par fournil/index.html :
 // l'artefact n'a pas de configuration, le classement s'y cache.
 // L'écran d'accueil (index.html à la racine) n'est pas généré : on l'édite à la main.
+// `node build.js --essai` écrit SEULEMENT la version d'essai, fournil-essai/index.html et fournil-essai/version.json, et y copie fournil/hd/,
+// fournil/modeles/ et fournil/sons/ (les chemins relatifs du jeu marchent sans rien toucher). Pas suivie par git (.gitignore) ; déployée à
+// côté du vrai jeu depuis la branche du lot (.github/workflows/pages.yml et essai.yml). Elle ne s'installe pas (ni manifeste, ni service
+// worker), n'a pas de config.js (rien ne part vers le vrai serveur) et préfixe toutes ses clés de stockage (FOURNIL_CLE, FOURNIL_ESSAI).
 'use strict';
 const fs = require('fs'), path = require('path');
+const ESSAI = process.argv.includes('--essai');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
-const js = ['game.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'nouveautes.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+// « Ma chaîne de boutiques » : chaine.js (les règles) juste après game.js, planete.js (la petite planète) avant scene.js, chaine-ecran.js (les feuilles) avant ui.js
+const js = ['game.js', 'chaine.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'nouveautes.js', 'chaine-ecran.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">`;
-const headInner = `<title>Le Fournil</title>\n${fonts}\n<style>\n${css}</style>`;
+// les clés de stockage (localStorage) passent par FOURNIL_CLE : telles quelles dans le vrai jeu et l'artefact ; « fournil.essai.… » dans l'essai,
+// qui ne lit la vraie partie qu'une fois, en lecture seule (src/ui.js), et n'écrit jamais une clé du vrai jeu
+const prelude = (essai) => (essai
+  ? `<script>window.FOURNIL_ESSAI = { prefixe: 'fournil.essai.', db: 'fournil-essai', vraie: { cle: 'fournil.v2', db: 'fournil' } }; window.FOURNIL_CLE = (k) => String(k).replace(/^fournil\\./, 'fournil.essai.');</script>`
+  : `<script>window.FOURNIL_CLE = (k) => k;</script>`);
+const headInner = (essai) => `<title>${essai ? 'Le Fournil — essai' : 'Le Fournil'}</title>\n${fonts}\n<style>\n${css}</style>`;
 const script = `<script>\n${js}\n</script>`;
-const bodyInner = `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n<script src="../vendor/fournil-hd.min.js"></script>\n<script src="../vendor/confetti.min.js"></script>\n<script src="config.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement
-const artifact = `${headInner}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
-const full = `<!doctype html>
+// la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement (pas dans l'essai)
+const bodyInner = (essai) => `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n<script src="../vendor/fournil-hd.min.js"></script>\n<script src="../vendor/confetti.min.js"></script>\n${essai ? '' : '<script src="config.js"></script>\n'}${script}`;
+const artifact = `${prelude(false)}\n${headInner(false)}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
+// la page complète ; essai : la version d'essai (fournil-essai/) : ni installation (manifeste, écran d'accueil), ni service worker, ni config.js, pas indexée
+const gabarit = (essai) => `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#FFF7EC">
 <meta name="description" content="Ta boulangerie de quartier : cuis, vends, améliore, embauche. Les apprentis travaillent même quand tu n’es pas là.">
-<meta name="mobile-web-app-capable" content="yes">
+${essai ? `<meta name="robots" content="noindex">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<script>
+// la version d'essai vit dans fournil-essai/ : servie ailleurs, ses chemins relatifs (../vendor, ../icons, hd/, modeles/, sons/) casseraient
+(function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]fournil-essai[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'fournil-essai/'); } catch (e) { /* rien */ } })();
+</script>` : `<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Le Fournil">
@@ -34,20 +52,22 @@ const full = `<!doctype html>
 <script>
 // la page du jeu vit dans fournil/ : servie ailleurs (une vieille copie en cache à la racine), ses chemins relatifs (../vendor, ../icons) casseraient
 (function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]fournil[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'fournil/'); } catch (e) { /* rien */ } })();
-</script>
-${headInner}
+</script>`}
+${prelude(essai)}
+${headInner(essai)}
 </head>
 <body>
-${bodyInner}
-<script>
+${bodyInner(essai)}
+${essai ? '' : `<script>
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   let top = false; try { top = window.self === window.top; } catch (e) { top = false; }
   if (top) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
 </script>
-</body>
+`}</body>
 </html>
 `;
+const full = gabarit(ESSAI);
 // la version du jeu : l'empreinte de la page et des fichiers qu'elle charge. Elle est écrite dans la page (window.FOURNIL_VERSION) et dans
 // fournil/version.json ; le jeu ouvert relit ce fichier de temps en temps, et s'il a changé, propose de se mettre à jour (src/ui.js, verifierVersion)
 const empreinte = require('crypto').createHash('sha1');
@@ -55,6 +75,26 @@ empreinte.update(full);
 for (const f of ['vendor/three.min.js', 'vendor/fournil-hd.min.js', 'vendor/confetti.min.js', 'fournil/sw.js']) { try { empreinte.update(fs.readFileSync(path.join(__dirname, f))); } catch (e) { /* absent : rien */ } }
 const version = empreinte.digest('hex').slice(0, 12);
 const page = full.replace('<script>window.FOURNIL_ACCUEIL', `<script>window.FOURNIL_VERSION = '${version}';</script>\n<script>window.FOURNIL_ACCUEIL`);
+if (ESSAI) { // la version d'essai, seule : rien d'autre n'est écrit
+  // garde-fou : chaque clé de stockage du jeu (« fournil.… ») passe par FOURNIL_CLE, et la base IndexedDB par FOURNIL_ESSAI ; sinon l'essai
+  // écrirait dans la vraie partie du joueur (même origine) : on refuse de la construire
+  const fautes = [];
+  for (const f of fs.readdirSync(path.join(__dirname, 'src')).filter((x) => x.endsWith('.js'))) {
+    read(f).split('\n').forEach((l, k) => { if (!/^\s*(\/\/|\*|\/\*)/.test(l) && /['"`]fournil\.[a-z0-9.]+['"`]/.test(l) && !/FOURNIL_CLE/.test(l)) fautes.push(`src/${f}:${k + 1}`); });
+  }
+  if (!/FOURNIL_ESSAI/.test(read('ui.js'))) fautes.push('src/ui.js : la base IndexedDB (FOURNIL_ESSAI.db)');
+  if (fautes.length) { console.error(`version d'essai refusée : des clés du vrai jeu ne passent pas par FOURNIL_CLE / FOURNIL_ESSAI\n  ${fautes.join('\n  ')}`); process.exit(1); }
+  const dir = path.join(__dirname, 'fournil-essai');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const d of ['hd', 'modeles', 'sons']) { // les ressources du jeu, copiées (les chemins relatifs du jeu marchent sans rien toucher)
+    fs.rmSync(path.join(dir, d), { recursive: true, force: true });
+    if (fs.existsSync(path.join(__dirname, 'fournil', d))) fs.cpSync(path.join(__dirname, 'fournil', d), path.join(dir, d), { recursive: true });
+  }
+  fs.writeFileSync(path.join(dir, 'index.html'), page);
+  fs.writeFileSync(path.join(dir, 'version.json'), JSON.stringify({ v: version }) + '\n');
+  console.log(`fournil-essai/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · hd/, modeles/ et sons/ copiés · ${js.split('\n').length} lignes de JS`);
+  process.exit(0);
+}
 fs.mkdirSync(path.join(__dirname, 'fournil'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), page);
 fs.writeFileSync(path.join(__dirname, 'fournil', 'version.json'), JSON.stringify({ v: version }) + '\n');

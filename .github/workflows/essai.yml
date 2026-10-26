@@ -1,0 +1,56 @@
+# Remet en ligne la version d'essai (fournil-essai/, construite depuis la branche du lot) sans attendre une poussée sur master.
+# Le vrai jeu publié avec elle est celui du DERNIER déploiement Pages vert de master (déjà testé), jamais un master rouge.
+# Lancer, juste après avoir poussé la branche du lot : gh workflow run essai.yml --ref master
+name: Version d'essai
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read
+# le même groupe que pages.yml : un déploiement de master qui arrive annule celui-ci (son cancel-in-progress), et reconstruit l'essai lui-même
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      ESSAI_BRANCHE: chaine
+    steps:
+      - name: Le commit de master du dernier déploiement Pages vert
+        id: vert
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh run list -R "$GITHUB_REPOSITORY" -w pages.yml -b master -s success -L 1 --json headSha -q '.[0].headSha')
+          if [ -z "$sha" ]; then echo "Aucun déploiement Pages vert sur master : rien à publier."; exit 1; fi
+          echo "Le vrai jeu : master $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.vert.outputs.sha }}
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Le vrai jeu (celui du déploiement vert)
+        run: node build.js
+        env:
+          TZ: Europe/Paris
+      - name: La version d'essai (la branche du lot, à côté du vrai jeu)
+        env:
+          TZ: Europe/Paris
+        run: |
+          trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
+          git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD
+          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-chaine.test.js)
+          rm -rf fournil-essai && mv _essai/fournil-essai fournil-essai
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4

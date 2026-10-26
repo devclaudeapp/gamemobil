@@ -23,7 +23,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const CLE = 'fournil.classement';
+  // (la version d'essai préfixe ses clés : FOURNIL_CLE, posée par build.js, rend « fournil.essai.classement » ; ailleurs, la clé telle quelle)
+  const CLE = typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE('fournil.classement') : 'fournil.classement';
   const REGLES = {
     ecartMin: 15e3, // jamais plus d'un envoi toutes les 15 s
     periode: 5 * 60e3, // un envoi toutes les 5 min quand la page est visible
@@ -423,7 +424,10 @@
   //     e (optionnel) : l'événement EN COURS, s'il y est entré, pour la visite de sa Planque (ou de son Manoir) { id: 'quartier' | 'hantee',
   //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) },
   //     ti (optionnel, version 6.6) : le titre gagné, à vie, qu'il montre à côté de son pseudo (TITRES : 'legende-manoir', « Légende du
-  //       Manoir », le 20e palier de la Maison hantée) ; le serveur v6.6 le rend aussi sur sa ligne du classement (titre) }.
+  //       Manoir », le 20e palier de la Maison hantée) ; le serveur v6.6 le rend aussi sur sa ligne du classement (titre),
+  //     dc (optionnel, « Ma chaîne de boutiques ») : les décos posées dans sa boulangerie, en code (CHAINE.codeDecos : 3 caractères par déco,
+  //       18 au plus ; absent : le plan d'origine, comme avant « Mes décos »), ch (optionnel) : [boutiques de sa chaîne, Boutiques d'or] }.
+  // dq et dh restent envoyés tels quels pour les vieux téléphones ; dc et ch n'ont demandé aucun changement du SQL (≈ 40 octets de plus).
   // Trop grosse : le nom raccourci et les coupes retirées (comme avant), puis e.d, puis e. Le serveur la garde telle quelle (≤ 3 Ko) : x et e
   // n'ont demandé aucun changement du SQL. Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
   const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
@@ -434,6 +438,14 @@
   const idsOk = (l, n) => (Array.isArray(l) ? [...new Set(l.filter((x) => typeof x === 'string' && ID_OK.test(x)))].slice(0, n) : []);
   const octetsJson = (o) => { const j = JSON.stringify(o); try { return new TextEncoder().encode(j).length; } catch (e) { return unescape(encodeURIComponent(j)).length; } };
   const leJeu = (G) => G || (typeof GAME !== 'undefined' ? GAME : null);
+  // « Ma chaîne de boutiques » : le code des décos posées (CHAINE.codeDecos) et la chaîne en deux nombres, bornés ; null s'ils sont abîmés
+  const leChaine = () => (typeof CHAINE !== 'undefined' && CHAINE && typeof CHAINE.decosDepuisCode === 'function' ? CHAINE : null);
+  function dcOk(dc) {
+    if (typeof dc !== 'string' || !dc || dc.length > 18 || dc.length % 3 || !/^[0-9a-z]{0,18}$/.test(dc)) return null;
+    const C = leChaine(); if (!C) return dc; // (sans les règles de la chaîne : la forme seule, le reste est relu à la visite)
+    const l = C.decosDepuisCode(dc); return l && l.length ? C.codeDecos(l) : null;
+  }
+  const chOk = (ch) => { if (!Array.isArray(ch) || ch.length < 2) return null; const n = borne(ch[0], 0, 999); return [n, Math.min(n, borne(ch[1], 0, 999))]; };
   const fortune4 = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(1e30, Number(n.toPrecision(4))) : 0; }; // 4 chiffres suffisent à l'affichage
   // l'événement d'une photo, borné champ par champ : ses postes, ses décos, ses paliers, son total ; null si l'id n'est pas celui d'un événement connu
   function evPhoto(e) {
@@ -463,6 +475,11 @@
       const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
       if (e) p.e = e;
       { const ti = titreOk(o.titre) ? o.titre : typeof G.distinctions === 'function' ? (G.distinctions(st) || []).find(titreOk) : null; if (ti) p.ti = ti; } // version 6.6 : le titre gagné (24 octets au plus : gardé quoi qu'il arrive)
+      { const dc = dcOk(o.dc); if (dc) p.dc = dc; } // « Mes décos » : les décos posées dans sa boulangerie (codées par l'écran ; ≤ 18 octets : gardées quoi qu'il arrive)
+      { // sa chaîne de boutiques en deux nombres (o.ch, sinon st.chaine) ; absente tant que la chaîne est vide
+        const c = st.chaine, b = c && Array.isArray(c.b) ? c.b : [], ch = chOk(Array.isArray(o.ch) ? o.ch : [b.length, b.filter((x) => x && x.or).length]);
+        if (ch && ch[0] > 0) p.ch = ch;
+      }
       if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); } // trop grosse : d'abord le repli d'avant,
       if (octetsJson(p) > PHOTO.max && p.e) delete p.e.d; // puis les décos de l'événement,
       if (octetsJson(p) > PHOTO.max) delete p.e; // puis l'événement
@@ -485,6 +502,8 @@
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
     if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
+    { const dc = dcOk(p.dc); if (dc) o.dc = dc; } // ses décos posées : un code bien formé, relu par les règles de la chaîne ; sinon le plan d'origine
+    { const ch = chOk(p.ch); if (ch) o.ch = ch; } // sa chaîne : [boutiques, Boutiques d'or], bornés
     return o;
   }
   // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
@@ -534,7 +553,9 @@
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null }; // titre : « Légende du Manoir » (version 6.6), sinon null
+    const C = leChaine(), decos = p.dc && C ? C.decosDepuisCode(p.dc) : null; // ses décos posées ([[id, place]…]) ; null : le plan d'origine (une photo sans dc)
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
+      decos: decos && decos.length ? decos : null, chaine: p.ch || null };
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {

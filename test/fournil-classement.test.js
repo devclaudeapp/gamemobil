@@ -647,6 +647,19 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       const abimes = ['32', '-'.repeat(19), 'ZZ--------------6--', '3----------------6-', '32---------------6-x', 42, { a: 1 }, '<script>alert(1)</>'].map((x) => CL.nettoyerPhoto(Object.assign({}, pa, { a: x })));
       check(abimes.every((o) => o && !('a' in o)) && abimes.every((o) => !CL.boutiqueDepuisPhoto(o, { G, maintenant: T }).st.amenagement), 'a abîmé (trop court, tout à l’origine, majuscules, une case à moitié, trop long, pas une chaîne) : retiré, la boutique visitée garde le plan d’origine');
     }
+    { // « Ma chaîne de boutiques » : dc (les décos posées, codées par CHAINE.codeDecos, 18 caractères au plus) et ch ([boutiques, Boutiques d'or]) ;
+      // optionnels (une photo sans eux : le plan d'origine, comme avant), relus champ par champ ; ils tiennent dans le pire cas, sans SQL
+      const R = require('../src/chaine.js'), avant = global.CHAINE; global.CHAINE = R;
+      const code = R.codeDecos([['chaudron', 's1'], ['neon', 'm2'], ['legende', 's2'], ['citrouilles', 's3'], ['toiles', 'r1'], ['bestiaire', 'm1']]);
+      const pc = CL.photo(pire, Object.assign({}, tous, { dc: code, ch: [29, 29] })), oc = CL.octetsJson(pc);
+      check(pc && oc <= 2048 && pc.dc === code && code.length === 18 && egal(pc.ch, [29, 29]) && pc.p.length === 16 && pc.e && pc.ti === 'legende-manoir' && oc - op <= 40, `dc et ch dans le pire cas : ${oc} octets (+${oc - op}, ≤ 2048), rien d’autre retiré`);
+      const nc = CL.nettoyerPhoto(pc), bc = CL.boutiqueDepuisPhoto(pc, { G, maintenant: T }), b0 = CL.boutiqueDepuisPhoto(pp, { G, maintenant: T });
+      check(nc.dc === code && egal(nc.ch, [29, 29]) && egal(bc.decos, R.decosDepuisCode(code)) && egal(bc.chaine, [29, 29]) && b0.decos === null && b0.chaine === null && !('dc' in CL.nettoyerPhoto(pp)), 'relus : dc décodé en décos à leurs places pour la visite, ch tel quel ; une photo sans eux : decos null (le plan d’origine)');
+      const pieges = ['zzz', '<b>', 'ab', '0'.repeat(21), 42, ['neon', 'm2']].map((x) => CL.nettoyerPhoto(Object.assign({}, pc, { dc: x, ch: [1e9, -3] })));
+      check(pieges.every((o) => o && !('dc' in o) && egal(o.ch, [999, 0])) && !('ch' in CL.nettoyerPhoto(Object.assign({}, pc, { ch: 'x' }))), 'dc piégé (code inconnu, balise, longueur fausse, trop long, pas une chaîne) : retiré ; ch borné (0 à 999, les Boutiques d’or ≤ les boutiques)');
+      const s1 = G.newState(T); R.etat(s1, T); check(!('ch' in CL.photo(s1, { G })) && !('dc' in CL.photo(s1, { G })), 'une chaîne vide, rien de posé : ni ch ni dc (la photo d’avant)');
+      global.CHAINE = avant;
+    }
     // le repli, éprouvé en abaissant la limite : le nom et les coupes d'abord, puis e.d, puis e, puis rien
     const max0 = CL.PHOTO.max, taille = (o) => CL.octetsJson(o), s1 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) })), e2 = Object.assign({}, pp.e); delete e2.d;
     const s2 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12), e: e2 })), sansE = Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) }); delete sansE.e; const s3 = taille(sansE);
