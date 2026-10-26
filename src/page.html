@@ -1,3 +1,4 @@
+<div id="essai-bandeau" class="essai-bandeau" hidden><span><b>Version d’essai</b> · ta vraie partie n’est pas touchée</span><button type="button" data-a="essai" aria-label="La version d’essai : quoi essayer, recommencer">?</button></div>
 <header id="haut">
   <div class="solde">
     <span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span>
@@ -6,6 +7,7 @@
   <div class="haut-btns">
     <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
+    <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
@@ -15,7 +17,9 @@
     <canvas id="scene-ui" aria-hidden="true"></canvas>
     <div id="sans-3d" hidden><b>La 3D n’est pas disponible sur cet appareil.</b><span>La boutique tourne quand même : tes fournées, tes apprentis et tes clients sont là.</span></div>
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
+    <div id="chaine-bandeau" class="chaine-bandeau" hidden></div>
     <div id="coin">
+      <button id="b-chaine" class="rond chaine" type="button" aria-label="Ma chaîne" hidden><i class="ico" data-ico="planete"></i><i class="rang-pastille ch-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
@@ -25,7 +29,7 @@
     </div>
     <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
-    <div id="amenage-barre" hidden><button id="b-deplacer" type="button" aria-pressed="false"><i class="ico" data-ico="deplacer"></i><b>Déplacer</b></button><button id="b-origine" type="button" hidden><b>Plan d’origine</b></button></div>
+    <div id="amenage-barre" hidden><button id="b-deplacer" type="button" aria-pressed="false"><i class="ico" data-ico="deplacer"></i><b>Déplacer</b></button><button id="b-origine" type="button" hidden><b>Plan d’origine</b></button><button id="b-decos" type="button"><i class="ico" data-ico="decos"></i><b>Mes décos</b></button></div>
   </div>
   <div id="tiroir" data-pos="mi">
     <div id="evenement" hidden></div>
@@ -41,6 +45,7 @@
     <button id="objectifs" class="ticket" type="button" aria-label="Objectifs du jour"></button>
     <button id="boosts" class="ticket boosts" type="button" aria-label="Boosts en réserve" hidden></button>
     <div id="cartes"></div>
+    <div id="chaine-cartes" hidden></div>
   </section>
   <section class="page" id="page-defis" data-page="defis" hidden></section>
   <section class="page" id="page-boulanger" data-page="boulanger" hidden></section>

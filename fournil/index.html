@@ -2094,9 +2094,239 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .carte.pq.rj-carte .rj-demain { display: block; margin-top: -1px; font: 700 11px/1.25 var(--texte-font); color: #9E95B8; overflow-wrap: anywhere; }
 .carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
 .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
+
+/* ─── « Ma chaîne de boutiques » (src/chaine-ecran.js, src/planete.js) ───
+   La petite planète : la toile, les fanions numérotés des boutiques, l'étiquette d'une boutique, la légende de la région face à soi, le ciel
+   qui suit l'heure (classes posées par PLANETE) ; puis l'écran « Ma chaîne » (#chaine : la planète en haut, la liste dessous), le bandeau
+   d'une boutique de la chaîne au-dessus de la scène, la boutique des jetons, le carnet « Mes décos », la feuille du retour, l'essai */
+.pl-conteneur { position: relative; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+.pl-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+.pl-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.pl-drap { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform, opacity; }
+.pl-drap span { position: absolute; left: -1px; bottom: 0; display: block; padding: 0 0 12px 2px; }
+.pl-drap span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 0; width: 2px; border-radius: 1px; background: #6E5B52; }
+.pl-drap b { display: block; min-width: 21px; padding: 2px 7px 2px 5px; border-radius: 2px 9px 9px 2px; background: var(--acc); color: var(--enc); font: 700 12.5px/1.15 var(--titre);
+  text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .95), 0 2px 4px rgba(74, 51, 40, .22); }
+.pl-drap.gauche span { left: auto; right: -1px; padding: 0 2px 12px 0; }
+.pl-drap.gauche span::before { left: auto; right: 0; }
+.pl-drap.gauche b { border-radius: 9px 2px 2px 9px; padding: 2px 5px 2px 7px; }
+.pl-drap.gauche .pl-jet { right: auto; left: -6px; }
+.pl-drap .pl-jet { position: absolute; top: -5px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(74, 51, 40, .3); }
+.pl-drap.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--acc), 0 4px 10px rgba(74, 51, 40, .3); }
+.pl-drap.brume b { filter: saturate(.35) brightness(1.08); }
+.pl-etiquette { position: absolute; left: 0; top: 0; width: min(282px, calc(100% - 24px)); padding: 12px 14px 14px; border-radius: 22px; background: #fff; color: var(--texte);
+  box-shadow: 0 12px 30px rgba(74, 51, 40, .2), 0 2px 0 rgba(74, 51, 40, .05); opacity: 0; transition: opacity .2s ease-out; pointer-events: auto; will-change: transform; z-index: 3; }
+.pl-etiquette.vue { opacity: 1; }
+.pl-pointe { position: absolute; top: -7px; left: var(--pointe, 50%); width: 16px; height: 16px; margin-left: -8px; border-radius: 3px; background: #fff; transform: rotate(45deg); }
+.pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
+.pl-et-tete > div { min-width: 0; }
+.pl-et-tete b { display: block; font: 700 18px/1.15 var(--titre); }
+.pl-et-tete small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2); }
+.pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc); font: 700 20px/1 var(--titre); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
+.pl-et-infos { display: grid; gap: 6px; margin: 10px 0 12px; }
+.pl-et-infos span { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--creme); font-size: 14px; }
+.pl-et-infos span.or { background: var(--or-clair); }
+.pl-et-infos svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.pl-et-entrer { width: 100%; min-height: 48px; border-radius: 16px; font: 700 17px/1 var(--titre); }
+.pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px);
+  padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .88); box-shadow: 0 4px 14px rgba(74, 51, 40, .1); white-space: nowrap; pointer-events: none; transition: opacity .2s; }
+.pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
+.pl-legende b { font: 700 16px/1 var(--titre); overflow: hidden; text-overflow: ellipsis; }
+.pl-legende small { font-size: 12.5px; color: var(--texte-2); }
+.pl-legende.cache, .pl-indice.cache { opacity: 0; }
+.pl-indice.cache { animation: none; }
+.pl-indice { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); text-align: center;
+  font-size: 13px; color: var(--texte-2); pointer-events: none; transition: opacity .4s; animation: plIndice 1s .9s both; }
+@keyframes plIndice { from { opacity: 0; } to { opacity: 1; } }
+/* le ciel suit l'heure (PLANETE, option heure) : l'aube, le soir, le crépuscule, la nuit étoilée ; le jour garde le fond de #chaine */
+.pl-conteneur.pl-aube { background: radial-gradient(115% 62% at 50% 46%, #FFFBF6 0%, #FFEFE8 36%, #F6E4F2 64%, #FFE3D4 100%); }
+.pl-conteneur.pl-soir { background: radial-gradient(115% 62% at 50% 46%, #FFF8F0 0%, #FFE8DA 34%, #F8D6E2 62%, #F1C8D2 100%); }
+.pl-conteneur.pl-crepuscule { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent),
+  radial-gradient(115% 62% at 50% 46%, #F4EFFF 0%, #DDD5F6 36%, #C2B9E9 64%, #CDAED8 100%); }
+.pl-conteneur.pl-nuit { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 70% 26%, #fff 60%, transparent),
+    radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 88% 70%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 8% 60%, #fff 60%, transparent),
+    radial-gradient(2.5px 2.5px at 40% 9%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 58% 88%, #fff 60%, transparent), radial-gradient(2px 2px at 93% 40%, #fff 60%, transparent),
+    radial-gradient(115% 62% at 50% 46%, #E8E8FA 0%, #C6C8EE 34%, #A2A6DC 62%, #8C89C6 100%); }
+.pl-conteneur:is(.pl-nuit, .pl-crepuscule) .pl-indice { color: #3F3A72; }
+
+/* l'écran « Ma chaîne » : plein écran, sous les feuilles (la boutique des jetons, le gérant, le carnet s'ouvrent par-dessus) */
+#chaine { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; animation: atEntre .22s ease-out;
+  background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 70% 26%, rgba(255,255,255,.9) 60%, transparent),
+    radial-gradient(2.5px 2.5px at 40% 9%, rgba(255,255,255,.95) 60%, transparent), radial-gradient(2px 2px at 93% 40%, rgba(255,255,255,.9) 60%, transparent),
+    radial-gradient(120% 52% at 50% 30%, #FFFDF8 0%, #F4EFFF 36%, #E2EBFF 64%, #FFE8D8 100%); }
+body.essai #chaine { top: 24px; }
+/* le titre flotte sur le ciel de la planète, avec un voile (une tour, un sommet passent dessous sans le brouiller) ; sans planète, il est en tête */
+#chaine .ch-haut { position: absolute; left: 0; right: 0; top: env(safe-area-inset-top, 0px); z-index: 4; pointer-events: none; }
+#chaine .ch-haut > * { pointer-events: auto; }
+#chaine .ch-haut::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1 * env(safe-area-inset-top, 0px)); bottom: -28px; z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(244, 241, 255, .92) 0%, rgba(244, 241, 255, .7) 58%, rgba(244, 241, 255, 0) 100%); }
+#chaine:has(.pl-nuit) .ch-haut::before, #chaine:has(.pl-crepuscule) .ch-haut::before { background: linear-gradient(to bottom, rgba(214, 216, 244, .94) 0%, rgba(214, 216, 244, .76) 58%, rgba(214, 216, 244, 0) 100%); }
+#chaine.sans-planete .ch-haut { position: relative; top: 0; margin-top: env(safe-area-inset-top, 0px); }
+#chaine.sans-planete .ch-haut::before { display: none; }
+.ch-jetons { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 9px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.ch-jetons .ico svg { width: 24px; height: 24px; }
+.ch-jetons:active { transform: translateY(3px); box-shadow: none; }
+.ch-planete { position: relative; flex: 0 0 auto; height: calc(clamp(250px, 44vh, 430px) + 60px + env(safe-area-inset-top, 0px)); }
+.ch-bas { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  border-radius: 26px 26px 0 0; background: var(--creme); box-shadow: 0 -6px 18px rgba(74, 51, 40, .1); }
+#chaine.sans-planete .ch-bas { border-radius: 0; box-shadow: none; }
+.ch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ch-actions .ch-tout { grid-column: 1 / -1; min-height: 52px; }
+.ch-bouton { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 12px; border-radius: var(--r-int); background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1.15 var(--titre); text-align: left; }
+.ch-bouton .ico svg { width: 26px; height: 26px; }
+.ch-bouton:active { transform: translateY(3px); box-shadow: none; }
+.ch-note { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-int); background: var(--lavande-clair); font-size: 13.5px; line-height: 1.35; }
+.ch-liste { display: grid; gap: 10px; }
+.ch-ligne { position: relative; display: grid; gap: 8px; padding: 12px 12px 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); scroll-margin: 8px; transition: box-shadow .2s; }
+.ch-ligne::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--acc); }
+.ch-ligne.choisie { box-shadow: 0 0 0 3px var(--acc), var(--ombre-carte); }
+.ch-ligne.or { background: linear-gradient(135deg, #FFFDF4, #FFF4D2); }
+.ch-tete { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ch-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 40px; height: 40px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc); font: 700 19px/1 var(--titre); font-variant-numeric: tabular-nums; box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
+.ch-nom { flex: 1 1 auto; min-width: 0; }
+.ch-nom h3 { margin: 0; font: 700 17px/1.15 var(--titre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-nom small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2); }
+.ch-entrer { flex: 0 0 auto; min-width: 82px; }
+.ch-jauge { position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding-bottom: 9px; font: 800 12px/1.2 var(--texte-font); color: var(--texte-2); }
+.ch-jauge b { color: var(--texte); font-variant-numeric: tabular-nums; }
+.ch-jauge small { font: 700 11.5px/1.2 var(--texte-font); color: var(--gris-texte); }
+.ch-jauge::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; border-radius: 3px; background: var(--creme); }
+.ch-jauge i { position: absolute; left: 0; bottom: 0; height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); transition: width .3s; }
+.ch-or, .ch-gerant { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ch-or { padding: 6px 10px; border-radius: 12px; background: var(--or-clair); }
+.ch-or .ico svg, .ch-gerant > .ico svg { width: 26px; height: 26px; }
+.ch-or span, .ch-gerant > span { flex: 1 1 auto; min-width: 0; }
+.ch-or b, .ch-gerant b { display: block; font: 700 15px/1.15 var(--titre); }
+.ch-or small, .ch-gerant small { display: block; font-size: 12.5px; line-height: 1.3; color: var(--texte-2); }
+.ch-gerant .btn { flex: 0 0 auto; min-width: 104px; }
+.ch-gerant.sans > .ico { opacity: .55; }
+.ch-caisse { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; font-size: 13.5px; color: var(--texte-2); }
+.ch-caisse b { font: 700 16px/1 var(--titre); color: var(--texte); font-variant-numeric: tabular-nums; }
+.ch-caisse small { font: 800 12.5px/1.2 var(--texte-font); color: var(--menthe-sombre); }
+.ch-prendre { width: 100%; min-height: 50px; }
+.ch-postales { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-postale { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px 0 9px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+.ch-postale .ico svg { width: 20px; height: 20px; }
+.ch-postale.prise { background: var(--menthe-clair); }
+.ch-postale .ok svg { width: 16px; height: 16px; }
+.ch-photo { display: block; width: 100%; height: auto; border-radius: 16px; border: 6px solid #fff; box-shadow: var(--ombre-carte); transform: rotate(-1.2deg); }
+
+/* les feuilles de la chaîne : la tête (une grande icône), le solde de jetons, la liste des gérants */
+.ch-fiche-tete { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.ch-fiche-tete > .ico { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: var(--or-clair); }
+.ch-fiche-tete > .ico svg { width: 32px; height: 32px; }
+.ch-fiche-tete > div { flex: 1 1 auto; min-width: 0; }
+.ch-fiche-tete h2 { margin: 0; }
+.ch-fiche-tete .sous { margin: 2px 0 0; }
+.ch-solde { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 6px; border-radius: 999px; background: var(--or-clair); font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-solde .ico svg { width: 22px; height: 22px; }
+.ch-solde.grand { font-size: 26px; padding: 6px 14px 6px 8px; }
+.ch-solde.grand .ico svg { width: 30px; height: 30px; }
+.ch-solde small { margin-left: 4px; font: 700 12.5px/1.1 var(--texte-font); color: var(--texte-2); white-space: normal; max-width: 70px; }
+.ch-solde-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 14px; }
+.ch-solde-l .btn { min-width: 100px; }
+.titre-section.ch-sec { margin: 10px 2px 0; }
+.ok.gris { background: var(--gris); color: var(--texte-2); }
+.ch-amenager { display: grid; gap: 8px; margin-top: 14px; }
+
+/* l'icône ronde de la planète (le coin de la boutique) et sa pastille de jetons à prendre */
+.rond.chaine .ico svg { width: 26px; height: 26px; }
+.rang-pastille.ch-pastille { background: var(--beurre); color: var(--texte); }
+/* les cartes « Ma chaîne » et « Mes décos » de la page Boulanger */
+.ch-cartes-boulanger { display: grid; gap: 8px; }
+.chaine-carte { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; text-align: left; }
+.chaine-carte .pic { width: 44px; height: 44px; border-radius: var(--r-pic); display: grid; place-items: center; flex: 0 0 auto; background: var(--ciel-clair); }
+.chaine-carte .pic svg { width: 28px; height: 28px; }
+.chaine-carte .t { flex: 1 1 auto; min-width: 0; }
+.chaine-carte .t b { display: block; font: 700 var(--t-carte)/1.15 var(--titre); }
+.chaine-carte .t small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--texte-2); }
+.chaine-carte .compte { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; font: 800 13px/1 var(--texte-font); color: var(--texte-2); padding: 5px 9px; border-radius: 999px; background: var(--creme); }
+.chaine-carte .compte.or { background: var(--beurre); color: var(--texte); }
+.chaine-carte .compte .ico svg { width: 16px; height: 16px; }
+.chaine-carte .chev svg { width: 18px; height: 18px; }
+
+/* dans une boutique de la chaîne : le bandeau au-dessus de la scène (le retour, son nom, sa jauge d'or, ses jetons), ses cartes ; ni objectifs,
+   ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
+.chaine-bandeau { position: absolute; top: 8px; left: 10px; right: 10px; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px; border-radius: 20px;
+  background: rgba(255, 255, 255, .94); box-shadow: 0 4px 14px rgba(74, 51, 40, .14), inset 0 -3px 0 var(--acc); }
+.cb-retour { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 10px 0 4px; border-radius: 14px; background: var(--creme); font: 700 12px/1.1 var(--titre); text-align: left; white-space: nowrap; }
+.cb-retour .ico svg { width: 20px; height: 20px; transform: rotate(180deg); }
+.cb-retour:active, .cb-prendre:active, .cb-planete:active { transform: translateY(2px); }
+.cb-titre { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; padding: 2px 4px; text-align: left; }
+.cb-titre small { display: block; font: 800 11px/1.1 var(--texte-font); color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-nom { display: block; font: 700 16px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-jauge { position: relative; display: block; height: 6px; margin-top: 2px; border-radius: 3px; background: var(--creme); overflow: hidden; }
+.cb-jauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); }
+.cb-or { display: inline-flex; align-items: center; gap: 4px; font: 800 11.5px/1 var(--texte-font); color: #B07A00; }
+.cb-or .ico svg { width: 16px; height: 16px; }
+.cb-prendre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 10px 0 6px; border-radius: 14px; background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); text-align: left; }
+.cb-prendre .ico svg { width: 22px; height: 22px; }
+.cb-prendre small { display: block; font: 800 10.5px/1 var(--texte-font); }
+.cb-prendre b { display: block; font: 700 16px/1 var(--titre); }
+.cb-planete { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--ciel-clair); }
+.cb-planete .ico svg { width: 26px; height: 26px; }
+#chaine-cartes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+#b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
+#b-jetons .ico svg { width: 22px; height: 22px; }
+body.chaine-dans #b-jetons { display: inline-flex; }
+body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans.amenage .chaine-bandeau { display: none; }
+#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+#b-decos .ico svg { width: 20px; height: 20px; }
+
+/* le carnet « Mes décos » : où l'on pose, les familles et leurs objets (gagnés en couleur, à gagner grisés avec comment les obtenir) */
+.cn-ici { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: var(--r-int); background: var(--carte); box-shadow: var(--ombre-carte); }
+.cn-ici small { display: block; font: 800 11.5px/1.1 var(--texte-font); color: var(--texte-2); }
+.cn-ici b { display: block; font: 700 16px/1.15 var(--titre); }
+.cn-compte { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: var(--menthe-clair); font: 700 14px/1 var(--titre); white-space: nowrap; }
+.cn-compte.plein { background: var(--beurre); }
+.cn-outils { display: flex; justify-content: flex-end; }
+.cn-outils .lien { width: auto; margin-top: 4px; }
+.cn-famille { margin-top: 10px; }
+.cn-famille.avenir { opacity: .6; }
+.cn-famille .c-tete .pic svg { width: 26px; height: 26px; }
+.cn-liste, .cn-grille { list-style: none; margin: 0; padding: 0; }
+.cn-liste { display: grid; gap: 6px; }
+.cn-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.cn-objet { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px; border-radius: 14px; background: var(--creme); flex-wrap: wrap; }
+.cn-objet .t { flex: 1 1 0; min-width: 0; }
+.cn-objet .t b { display: block; font: 700 14px/1.15 var(--titre); overflow-wrap: anywhere; }
+.cn-objet .t small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.25; color: var(--texte-2); overflow-wrap: anywhere; }
+.cn-objet.pose { background: var(--menthe-clair); }
+.cn-objet.gris .t b { color: var(--texte-2); }
+.cn-vig { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; overflow: hidden; }
+.cn-vig img { width: 100%; height: 100%; object-fit: cover; }
+.cn-vig .ico svg { width: 32px; height: 32px; }
+.cn-vig.gris .ico svg { filter: grayscale(1); opacity: .4; }
+.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; }
+.cn-places { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 2px 54px; }
+.cn-place { min-height: 40px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
+.cn-place.prise { background: var(--gris); color: var(--gris-texte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.cn-place.annuler { background: #fff; color: var(--texte-2); box-shadow: 0 3px 0 var(--gris-sombre); }
+
+/* la feuille du retour : ce que les gérants ont versé aux caisses de la chaîne */
+.retour-gerants { margin: 10px 0 12px; }
+.retour-gerants .rg-tete { display: flex; align-items: center; gap: 10px; }
+.retour-gerants .rg-tete .ico svg { width: 30px; height: 30px; }
+.retour-gerants .rg-tete b { display: block; font: 700 16px/1.2 var(--titre); }
+.retour-gerants .rg-tete small { display: block; font-size: 12.5px; color: var(--texte-2); font-weight: 700; }
+.retour-gerants .detail { margin: 8px 0 0; }
+.retour-gerants .detail small { color: var(--texte-2); }
+
+/* la version d'essai : un bandeau de 24 px tout en haut, crème et orange, et son « ? » */
+.essai-bandeau { flex: 0 0 24px; position: relative; z-index: 12; display: flex; align-items: center; justify-content: center; gap: 8px; height: 24px; padding: 0 6px 0 12px;
+  background: repeating-linear-gradient(-45deg, #FFE4C2 0 10px, #FFD9AA 10px 20px); color: #8A4B10; font: 700 12px/1 var(--texte-font); white-space: nowrap; overflow: hidden; }
+.essai-bandeau span { overflow: hidden; text-overflow: ellipsis; }
+.essai-bandeau b { font-family: var(--titre); }
+.essai-bandeau button { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; color: #fff; font: 700 13px/1 var(--titre); position: relative; }
+.essai-bandeau button::after { content: ''; position: absolute; inset: -12px -10px; } /* une cible de 44 px sous le doigt */
+.essai-quoi { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.4; }
+.essai-quoi li + li { margin-top: 6px; }
+a.essai-lien { margin-top: 8px; text-decoration: none; }
 </style>
 </head>
 <body>
+<div id="essai-bandeau" class="essai-bandeau" hidden><span><b>Version d’essai</b> · ta vraie partie n’est pas touchée</span><button type="button" data-a="essai" aria-label="La version d’essai : quoi essayer, recommencer">?</button></div>
 <header id="haut">
   <div class="solde">
     <span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span>
@@ -2105,6 +2335,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   <div class="haut-btns">
     <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
+    <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
@@ -2114,7 +2345,9 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     <canvas id="scene-ui" aria-hidden="true"></canvas>
     <div id="sans-3d" hidden><b>La 3D n’est pas disponible sur cet appareil.</b><span>La boutique tourne quand même : tes fournées, tes apprentis et tes clients sont là.</span></div>
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
+    <div id="chaine-bandeau" class="chaine-bandeau" hidden></div>
     <div id="coin">
+      <button id="b-chaine" class="rond chaine" type="button" aria-label="Ma chaîne" hidden><i class="ico" data-ico="planete"></i><i class="rang-pastille ch-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
@@ -2124,7 +2357,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     </div>
     <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
-    <div id="amenage-barre" hidden><button id="b-deplacer" type="button" aria-pressed="false"><i class="ico" data-ico="deplacer"></i><b>Déplacer</b></button><button id="b-origine" type="button" hidden><b>Plan d’origine</b></button></div>
+    <div id="amenage-barre" hidden><button id="b-deplacer" type="button" aria-pressed="false"><i class="ico" data-ico="deplacer"></i><b>Déplacer</b></button><button id="b-origine" type="button" hidden><b>Plan d’origine</b></button><button id="b-decos" type="button"><i class="ico" data-ico="decos"></i><b>Mes décos</b></button></div>
   </div>
   <div id="tiroir" data-pos="mi">
     <div id="evenement" hidden></div>
@@ -2140,6 +2373,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     <button id="objectifs" class="ticket" type="button" aria-label="Objectifs du jour"></button>
     <button id="boosts" class="ticket boosts" type="button" aria-label="Boosts en réserve" hidden></button>
     <div id="cartes"></div>
+    <div id="chaine-cartes" hidden></div>
   </section>
   <section class="page" id="page-defis" data-page="defis" hidden></section>
   <section class="page" id="page-boulanger" data-page="boulanger" hidden></section>
@@ -2284,7 +2518,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'fdff369e56fb';</script>
+<script>window.FOURNIL_VERSION = '59698cc26845';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -7051,6 +7285,14 @@ const ICONS = (() => {
     ampoule: U(`<path d="M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z" fill="${A.beurre}"/><path d="M9.6 19h4.8M10.6 21h2.8"/><path d="M10.2 10.4l1.8 1.8 1.8-1.8M12 12.2v4.3"/>`),
     // « Déplacer » (le mode Aménager) : une table ronde vue de dessus et les quatre flèches du glisser
     deplacer: U(`<circle cx="12" cy="12" r="3.6" fill="${A.menthe}"/><path d="M12 2.8v4.4M12 16.8v4.4M2.8 12h4.4M16.8 12h4.4"/><path d="M9.8 4.8L12 2.8l2.2 2M9.8 19.2l2.2 2 2.2-2M4.8 9.8L2.8 12l2 2.2M19.2 9.8l2 2.2-2 2.2"/>`),
+    // « Ma chaîne de boutiques » (src/chaine-ecran.js) : la petite planète et son fanion, la clé dorée des jetons de chaîne (jamais confondue
+    // avec le jeton d'or de l'arrière-salle), le gérant, l'enseigne de la Boutique d'or, « Mes décos » (un cadre et une petite plante)
+    planete: U(`<circle cx="11.3" cy="13.2" r="8" fill="${A.ciel}"/><path d="M5.1 11c1.5-1 3.4-.6 4.1.8.6 1.2 2 1.5 2.4 2.7.4 1.3-.6 2.5-2 2.5-2.1 0-4.2-1.8-4.6-4z" fill="${A.menthe}" stroke-width="1.6"/><path d="M13.4 6.6c1.7.5 2.6 1.6 2.1 2.8-.4 1 .6 2 1.9 2.2" stroke-width="1.6"/><path d="M17.2 8.2V2.6l3.6 1.4-3.6 1.4" fill="${A.fraise}"/>`),
+    cleChaine: U(`<circle cx="8" cy="12" r="4.4" fill="#FFC84A" stroke-width="1.8"/><circle cx="8" cy="12" r="1.5" fill="#FFF3C4" stroke="none"/><path d="M12.4 12H21M18 12v3M15.4 12v2.2" stroke-width="1.8"/>`),
+    gerant: U(`<circle cx="12" cy="8.2" r="3.6" fill="#FFD7B5" stroke-width="1.8"/><path d="M5 20c.6-4 3.4-6.2 7-6.2s6.4 2.2 7 6.2" fill="${A.lavande}" stroke-width="1.8"/><path d="M10.6 14.2l1.4 2.4 1.4-2.4" stroke-width="1.4"/>`),
+    enseigneOr: U(`<path d="M12 2.5v3"/><path d="M4 7.5h16"/><rect x="5" y="9.5" width="14" height="8" rx="2" fill="#FFC84A"/><path d="M7 7.5v2M17 7.5v2"/><path d="M12 11.3l.8 1.6 1.8.3-1.3 1.2.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.2 1.8-.3z" fill="#FFF3C4" stroke-width="1"/><path d="M8.5 21h7" stroke="#E0A61E"/>`),
+    decos: U(`<rect x="3.5" y="4" width="11" height="9" rx="1.8" fill="${A.peche}"/><path d="M5.8 11l2.6-3 2 2.2 1.4-1.4 1.6 2.2"/><path d="M17.5 20.5h-5l.8-5h3.4z" fill="${A.fraise}"/><path d="M15 15.5c0-2.4.8-4.4 2.6-5.6M15 13.4c-1.2-.8-2.6-.9-3.6-.4"/>`),
+    essai: U(`<path d="M9.5 3.5h5M10.5 3.5v6l-5.3 8.6A1.6 1.6 0 006.6 20.5h10.8a1.6 1.6 0 001.4-2.4l-5.3-8.6v-6"/><path d="M7.4 15h9.2l1.6 3.1a.9.9 0 01-.8 1.4H6.6a.9.9 0 01-.8-1.4z" fill="${A.peche}"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
@@ -7215,7 +7457,24 @@ const ICONS = (() => {
     dragon: S(`<path d="M8 22c-5-2-7-8-5-12 4 2 8 3 10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 22c5-2 7-8 5-12-4 2-8 3-10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 15l-2-8 6 5M33 15l2-8-6 5" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="14" ry="13" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="33" rx="8" ry="5.5" fill="#86E0BC"/>${yx(18.5, 23)}${yx(29.5, 23)}<circle cx="21.5" cy="32" r="1" fill="#3FB889"/><circle cx="26.5" cy="32" r="1" fill="#3FB889"/><circle cx="38" cy="38" r="3.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="42.5" cy="35.5" r="2.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="43" cy="41" r="2" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/>`),
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
-  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
+  // le carnet « Mes décos » (src/chaine-ecran.js) : une icône par famille de collection, au trait de la maison ; l'écran la grise pour ce qui
+  // reste à gagner (les vignettes Grok, plus tard, la remplacent objet par objet : CHAINE_ECRAN.CARNET_IMAGES)
+  const CARNET = {
+    quartier: S(`<path d="M10 28c0-10 6-17 14-17s14 7 14 17z" fill="#FF6B8B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M6 28h28c5 0 8 2 7 4-3 2-8 2-14 2H6z" fill="#E1496C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="11" r="2.5" fill="#FFC84A" stroke="${L}" stroke-width="1.6"/>`),
+    hantee: S(`<path d="M24 12c-2.6-2-6-2.8-9.4-2.2C9.2 10.8 6 16.4 6 24s4.4 13.6 11.2 14.4c2.4.2 4.8-.4 6.8-1.6 2 1.2 4.4 1.8 6.8 1.6C37.6 37.6 42 31.6 42 24s-3.2-13.2-8.6-14.2c-3.4-.6-6.8.2-9.4 2.2z" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><path d="M24 12c0-3 1-5 3-6" stroke="#3FB889" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M15 22l4 3-4 2zM33 22l-4 3 4 2zM16 31c4 3 12 3 16 0l-3 1-2-1.5-3 1.5-3-1.5-2 1.5z" fill="${L}"/>`),
+    podium: S(`<path d="M15 9h18v9a9 9 0 01-18 0z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 11h-5a5 5 0 005.5 6M33 11h5a5 5 0 01-5.5 6" stroke="${L}" stroke-width="2" fill="none"/><path d="M24 27v6" stroke="${L}" stroke-width="2.4"/><path d="M15 40l2-7h14l2 7z" fill="#E0A61E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
+    chaine: S(`<circle cx="23" cy="26" r="15" fill="#A8D8FF" stroke="${L}" stroke-width="2"/><path d="M11 22c3-2 7-1 8 2 1 2 4 3 5 5 1 3-1 5-4 5-4 0-9-4-9-12z" fill="#86E0BC" stroke="${L}" stroke-width="1.8" stroke-linejoin="round"/><path d="M27 14c3 1 5 3 4 5-1 2 1 4 4 4" stroke="${L}" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M34 15V4l7 3-7 3" fill="#FFA3B6" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
+    trophees: S(`<path d="M15 8h18v10a9 9 0 01-18 0z" fill="#FFD66B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 11h-5a5 5 0 005 7M33 11h5a5 5 0 01-5 7" stroke="${L}" stroke-width="2" fill="none"/><path d="M20 38h8l-1-11h-6z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="14" y="38" width="20" height="5" rx="2" fill="#C8864F" stroke="${L}" stroke-width="2"/>`),
+    compagnons: S(`<path d="M24 26c-6 0-11 5-11 10 0 3 2.5 5 5.5 5 2.3 0 3.6-1.2 5.5-1.2s3.2 1.2 5.5 1.2c3 0 5.5-2 5.5-5 0-5-5-10-11-10z" fill="#FFC9A3" stroke="${L}" stroke-width="2"/><ellipse cx="12" cy="20" rx="4" ry="5" fill="#FFC9A3" stroke="${L}" stroke-width="2"/><ellipse cx="36" cy="20" rx="4" ry="5" fill="#FFC9A3" stroke="${L}" stroke-width="2"/><ellipse cx="19" cy="11" rx="4" ry="5" fill="#FFC9A3" stroke="${L}" stroke-width="2"/><ellipse cx="29" cy="11" rx="4" ry="5" fill="#FFC9A3" stroke="${L}" stroke-width="2"/>`),
+    tenues: S(`<path d="M24 7a4 4 0 00-4 4c0 2 1.6 3.2 4 4.6V19" stroke="${L}" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M24 19L7 31a2 2 0 001.2 3.7h31.6A2 2 0 0041 31z" fill="#B8A6FF" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M14 34.7l2 6h16l2-6" fill="#FFE0C7" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
+    titres: S(`<path d="M18 27l-5 15 6-3 4 4 1-14M30 27l5 15-6-3-4 4-1-14" fill="#FF9FB2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="19" r="12" fill="#FFC84A" stroke="${L}" stroke-width="2"/><path d="M24 12.5l2 4.1 4.4.6-3.2 3.1.8 4.4-4-2.1-4 2.1.8-4.4-3.2-3.1 4.4-.6z" fill="#FFF3C4" stroke="${L}" stroke-width="1.4" stroke-linejoin="round"/>`),
+    saison: S(`<path d="M39 9C21 9 10 18 10 30c0 4.4 1.4 7.2 1.4 7.2s2.8 1.2 6.8 1.2C30.2 38.4 39 27.4 39 9z" fill="#FFC9A3" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M8 41c6-10 14-18 24-24" stroke="${L}" stroke-width="2" stroke-linecap="round"/>`),
+    cartes: S(`<rect x="5" y="11" width="38" height="26" rx="3" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="8.5" y="14.5" width="18" height="19" rx="2" fill="#A8D8FF"/><path d="M8.5 29l5-6 4 4 3-3 6 7v2.5h-18z" fill="#86E0BC"/><circle cx="21" cy="19" r="2" fill="#FFD66B"/><path d="M30 18h9M30 23h9M30 28h6" stroke="${L}" stroke-width="2" stroke-linecap="round"/><rect x="34" y="13.5" width="6" height="6" rx="1" fill="#FF9FB2" stroke="${L}" stroke-width="1.4"/>`),
+    'casino-trophees': S(`<circle cx="24" cy="24" r="17" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><circle cx="24" cy="24" r="11" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="4 4"/><path d="M24 16.5l2.3 4.6 5 .7-3.6 3.5.9 5-4.6-2.4-4.6 2.4.9-5-3.6-3.5 5-.7z" fill="#FFC84A" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/>`),
+    'casino-skins': S(`<rect x="8" y="10" width="20" height="28" rx="3" transform="rotate(-10 18 24)" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="20" y="10" width="20" height="28" rx="3" transform="rotate(8 30 24)" fill="#B8A6FF" stroke="${L}" stroke-width="2"/><path d="M30 19c-2-3-6-1-4 2l4 5 4-5c2-3-2-5-4-2z" fill="#FF6B8B" stroke="${L}" stroke-width="1.4"/>`),
+    avenir: S(`<rect x="9" y="9" width="30" height="30" rx="8" fill="#F0E4D8" stroke="#B5A49A" stroke-width="2" stroke-dasharray="4 3"/><path d="M19.5 20a4.5 4.5 0 119 0c0 3-4.5 3.5-4.5 6.5" stroke="#B5A49A" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="24" cy="32" r="1.8" fill="#B5A49A"/>`),
+  };
+  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER, CARNET };
 })();
 
 /* ── vie.js ── */
@@ -19217,14 +19476,474 @@ const RETOURS = (() => {
 });
 
 /* ── chaine-ecran.js ── */
-/* LE FOURNIL — les feuilles de « Ma chaîne de boutiques » (global CHAINE_ECRAN) : livrées par le constructeur écran ; ce fichier vide les remplace en attendant (build.js le charge avant ui.js). */
+/* LE FOURNIL — « Ma chaîne de boutiques » : l'écran (global CHAINE_ECRAN). Les règles sont dans src/chaine.js (CHAINE) : cet écran ne fait
+   que les montrer et les appeler.
+   - « Ma chaîne » : un écran plein, la petite planète en haut (src/planete.js, API PLANETE : une boutique par numéro, dans son quartier, à
+     son standing), la liste dessous (accessible au clavier et au lecteur d'écran ; seule quand la planète est coupée : pas de 3D, ou
+     PLANETE absent). Une ligne par boutique : son n°, son nom, son quartier, son standing, la jauge de la Boutique d'or (fait/max ; d'or :
+     l'enseigne), « Prendre N jetons », son gérant (niveau, part, heures, « encore X h ») ou « Embaucher », sa caisse et ce qui attend.
+   - La boutique des jetons : trois rayons (les gérants, les objets rares, les boosts : un par semaine).
+   - Le carnet « Mes décos » : toutes les familles de collection avec leur compteur ; les décos posables se posent ou se rangent dans la
+     boutique où l'on est (6 au plus) ; ce qui manque est grisé, avec comment l'obtenir. CARNET_IMAGES : les vignettes (fournil/img/carnet/).
+   - Dans une boutique de la chaîne : ses cartes de recettes (sa caisse, ses niveaux, ses apprentis), ses bonus et ses meubles, son bandeau.
+     Tout s'écrit par CHAINE (la vue v et la boutique compacte v.b) : jamais par GAME.acheter & co., jamais dans st à la place de la vue.
+   src/ui.js le branche par init(deps) : l'état (st), l'heure du jeu, la sauvegarde, les sons, les feuilles, entrer dans une boutique. */
+const CHAINE_ECRAN = (() => {
+  'use strict';
+  const CH = typeof CHAINE !== 'undefined' ? CHAINE : null;
+  const API = { actif: !!CH, ouvert: false, init() {}, ouvrir: () => false, fermer() {}, maj() {}, jetons() {}, carnet() {}, gerant() {}, CARNET_IMAGES: {} };
+  if (!CH || typeof document === 'undefined') return API;
+  const G = GAME, L = '#4A3328';
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const capital = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const pluriel = (n, un, plus) => `${G.fmt(n)} ${n > 1 ? (plus || un + 's') : un}`;
+  const jetonsTxt = (n) => pluriel(n, 'jeton');
+  const pct = (a, b) => (b ? Math.min(100, a / b * 100) : 0).toFixed(0) + '%';
+  let D = null; // les dépendances données par src/ui.js
+  const st = () => D.st(), maintenant = () => D.maintenant();
+  const ico = (id) => (typeof ICONS !== 'undefined' && ICONS.UI[id]) || '';
+  const CLE = () => ico('cleChaine'), PLANETE_ICO = () => ico('planete'), GERANT_ICO = () => ico('gerant'), OR_ICO = () => ico('enseigneOr');
+  const okChip = (t) => `<span class="ok"><i class="ico">${ico('coche')}</i>${esc(t)}</span>`;
+  // la couleur d'une boutique : l'accent de son décor (VIE.decor, celui de la scène et de la planète)
+  const accent = (q, s) => { try { const d = typeof VIE !== 'undefined' && VIE.decor ? VIE.decor(G.QUARTIERS[q], s) : null; if (d && d.accent) return d.accent; } catch (e) { /* rien */ } return '#FF6B8B'; };
+  const clair = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return true; const v = parseInt(m[1], 16), r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55; };
+  const nomStanding = (s) => (G.STANDINGS && G.STANDINGS[s] ? G.STANDINGS[s].nom : '');
+  // les vignettes du carnet (contrat § 4.6) : id → chemin d'une image (fournil/img/carnet/<famille>/<id>.webp, 256 px), chargée seulement à
+  // l'ouverture du carnet (loading="lazy") ; sans elle, l'icône dessinée de sa famille. Ajouter une image : un fichier et une ligne ici.
+  const CARNET_IMAGES = {};
+
+  // ─── « Ma chaîne » : la planète et la liste ───
+  let el = null, planete = false, choisie = 0, minuteur = 0, cleLignes = '';
+  const fiches = () => CH.liste(st(), maintenant());
+  function ouvrir(o) {
+    if (API.ouvert) return true; o = o || {};
+    D.encaisser(); // les gérants versent ce qu'ils ont gagné (idempotent : rien de plus si c'est déjà fait)
+    const s = st(); if (!s.vu) s.vu = {};
+    el = document.createElement('div'); el.id = 'chaine'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'ch-titre');
+    el.innerHTML = `<div class="at-haut ch-haut"><button type="button" class="at-fermer" data-a="fermer" aria-label="Fermer Ma chaîne"><i class="ico">${ico('fermer')}</i></button>
+      <div class="at-titre"><b id="ch-titre">Ma chaîne</b><small class="ch-sous"></small></div>
+      <button type="button" class="ch-jetons" data-a="jetons"><i class="ico">${CLE()}</i><b>0</b></button></div>
+      <div class="ch-planete" hidden></div>
+      <div class="ch-bas"><div class="ch-actions"></div><p class="ch-note" hidden></p><div class="ch-liste" role="list" aria-label="Les boutiques de ta chaîne"></div><div class="ch-cartes"></div></div>`;
+    document.body.appendChild(el); API.ouvert = true; choisie = 0; cleLignes = '';
+    el.addEventListener('click', clic);
+    document.addEventListener('keydown', echap, true); // (en capture : une feuille ouverte par-dessus se referme seule, l'écran reste)
+    const l = fiches(), zone = el.querySelector('.ch-planete');
+    planete = false;
+    if (typeof PLANETE !== 'undefined' && PLANETE.actif && o.planete !== false) {
+      zone.hidden = false;
+      try { planete = PLANETE.ouvrir(zone, l, { qualite: D.qualite(), boutiques: s.boutiques, heure: o.heure != null ? o.heure : D.heure(), onToucher: (n) => choisir(n, false), onEntrer: (n) => D.entrer(n, 'planete') }); } catch (e) { planete = false; }
+      if (!planete) zone.hidden = true;
+    }
+    el.classList.toggle('sans-planete', !planete);
+    // une fois : les anciennes boutiques rouvrent dans le quartier d'aujourd'hui (le parcours a pu changer le quartier des n°11 à 29)
+    if (!s.vu.chaine && l.length) { const p = el.querySelector('.ch-note'); p.hidden = false; p.textContent = 'Tes anciennes boutiques rouvrent dans leur quartier d’aujourd’hui, chacune à son standing.'; s.vu.chaine = 1; D.save(); }
+    maj(true);
+    minuteur = setInterval(() => { if (API.ouvert && document.visibilityState === 'visible') majDynamique(); }, 1000);
+    return true;
+  }
+  function fermer() {
+    if (!API.ouvert) return; API.ouvert = false;
+    clearInterval(minuteur); minuteur = 0; document.removeEventListener('keydown', echap, true);
+    if (planete && typeof PLANETE !== 'undefined') { try { PLANETE.fermer(); } catch (e) { /* rien */ } }
+    planete = false; if (el) el.remove(); el = null;
+    if (D && D.ferme) D.ferme();
+  }
+  const echap = (e) => { const f = document.querySelector('#feuille'); if (e.key === 'Escape' && API.ouvert && (!f || f.hidden)) fermer(); };
+  // tout redessiner (après une action) ; la planète reçoit les mêmes fiches (ses drapeaux, ses enseignes d'or), sans rebâtir sa géométrie
+  function maj(force) {
+    if (!el) return; const s = st(), r = CH.resume(s, maintenant()), l = fiches();
+    el.querySelector('.ch-sous').textContent = l.length ? `${pluriel(r.boutiques, 'boutique')} · ${pluriel(r.gerants, 'gérant')}${r.or ? ` · ${pluriel(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Ta chaîne commence à ta 2e boutique';
+    const pj = el.querySelector('.ch-jetons'); pj.querySelector('b').textContent = G.fmt(r.jetons); pj.setAttribute('aria-label', `${jetonsTxt(r.jetons)} de chaîne : la boutique des jetons`);
+    el.querySelector('.ch-actions').innerHTML = `${r.aPrendre ? `<button type="button" class="btn beurre ch-tout" data-a="prendre-tout"><small>Dans tes boutiques</small><b>Prendre ${jetonsTxt(r.aPrendre)}</b></button>` : ''}
+      <button type="button" class="ch-bouton" data-a="jetons"><i class="ico">${CLE()}</i><span>La boutique des jetons</span></button>
+      <button type="button" class="ch-bouton" data-a="carnet"><i class="ico">${ico('decos')}</i><span>Mes décos</span></button>`;
+    const cle = l.map((f) => `${f.n}|${f.nom}|${f.jetons}|${f.or}|${f.jauge.fait}/${f.jauge.max}|${f.gerant ? f.gerant.rythme + ':' + f.gerant.duree : '-'}|${G.fmtEur(f.caisse)}`).join(';') + '|' + r.prochainGerant + '|' + r.jetons;
+    if (force || cle !== cleLignes) {
+      cleLignes = cle; const box = el.querySelector('.ch-liste');
+      box.innerHTML = l.length ? l.map((f) => ligne(f, r)).join('') : `<div class="vide"><span class="pic">${PLANETE_ICO()}</span><b>Pas encore de boutique dans ta chaîne</b><span>Ouvre ta 2e boutique : la première s’installera ici, dans son quartier, et un gérant (offert) la fera tourner pour toi.</span></div>`;
+      el.querySelector('.ch-cartes').innerHTML = cartesPostales(l);
+      if (planete) { try { PLANETE.maj(l); } catch (e) { /* rien */ } }
+      if (choisie) marquer(choisie);
+    }
+    majDynamique();
+  }
+  // ce qui bouge chaque seconde sans redessiner la liste (un doigt posé sur un bouton ne le perd pas) : ce qui attend, le temps qui reste au gérant
+  function majDynamique() {
+    if (!el) return;
+    for (const f of fiches()) {
+      const a = el.querySelector(`[data-attente="${f.n}"]`); if (a) { const t = f.enAttente > 0 ? `+${G.fmtEur(f.enAttente)} en attente` : ''; if (a.textContent !== t) a.textContent = t; }
+      const g = el.querySelector(`[data-reste="${f.n}"]`); if (g && f.gerant) { const t = f.gerant.reste > 0 ? `encore ${G.fmtDuree(f.gerant.reste)}` : 'à l’arrêt : passe le voir'; if (g.textContent !== t) g.textContent = t; }
+    }
+  }
+  function ligne(f, r) {
+    const acc = f.or ? '#FFC84A' : accent(G.QUARTIERS.findIndex((q) => q.id === f.quartier), f.standing), enc = clair(acc) ? L : '#FFFFFF';
+    const j = f.jauge, ger = f.gerant;
+    const jauge = f.or ? `<div class="ch-or"><i class="ico">${OR_ICO()}</i><span><b>Boutique d’or</b><small>L’enseigne dorée brille à sa porte</small></span></div>`
+      : `<div class="ch-jauge"><span>Vers la Boutique d’or <b>${j.fait}/${j.max}</b></span><small>chaque recette au niveau ${j.niv}</small><i style="width:${pct(j.fait, j.max)}"></i></div>`;
+    const gerant = ger ? `<div class="ch-gerant"><i class="ico">${GERANT_ICO()}</i><span><b>Un gérant la fait tourner</b><small>${Math.round(ger.part * 100)} % du rythme · ${ger.heures} h · <span data-reste="${f.n}"></span></small></span><button type="button" class="btn lavande" data-a="gerant" data-n="${f.n}"><small>Gérant</small><b>Améliorer</b></button></div>`
+      : `<div class="ch-gerant sans"><i class="ico">${GERANT_ICO()}</i><span><b>Pas de gérant</b><small>Sans toi, la boutique ne vend rien</small></span><button type="button" class="btn ${r.prochainGerant === 0 || r.jetons >= r.prochainGerant ? 'beurre' : 'non'}" data-a="embaucher-gerant" data-n="${f.n}"><small>Embaucher</small><b>${r.prochainGerant ? jetonsTxt(r.prochainGerant) : 'Offert'}</b></button></div>`;
+    return `<article class="ch-ligne${f.or ? ' or' : ''}" role="listitem" data-n="${f.n}" style="--acc:${acc};--enc:${enc}">
+      <div class="ch-tete"><b class="ch-num" aria-hidden="true">${f.n}</b><div class="ch-nom"><h3>${esc(f.nom)}</h3><small>${esc(capital(f.quartierNom))} · ${esc(nomStanding(f.standing))}</small></div>
+        <button type="button" class="btn ch-entrer" data-a="entrer" data-n="${f.n}" aria-label="Entrer dans la boutique n°${f.n}"><b>Entrer</b></button></div>
+      ${jauge}
+      <div class="ch-caisse"><span>Caisse <b>${G.fmtEur(f.caisse)}</b></span><small data-attente="${f.n}"></small></div>
+      ${gerant}
+      ${f.jetons ? `<button type="button" class="btn beurre ch-prendre" data-a="prendre" data-n="${f.n}"><small>${f.or ? 'Paliers et paquet de la Boutique d’or' : 'Paliers franchis'}</small><b>Prendre ${jetonsTxt(f.jetons)}</b></button>` : ''}
+    </article>`;
+  }
+  // les cartes postales : une par quartier où la chaîne a une boutique, prise sur la planète (PLANETE.photo) et rangée au carnet
+  function cartesPostales(l) {
+    if (!planete) return '';
+    const c = CH.etat(st()), prises = Array.isArray(c.cartes) ? c.cartes : [], qs = [...new Set(l.map((f) => f.quartier))];
+    if (!qs.length) return '';
+    return `<h3 class="titre-section"><span>Cartes postales</span><span class="pts">${prises.length}/${G.QUARTIERS.length}</span></h3>
+      <div class="ch-postales">${qs.map((id) => { const q = G.QUARTIERS.find((x) => x.id === id); return `<button type="button" class="ch-postale${prises.includes(id) ? ' prise' : ''}" data-a="carte" data-q="${id}"><i class="ico">${ico('photo')}</i><span>${esc(capital(q.nom))}</span>${prises.includes(id) ? `<i class="ico ok">${ico('coche')}</i>` : ''}</button>`; }).join('')}</div>`;
+  }
+  function marquer(n) { if (!el) return; el.querySelectorAll('.ch-ligne').forEach((x) => x.classList.toggle('choisie', +x.dataset.n === n)); }
+  // une boutique touchée sur la planète : sa ligne s'éclaire et vient se montrer sous la planète ; touchée dans la liste : la planète la vise
+  function choisir(n, viser) {
+    choisie = n; marquer(n);
+    const x = el && el.querySelector(`.ch-ligne[data-n="${n}"]`); if (x) { const box = el.querySelector('.ch-bas'); box.scrollTo({ top: Math.max(0, x.offsetTop - box.offsetTop - 8), behavior: D.reduit ? 'auto' : 'smooth' }); }
+    if (viser && planete) { try { PLANETE.viser(n); } catch (e) { /* rien */ } }
+  }
+  function clic(e) {
+    const b = e.target.closest('[data-a]'); if (!b || !el || !el.contains(b)) { const li = e.target.closest('.ch-ligne'); if (li) choisir(+li.dataset.n, true); return; }
+    D.audio(); const a = b.dataset.a, n = +b.dataset.n || 0, s = st();
+    if (a === 'fermer') { D.son.tap(); fermer(); return; }
+    if (a === 'entrer') { D.son.tap(); D.entrer(n, 'liste'); return; }
+    if (a === 'jetons') { D.son.tap(); boutiqueJetons(); return; }
+    if (a === 'carnet') { D.son.tap(); carnet({ cible: 0 }); return; }
+    if (a === 'gerant') { D.son.tap(); sheetGerant(n); return; }
+    if (a === 'embaucher-gerant') { embaucherGerant(n, () => maj()); return; }
+    if (a === 'prendre') { const k = CH.prendreJetons(s, n); if (k) { D.son.pieces(); D.buzz([8, 30, 8]); D.toast(`+${jetonsTxt(k)} de chaîne`); D.save(); maj(); D.rafraichir(); } return; }
+    if (a === 'prendre-tout') { const k = CH.prendreTout(s); if (k) { D.son.pieces(); D.buzz([10, 30, 10]); D.toast(`+${jetonsTxt(k)} de chaîne, pris dans tes boutiques`); D.save(); maj(); D.rafraichir(); } return; }
+    if (a === 'carte') { D.son.tap(); cartePostale(b.dataset.q); }
+  }
+  function cartePostale(id) {
+    if (!planete) return; const q = G.QUARTIERS.find((x) => x.id === id); if (!q) return;
+    PLANETE.photo(id).then((url) => {
+      if (!url) { D.toast('La photo n’a pas pu se faire.'); return; }
+      const c = CH.etat(st()), neuve = !(Array.isArray(c.cartes) && c.cartes.includes(id));
+      if (!Array.isArray(c.cartes)) c.cartes = []; if (neuve) { c.cartes.push(id); D.save(); }
+      D.openSheet(`<h2>Carte postale</h2><p class="sous">${esc(capital(q.nom))}, vu de ta petite planète.${neuve ? ' Elle rejoint ton carnet.' : ''}</p>
+        <img class="ch-photo" src="${url}" alt="La carte postale de ${esc(q.nom)} : sa région de la petite planète, vue de près">
+        <button type="button" class="btn large menthe" data-a="close" style="margin-top:14px"><b>${neuve ? 'Dans le carnet !' : 'Retour'}</b></button>`);
+      D.on('[data-a="close"]', D.closeSheet);
+      if (neuve) { D.son.deblocage(); maj(true); }
+    }).catch(() => D.toast('La photo n’a pas pu se faire.'));
+  }
+
+  // ─── les gérants (la ligne d'une boutique, et le rayon de la boutique des jetons) ───
+  function embaucherGerant(n, apres) {
+    const s = st(), r = CH.embaucherGerant(s, n, maintenant());
+    if (!r.ok) { D.son.non(); D.toast(r.raison === 'jetons' ? `Il manque ${jetonsTxt(r.prix - CH.etat(s).jetons)} de chaîne.` : 'Cette boutique a déjà son gérant.'); return false; }
+    D.son.embauche(); D.buzz([10, 30, 10]); D.toast(`Boutique n°${n} : un gérant la fait tourner pour toi${r.prix ? '' : ' (le premier est offert)'} !`); D.save(); if (apres) apres(); D.rafraichir(); return true;
+  }
+  function ameliorerGerant(n, quoi, apres) {
+    const s = st(), r = CH.ameliorerGerant(s, n, quoi);
+    if (!r.ok) { D.son.non(); D.toast(r.raison === 'jetons' ? `Il manque ${jetonsTxt(r.prix - CH.etat(s).jetons)} de chaîne.` : r.raison === 'max' ? 'Déjà au maximum.' : 'Pas de gérant ici.'); return false; }
+    D.son.achat(); D.buzz(8); D.toast(quoi === 'duree' ? `Le gérant de la n°${n} reste ${CH.GERANT.heures[r.niveau]} h` : `Le gérant de la n°${n} : ${Math.round(CH.GERANT.part[r.niveau] * 100)} % du rythme`); D.save(); if (apres) apres(); D.rafraichir(); return true;
+  }
+  const crans = (k, max) => `<span class="crans" aria-label="niveau ${k} sur ${max}">${Array.from({ length: max }, (_, i) => `<i class="${i < k ? 'on' : ''}"></i>`).join('')}</span>`;
+  function blocGerant(f, r, court) { // les deux réglages d'un gérant, avec leur prix en jetons (court : le rayon de la boutique des jetons, une ligne par boutique)
+    const R = CH.GERANT, ger = f.gerant;
+    if (!ger) return `<div class="am"><div><h3>${court ? 'Pas encore de gérant' : 'Embaucher un gérant'}</h3><p>${court ? `${Math.round(R.part[0] * 100)} % du rythme, ${R.heures[0]} h au plus` : `Il fait tourner la boutique quand tu n’y es pas : ${Math.round(R.part[0] * 100)} % de son rythme, ${R.heures[0]} h au plus par absence. Ce qu’il gagne reste dans sa caisse.`}</p></div><button type="button" class="btn ${r.prochainGerant === 0 || r.jetons >= r.prochainGerant ? 'beurre' : 'non'}" data-g="embaucher" data-n="${f.n}"><small>Embaucher</small><b>${r.prochainGerant ? jetonsTxt(r.prochainGerant) : 'Offert'}</b></button></div>`;
+    const pr = ger.rythme < R.prixRythme.length ? R.prixRythme[ger.rythme] : 0, pd = ger.duree < R.prixDuree.length ? R.prixDuree[ger.duree] : 0;
+    return `<div class="am ${pr ? '' : 'fait'}"><div><h3>Son rythme ${crans(ger.rythme, R.prixRythme.length)}</h3><p>${Math.round(R.part[ger.rythme] * 100)} % du rythme de la boutique${pr ? `<br><em>Niveau suivant : ${Math.round(R.part[ger.rythme + 1] * 100)} %</em>` : ''}</p></div>${pr ? `<button type="button" class="btn ${r.jetons >= pr ? 'lavande' : 'non'}" data-g="rythme" data-n="${f.n}"><small>Améliorer</small><b>${jetonsTxt(pr)}</b></button>` : okChip('Au max')}</div>
+      <div class="am ${pd ? '' : 'fait'}"><div><h3>Ses heures ${crans(ger.duree, R.prixDuree.length)}</h3><p>${ger.heures} h au plus quand tu n’es pas là${pd ? `<br><em>Niveau suivant : ${R.heures[ger.duree + 1]} h</em>` : ''}</p></div>${pd ? `<button type="button" class="btn ${r.jetons >= pd ? 'lavande' : 'non'}" data-g="duree" data-n="${f.n}"><small>Allonger</small><b>${jetonsTxt(pd)}</b></button>` : okChip('Au max')}</div>`;
+  }
+  function lierGerants(apres) {
+    D.on('[data-g]', (b) => { const n = +b.dataset.n, g = b.dataset.g; if (g === 'embaucher') embaucherGerant(n, apres); else ameliorerGerant(n, g, apres); });
+  }
+  function sheetGerant(n) {
+    const s = st(), f = fiches().find((x) => x.n === n); if (!f) return; const r = CH.resume(s, maintenant());
+    D.openSheet(`<div class="ch-fiche-tete"><i class="ico">${GERANT_ICO()}</i><div><h2>Le gérant</h2><p class="sous">${esc(f.nom)} · boutique n°${n}</p></div><span class="ch-solde"><i class="ico">${CLE()}</i>${G.fmt(r.jetons)}</span></div>
+      <div class="encadre doux">Il vend pour toi pendant ton absence, sur l’heure du jeu, et ses gains restent dans la caisse de sa boutique. Quand tu joues dans la boutique, c’est toi qui la fais tourner : il se repose.</div>
+      <div class="liste-am" style="margin-top:12px">${blocGerant(f, r)}</div>
+      <button type="button" class="btn large sombre" data-a="close" style="margin-top:14px"><b>Retour</b></button>`);
+    D.on('[data-a="close"]', D.closeSheet); lierGerants(() => { maj(); sheetGerant(n); });
+  }
+
+  // ─── la boutique des jetons : gérants, objets rares, boosts (un par semaine) ───
+  let rayon = 'gerants';
+  function boutiqueJetons(r_) {
+    if (r_) rayon = r_;
+    const s = st(), c = CH.etat(s), r = CH.resume(s, maintenant()), l = fiches();
+    const seg = (id, t) => `<button type="button" role="tab" data-r="${id}" aria-selected="${rayon === id}" class="${rayon === id ? 'actif' : ''}">${t}</button>`;
+    let corps = '';
+    if (rayon === 'gerants') {
+      corps = l.length ? `<p class="sous">Le premier gérant est offert, puis ${CH.prixGerant(1)}, ${CH.prixGerant(2)}, ${CH.prixGerant(3)}… jusqu’à ${CH.prixGerant(99)} jetons. Le prochain : <b>${r.prochainGerant ? jetonsTxt(r.prochainGerant) : 'offert'}</b>.</p>
+        <div class="liste-am">${l.map((f) => `<h3 class="titre-section ch-sec"><span>N°${f.n} · ${esc(f.nom)}</span>${f.gerant ? `<span class="pts">${Math.round(f.gerant.part * 100)} % · ${f.gerant.heures} h</span>` : ''}</h3>${blocGerant(f, r, true)}`).join('')}</div>`
+        : '<div class="vide"><b>Pas encore de boutique dans ta chaîne</b><span>Ta 2e boutique fera de la 1re la première de ta chaîne.</span></div>';
+    } else if (rayon === 'objets') {
+      const fam = { deco: 'Déco · dans Mes décos', tenue: 'Tenue · sans bonus', compagnon: 'Compagnon · sans bonus' };
+      corps = `<p class="sous">Des objets rares pour le plaisir : aucun ne fait gagner plus à la boulangerie.</p><div class="liste-am">${CH.OBJETS.map((o) => {
+        const a = c.objets.includes(o.id);
+        return `<div class="am ${a ? 'fait' : ''}"><div><h3>${esc(o.nom)}</h3><p>${esc(o.desc)}<br><em>${fam[o.famille] || ''}</em></p></div>${a ? okChip(o.famille === 'deco' ? 'Au carnet' : 'À toi') : `<button type="button" class="btn ${c.jetons >= o.prix ? 'lavande' : 'non'}" data-o="${o.id}"><small>Acheter</small><b>${jetonsTxt(o.prix)}</b></button>`}</div>`;
+      }).join('')}</div>`;
+    } else {
+      const reste = CH.boostsRestants(s, maintenant());
+      corps = `<p class="sous">Un boost par semaine (du lundi au dimanche), rangé dans la réserve de ta boulangerie : tu le lances quand tu veux.</p>
+        <div class="liste-am">${CH.BOOSTS.map((o) => `<div class="am ${reste ? '' : 'fait'}"><div><h3>${esc(o.nom)}</h3><p>Toute la boulangerie ×${o.mult} pendant ${G.fmtDuree(o.secs)}.</p></div>${reste ? `<button type="button" class="btn ${c.jetons >= o.prix ? 'beurre' : 'non'}" data-b="${o.id}"><small>1 cette semaine</small><b>${jetonsTxt(o.prix)}</b></button>` : '<span class="ok gris">Pris cette semaine</span>'}</div>`).join('')}</div>
+        ${reste ? '' : '<p class="note">Le prochain boost se prend lundi.</p>'}`;
+    }
+    D.openSheet(`<div class="ch-fiche-tete"><i class="ico">${CLE()}</i><div><h2>La boutique des jetons</h2><p class="sous">Les jetons de chaîne se gagnent dans tes boutiques : un par palier de recette, un paquet à chaque Boutique d’or.</p></div></div>
+      <div class="ch-solde-l"><span class="ch-solde grand"><i class="ico">${CLE()}</i>${G.fmt(c.jetons)}<small>${c.jetons > 1 ? 'jetons de chaîne' : 'jeton de chaîne'}</small></span>${r.aPrendre ? `<button type="button" class="btn beurre" data-a="prendre-tout"><small>À prendre</small><b>+${G.fmt(r.aPrendre)}</b></button>` : ''}</div>
+      <div class="segments" role="tablist">${seg('gerants', 'Gérants')}${seg('objets', 'Objets rares')}${seg('boosts', 'Boosts')}</div>
+      ${corps}<button type="button" class="btn large sombre" data-a="close" style="margin-top:14px"><b>Retour</b></button>`);
+    D.on('[data-a="close"]', D.closeSheet);
+    D.on('[data-r]', (b) => { D.son.tap(); boutiqueJetons(b.dataset.r); });
+    D.on('[data-a="prendre-tout"]', () => { const k = CH.prendreTout(st()); if (k) { D.son.pieces(); D.toast(`+${jetonsTxt(k)} de chaîne`); D.save(); maj(); D.rafraichir(); } boutiqueJetons(); });
+    lierGerants(() => { maj(); boutiqueJetons(); });
+    D.on('[data-o]', (b) => {
+      const res = CH.acheterObjet(st(), b.dataset.o);
+      if (!res.ok) { D.son.non(); D.toast(res.raison === 'jetons' ? `Il manque ${jetonsTxt(res.prix - CH.etat(st()).jetons)} de chaîne.` : 'Tu l’as déjà.'); return; }
+      D.son.deblocage(); D.buzz([10, 30, 10]); D.confettis(0.6);
+      D.toast(res.objet.famille === 'deco' ? `${res.objet.nom} : pose-la depuis « Mes décos ».` : res.objet.famille === 'tenue' ? `${res.objet.nom} : dans ta garde-robe.` : `${res.objet.nom} : un nouveau compagnon !`);
+      D.save(); maj(); D.rafraichir(); boutiqueJetons();
+    });
+    D.on('[data-b]', (b) => {
+      const res = CH.acheterBoost(st(), b.dataset.b, maintenant());
+      if (!res.ok) { D.son.non(); D.toast(res.raison === 'semaine' ? 'Un boost par semaine : le prochain, lundi.' : `Il manque ${jetonsTxt(res.prix - CH.etat(st()).jetons)} de chaîne.`); return; }
+      D.son.deblocage(); D.buzz([10, 30, 10]); D.toast(`${res.boost.nom} : dans ta réserve. Lance-le quand tu veux !`); D.save(); maj(); D.rafraichir(); boutiqueJetons();
+    });
+  }
+
+  // ─── le carnet « Mes décos » ───
+  // cible : 0 = la boulangerie (st.decos = { v: 1, d: code } ; absent : le plan d'origine), n = la boutique n° de la chaîne (CHAINE.poser)
+  const PLACES_NOM = { m1: 'au mur, le cadre', m2: 'au-dessus de l’étagère', m3: 'la porte du fond', m4: 'entre l’horloge et le diplôme', s1: 'le coin déco', s2: 'la place du sapin', s3: 'le coin de la porte',
+    c1: 'le comptoir, aux fleurs', c2: 'le comptoir, à la recette', r1: 'la fenêtre, à gauche', r2: 'la fenêtre, à droite', x1: 'le trottoir' };
+  const TYPES = { mur: 'au mur', sol: 'au sol', comptoir: 'sur le comptoir', rebord: 'sur la fenêtre', dehors: 'dehors' };
+  const A_VENIR = [['feves', 'Les fèves', 'En janvier, avec la galette'], ['rares', 'Les recettes rares', 'Le livre de recettes'], ['apprentis', 'Les apprentis rares', 'Des apprentis à rareté']];
+  let carnetEtat = { cible: 0, choix: '', ouvertes: {} };
+  const ext = () => (D.recompenses ? D.recompenses() : null) || { coupes: [], badge: false };
+  const casino = () => (typeof CASINO !== 'undefined' ? CASINO : null);
+  // les décos posées dans une boutique (null : la boulangerie au plan d'origine)
+  function posesDe(cible) {
+    const s = st();
+    if (cible) { const b = CH.boutique(s, cible); return b ? CH.posesDe(b) : []; }
+    const d = s.decos && typeof s.decos === 'object' && typeof s.decos.d === 'string' ? CH.decosDepuisCode(s.decos.d) : null;
+    return d || null;
+  }
+  // le plan d'origine de la boulangerie mis en disposition (la première fois qu'on pose ou range) : ses décos gagnées, chacune à la
+  // première place libre de son type, 6 au plus (la scène les montrait à leurs places d'aujourd'hui)
+  function depuisOrigine(familles) {
+    const out = [];
+    for (const f of familles) { if (!['quartier', 'hantee', 'podium'].includes(f.id)) continue; for (const x of f.items) { if (!x.gagne || !x.place) continue; const p = CH.PLACES.find((q) => q.type === x.place && !out.some((o) => o[1] === q.id)); if (p && out.length < CH.DECOS_MAX) out.push([x.id, p.id]); } }
+    return CH.nettoyerPoses(out);
+  }
+  function poserListe(cible, l) {
+    const s = st();
+    if (cible) CH.poser(s, cible, l);
+    else if (l === null) delete s.decos;
+    else s.decos = { v: 1, d: CH.codeDecos(l) };
+    D.save(); if (D.decosChangees) D.decosChangees(cible);
+  }
+  const qualite = () => (D.qualite ? D.qualite() : 'eco');
+  function carnet(o) {
+    if (o) carnetEtat = { cible: o.cible || 0, choix: '', ouvertes: carnetEtat.ouvertes || {} };
+    const s = st(), cible = carnetEtat.cible, b = cible ? CH.boutique(s, cible) : null;
+    if (cible && !b) return;
+    const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
+    const places = new Set(liste.map((x) => x[1]));
+    const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
+    const vignette = (f, x) => { const src = CARNET_IMAGES[x.id]; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${src && x.gagne ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`}</span>`; };
+    const objet = (f, x) => {
+      if (!f.posable || !x.place) return `<li class="cn-objet${x.gagne ? '' : ' gris'}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b>${x.gagne ? '' : `<small>${esc(x.obtenir)}</small>`}</span></li>`;
+      const pose = liste.find((p) => p[0] === x.id), ici = TYPES[x.place] || '';
+      let act = '';
+      if (x.gagne && carnetEtat.choix !== x.id) act = pose ? `<button type="button" class="btn non cn-btn" data-ranger="${x.id}"><b>Ranger</b></button>` : `<button type="button" class="btn ${liste.length < CH.DECOS_MAX ? 'menthe' : 'non'} cn-btn" data-poser="${x.id}"><b>Poser</b></button>`;
+      const choix = x.gagne && carnetEtat.choix === x.id ? `<div class="cn-places" role="group" aria-label="Où poser ${esc(x.nom)} ?">${CH.PLACES.filter((p) => p.type === x.place).map((p) => { const libre = !places.has(p.id), ok = libre && CH.peutPoser(liste, x.id, p.id, qualite()).ok; return `<button type="button" class="cn-place${ok ? '' : ' prise'}" data-place="${p.id}" data-deco="${x.id}"${ok ? '' : ' aria-disabled="true"'}>${esc(PLACES_NOM[p.id] || p.id)}${libre ? '' : ' · prise'}</button>`; }).join('')}<button type="button" class="cn-place annuler" data-place="" data-deco="">Annuler</button></div>` : '';
+      return `<li class="cn-objet posable${x.gagne ? '' : ' gris'}${pose ? ' pose' : ''}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b><small>${x.gagne ? (pose ? `Posée : ${esc(PLACES_NOM[pose[1]] || pose[1])}` : `Se pose ${ici}`) : esc(x.obtenir)}</small></span>${act}${choix}</li>`;
+    };
+    const famille = (f) => {
+      const g = f.items.filter((x) => x.gagne), m = f.items.filter((x) => !x.gagne), ouverte = !!carnetEtat.ouvertes[f.id];
+      return `<div class="card cn-famille" data-famille="${f.id}"><div class="c-tete"><span class="pic">${iconeFamille(f.id)}</span><h3>${esc(f.nom)}</h3><span class="compte ${f.gagnes === f.total ? 'ok' : f.gagnes ? 'or' : ''}">${f.gagnes}/${f.total}</span></div>
+        ${g.length ? `<ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${g.map((x) => objet(f, x)).join('')}</ul>` : '<p class="note">Rien encore dans cette famille.</p>'}
+        ${m.length ? `<details class="repli"${ouverte ? ' open' : ''} data-repli="${f.id}"><summary><span>${m.length === 1 ? 'Le dernier à gagner' : `Les ${m.length} à gagner`}</span><i class="ico chev">${ico('chevron')}</i></summary><ul class="${f.posable ? 'cn-liste' : 'cn-grille'}">${m.map((x) => objet(f, x)).join('')}</ul></details>` : ''}</div>`;
+    };
+    const ou = cible ? `${esc(CH.nomDe(b))} · n°${cible}` : 'Ta boulangerie';
+    D.openSheet(`<div class="ch-fiche-tete"><i class="ico">${ico('decos')}</i><div><h2>Mes décos</h2><p class="sous">${gagnes}/${total} objets dans ton carnet</p></div></div>
+      <div class="cn-ici"><span><small>Les décos de</small><b>${ou}</b></span><span class="cn-compte${liste.length >= CH.DECOS_MAX ? ' plein' : ''}">${origine ? 'plan d’origine' : `${liste.length}/${CH.DECOS_MAX} posées`}</span></div>
+      ${origine ? `<p class="note">Tes décos gagnées sont à leurs places de toujours. Poser ou ranger en fait ta disposition, ${CH.DECOS_MAX} au plus ; « Plan d’origine » la remet comme avant.</p>`
+    : `<div class="cn-outils"><button type="button" class="lien" data-a="origine">${cible ? 'Revenir à sa déco d’office' : 'Plan d’origine'}</button></div>`}
+      ${fam.map(famille).join('')}
+      ${A_VENIR.map(([id, nom, txt]) => `<div class="card cn-famille avenir" data-famille="${id}"><div class="c-tete"><span class="pic">${iconeFamille('avenir')}</span><h3>${esc(nom)}</h3><span class="compte">à venir</span></div><p class="note">${esc(txt)}.</p></div>`).join('')}
+      <button type="button" class="btn large sombre" data-a="close" style="margin-top:14px"><b>Retour</b></button>`);
+    D.on('[data-a="close"]', D.closeSheet);
+    document.querySelectorAll('#feuille-contenu [data-repli]').forEach((d) => d.addEventListener('toggle', () => { carnetEtat.ouvertes[d.dataset.repli] = d.open; }));
+    const garderPlace = (f) => { const box = document.querySelector('#feuille'), y = box.scrollTop; f(); box.scrollTop = y; }; // (redessiné, le carnet reste où l'on lisait)
+    D.on('[data-a="origine"]', () => { D.son.tap(); if (cible) { const bb = CH.boutique(st(), cible); if (bb) delete bb.d; D.save(); if (D.decosChangees) D.decosChangees(cible); } else poserListe(0, null); D.toast(cible ? 'Sa déco d’office est revenue.' : 'Le plan d’origine est revenu.'); garderPlace(() => carnet()); });
+    D.on('[data-ranger]', (x) => { poserListe(cible, liste.filter((p) => p[0] !== x.dataset.ranger)); D.son.tap(); garderPlace(() => carnet()); });
+    D.on('[data-poser]', (x) => {
+      const id = x.dataset.poser, d = fam.reduce((a, f) => a.concat(f.items), []).find((y) => y.id === id); if (!d) return;
+      if (liste.length >= CH.DECOS_MAX) { D.son.non(); D.toast(`${CH.DECOS_MAX} décos au plus par boutique : range-en une d’abord.`); return; }
+      const libres = CH.PLACES.filter((p) => p.type === d.place && !places.has(p.id) && CH.peutPoser(liste, id, p.id, qualite()).ok);
+      if (!libres.length) { D.son.non(); D.toast(`Plus de place ${TYPES[d.place] || ''} : range une déco de ce côté-là.`); return; }
+      if (libres.length === 1) { poserListe(cible, [...liste, [id, libres[0].id]]); D.son.achat(); D.toast(`${d.nom} : posée, ${PLACES_NOM[libres[0].id]}.`); garderPlace(() => carnet()); return; }
+      D.son.tap(); carnetEtat.choix = id; garderPlace(() => carnet());
+    });
+    D.on('[data-place]', (x) => {
+      const id = x.dataset.deco, p = x.dataset.place; carnetEtat.choix = '';
+      if (!id || !p) { garderPlace(() => carnet()); return; }
+      if (places.has(p) || !CH.peutPoser(liste, id, p, qualite()).ok) { D.son.non(); D.toast('Cette place est déjà prise.'); garderPlace(() => carnet()); return; }
+      poserListe(cible, [...liste, [id, p]]); D.son.achat(); garderPlace(() => carnet());
+    });
+  }
+  // une icône par famille (src/icons.js, ICONS.CARNET) ; pour quelques objets, celle qui existe déjà (un compagnon, une coupe)
+  function iconeFamille(id) { const C = typeof ICONS !== 'undefined' && ICONS.CARNET; return (C && (C[id] || C.avenir)) || ''; }
+  function iconeCarnet(fam, id) {
+    try {
+      if (fam === 'compagnons' && id !== 'pigeon' && ICONS.compagnon) return ICONS.compagnon(id);
+      if (fam === 'podium' && id === 'vitrine-coupes' && ICONS.coupe) return ICONS.coupe('or');
+    } catch (e) { /* rien */ }
+    return iconeFamille(fam);
+  }
+
+  // ─── dans une boutique de la chaîne : ses cartes de recettes, ses bonus et ses meubles, son bandeau ───
+  // v : la vue (CHAINE.ouvrir) ; v.b : la boutique compacte ; toutes les écritures passent par CHAINE (la vue et v.b, jamais st)
+  let cartes = [], boxCartes = null, vueCartes = null;
+  function cartesBatir(box, v) {
+    boxCartes = box; vueCartes = v; box.innerHTML = ''; cartes = [];
+    G.PRODUITS.forEach((p, i) => { const a = document.createElement('article'); a.className = 'carte'; a.dataset.i = i; box.appendChild(a); cartes.push({ el: a, html: '' }); });
+    cartesRendre(true);
+  }
+  function cartesRendre(force) {
+    const v = vueCartes; if (!v || !boxCartes) return; const s = st(), b = v.b;
+    G.PRODUITS.forEach((p, i) => {
+      const c = cartes[i], x = v.stations[i], gagnee = G.recetteGagnee(s, i); if (!c) return;
+      if (c.el.hidden !== !gagnee) c.el.hidden = !gagnee; if (!gagnee) return;
+      let html, cls;
+      if (x.niv === 0) {
+        const prix = CH.prixNiveaux(v, i, 1), ok = v.coins >= prix, un = Object.assign({}, b, { s: G.PRODUITS.map((_, k) => (k === i ? 1 : CH.niv(b, k))) });
+        cls = 'carte verrou';
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(CH.revenuBase(s, un, i) * CH.affluence(b))} la fournée ici.</p>
+          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${G.fmtEur(prix)}</b></button></div>`;
+      } else {
+        const n = CH.quantite(v, i), prix = CH.prixNiveaux(v, i, n), ok = v.coins >= prix, pal = G.prochainPalier(x.niv);
+        const prec = G.PALIERS.filter((y) => y <= x.niv).pop() || 0, jet = CH.paliersDe(x.niv + n) - CH.paliersDe(x.niv);
+        const rev = CH.revenuBase(s, b, i) * (x.staff ? 1 : CH.affluence(b)), T = CH.temps(b, i), rapide = T <= 1.5 && x.staff;
+        cls = 'carte' + (x.staff ? ' auto' : ' manuel') + (x.actif ? ' actif' : '');
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}<span class="niv">${x.niv}</span></div>
+          <div class="corps"><h3><span class="nom">${esc(p.nom)}</span></h3>
+            <div class="palier ${jet ? 'bientot' : ''}">${pal ? `<span>Palier <b>${pal}</b> · ×${G.fmtMult(G.palierMult(pal))}</span><span>${pal - x.niv === 1 ? '1 niveau' : `${pal - x.niv} niveaux`}</span><i style="width:${((x.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : '<span>Dernier palier atteint</span><i style="width:100%"></i>'}</div>
+            <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(rev)}</span>${x.staff || x.actif ? `<span class="tps">${G.fmtDuree(T)}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
+          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}" data-a="ameliorer"><small>Améliorer ×${n}</small><b>${G.fmtEur(prix)}</b>${jet ? `<i class="pal-badge">+${jet} jeton${jet > 1 ? 's' : ''}</i>` : ''}</button>
+            ${x.staff ? `<div class="staff-ok"><span>${esc(p.staffNom.split(' ').pop())}</span></div>` : `<button type="button" class="btn beurre ${v.coins >= p.staff ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(p.staff)}</b></button>`}</div>`;
+      }
+      if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); } else if (c.el.className !== cls) c.el.className = cls;
+      if (c.bar && !c.bar.classList.contains('rapide')) c.bar.style.width = (x.niv > 0 && x.actif ? Math.min(100, x.prog / CH.temps(b, i) * 100) : 0).toFixed(1) + '%';
+    });
+  }
+  // une touche sur une carte : acheter, embaucher, ou lancer une fournée à la main ; rend { i, achat | lance } pour l'interface (la scène)
+  function cartesClic(e) {
+    const v = vueCartes, art = e.target.closest('.carte'); if (!v || !art) return null;
+    const i = +art.dataset.i, btn = e.target.closest('button[data-a]'), s = st(); D.audio();
+    if (btn) {
+      const a = btn.dataset.a;
+      if (a === 'debloquer' || a === 'ameliorer') {
+        const r = CH.acheter(s, v, i);
+        if (!r.ok) { D.son.non(); D.toast(r.verrou ? `Ouvre la boutique n°${r.boutique} pour cette recette.` : `Il manque ${G.fmtEur(r.prix - v.coins)} dans la caisse de cette boutique.`); return null; }
+        if (a === 'debloquer') { D.son.deblocage(); D.buzz([10, 30, 10]); D.fete(); D.toast(`${G.PRODUITS[i].nom} : au menu de cette boutique !`); } else { D.son.achat(); D.buzz(8); }
+        if (r.or) { D.son.deblocage(); D.confettis(1.6); D.fete(); D.toast(`Boutique d’or ! Son paquet de ${jetonsTxt(CH.paquetOr(v.b.n))} t’attend, et l’enseigne dorée.`); }
+        else if (r.jetons) D.toast(`Palier franchi : +${jetonsTxt(r.jetons)} à prendre`);
+        cartesRendre(true); D.save(); D.rafraichir(); return { i, achat: true };
+      }
+      if (a === 'embaucher') {
+        const r = CH.embaucher(s, v, i);
+        if (!r.ok) { D.son.non(); D.toast(`Il manque ${G.fmtEur(r.prix - v.coins)} dans la caisse de cette boutique.`); return null; }
+        D.son.embauche(); D.buzz([10, 30, 10]); D.toast(`${G.PRODUITS[i].staffNom} cuit pour cette boutique !`); cartesRendre(true); D.save(); D.rafraichir(); return { i, achat: true };
+      }
+      return null;
+    }
+    if (v.stations[i].niv > 0 && !v.stations[i].staff && CH.lancer(v, i)) { D.son.tap(); D.buzz(6); cartesRendre(); return { i, lance: true }; }
+    return null;
+  }
+  // les bonus et le mobilier de la boutique de la chaîne : payés par sa caisse, prix de base (pas de talent, pas de remise)
+  let ongletBonus = 'bonus';
+  function bonus(v, tab) {
+    if (tab) ongletBonus = tab; if (!v) return; const s = st(), b = v.b;
+    const liste = ongletBonus === 'bonus' ? G.AMELIORATIONS.filter((a) => G.ameliorationOuverte(s, a)).map((a) => {
+      const fait = v.ameliorations[a.id], ok = v.coins >= a.cout;
+      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? okChip('Acheté') : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(a.cout)}</b></button>`}</div>`;
+    }).join('') : G.MOBILIER.map((m) => {
+      const k = CH.cran(b, m.id), max = k >= m.max, prix = CH.prixMeuble(b, m.id), ok = !max && v.coins >= prix;
+      return `<div class="am meuble ${max ? 'fait' : ''}">${ICONS.MEUBLES[m.id]}<div><h3>${esc(m.nom)} ${crans(k, m.max)}</h3><p>${k ? esc(m.desc(k)) : 'Pas encore installé'}</p></div>${max ? okChip('Au max') : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-m="${m.id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
+    }).join('');
+    const seg = (id, t) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletBonus === id}" class="${ongletBonus === id ? 'actif' : ''}">${t}</button>`;
+    D.openSheet(`<div class="segments" role="tablist">${seg('bonus', 'Bonus')}${seg('mobilier', 'Mobilier')}</div>
+      <h2>${ongletBonus === 'bonus' ? 'Bonus' : 'Mobilier'} · n°${b.n}</h2><p class="sous">Pour cette boutique seulement, payés par sa caisse (${G.fmtEur(v.coins)}). ${ongletBonus === 'bonus' ? 'Ils multiplient ses gains.' : 'Les tables font gagner plus, le four cuit plus vite, la vitrine et le bar font vendre plus à la main.'}</p>
+      <div class="liste-am">${liste}</div>
+      <div class="ch-amenager"><button type="button" class="btn large lavande" data-a="amenager"><small>Déplacer ses tables, son bar, sa terrasse</small><b>Aménager cette boutique</b></button>
+      <button type="button" class="btn large" data-a="decos"><small>Ses décos, ${CH.DECOS_MAX} au plus</small><b>Mes décos ici</b></button></div>
+      <button type="button" class="btn large sombre" data-a="close" style="margin-top:14px"><b>Retour</b></button>`);
+    D.on('[data-a="close"]', D.closeSheet);
+    D.on('[data-tab]', (x) => { D.son.tap(); bonus(v, x.dataset.tab); });
+    D.on('[data-a="amenager"]', () => { D.closeSheet(); D.amenager(); });
+    D.on('[data-a="decos"]', () => { D.son.tap(); carnet({ cible: b.n }); });
+    D.on('[data-id]', (x) => { const r = CH.amelioration(s, v, x.dataset.id); if (!r.ok) { D.son.non(); D.toast(`Il manque ${G.fmtEur(r.prix - v.coins)}`); return; } D.son.deblocage(); D.buzz([10, 30, 10]); D.toast(`${r.a.nom} : ${r.a.desc}`); cartesRendre(true); D.save(); D.rafraichir(); bonus(v); });
+    D.on('[data-m]', (x) => { meubleAcheter(v, x.dataset.m, () => bonus(v)); });
+  }
+  function meubleAcheter(v, id, apres) {
+    const r = CH.ameliorerMeuble(st(), v, id), m = G.MOBILIER.find((x) => x.id === id);
+    if (!r.ok) { D.son.non(); D.toast(m && r.cran >= m.max ? 'Ce meuble est déjà au maximum.' : `Il manque ${G.fmtEur(r.prix - v.coins)}`); return; }
+    D.son.deblocage(); D.buzz([10, 30, 10]); D.fete(); D.toast(`${r.m.nom} : ${r.m.desc(r.cran)}`); cartesRendre(true); D.save(); D.rafraichir(); if (apres) apres();
+  }
+  function meuble(v, id) { // la fiche d'un meuble touché dans la boutique de la chaîne
+    const m = G.MOBILIER.find((x) => x.id === id); if (!m || !v) return;
+    const k = CH.cran(v.b, id), max = k >= m.max, prix = CH.prixMeuble(v.b, id), ok = !max && v.coins >= prix;
+    D.openSheet(`<div class="meuble-fiche">${ICONS.MEUBLES[id]}<div><h2>${esc(m.nom)}</h2><p class="sous">${crans(k, m.max)} cran ${k} sur ${m.max} · boutique n°${v.b.n}</p></div></div>
+      <div class="encadre espace">${k ? `<b>Maintenant :</b> ${esc(m.desc(k))}` : 'Pas encore installé.'}${max ? '' : `<br><b>Cran suivant :</b> ${esc(m.desc(k + 1))}`}</div>
+      ${max ? '<p class="sous">Ce meuble est au maximum.</p>' : `<button type="button" class="btn large ${ok ? 'lavande' : 'non'}" data-m="${id}"><small>Améliorer, avec sa caisse</small><b>${G.fmtEur(prix)}</b></button>`}
+      <button type="button" class="lien" data-a="tous">Tous ses bonus et son mobilier</button><button type="button" class="btn large sombre" data-a="close" style="margin-top:14px"><b>Retour</b></button>`);
+    D.on('[data-a="close"]', D.closeSheet); D.on('[data-a="tous"]', () => bonus(v, 'mobilier'));
+    D.on('[data-m]', () => meubleAcheter(v, id, () => meuble(v, id)));
+  }
+  // le nom d'une boutique de la chaîne (l'enseigne touchée dans la boutique)
+  function renommer(n, apres) {
+    const b = CH.boutique(st(), n); if (!b) return;
+    D.openSheet(`<h2>Le nom de la boutique n°${n}</h2><p class="sous">Vide : son enseigne de quartier, « ${esc(`${G.QUARTIERS[b.q].enseigne} n°${n}`)} ».</p><input class="champ" type="text" maxlength="24" value="${esc(b.nm || '')}" aria-label="Nom de la boutique" autocomplete="off" autocorrect="off">
+      <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Garder ce nom</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>`);
+    const champ = document.querySelector('#feuille-contenu .champ'), ok = () => { const nom = CH.renommer(st(), n, champ.value); D.save(); D.closeSheet(); D.toast(`« ${nom} »`); if (apres) apres(); };
+    D.on('[data-a="ok"]', ok); D.on('[data-a="non"]', D.closeSheet); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+  }
+  // le bandeau au-dessus de la scène : « Boutique n°7 · Ma chaîne », le retour, la jauge d'or et ses jetons à prendre
+  let cleBandeau = '';
+  function bandeau(box, v, force) {
+    if (!box || !v) return; const s = st(), b = v.b, j = CH.jauge(s, b);
+    const cle = `${b.n}|${CH.nomDe(b)}|${j.fait}/${j.max}|${b.or}|${b.jp}`; if (!force && cle === cleBandeau) return; cleBandeau = cle;
+    const acc = b.or ? '#FFC84A' : accent(b.q, G.standingDe(b.n)); box.style.setProperty('--acc', acc); box.style.setProperty('--enc', clair(acc) ? L : '#FFFFFF');
+    box.innerHTML = `<button type="button" class="cb-retour" data-cb="retour" aria-label="Revenir à ma boulangerie"><i class="ico">${ico('chevron')}</i><span>Ma<br>boulangerie</span></button>
+      <button type="button" class="cb-titre" data-cb="nom" aria-label="Renommer la boutique n°${b.n}"><small>Boutique n°${b.n} · Ma chaîne</small><b class="cb-nom">${esc(CH.nomDe(b))}</b>${b.or ? `<span class="cb-or"><i class="ico">${OR_ICO()}</i>Boutique d’or</span>` : `<span class="cb-jauge" role="img" aria-label="Vers la Boutique d’or : ${j.fait} paliers sur ${j.max}"><i style="width:${pct(j.fait, j.max)}"></i></span>`}</button>
+      ${b.jp ? `<button type="button" class="cb-prendre" data-cb="prendre" aria-label="Prendre ${jetonsTxt(b.jp)} de chaîne"><i class="ico">${CLE()}</i><span><small>Prendre</small><b>${G.fmt(b.jp)}</b></span></button>` : `<button type="button" class="cb-planete" data-cb="chaine" aria-label="Ma chaîne : la petite planète"><i class="ico">${PLANETE_ICO()}</i></button>`}`;
+  }
+  function bandeauClic(e, v) { // rend 'retour', 'chaine', ou '' (déjà fait ici)
+    const x = e.target.closest('[data-cb]'); if (!x || !v) return '';
+    D.audio(); const a = x.dataset.cb;
+    if (a === 'prendre') { const k = CH.prendreJetons(st(), v.b.n); if (k) { D.son.pieces(); D.buzz([8, 30, 8]); D.toast(`+${jetonsTxt(k)} de chaîne`); D.save(); D.rafraichir(); } return ''; }
+    D.son.tap(); return a;
+  }
+
+  function init(deps) { D = deps; }
+  Object.assign(API, { init, ouvrir, fermer, maj, jetons: boutiqueJetons, carnet, gerant: sheetGerant, embaucherGerant, CARNET_IMAGES,
+    cartes: { batir: cartesBatir, rendre: cartesRendre, clic: cartesClic, el: (i) => (cartes[i] ? cartes[i].el : null), lacher() { boxCartes = null; vueCartes = null; cartes = []; } },
+    bonus, meuble, renommer, bandeau, bandeauClic, posesDe });
+  Object.defineProperty(API, 'planete', { get: () => planete }); Object.defineProperty(API, 'choisie', { get: () => choisie }); // (des getters : Object.assign n'en copierait que la valeur)
+  return API;
+})();
 
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
-  const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
+  // la version d'essai (fournil-essai/, contrat « Ma chaîne » § 5) : toutes les clés de stockage passent par FOURNIL_CLE (build.js la pose ;
+  // l'essai préfixe « fournil.essai. »), la base IndexedDB aussi (FOURNIL_ESSAI.db) ; sans elles (le vrai jeu, les tests), rien ne change
+  const cle = (k) => (typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE(k) : k);
+  const ESSAI = typeof window !== 'undefined' && window.FOURNIL_ESSAI && typeof window.FOURNIL_ESSAI === 'object' ? window.FOURNIL_ESSAI : null;
+  const G = GAME, $ = (s) => document.querySelector(s), KEY = cle('fournil.v2');
+  const CH = typeof CHAINE !== 'undefined' ? CHAINE : null, CE = typeof CHAINE_ECRAN !== 'undefined' && CHAINE_ECRAN.actif ? CHAINE_ECRAN : null; // « Ma chaîne » : les règles (src/chaine.js), l'écran (src/chaine-ecran.js)
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
@@ -19234,7 +19953,7 @@ const UI = (() => {
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
 
   // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
-  const DB = 'fournil', STORE = 'sauvegarde';
+  const DB = (ESSAI && ESSAI.db) || 'fournil', STORE = 'sauvegarde';
   const idb = () => new Promise((res) => {
     try {
       if (!window.indexedDB) return res(null);
@@ -19268,15 +19987,58 @@ const UI = (() => {
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
+      if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
       return s;
     } catch (e) { return null; }
   }
+  const plusRecente = (a, b) => (a && b ? ((b.lifetime > a.lifetime || (b.lifetime === a.lifetime && b.lastSeen > a.lastSeen)) ? b : a) : a || b);
   async function load() {
     let a = null, b = null;
     try { a = lire(localStorage.getItem(KEY)); } catch (e) { /* stockage indisponible */ }
     try { b = lire(await idbLire()); } catch (e) { /* rien */ }
-    if (a && b) return (b.lifetime > a.lifetime || (b.lifetime === a.lifetime && b.lastSeen > a.lastSeen)) ? b : a;
-    return a || b;
+    if (!a && !b && ESSAI) return copierVraie(); // la version d'essai, ouverte pour la première fois : la vraie partie, copiée
+    return plusRecente(a, b);
+  }
+  // ─── la version d'essai (contrat § 5.3) : à la 1re ouverture, la vraie partie est COPIÉE, en lecture seule. On lit sa clé (fournil.v2) et sa
+  //     base IndexedDB (fournil), ouverte sans jamais la créer ; la plus récente des deux est gardée, puis sauvée sous les clés de l'essai.
+  //     Jamais une écriture sur une clé du vrai jeu. Rien trouvé (sur iPhone, le jeu de l'écran d'accueil a son propre stockage) : la
+  //     feuille « coller le code », après le lancement.
+  let essaiVide = false, essaiCopie = false;
+  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' });
+  function idbVraieLire() {
+    return new Promise((res) => {
+      let fini = false; const fin = (v) => { if (!fini) { fini = true; res(v); } };
+      try {
+        if (!window.indexedDB) return fin(null);
+        const V = VRAIE(), r = indexedDB.open(V.db);
+        r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) { /* rien */ } fin(null); }; // elle n'existait pas : on ne la crée pas
+        r.onsuccess = () => {
+          const db = r.result, clore = (v) => { try { db.close(); } catch (e) { /* rien */ } fin(v); };
+          try { if (!db.objectStoreNames.contains(STORE)) return clore(null); const g = db.transaction(STORE, 'readonly').objectStore(STORE).get(V.cle); g.onsuccess = () => clore(typeof g.result === 'string' ? g.result : null); g.onerror = () => clore(null); } catch (e) { clore(null); }
+        };
+        r.onerror = () => fin(null); r.onblocked = () => fin(null);
+        setTimeout(() => fin(null), 1500);
+      } catch (e) { fin(null); }
+    });
+  }
+  async function copierVraie() {
+    let a = null, b = null;
+    try { a = lire(localStorage.getItem(VRAIE().cle)); } catch (e) { /* rien */ }
+    try { b = lire(await idbVraieLire()); } catch (e) { /* rien */ }
+    const s = plusRecente(a, b);
+    if (!s) { essaiVide = true; return null; }
+    s.essaiCopie = HORLOGE.maintenant(); essaiCopie = true;
+    // les coupes du podium (la vitrine, Mes décos) : une copie de fournil.classement, SANS l'identité (id, jeton), sous la clé de l'essai
+    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ }
+    return s;
+  }
+  // « Recommencer l'essai » : les seules clés de l'essai effacées (le préfixe de FOURNIL_CLE, la base de l'essai), puis la page relue la recopie
+  function recommencerEssai() {
+    const pre = cle('fournil.'); if (!ESSAI || pre === 'fournil.' || DB === VRAIE().db) return; // (jamais sans préfixe : ce serait le vrai jeu)
+    fige = true;
+    try { const l = []; for (let k = 0; k < localStorage.length; k++) { const x = localStorage.key(k); if (x && x.startsWith(pre)) l.push(x); } l.forEach((x) => localStorage.removeItem(x)); } catch (e) { /* rien */ }
+    const fin = () => location.reload();
+    try { const r = indexedDB.deleteDatabase(DB); r.onsuccess = fin; r.onerror = fin; r.onblocked = () => setTimeout(fin, 300); setTimeout(fin, 2000); } catch (e) { fin(); }
   }
   function effacer() { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } return idbEffacer(); }
   // code de sauvegarde : l'état en base64, à copier pour le garder ailleurs ou le transférer
@@ -19482,7 +20244,18 @@ const UI = (() => {
     const e = $('#enseigne'), s = e.querySelector('span'); s.textContent = nom; e.classList.remove('long');
     if (s.scrollWidth > s.clientWidth + 1) e.classList.add('long');
   }
+  function hudChaine() { // dans une boutique de la chaîne : sa caisse, son rythme (ses apprentis), les jetons de chaîne en haut à droite
+    const v = chaineVue.v, taux = CH.tauxBase(st, v.b), c = CH.etat(st);
+    const bonus = G.AMELIORATIONS.filter((a) => !v.ameliorations[a.id] && G.ameliorationOuverte(st, a) && v.coins >= a.cout).length + G.MOBILIER.filter((m) => CH.cran(v.b, m.id) < m.max && v.coins >= CH.prixMeuble(v.b, m.id)).length; // (ce que sa caisse peut s'offrir)
+    const key = `ch|${G.fmtEur(v.coins)}|${G.fmtEur(taux)}|${c.jetons}|${bonus}`;
+    if (key === lastHud) return; lastHud = key;
+    $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
+    $('#coins').textContent = G.fmtEur(v.coins);
+    $('#taux').innerHTML = `<span>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche une recette !'}</span>`;
+    const bj = $('#b-jetons'); bj.querySelector('span').textContent = G.fmt(c.jetons); bj.setAttribute('aria-label', `${G.fmt(c.jetons)} jeton${c.jetons > 1 ? 's' : ''} de chaîne : la boutique des jetons`);
+  }
   function hud() {
+    if (chaineVue) { hudChaine(); return; }
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), pret = etoilesPretes(st, gain), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && G.ameliorationOuverte(st, a) && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
@@ -19592,7 +20365,7 @@ const UI = (() => {
   function deplacer(on) {
     const v = !!on && SCENE.amenager; if (glisse) finGlisse(true); SCENE.setDeplacer(v); document.body.classList.toggle('deplace', v);
     const b = $('#b-deplacer'); if (b) { b.setAttribute('aria-pressed', String(v)); b.querySelector('b').textContent = v ? 'Améliorer' : 'Déplacer'; b.querySelector('.ico').innerHTML = ICONS.UI[v ? 'amenager' : 'deplacer'] || ''; } // actif, le bouton ramène aux améliorations
-    $('#b-origine').hidden = !v || !st.amenagement;
+    $('#b-origine').hidden = !v || !amenCible().amenagement;
     if (v && VIE.amenagementDemande && !VIE.amenagementApplique) toast('Ton plan ne tient pas sur cet écran : la boutique est au plan d’origine. Le premier meuble posé part de là.'); // (VIE.proposer part du plan affiché)
     else if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
   }
@@ -19606,7 +20379,7 @@ const UI = (() => {
   }
   function majGlisse(sx, sy) {
     const g = glisse; if (!g) return; if (Math.hypot(sx - g.x0, sy - g.y0) > 6) g.bouge = true;
-    const p = VIE.proposer(st, g.id, sx + g.dx, sy + g.dy); if (!p) return;
+    const p = VIE.proposer(amenCible(), g.id, sx + g.dx, sy + g.dy); if (!p) return;
     const cle = JSON.stringify(p.a); if (cle === g.cle) return; // la même case : rien à refaire
     const avant = g.p; g.cle = cle; g.p = p; SCENE.glisser({ id: g.id, rect: p.rect, ok: p.ok, raison: p.raison, x: p.x, y: p.y, autre: p.autre });
     if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
@@ -19617,14 +20390,15 @@ const UI = (() => {
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
     const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
     if (!a && bouge) { son.non(); buzz([20, 40, 20]); montrerToast(`${nom.charAt(0).toUpperCase() + nom.slice(1)} ne peut pas aller si loin : il reste à sa place.`); return; } // une place que le plan ne sait pas écrire : on n'efface jamais l'aménagement pour autant
-    if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
-    if (a) st.amenagement = a; else delete st.amenagement;
-    son.achat(); buzz(10); save(); $('#b-origine').hidden = !st.amenagement;
+    if (G.codeAmenagement(a) === G.codeAmenagement(amenCible().amenagement)) return;
+    if (chaineVue) CH.amenager(st, chaineVue.v, a); else if (a) st.amenagement = a; else delete st.amenagement; // (une boutique de la chaîne : son plan à elle, b.am)
+    son.achat(); buzz(10); save(); $('#b-origine').hidden = !amenCible().amenagement;
   }
+  const amenCible = () => (chaineVue ? chaineVue.v : st); // le plan que Déplacer modifie : celui de la boutique de la chaîne où l'on est, sinon la boulangerie
   function planOrigine() {
-    if (!st.amenagement) return;
+    if (!amenCible().amenagement) return;
     openSheet(`<h2>Revenir au plan d’origine ?</h2><p class="sous">Les tables, le bar, le coin salon et la terrasse retournent à leur place du premier jour. Tu pourras les déplacer encore.</p><button type="button" class="btn large" data-a="oui"><b>Oui, le plan d’origine</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde mes places</b></button>`);
-    on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { delete st.amenagement; save(); closeSheet(); son.deblocage(); toast('Le plan d’origine est revenu.'); $('#b-origine').hidden = true; });
+    on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { if (chaineVue) CH.amenager(st, chaineVue.v, null); else delete st.amenagement; save(); closeSheet(); son.deblocage(); toast('Le plan d’origine est revenu.'); $('#b-origine').hidden = true; });
   }
   function repeindre() { closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); toast('Touche un meuble pour l’améliorer.'); }
   const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
@@ -19713,7 +20487,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}`,
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -19722,6 +20496,7 @@ const UI = (() => {
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
         <div class="card boulanger-tete"><span class="portrait">${ICONS.boulanger(rang, tenueVue())}</span><div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau <b>${np.n}</b> · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div>${suivant ? `<p class="note">${esc(suivant[1])} au niveau ${suivant[0]}</p>` : ''}</div></div>
+        ${carteChaine()}
         <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
@@ -19748,6 +20523,8 @@ const UI = (() => {
         son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
       });
       onIn(sec, '[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
+      onIn(sec, '[data-a="ma-chaine"]', () => { son.tap(); ouvrirChaine(); });
+      onIn(sec, '[data-a="mes-decos"]', () => { son.tap(); if (CE) CE.carnet({ cible: chaineVue ? chaineVue.n : 0 }); });
       if (GRU) GRU.bind(sec, ctxGarderobe());
     },
     maj: (sec) => { const v = valeursStats(); sec.querySelectorAll('[data-s]').forEach((el) => { const t = v[el.dataset.s]; if (t != null && el.textContent !== t) el.textContent = t; }); },
@@ -20066,6 +20843,42 @@ const UI = (() => {
       on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); closeSheet(); renderPage(true); });
     });
   }
+  // ─── la version d'essai : son bandeau (24 px, en haut, crème et orange), sa feuille (quoi essayer, recommencer, le vrai jeu), et la feuille
+  //     « coller le code » quand la vraie partie n'est pas lisible d'ici (iPhone : le jeu de l'écran d'accueil garde sa sauvegarde à part) ───
+  const QUOI_ESSAYER = ['Ma chaîne : tes anciennes boutiques sur une petite planète (le rond en haut à droite de ta boutique, ou la page Boulanger).',
+    'Entre dans une boutique de ta chaîne, monte ses recettes et prends tes jetons de chaîne à chaque palier.', 'Embauche ton premier gérant (offert), puis reviens plus tard : il a vendu pour toi.',
+    'La boutique des jetons, et le carnet « Mes décos » : pose tes décos dans ta boulangerie (Réglages › Repeindre la boutique).'];
+  function bandeauEssai() {
+    const b = $('#essai-bandeau'); if (!b) return; b.hidden = false; document.body.classList.add('essai');
+    b.querySelector('[data-a="essai"]').addEventListener('click', () => { audio(); son.tap(); sheetEssai(); });
+  }
+  function sheetEssai() {
+    const quoi = Array.isArray(ESSAI.quoi) ? ESSAI.quoi : typeof ESSAI.quoi === 'string' && ESSAI.quoi ? [ESSAI.quoi] : QUOI_ESSAYER, vrai = typeof ESSAI.vraiJeu === 'string' ? ESSAI.vraiJeu : '../fournil/';
+    openSheet(`<div class="ch-fiche-tete"><i class="ico">${ICONS.UI.essai}</i><div><h2>La version d’essai</h2><p class="sous">Les nouveautés avant tout le monde. Ta vraie partie n’est pas touchée : l’essai joue sur une copie, rangée à part.</p></div></div>
+      <h3 class="titre-section">Quoi essayer</h3><ul class="essai-quoi">${quoi.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      ${st && st.essaiCopie ? `<p class="note">Copie de ta vraie partie faite le ${new Date(st.essaiCopie).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}. Le classement, le chat et les envois sont coupés ici.</p>` : '<p class="note">Le classement, le chat et les envois sont coupés ici.</p>'}
+      <button type="button" class="btn large beurre" data-a="recommencer"><small>Recopier ma vraie partie</small><b>Recommencer l’essai</b></button>
+      <a class="btn large lavande essai-lien" href="${esc(vrai)}"><b>Aller au vrai jeu</b></a>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-a="recommencer"]', () => {
+      openSheet(`<h2>Recommencer l’essai ?</h2><p class="sous">Tout ce que tu as fait dans l’essai s’efface, puis ta vraie partie est recopiée telle qu’elle est maintenant. Ta vraie partie, elle, ne bouge pas.</p>
+        <button type="button" class="btn large beurre" data-a="oui"><b>Oui, recommencer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non</b></button>`);
+      on('[data-a="non"]', sheetEssai); on('[data-a="oui"]', () => { closeSheet(); toast('L’essai repart de ta vraie partie…'); recommencerEssai(); });
+    });
+  }
+  function sheetEssaiCode() {
+    openSheet(`<div class="ch-fiche-tete"><i class="ico">${ICONS.UI.essai}</i><div><h2>Ta vraie partie n’est pas ici</h2><p class="sous">Sur iPhone, le jeu ajouté à l’écran d’accueil garde sa sauvegarde à part : l’essai, ouvert dans Safari, ne la voit pas.</p></div></div>
+      <h3 class="titre-section">Avec ta vraie partie</h3><p class="note">Colle le code de sauvegarde de ta vraie partie (Réglages › Le jeu › Code de sauvegarde). L’essai en fait une copie.</p>
+      <textarea class="code" data-r="entree" placeholder="Colle ton code ici" aria-label="Le code de sauvegarde de ta vraie partie"></textarea>
+      <button type="button" class="btn large lavande" data-a="charger"><b>Essayer avec ma partie</b></button>
+      <button type="button" class="btn large beurre" data-a="neuve" style="margin-top:8px"><b>Commencer une partie neuve</b></button>`);
+    on('[data-a="neuve"]', () => { closeSheet(); sheetNom(true); });
+    on('[data-a="charger"]', () => {
+      const s2 = lireCode(fc.querySelector('[data-r="entree"]').value);
+      if (!s2) { son.non(); toast('Ce code n’est pas valide.'); return; }
+      s2.essaiCopie = HORLOGE.maintenant(); st = s2; save(); fige = true; closeSheet(); toast('Ta partie arrive dans l’essai…'); setTimeout(() => location.reload(), 150);
+    });
+  }
   // le nom de la boutique : demandé à chaque ouverture, modifiable depuis l'enseigne ou les Réglages
   function sheetNom(nouvelle) {
     const q = G.QUARTIERS[G.quartier(st)], actuel = st.nomBoutique || q.enseigne;
@@ -20202,7 +21015,7 @@ const UI = (() => {
     on('[data-a="prestige"]', () => {
       const dp = G.defiPassage(st); if (dp && !dp.fait) { son.non(); toast(`D’abord le défi de passage : ${dp.txt}.`); return; }
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
-      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.</p>
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.${CH ? ' Ta boutique d’aujourd’hui ne disparaît pas : elle rejoint ta chaîne telle qu’elle est, avec ses niveaux, ses bonus, ses meubles et sa caisse.' : ''}</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const avant = G.standing ? G.standing(st) : 0, r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); const rec = r.recompenses && r.recompenses.find((x) => x.n === st.boutiques); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★${rec ? ` · ${rec.texte}` : ''}`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); if (G.standing && G.standing(st) > avant) sheetMonteeGamme(() => sheetNom(true)); else sheetNom(true); } }); // un nouveau palier de standing : l'annonce d'abord, puis le nom
@@ -20305,14 +21118,22 @@ const UI = (() => {
     });
     document.body.appendChild(b);
   }
-  function sheetRetour(abs) {
+  // enc : ce que les gérants de la chaîne ont versé aux caisses de leurs boutiques (CHAINE.encaisserTout, au même moment que GAME.absence)
+  function sheetRetour(abs, enc) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
+    const ger = enc && enc.total > 0 ? (() => { const c = CH.etat(st), nom = (n) => { const b = c.b.find((x) => x.n === n); return b ? CH.nomDe(b) : `n°${n}`; };
+      return `<div class="encadre doux retour-gerants"><div class="rg-tete"><i class="ico">${ICONS.UI.gerant || ''}</i><span><b>Tes gérants ont rapporté ${G.fmtEur(enc.total)}</b><small>dans les caisses de ta chaîne</small></span></div>
+        <ul class="detail">${enc.detail.slice().sort((a, b) => b.gain - a.gain).map((d) => `<li><span>n°${d.n} · ${esc(nom(d.n))} <small>${G.fmtDuree(d.secs)}</small></span><b>${G.fmtEur(d.gain)}</b></li>`).join('')}</ul></div>`; })() : '';
     openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.fmtDuree(G.heuresAbsence(st) * 3600)})` : ''}</p>
-      <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
-      <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
+      ${abs.total > 0 || !ger ? `<div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>` : ''}${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
+      ${ger}<button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
+  // les gérants de la chaîne : payés sur l'heure du jeu, à côté de chaque GAME.absence (le lancement, le retour, les sauts de l'heure sûre),
+  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser)
+  function encaisserChaine(t) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant()); } catch (e) { return null; } }
+  const montrerRetour = (abs, enc) => abs.secs > 90 && (abs.total > 0 || !!(enc && enc.total > 0));
 
   // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
   // Le moteur (src/classement.js) n'existe que si fournil/config.js donne l'adresse et la clé publique Supabase : dans l'artefact Claude, tout se cache.
@@ -20397,7 +21218,7 @@ const UI = (() => {
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
   function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué
   function majCoin() {
-    majCoinQuartier();
+    majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
     if (!classement) { b.hidden = true; return; }
     const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
@@ -20854,6 +21675,75 @@ const UI = (() => {
   // Ce que fait la ligne touchée dépend de l'onglet : « Cette semaine », la visite de sa boutique (ici) ; « Tous les temps », sa fiche de
   // statistiques (ficheCopain, sans 3D) ; l'onglet d'un événement, la visite de sa Planque (ou de son Manoir) : la vraie scène de l'événement
   // (F.scene) sur un canvas à part, bâtie depuis le champ e de sa photo (CLASSEMENT.evenementDepuisPhoto), jamais sauvée, libérée au retour.
+  // ─── « Ma chaîne » : l'écran (src/chaine-ecran.js), et ENTRER dans une boutique de la chaîne, sur le modèle de la visite ───
+  // La règle d'or : la boutique de la chaîne n'est JAMAIS st. chaineVue.v est une vue jetable (CHAINE.ouvrir, comme boutiqueDepuisPhoto) ;
+  // ses achats passent par CHAINE (la vue et sa boutique compacte v.b, qui vit dans st.chaine). La boulangerie (st) continue de tourner
+  // derrière, ses événements attendent (comme pendant l'Atelier) ; save() sauve st, la boutique de la chaîne est dedans.
+  let chaineVue = null, dernierPassage = -1e9; // { n, v (la vue), tiroir, depuis } ; le dernier passage (entrée ou sortie) : pas de rafale
+  function ouvrirChaine(o) {
+    if (!CE || visite || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) return false;
+    closeSheet(); amenager(false); eveiller();
+    return CE.ouvrir(o);
+  }
+  function entrerChaine(n, depuis, force) {
+    if (!CH || !CE || !st) return false;
+    const t0 = performance.now(); if (!force && t0 - dernierPassage < 1000) return false; // l'entrée suivante bloquée 1 s (la scène rebâtit tout son décor)
+    if (visite || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) return false;
+    if (chaineVue && chaineVue.n === n) { if (CE.ouvert) CE.fermer(); return true; }
+    if (!CH.boutique(st, n)) return false;
+    if (chaineVue) sortirChaine(true);
+    const t = HORLOGE.maintenant(), v = CH.ouvrir(st, n, t); if (!v) return false; // (son gérant encaisse, puis se repose : on la fait tourner soi-même)
+    dernierPassage = t0;
+    if (CE.ouvert) CE.fermer();
+    closeSheet(); if (glisse) finGlisse(true); amenager(false);
+    chaineVue = { n, v, tiroir: tiroir.pos, depuis: depuis || '' }; v.mode = st.mode;
+    if (VIE.basculer) VIE.basculer('chaine'); // les clients, apprentis et textes de la boulangerie mis de côté, rendus au retour
+    decosScene();
+    document.body.classList.add('chaine-dans');
+    const bd = $('#chaine-bandeau'); bd.hidden = false; CE.bandeau(bd, v, true);
+    $('#cartes').hidden = true; const box = $('#chaine-cartes'); box.hidden = false; CE.cartes.batir(box, v);
+    if (pageActive !== 'boutique') showPage('boutique');
+    if (tiroir.pos === 'ferme' || tiroir.pos === 'ouvert') tiroir.aller('mi');
+    lastHud = ''; hud(); lastFrame = performance.now(); eveiller(); serrerCoinBientot();
+    return true;
+  }
+  function sortirChaine(pourEntrer) {
+    if (!chaineVue) return; const c = chaineVue; chaineVue = null; dernierPassage = performance.now();
+    if (glisse) finGlisse(true); amenager(false);
+    CH.fermer(st, c.v, HORLOGE.maintenant()); // sa caisse et son heure reviennent à la boutique compacte ; son gérant reprend
+    if (VIE.basculer) VIE.basculer('');
+    CE.cartes.lacher(); const box = $('#chaine-cartes'); box.hidden = true; box.innerHTML = ''; $('#cartes').hidden = false;
+    $('#chaine-bandeau').hidden = true; document.body.classList.remove('chaine-dans');
+    if (!pourEntrer) { decosScene(); derniereRecScene = ''; majRecompenses(); dernierModele = ''; majChat(); }
+    lastHud = ''; enseigneVue = ''; renderCards(true); hud(); majCoinChaine(); save(); lastFrame = performance.now(); serrerCoinBientot();
+  }
+  // les décos que la scène montre : celles de la boutique de la chaîne où l'on est, sinon celles de la boulangerie (st.decos ; absent : le
+  // plan d'origine, SCENE.decos(null)). Une boutique de la chaîne ne montre jamais les décos des événements de la boulangerie à leur place d'office.
+  function decosScene() {
+    if (chaineVue) { SCENE.decosQuartier([]); SCENE.decosHantee([]); }
+    else { SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []); }
+    if (SCENE.decos && CE) { try { SCENE.decos(chaineVue ? CH.posesDe(chaineVue.v.b) : CE.posesDe(0)); } catch (e) { /* rien */ } }
+  }
+  // l'icône ronde de la planète, en tête du coin de la boutique : dès que la chaîne a une boutique ; sa pastille, les jetons à prendre
+  let cleCoinChaine = '';
+  function majCoinChaine() {
+    const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
+    const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
+    b.hidden = !r.boutiques; const p = b.querySelector('.rang-pastille'); p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    b.setAttribute('aria-label', `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}`);
+  }
+  function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
+    if (chaineVue) { CE.cartes.rendre(true); CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } else renderCards(true);
+    lastHud = ''; hud(); cleCoinChaine = ''; majCoinChaine(); renderBoosts(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); }
+  }
+  // la carte « Ma chaîne » et la carte « Mes décos » de la page Boulanger
+  const cleChaine = () => { if (!CH || !CE) return ''; const r = CH.resume(st, HORLOGE.maintenant()); return `${r.boutiques}|${r.gerants}|${r.or}|${r.aPrendre}|${r.jetons}`; };
+  function carteChaine() {
+    if (!CH || !CE) return '';
+    const r = CH.resume(st, HORLOGE.maintenant()), pl = (n, a, b) => `${n} ${n > 1 ? b : a}`;
+    return `<div class="ch-cartes-boulanger"><button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>
+      <button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
+  }
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
   const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
@@ -20866,6 +21756,8 @@ const UI = (() => {
   const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   async function visiter(pseudo, depuisCl, ev) {
     if (!classement || visite || !pseudo) return;
+    if (chaineVue) sortirChaine(); // (la boutique d'un copain s'affiche à la place de la sienne : on sort d'abord de sa boutique de la chaîne)
+    if (CE && CE.ouvert) CE.fermer();
     audio(); son.tap();
     const E = ev ? evDe(ev) : null;
     visite = { pseudo: String(pseudo), depuisCl: !!depuisCl, charge: true, etat: '', data: null, b: null, scene: false, tiroir: tiroir.pos, envoi: false, E, qe: null, ev3: null, images: 0, fini: false };
@@ -21132,7 +22024,7 @@ const UI = (() => {
   }
 
   // ─── boucle ───
-  let derniereImage = 0;
+  let derniereImage = 0, tGerants = 0;
   function frame(now) {
     // l'intervalle qui suit une image traitée : son vrai coût (rendu compris), que la qualité de la scène mesure ; les images que la cadence
     // espace volontairement (33 ou 100 ms) ne sont pas de la lenteur
@@ -21147,7 +22039,8 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert); // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
+    const atelier = couvert || !!chaineVue; // pendant l'Atelier, la Planque, une visite ou dans une boutique de la chaîne : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte
     // pas ici) ; on le retrouve en refermant. Les autres continuent : le coup de feu, le meunier et l'anniversaire ne demandent rien (les ventes
@@ -21158,30 +22051,42 @@ const UI = (() => {
     const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
-      if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
-      if (!st.stations[first.i].staff && pageActive === 'boutique' && tiroir.pos !== 'ferme') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      if (!visite && !chaineVue && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
+      if (!chaineVue && !st.stations[first.i].staff && pageActive === 'boutique' && tiroir.pos !== 'ferme') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden && !visite) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
-    if (out.habitue && !visite) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
+    if (out.habitue && !visite && !chaineVue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
-    if (out.chat && $('#feuille').hidden && !visite) sheetChat(true);
+    if (out.chat && $('#feuille').hidden && !visite && !chaineVue) sheetChat(true);
     if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
-    if (out.venteSaison && !visite) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
+    if (out.venteSaison && !visite && !chaineVue) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); feter(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
-    renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
+    if (chaineVue) { // la boutique de la chaîne où l'on est : ses fournées dans sa caisse (CHAINE.tick, jamais GAME.tick), ses ventes dans la scène
+      const tv = HORLOGE.maintenant(), o = CH.tick(st, chaineVue.v, dt, tv);
+      if (o.ventes.length && !couvert) {
+        const gros = o.ventes.reduce((a, x) => a + x.montant, 0), first = o.ventes[0], main = !chaineVue.v.stations[first.i].staff;
+        if (G.PRODUITS[first.i].temps >= 3 || main || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), main); son.vente(gros); }
+        const el = main && pageActive === 'boutique' && tiroir.pos !== 'ferme' ? CE.cartes.el(first.i) : null, br = el && el.querySelector('.barre');
+        if (br) { const r = br.getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      }
+      CE.cartes.rendre(); CE.bandeau($('#chaine-bandeau'), chaineVue.v);
+    } else renderCards();
+    hud(); renderObjectifs(); renderEvenement(); renderPage();
+    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant()); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
+    else if (chaineVue && !couvert) { const t = HORLOGE.maintenant(); chaineVue.v.now = t; SCENE.frame(dt, chaineVue.v, t, msImage, espacee); } // dans une boutique de la chaîne : la scène montre la vue, jamais st
     else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t, msImage, espacee); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
     else if (visite && visite.ev3) { // sa Planque : la scène de l'événement tourne sur son état rebâti (aucun tick : rien ne s'y vend, rien ne se sauve)
       const e3 = visite.ev3;
       if (!e3.perdu) { e3.frame(dt, visite.qe); visite.images++; } else if (performance.now() - e3.perdu > 1000) { libererEv3(visite); peindreVisite(); } // le contexte perdu ne revient pas : le résumé seul
     }
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
-    if (now - tChat > 500) { tChat = now; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
+    if (now - tChat > 500) { tChat = now; majChat(); majCoinChaine(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
     indices();
     if (now - lastSave > 5000) save();
@@ -21202,7 +22107,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); eveiller(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -21270,11 +22175,11 @@ const UI = (() => {
     if (!(paye > 0)) return;
     const now = HORLOGE.maintenant();
     st.lastSeen = now - paye;
-    const abs = G.absence(st, now);
+    const abs = G.absence(st, now), enc = encaisserChaine(now);
     absencePayee += abs.secs * 1000;
     if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
-    const montre = abs.total > 0 && abs.secs > 90;
-    if (montre) { sheetRetour(abs); renderCards(true); }
+    const montre = montrerRetour(abs, enc);
+    if (montre) { sheetRetour(abs, enc); renderCards(true); }
     noterRetour('heure', abs, paye, montre, true);
     save();
   }
@@ -21309,6 +22214,22 @@ const UI = (() => {
       sc.addEventListener('pointerup', (e) => { if (glisse && e.pointerId === glisse.pid) { majGlisse(...pos(e)); finGlisse(false); } });
       sc.addEventListener('pointercancel', (e) => { if (glisse && e.pointerId === glisse.pid) finGlisse(true); }); }
     $('#b-atelier').addEventListener('click', () => { audio(); son.tap(); sheetAtelier(); });
+    // « Ma chaîne » (src/chaine-ecran.js) : l'écran, la boutique des jetons, le carnet, et ce qu'on fait dans une boutique de la chaîne
+    if (CE) {
+      CE.init({ st: () => st, maintenant: () => HORLOGE.maintenant(), save, toast, son: Object.assign({}, son, { pieces: son.pourboire }), buzz, audio, openSheet, closeSheet, on, confettis, fete: () => SCENE.fete(), reduit: reduceMotion,
+        qualite: () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; }, heure: () => { try { const f = VIE.force; return f && f.heure != null ? f.heure : G.heureParis(HORLOGE.maintenant()); } catch (e) { return 12; } }, // (le ciel de la planète : celui de la boutique)
+        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant()), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
+        ferme: () => { eveiller(); lastFrame = performance.now(); cleCoinChaine = ''; majCoinChaine(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } },
+        amenager: () => { if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); } });
+      $('#b-chaine').addEventListener('click', () => { audio(); son.tap(); ouvrirChaine(); });
+      $('#b-jetons').addEventListener('click', () => { audio(); son.tap(); CE.jetons(); });
+      $('#b-decos').addEventListener('click', () => { audio(); son.tap(); CE.carnet({ cible: chaineVue ? chaineVue.n : 0 }); });
+      $('#chaine-bandeau').addEventListener('click', (e) => {
+        if (!chaineVue) return; const a = CE.bandeauClic(e, chaineVue.v);
+        if (a === 'retour') sortirChaine(); else if (a === 'chaine') ouvrirChaine(); else if (a === 'nom') { const n = chaineVue.n; CE.renommer(n, () => { if (chaineVue && chaineVue.n === n) { chaineVue.v.nomBoutique = chaineVue.v.b.nm || ''; CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } }); }
+      });
+      $('#chaine-cartes').addEventListener('click', (e) => { if (!chaineVue) return; const r = CE.cartes.clic(e); if (r && r.lance) SCENE.tap(); if (r) { lastHud = ''; hud(); } });
+    } else { const b = $('#b-decos'); if (b) b.hidden = true; }
     $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
     $('#b-hantee').addEventListener('click', () => { audio(); son.tap(); if (HTE) HTE.ouvrir(); });
@@ -21323,6 +22244,8 @@ const UI = (() => {
     if (HTE) HTE.init(depsEv(HTE.cle));
     majChat();
     buildCards();
+    decosScene(); // « Mes décos » : la disposition de la boulangerie (st.decos), sinon le plan d'origine
+    if (ESSAI) bandeauEssai();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
@@ -21330,9 +22253,9 @@ const UI = (() => {
       ouvert: () => { closeSheet(); eveiller(); if (SCENE.alleger) SCENE.alleger(); }, // la boutique, cachée, rend sa passe d'effets (recréée au retour)
       ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
-    document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
+    document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); if (chaineVue) { chaineVue.v.mode = st.mode; CE.cartes.rendre(true); } else renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
-    $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
+    $('#b-ameliorations').addEventListener('click', () => { audio(); if (chaineVue) CE.bonus(chaineVue.v); else sheetAmeliorations(); });
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
@@ -21345,6 +22268,7 @@ const UI = (() => {
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.deplacer) { if (!glisse) debutGlisse(e, sx, sy); return; } // le mode Déplacer : on prend un meuble, rien d'autre
+      if (chaineVue) { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) CE.meuble(chaineVue.v, id); else SCENE.tap(); return; } // une boutique de la chaîne : ses meubles, rien de la boulangerie (ni client mystère, ni porte du fond)
       const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
@@ -21371,8 +22295,10 @@ const UI = (() => {
     // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, AVANT l'absence (ses bonus de
     // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
     const rattrape = fresh ? [] : G.rattraperParcours(st);
-    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; const montre = abs.total > 0 && abs.secs > 90; if (montre) sheetRetour(abs); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
+    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
     absencePrete = true;
+    if (essaiCopie) save(); // (la vraie partie copiée : sauvée sous les clés de l'essai, jamais sous les siennes)
+    if (essaiVide) { const montrer = () => sheetEssaiCode(); if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     HORLOGE.surSaut(payerSaut);
     if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
@@ -21385,7 +22311,7 @@ const UI = (() => {
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
     // + ses statistiques (x) et l'événement EN COURS (e) : seulement pendant sa fenêtre, s'il y est entré (la porte passée, ouvertLe) et ne l'a pas masqué
     const evPhoto = () => { for (const E of [EVT, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; };
-    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
+    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); const ch = CH ? CH.resume(st, HORLOGE.maintenant()) : null; return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto(), dc: st.decos && typeof st.decos.d === 'string' ? st.decos.d : '', ch: ch ? [ch.boutiques, ch.or] : null }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
@@ -21417,7 +22343,13 @@ const UI = (() => {
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null),
       tchat: TC,
       retours: RT,
-      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false),
+      // « Ma chaîne » (les tests) : l'état, entrer et sortir, la vue (jamais st), des jetons, une absence des gérants (vu reculé de ms, comme une vraie absence)
+      chaine: CH ? { get etat() { return CH.etat(st); }, ouvrir: (n) => entrerChaine(n, 'test', true), fermer: () => sortirChaine(), get vue() { return chaineVue ? chaineVue.v : null; }, get n() { return chaineVue ? chaineVue.n : 0; },
+        ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
+        donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
+        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
+        encaisser: () => encaisserChaine(HORLOGE.maintenant()), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

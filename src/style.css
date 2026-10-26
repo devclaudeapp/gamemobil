@@ -2070,3 +2070,232 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .carte.pq.rj-carte .rj-demain { display: block; margin-top: -1px; font: 700 11px/1.25 var(--texte-font); color: #9E95B8; overflow-wrap: anywhere; }
 .carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
 .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
+
+/* ─── « Ma chaîne de boutiques » (src/chaine-ecran.js, src/planete.js) ───
+   La petite planète : la toile, les fanions numérotés des boutiques, l'étiquette d'une boutique, la légende de la région face à soi, le ciel
+   qui suit l'heure (classes posées par PLANETE) ; puis l'écran « Ma chaîne » (#chaine : la planète en haut, la liste dessous), le bandeau
+   d'une boutique de la chaîne au-dessus de la scène, la boutique des jetons, le carnet « Mes décos », la feuille du retour, l'essai */
+.pl-conteneur { position: relative; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+.pl-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+.pl-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.pl-drap { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform, opacity; }
+.pl-drap span { position: absolute; left: -1px; bottom: 0; display: block; padding: 0 0 12px 2px; }
+.pl-drap span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 0; width: 2px; border-radius: 1px; background: #6E5B52; }
+.pl-drap b { display: block; min-width: 21px; padding: 2px 7px 2px 5px; border-radius: 2px 9px 9px 2px; background: var(--acc); color: var(--enc); font: 700 12.5px/1.15 var(--titre);
+  text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .95), 0 2px 4px rgba(74, 51, 40, .22); }
+.pl-drap.gauche span { left: auto; right: -1px; padding: 0 2px 12px 0; }
+.pl-drap.gauche span::before { left: auto; right: 0; }
+.pl-drap.gauche b { border-radius: 9px 2px 2px 9px; padding: 2px 5px 2px 7px; }
+.pl-drap.gauche .pl-jet { right: auto; left: -6px; }
+.pl-drap .pl-jet { position: absolute; top: -5px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(74, 51, 40, .3); }
+.pl-drap.choisi b { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--acc), 0 4px 10px rgba(74, 51, 40, .3); }
+.pl-drap.brume b { filter: saturate(.35) brightness(1.08); }
+.pl-etiquette { position: absolute; left: 0; top: 0; width: min(282px, calc(100% - 24px)); padding: 12px 14px 14px; border-radius: 22px; background: #fff; color: var(--texte);
+  box-shadow: 0 12px 30px rgba(74, 51, 40, .2), 0 2px 0 rgba(74, 51, 40, .05); opacity: 0; transition: opacity .2s ease-out; pointer-events: auto; will-change: transform; z-index: 3; }
+.pl-etiquette.vue { opacity: 1; }
+.pl-pointe { position: absolute; top: -7px; left: var(--pointe, 50%); width: 16px; height: 16px; margin-left: -8px; border-radius: 3px; background: #fff; transform: rotate(45deg); }
+.pl-et-tete { position: relative; display: flex; align-items: center; gap: 10px; }
+.pl-et-tete > div { min-width: 0; }
+.pl-et-tete b { display: block; font: 700 18px/1.15 var(--titre); }
+.pl-et-tete small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2); }
+.pl-et-tete .pl-et-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 42px; height: 42px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc); font: 700 20px/1 var(--titre); box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
+.pl-et-infos { display: grid; gap: 6px; margin: 10px 0 12px; }
+.pl-et-infos span { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--creme); font-size: 14px; }
+.pl-et-infos span.or { background: var(--or-clair); }
+.pl-et-infos svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.pl-et-entrer { width: 100%; min-height: 48px; border-radius: 16px; font: 700 17px/1 var(--titre); }
+.pl-legende { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px);
+  padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .88); box-shadow: 0 4px 14px rgba(74, 51, 40, .1); white-space: nowrap; pointer-events: none; transition: opacity .2s; }
+.pl-legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #fff; }
+.pl-legende b { font: 700 16px/1 var(--titre); overflow: hidden; text-overflow: ellipsis; }
+.pl-legende small { font-size: 12.5px; color: var(--texte-2); }
+.pl-legende.cache, .pl-indice.cache { opacity: 0; }
+.pl-indice.cache { animation: none; }
+.pl-indice { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); text-align: center;
+  font-size: 13px; color: var(--texte-2); pointer-events: none; transition: opacity .4s; animation: plIndice 1s .9s both; }
+@keyframes plIndice { from { opacity: 0; } to { opacity: 1; } }
+/* le ciel suit l'heure (PLANETE, option heure) : l'aube, le soir, le crépuscule, la nuit étoilée ; le jour garde le fond de #chaine */
+.pl-conteneur.pl-aube { background: radial-gradient(115% 62% at 50% 46%, #FFFBF6 0%, #FFEFE8 36%, #F6E4F2 64%, #FFE3D4 100%); }
+.pl-conteneur.pl-soir { background: radial-gradient(115% 62% at 50% 46%, #FFF8F0 0%, #FFE8DA 34%, #F8D6E2 62%, #F1C8D2 100%); }
+.pl-conteneur.pl-crepuscule { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent),
+  radial-gradient(115% 62% at 50% 46%, #F4EFFF 0%, #DDD5F6 36%, #C2B9E9 64%, #CDAED8 100%); }
+.pl-conteneur.pl-nuit { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 70% 26%, #fff 60%, transparent),
+    radial-gradient(2px 2px at 24% 78%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 88% 70%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 8% 60%, #fff 60%, transparent),
+    radial-gradient(2.5px 2.5px at 40% 9%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 58% 88%, #fff 60%, transparent), radial-gradient(2px 2px at 93% 40%, #fff 60%, transparent),
+    radial-gradient(115% 62% at 50% 46%, #E8E8FA 0%, #C6C8EE 34%, #A2A6DC 62%, #8C89C6 100%); }
+.pl-conteneur:is(.pl-nuit, .pl-crepuscule) .pl-indice { color: #3F3A72; }
+
+/* l'écran « Ma chaîne » : plein écran, sous les feuilles (la boutique des jetons, le gérant, le carnet s'ouvrent par-dessus) */
+#chaine { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; animation: atEntre .22s ease-out;
+  background: radial-gradient(1.5px 1.5px at 12% 18%, #fff 60%, transparent), radial-gradient(2px 2px at 82% 12%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 70% 26%, rgba(255,255,255,.9) 60%, transparent),
+    radial-gradient(2.5px 2.5px at 40% 9%, rgba(255,255,255,.95) 60%, transparent), radial-gradient(2px 2px at 93% 40%, rgba(255,255,255,.9) 60%, transparent),
+    radial-gradient(120% 52% at 50% 30%, #FFFDF8 0%, #F4EFFF 36%, #E2EBFF 64%, #FFE8D8 100%); }
+body.essai #chaine { top: 24px; }
+/* le titre flotte sur le ciel de la planète, avec un voile (une tour, un sommet passent dessous sans le brouiller) ; sans planète, il est en tête */
+#chaine .ch-haut { position: absolute; left: 0; right: 0; top: env(safe-area-inset-top, 0px); z-index: 4; pointer-events: none; }
+#chaine .ch-haut > * { pointer-events: auto; }
+#chaine .ch-haut::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1 * env(safe-area-inset-top, 0px)); bottom: -28px; z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(244, 241, 255, .92) 0%, rgba(244, 241, 255, .7) 58%, rgba(244, 241, 255, 0) 100%); }
+#chaine:has(.pl-nuit) .ch-haut::before, #chaine:has(.pl-crepuscule) .ch-haut::before { background: linear-gradient(to bottom, rgba(214, 216, 244, .94) 0%, rgba(214, 216, 244, .76) 58%, rgba(214, 216, 244, 0) 100%); }
+#chaine.sans-planete .ch-haut { position: relative; top: 0; margin-top: env(safe-area-inset-top, 0px); }
+#chaine.sans-planete .ch-haut::before { display: none; }
+.ch-jetons { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 9px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.ch-jetons .ico svg { width: 24px; height: 24px; }
+.ch-jetons:active { transform: translateY(3px); box-shadow: none; }
+.ch-planete { position: relative; flex: 0 0 auto; height: calc(clamp(250px, 44vh, 430px) + 60px + env(safe-area-inset-top, 0px)); }
+.ch-bas { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  border-radius: 26px 26px 0 0; background: var(--creme); box-shadow: 0 -6px 18px rgba(74, 51, 40, .1); }
+#chaine.sans-planete .ch-bas { border-radius: 0; box-shadow: none; }
+.ch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ch-actions .ch-tout { grid-column: 1 / -1; min-height: 52px; }
+.ch-bouton { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 12px; border-radius: var(--r-int); background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1.15 var(--titre); text-align: left; }
+.ch-bouton .ico svg { width: 26px; height: 26px; }
+.ch-bouton:active { transform: translateY(3px); box-shadow: none; }
+.ch-note { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-int); background: var(--lavande-clair); font-size: 13.5px; line-height: 1.35; }
+.ch-liste { display: grid; gap: 10px; }
+.ch-ligne { position: relative; display: grid; gap: 8px; padding: 12px 12px 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); scroll-margin: 8px; transition: box-shadow .2s; }
+.ch-ligne::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--acc); }
+.ch-ligne.choisie { box-shadow: 0 0 0 3px var(--acc), var(--ombre-carte); }
+.ch-ligne.or { background: linear-gradient(135deg, #FFFDF4, #FFF4D2); }
+.ch-tete { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ch-num { flex: 0 0 auto; display: grid; place-items: center; min-width: 40px; height: 40px; padding: 0 6px; border-radius: 13px 13px 13px 4px; background: var(--acc); color: var(--enc); font: 700 19px/1 var(--titre); font-variant-numeric: tabular-nums; box-shadow: 0 3px 0 rgba(74, 51, 40, .14); }
+.ch-nom { flex: 1 1 auto; min-width: 0; }
+.ch-nom h3 { margin: 0; font: 700 17px/1.15 var(--titre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-nom small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.25; color: var(--texte-2); }
+.ch-entrer { flex: 0 0 auto; min-width: 82px; }
+.ch-jauge { position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding-bottom: 9px; font: 800 12px/1.2 var(--texte-font); color: var(--texte-2); }
+.ch-jauge b { color: var(--texte); font-variant-numeric: tabular-nums; }
+.ch-jauge small { font: 700 11.5px/1.2 var(--texte-font); color: var(--gris-texte); }
+.ch-jauge::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; border-radius: 3px; background: var(--creme); }
+.ch-jauge i { position: absolute; left: 0; bottom: 0; height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); transition: width .3s; }
+.ch-or, .ch-gerant { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ch-or { padding: 6px 10px; border-radius: 12px; background: var(--or-clair); }
+.ch-or .ico svg, .ch-gerant > .ico svg { width: 26px; height: 26px; }
+.ch-or span, .ch-gerant > span { flex: 1 1 auto; min-width: 0; }
+.ch-or b, .ch-gerant b { display: block; font: 700 15px/1.15 var(--titre); }
+.ch-or small, .ch-gerant small { display: block; font-size: 12.5px; line-height: 1.3; color: var(--texte-2); }
+.ch-gerant .btn { flex: 0 0 auto; min-width: 104px; }
+.ch-gerant.sans > .ico { opacity: .55; }
+.ch-caisse { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; font-size: 13.5px; color: var(--texte-2); }
+.ch-caisse b { font: 700 16px/1 var(--titre); color: var(--texte); font-variant-numeric: tabular-nums; }
+.ch-caisse small { font: 800 12.5px/1.2 var(--texte-font); color: var(--menthe-sombre); }
+.ch-prendre { width: 100%; min-height: 50px; }
+.ch-postales { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-postale { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px 0 9px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+.ch-postale .ico svg { width: 20px; height: 20px; }
+.ch-postale.prise { background: var(--menthe-clair); }
+.ch-postale .ok svg { width: 16px; height: 16px; }
+.ch-photo { display: block; width: 100%; height: auto; border-radius: 16px; border: 6px solid #fff; box-shadow: var(--ombre-carte); transform: rotate(-1.2deg); }
+
+/* les feuilles de la chaîne : la tête (une grande icône), le solde de jetons, la liste des gérants */
+.ch-fiche-tete { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.ch-fiche-tete > .ico { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: var(--or-clair); }
+.ch-fiche-tete > .ico svg { width: 32px; height: 32px; }
+.ch-fiche-tete > div { flex: 1 1 auto; min-width: 0; }
+.ch-fiche-tete h2 { margin: 0; }
+.ch-fiche-tete .sous { margin: 2px 0 0; }
+.ch-solde { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 6px; border-radius: 999px; background: var(--or-clair); font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-solde .ico svg { width: 22px; height: 22px; }
+.ch-solde.grand { font-size: 26px; padding: 6px 14px 6px 8px; }
+.ch-solde.grand .ico svg { width: 30px; height: 30px; }
+.ch-solde small { margin-left: 4px; font: 700 12.5px/1.1 var(--texte-font); color: var(--texte-2); white-space: normal; max-width: 70px; }
+.ch-solde-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 14px; }
+.ch-solde-l .btn { min-width: 100px; }
+.titre-section.ch-sec { margin: 10px 2px 0; }
+.ok.gris { background: var(--gris); color: var(--texte-2); }
+.ch-amenager { display: grid; gap: 8px; margin-top: 14px; }
+
+/* l'icône ronde de la planète (le coin de la boutique) et sa pastille de jetons à prendre */
+.rond.chaine .ico svg { width: 26px; height: 26px; }
+.rang-pastille.ch-pastille { background: var(--beurre); color: var(--texte); }
+/* les cartes « Ma chaîne » et « Mes décos » de la page Boulanger */
+.ch-cartes-boulanger { display: grid; gap: 8px; }
+.chaine-carte { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; text-align: left; }
+.chaine-carte .pic { width: 44px; height: 44px; border-radius: var(--r-pic); display: grid; place-items: center; flex: 0 0 auto; background: var(--ciel-clair); }
+.chaine-carte .pic svg { width: 28px; height: 28px; }
+.chaine-carte .t { flex: 1 1 auto; min-width: 0; }
+.chaine-carte .t b { display: block; font: 700 var(--t-carte)/1.15 var(--titre); }
+.chaine-carte .t small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--texte-2); }
+.chaine-carte .compte { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; font: 800 13px/1 var(--texte-font); color: var(--texte-2); padding: 5px 9px; border-radius: 999px; background: var(--creme); }
+.chaine-carte .compte.or { background: var(--beurre); color: var(--texte); }
+.chaine-carte .compte .ico svg { width: 16px; height: 16px; }
+.chaine-carte .chev svg { width: 18px; height: 18px; }
+
+/* dans une boutique de la chaîne : le bandeau au-dessus de la scène (le retour, son nom, sa jauge d'or, ses jetons), ses cartes ; ni objectifs,
+   ni boosts, ni étoiles, ni cloche : rien de la boulangerie ne s'y joue */
+.chaine-bandeau { position: absolute; top: 8px; left: 10px; right: 10px; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px; border-radius: 20px;
+  background: rgba(255, 255, 255, .94); box-shadow: 0 4px 14px rgba(74, 51, 40, .14), inset 0 -3px 0 var(--acc); }
+.cb-retour { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 10px 0 4px; border-radius: 14px; background: var(--creme); font: 700 12px/1.1 var(--titre); text-align: left; white-space: nowrap; }
+.cb-retour .ico svg { width: 20px; height: 20px; transform: rotate(180deg); }
+.cb-retour:active, .cb-prendre:active, .cb-planete:active { transform: translateY(2px); }
+.cb-titre { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; padding: 2px 4px; text-align: left; }
+.cb-titre small { display: block; font: 800 11px/1.1 var(--texte-font); color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-nom { display: block; font: 700 16px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-jauge { position: relative; display: block; height: 6px; margin-top: 2px; border-radius: 3px; background: var(--creme); overflow: hidden; }
+.cb-jauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--beurre), #F2A93B); }
+.cb-or { display: inline-flex; align-items: center; gap: 4px; font: 800 11.5px/1 var(--texte-font); color: #B07A00; }
+.cb-or .ico svg { width: 16px; height: 16px; }
+.cb-prendre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 10px 0 6px; border-radius: 14px; background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); text-align: left; }
+.cb-prendre .ico svg { width: 22px; height: 22px; }
+.cb-prendre small { display: block; font: 800 10.5px/1 var(--texte-font); }
+.cb-prendre b { display: block; font: 700 16px/1 var(--titre); }
+.cb-planete { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--ciel-clair); }
+.cb-planete .ico svg { width: 26px; height: 26px; }
+#chaine-cartes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+#b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
+#b-jetons .ico svg { width: 22px; height: 22px; }
+body.chaine-dans #b-jetons { display: inline-flex; }
+body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans.amenage .chaine-bandeau { display: none; }
+#b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
+#b-decos .ico svg { width: 20px; height: 20px; }
+
+/* le carnet « Mes décos » : où l'on pose, les familles et leurs objets (gagnés en couleur, à gagner grisés avec comment les obtenir) */
+.cn-ici { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: var(--r-int); background: var(--carte); box-shadow: var(--ombre-carte); }
+.cn-ici small { display: block; font: 800 11.5px/1.1 var(--texte-font); color: var(--texte-2); }
+.cn-ici b { display: block; font: 700 16px/1.15 var(--titre); }
+.cn-compte { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: var(--menthe-clair); font: 700 14px/1 var(--titre); white-space: nowrap; }
+.cn-compte.plein { background: var(--beurre); }
+.cn-outils { display: flex; justify-content: flex-end; }
+.cn-outils .lien { width: auto; margin-top: 4px; }
+.cn-famille { margin-top: 10px; }
+.cn-famille.avenir { opacity: .6; }
+.cn-famille .c-tete .pic svg { width: 26px; height: 26px; }
+.cn-liste, .cn-grille { list-style: none; margin: 0; padding: 0; }
+.cn-liste { display: grid; gap: 6px; }
+.cn-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.cn-objet { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px; border-radius: 14px; background: var(--creme); flex-wrap: wrap; }
+.cn-objet .t { flex: 1 1 0; min-width: 0; }
+.cn-objet .t b { display: block; font: 700 14px/1.15 var(--titre); overflow-wrap: anywhere; }
+.cn-objet .t small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.25; color: var(--texte-2); overflow-wrap: anywhere; }
+.cn-objet.pose { background: var(--menthe-clair); }
+.cn-objet.gris .t b { color: var(--texte-2); }
+.cn-vig { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; overflow: hidden; }
+.cn-vig img { width: 100%; height: 100%; object-fit: cover; }
+.cn-vig .ico svg { width: 32px; height: 32px; }
+.cn-vig.gris .ico svg { filter: grayscale(1); opacity: .4; }
+.cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; }
+.cn-places { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 2px 54px; }
+.cn-place { min-height: 40px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
+.cn-place.prise { background: var(--gris); color: var(--gris-texte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.cn-place.annuler { background: #fff; color: var(--texte-2); box-shadow: 0 3px 0 var(--gris-sombre); }
+
+/* la feuille du retour : ce que les gérants ont versé aux caisses de la chaîne */
+.retour-gerants { margin: 10px 0 12px; }
+.retour-gerants .rg-tete { display: flex; align-items: center; gap: 10px; }
+.retour-gerants .rg-tete .ico svg { width: 30px; height: 30px; }
+.retour-gerants .rg-tete b { display: block; font: 700 16px/1.2 var(--titre); }
+.retour-gerants .rg-tete small { display: block; font-size: 12.5px; color: var(--texte-2); font-weight: 700; }
+.retour-gerants .detail { margin: 8px 0 0; }
+.retour-gerants .detail small { color: var(--texte-2); }
+
+/* la version d'essai : un bandeau de 24 px tout en haut, crème et orange, et son « ? » */
+.essai-bandeau { flex: 0 0 24px; position: relative; z-index: 12; display: flex; align-items: center; justify-content: center; gap: 8px; height: 24px; padding: 0 6px 0 12px;
+  background: repeating-linear-gradient(-45deg, #FFE4C2 0 10px, #FFD9AA 10px 20px); color: #8A4B10; font: 700 12px/1 var(--texte-font); white-space: nowrap; overflow: hidden; }
+.essai-bandeau span { overflow: hidden; text-overflow: ellipsis; }
+.essai-bandeau b { font-family: var(--titre); }
+.essai-bandeau button { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #FF9A3D; color: #fff; font: 700 13px/1 var(--titre); position: relative; }
+.essai-bandeau button::after { content: ''; position: absolute; inset: -12px -10px; } /* une cible de 44 px sous le doigt */
+.essai-quoi { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.4; }
+.essai-quoi li + li { margin-top: 6px; }
+a.essai-lien { margin-top: 8px; text-decoration: none; }
