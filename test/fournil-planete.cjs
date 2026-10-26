@@ -188,6 +188,9 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
       const f = []; for (let n = 1; n <= 40; n++) { const e = PLANETE.essai.ecran(n); if (e && e.vu) f.push(e); } const et = document.querySelector('.pl-etiquette').getBoundingClientRect();
       for (const [x, y] of [[300, 140], [90, 140], [195, 110], [330, 220], [60, 220], [195, 170]]) if (f.every((e) => Math.hypot(e.x - x, e.y - y) > 60 && Math.hypot(e.bx - x, e.by - y) > 60) && !(x > et.left - 10 && x < et.right + 10 && y > et.top - 10 && y < et.bottom + 10)) return [x, y];
       return [300, 140]; });
+    // (les images rendues juste avant sont encore dans la file du processeur graphique logiciel : sur une machine chargée, le toucher partait
+    //  avant ce rattrapage et son lâcher après, des secondes plus tard, et ce n'était plus un toucher bref ; on attend que la file soit vide)
+    await ev(() => { const c = document.querySelector('.pl-toile'), gl = c && (c.getContext('webgl2') || c.getContext('webgl')); if (gl) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); });
     await touche('touchStart', [ciel]); await touche('touchEnd', []); await image(60, 1 / 30);
     check(await ev(() => !PLANETE.stats.etiquette && PLANETE.stats.choisi === 0 && PLANETE.stats.z < 0.2), 'toucher le ciel : l\'étiquette part, la caméra recule');
   }
