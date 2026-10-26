@@ -372,7 +372,10 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       let vu = null; const vuOk = await attendre(async () => { vu = await ev2(() => window.__fournil.SCENE.boulangerVu); return vu && vu.aura && /aura:lueur/.test(vu.tenue); }, 8000);
       await sleep(700); const vu2 = await ev2(() => window.__fournil.SCENE.boulangerVu);
       check(vuOk && vu.sprites === 1 && vu2.sprites === 1 && vu2.opacite > 0.15 && vu2.opacite < 0.6 && (vu2.opacite !== vu.opacite || vu2.haut !== vu.haut), `le boulanger porte l’aura : un seul sprite (un appel de dessin), douce (opacité ${vu && vu.opacite} → ${vu2.opacite}), qui respire (${vu && vu.haut} → ${vu2.haut})`);
-      check(await attendre(() => ev2(() => window.__fournil.SCENE.decosHanteeVues.includes('legende')), 6000) && (await ev2(() => window.__fournil.SCENE.appelsParGroupe['ht-legende'])) === 2, `la lanterne de la légende est posée dans la boutique : ${await ev2(() => window.__fournil.SCENE.appelsParGroupe['ht-legende'])} appels de dessin (le fer, la flamme)`);
+      // (« Mes décos », lot de la chaîne : la lanterne est fusionnée avec les petits décors fixes et les autres décos, src/meubles.js fusion ; son fer
+      // dans le maillage « petits », sa flamme dans « lueurs » : plus de groupe à elle, 0 appel de plus au lieu de 2)
+      const fus = () => ev2(() => { const a = window.__fournil.SCENE.appelsParGroupe; return (a.petits || 0) + (a.lueurs || 0); });
+      check(await attendre(() => ev2(() => window.__fournil.SCENE.decosHanteeVues.includes('legende')), 6000) && (await fus()) <= 2, `la lanterne de la légende est posée dans la boutique, fusionnée : ${await fus()} appels de dessin pour tous les petits décors et les décos (le fer, la flamme compris)`);
       if (outA) { await pg.screenshot({ path: path.join(outA, 'acharnes-boutique-aura-lanterne.png') });
         const z = await ev2(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY; return { x: Math.max(0, r.left), y: Math.max(0, r.top + L.murH - 20), w: Math.min(390, r.width), h: 150 }; });
         await pg.screenshot({ path: path.join(outA, 'acharnes-boutique-zoom.png'), clip: { x: z.x, y: z.y, width: z.w, height: z.h } }); }
