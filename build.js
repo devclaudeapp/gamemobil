@@ -23,7 +23,7 @@ const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 // qui ne lit la vraie partie qu'une fois, en lecture seule (src/ui.js), et n'écrit jamais une clé du vrai jeu
 const prelude = (essai) => (essai
   ? `<script>window.FOURNIL_ESSAI = { prefixe: 'fournil.essai.', db: 'fournil-essai', vraie: { cle: 'fournil.v2', db: 'fournil' } }; window.FOURNIL_CLE = (k) => String(k).replace(/^fournil\\./, 'fournil.essai.');</script>`
-  : `<script>window.FOURNIL_CLE = (k) => k;</script>`);
+  : `<script>window.FOURNIL_CLE = window.FOURNIL_CLE || ((k) => k);</script>`); // (déjà posée : celle d'un test qui simule l'essai, gardée)
 const headInner = (essai) => `<title>${essai ? 'Le Fournil — essai' : 'Le Fournil'}</title>\n${fonts}\n<style>\n${css}</style>`;
 const script = `<script>\n${js}\n</script>`;
 // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement (pas dans l'essai)
@@ -77,10 +77,19 @@ const version = empreinte.digest('hex').slice(0, 12);
 const page = full.replace('<script>window.FOURNIL_ACCUEIL', `<script>window.FOURNIL_VERSION = '${version}';</script>\n<script>window.FOURNIL_ACCUEIL`);
 if (ESSAI) { // la version d'essai, seule : rien d'autre n'est écrit
   // garde-fou : chaque clé de stockage du jeu (« fournil.… ») passe par FOURNIL_CLE, et la base IndexedDB par FOURNIL_ESSAI ; sinon l'essai
-  // écrirait dans la vraie partie du joueur (même origine) : on refuse de la construire
-  const fautes = [];
+  // écrirait dans la vraie partie du joueur (même origine) : on refuse de la construire. Une clé est en règle sur une ligne qui nomme
+  // FOURNIL_CLE, ou dans un appel cle('fournil.…') d'un fichier dont l'utilitaire cle passe par FOURNIL_CLE (src/ui.js). Seule exception :
+  // une ligne marquée « // essai : la vraie partie, lue seulement » (la copie de la 1re ouverture), sans setItem/removeItem sur une clé du vrai jeu.
+  const fautes = [], CLE_LIT = /['"`]fournil\.[a-z0-9.]+['"`]/g, LUE = /\/\/ essai : la vraie partie, lue seulement\s*$/;
   for (const f of fs.readdirSync(path.join(__dirname, 'src')).filter((x) => x.endsWith('.js'))) {
-    read(f).split('\n').forEach((l, k) => { if (!/^\s*(\/\/|\*|\/\*)/.test(l) && /['"`]fournil\.[a-z0-9.]+['"`]/.test(l) && !/FOURNIL_CLE/.test(l)) fautes.push(`src/${f}:${k + 1}`); });
+    const src = read(f), cleOk = /const cle = \(k\) => \(typeof FOURNIL_CLE === 'function' \? FOURNIL_CLE\(k\) : k\);/.test(src);
+    src.split('\n').forEach((l, k) => {
+      if (/^\s*(\/\/|\*|\/\*)/.test(l) || /FOURNIL_CLE/.test(l)) return;
+      const libres = [...l.matchAll(CLE_LIT)].filter((m) => !(cleOk && /\bcle\(\s*$/.test(l.slice(0, m.index))));
+      if (!libres.length) return;
+      if (LUE.test(l) && !/(setItem|removeItem)\(\s*['"`]fournil\./.test(l)) return;
+      fautes.push(`src/${f}:${k + 1}`);
+    });
   }
   if (!/FOURNIL_ESSAI/.test(read('ui.js'))) fautes.push('src/ui.js : la base IndexedDB (FOURNIL_ESSAI.db)');
   if (fautes.length) { console.error(`version d'essai refusée : des clés du vrai jeu ne passent pas par FOURNIL_CLE / FOURNIL_ESSAI\n  ${fautes.join('\n  ')}`); process.exit(1); }

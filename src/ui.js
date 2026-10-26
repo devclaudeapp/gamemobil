@@ -68,7 +68,7 @@ const UI = (() => {
   //     Jamais une écriture sur une clé du vrai jeu. Rien trouvé (sur iPhone, le jeu de l'écran d'accueil a son propre stockage) : la
   //     feuille « coller le code », après le lancement.
   let essaiVide = false, essaiCopie = false;
-  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' });
+  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' }); // essai : la vraie partie, lue seulement
   function idbVraieLire() {
     return new Promise((res) => {
       let fini = false; const fin = (v) => { if (!fini) { fini = true; res(v); } };
@@ -93,7 +93,7 @@ const UI = (() => {
     if (!s) { essaiVide = true; return null; }
     s.essaiCopie = HORLOGE.maintenant(); essaiCopie = true;
     // les coupes du podium (la vitrine, Mes décos) : une copie de fournil.classement, SANS l'identité (id, jeton), sous la clé de l'essai
-    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ }
+    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ } // essai : la vraie partie, lue seulement
     return s;
   }
   // « Recommencer l'essai » : les seules clés de l'essai effacées (le préfixe de FOURNIL_CLE, la base de l'essai), puis la page relue la recopie

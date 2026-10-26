@@ -47,7 +47,7 @@ const STOCKAGE = async () => {
   const tete = html.slice(0, html.indexOf('<style>'));
   check(!/rel="manifest"|apple-mobile-web-app-capable|src="config\.js"/.test(html) && !/serviceWorker\.register/.test(html) && /serviceWorker\.register/.test(vraie) && /<meta name="robots" content="noindex">/.test(tete) && /<title>Le Fournil — essai<\/title>/.test(tete),
     'le gabarit de l’essai : ni manifeste, ni « app » d’écran d’accueil, ni config.js, ni service worker ; noindex ; titre « Le Fournil — essai »');
-  check(/window\.FOURNIL_ESSAI = \{ prefixe: 'fournil\.essai\.', db: 'fournil-essai'/.test(tete) && /window\.FOURNIL_CLE = \(k\) => k;/.test(vraie) && !/FOURNIL_ESSAI = /.test(vraie), 'FOURNIL_ESSAI et FOURNIL_CLE posés en tête de l’essai, avant les scripts ; le vrai jeu garde ses clés telles quelles');
+  check(/window\.FOURNIL_ESSAI = \{ prefixe: 'fournil\.essai\.', db: 'fournil-essai'/.test(tete) && /window\.FOURNIL_CLE = window\.FOURNIL_CLE \|\| \(\(k\) => k\);/.test(vraie) && !/FOURNIL_ESSAI = /.test(vraie), 'FOURNIL_ESSAI et FOURNIL_CLE posés en tête de l’essai, avant les scripts ; le vrai jeu garde ses clés telles quelles');
   check(JSON.parse(fs.readFileSync(path.join(root, 'fournil-essai', 'version.json'), 'utf8')).v === (html.match(/FOURNIL_VERSION = '([0-9a-f]{12})'/) || [])[1], 'fournil-essai/version.json : la version de la page d’essai');
   check(['hd', 'modeles', 'sons'].every((d) => fs.existsSync(path.join(root, 'fournil-essai', d)) && fs.readdirSync(path.join(root, 'fournil-essai', d)).length === fs.readdirSync(path.join(root, 'fournil', d)).length), 'hd/, modeles/ et sons/ copiés dans fournil-essai/ (les chemins relatifs du jeu marchent)');
 
@@ -69,7 +69,7 @@ const STOCKAGE = async () => {
 
   console.log('── la vraie partie, en place ──');
   let p = await ouvrir('/fournil/');
-  await p.evaluate(() => { const f = window.__fournil, st = f.st; st.tuto = 99; st.boutiques = 5; st.etoiles = 120; st.nomBoutique = 'Chez Mamie'; f.give(5e6); f.G.parcours(st); f.save(); });
+  await p.evaluate(() => { const f = window.__fournil, st = f.st; st.tuto = 99; st.boutiques = 5; st.etoiles = 120; st.nomBoutique = 'Chez Mamie'; delete st.chaine; f.give(5e6); f.G.parcours(st); f.save(); }); // (une partie d'avant le lot, à la n°5 : sans st.chaine, ses n°1 à 4 seront recréées une fois)
   await p.evaluate(() => { // les autres clés du vrai jeu : l'identité du classement (id, jeton), le tchat, la HD ; l'horloge est écrite par le jeu
     localStorage.setItem('fournil.classement', JSON.stringify({ id: '0f8fad5b-d9cb-469f-a165-70867728950e', jeton: 'a'.repeat(64), pseudo: 'Mamie', rejoint: true, dernierEnvoi: 0, recompenses: { coupes: ['or', 'argent'], badge: true } }));
     localStorage.setItem('fournil.tchat', JSON.stringify({ mes: [12, 34] })); localStorage.setItem('fournil.hd', 'non:joueur');
