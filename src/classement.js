@@ -717,11 +717,12 @@
   const periodeDe = (p) => (PERIODES.includes(p) ? p : 'semaine');
   // les onglets d'événement du classement, pour l'interface : regles = [{ periode: 'quartier', nom: 'Événement', regles: QUARTIER, masque },
   // { periode: 'hantee', nom: 'Halloween', regles: HANTEE, masque }] ; un onglet se montre pendant son événement et deux semaines après
-  // (regles.fenetre(maintenant).classement : le podium final), sauf si l'événement est masqué. Rend [[periode, nom], …], dans l'ordre donné.
+  // (regles.fenetre(maintenant).classement : le podium final), sauf si l'événement est masqué ou écarté (regles.ECARTE : le Quartier, depuis
+  // le 27 oct. ; la période 'quartier' reste connue du moteur pour son retour, mais l'interface ne la montre ni n'envoie plus de billets). Rend [[periode, nom], …], dans l'ordre donné.
   function ongletsEvenements(liste, maintenant) {
     const o = [];
     for (const x of Array.isArray(liste) ? liste : []) {
-      if (!x || !PERIODES.includes(x.periode) || x.masque) continue;
+      if (!x || !PERIODES.includes(x.periode) || x.masque || (x.regles && x.regles.ECARTE)) continue; // un événement écarté (le Quartier, QUARTIER.ECARTE) : plus d'onglet
       let f = null; try { f = x.regles && typeof x.regles.fenetre === 'function' ? x.regles.fenetre(maintenant) : null; } catch (e) { f = null; }
       if (f && f.classement) o.push([x.periode, String(x.nom || x.periode)]);
     }

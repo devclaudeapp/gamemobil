@@ -68,7 +68,7 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   check(!!fe && JSON.stringify(fe.pieces.map((x) => x[0])) === JSON.stringify(['toque-blanche', 'or-toque', 'bronze-toque', 'quartier-casquette']) && fe.pieces[0][1] === 'true' && fe.pieces.every((x) => x[2] >= 56), 'les couvre-chefs possédés : toque blanche (portée), toque d’or, toque de bronze, casquette du quartier');
   check(!!fe && fe.ameliorer.length === 3 && fe.ameliorer.every((a) => /1 ★/.test(a[1]) && !a[2]), 'chaque pièce gagnée a son bouton « Améliorer 1 ★ » (12 étoiles en poche)');
   check(!!fe && /Aucun bonus porté/.test(fe.tete) && /12 étoiles à dépenser/.test(fe.tete), 'en tête : « Aucun bonus porté », les étoiles à dépenser');
-  check(!!fe && fe.ensembles.length === 8 && fe.ensembles.filter((e) => e[2]).map((e) => e[0]).join(',') === 'or,quartier' && fe.ensembles.some((e) => e[0] === 'argent' && !e[2]), 'les ensembles : « Tout porter » pour l’or et le quartier (quatre pièces), pas pour l’argent (huit ensembles, Halloween et le parcours du boulanger compris)');
+  check(!!fe && fe.ensembles.length === 7 && !fe.ensembles.some((e) => e[0] === 'quartier-or') && fe.ensembles.filter((e) => e[2]).map((e) => e[0]).join(',') === 'or,quartier' && fe.ensembles.some((e) => e[0] === 'argent' && !e[2]), 'les ensembles : « Tout porter » pour l’or et le quartier (quatre pièces), pas pour l’argent (sept ensembles, Halloween et le parcours du boulanger compris ; le Quartier écarté : sa tenue en or, pas gagnée, ne se montre plus)');
   check(await large(p), 'la feuille tient dans la largeur');
   await p.screenshot({ path: out + '/02-feuille-tete.png' });
 

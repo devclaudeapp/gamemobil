@@ -12,6 +12,9 @@
    servi, colorés à dix) ouvre sa feuille (les neuf, « 3/10 », les récompenses à venir) ; chaque client servi qui le fait avancer, un petit
    mot sur la scène (« Zombie 4/10 ») ; chaque sorte complétée, une feuille de fête (et au 5e le décor, au 9e la chauve-souris) ; les étoiles
    gagnées sont versées dans la boulangerie tout de suite (verserBestiaire : une fois). Les gabarits : F.gabarits (src/evenement.js).
+   Depuis le 27 octobre, l'argent et l'or de chaque sorte (BESTIAIRE.argent, .or) : chaque miniature porte sa médaille, le petit mot dit la
+   marche suivante (« Zombie 23/30 »), chaque médaille a sa fête (plusieurs d'un coup, une vieille sauvegarde : une seule fête), et les neuf
+   d'un métal, leur étagère. Une sauvegarde déjà au-delà d'un seuil est payée à l'entrée (bestiaireDus).
    Les liens : un id des règles ↔ un id de la scène (clients : 'c12' ; apparitions : un nombre), tenus ici et remis d'aplomb à chaque pas
    (réconciliés sur l'état des règles : une file vidée par une absence, une apparition perdue, une sauvegarde rechargée). Sans la scène de la
    boutique hantée (?boutique=0, le Manoir d'avant ; ou pas de WebGL), le repli est en DOM : la file en bas de la scène (un monstre, sa
@@ -56,6 +59,7 @@ const HANTEE_ACTIVITES = (() => {
         const z = document.createElement('div'); z.className = 'mh-dodo'; z.hidden = true; z.setAttribute('aria-hidden', 'true'); z.textContent = T.reveil || 'Zzz… touche le Manoir pour le réveiller'; couche.appendChild(z); // (le boss dort : le mot sur la scène, et le voile)
       }
       if (Q.reparerManoir) Q.reparerManoir(qq(), maint());
+      if (Q.bestiaireDus) { const dus = Q.bestiaireDus(qq()); if (dus.length) { verserBestiaire(); feter(dus); } } // (une sauvegarde déjà au-delà d'un seuil : l'argent ou l'or, payés ici, une fois)
       majTout();
     }
     function fermer() {
@@ -321,15 +325,18 @@ const HANTEE_ACTIVITES = (() => {
     const icoMonstre = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.monstres && ICONS.HANTEE.monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
     const court = (k) => (M0.courts && M0.courts[k]) || nomSorte(k);
     const etatSorte = (s) => (s.fait ? 'fait' : s.n > 0 ? 'encours' : 'vide'); // sombre (aucun servi), en cours, coloré (complété)
+    const partSorte = (x) => (x.prochain == null ? 1 : Math.max(0, Math.min(1, ((x.servis != null ? x.servis : x.n) - (x.depuis || 0)) / (x.prochain - (x.depuis || 0))))); // vers le palier suivant
+    const seuilDe = (m) => (m === 'argent' || m === 'or' ? Q.BESTIAIRE[m].par : Q.BESTIAIRE.par);
     function donneesBestiaire() { // l'état des règles, prêt pour les gabarits (src/evenement.js, F.gabarits.bestiaire*)
       const b = Q.bestiaire(qq()), B0 = Q.BESTIAIRE, et = B0.etoiles.reduce((a, x) => a + x, 0), gagnees = B0.etoiles.slice(0, b.faits).reduce((a, x) => a + x, 0);
-      return { faits: b.faits, total: b.total, deco: b.deco, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
-        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), ico: icoMonstre(x.sorte) })),
+      return { faits: b.faits, argent: b.argent || 0, or: b.or || 0, total: b.total, deco: b.deco, decoArgent: !!b.decoArgent, decoOr: !!b.decoOr, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
+        seuils: B0.argent ? { argent: B0.argent.par, or: B0.or.par } : null, etoilesArgent: B0.argent ? B0.argent.etoiles : 0, etoilesOr: B0.or ? B0.or.etoiles : 0,
+        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), servis: x.servis, medaille: x.medaille, depuis: x.depuis, prochain: x.prochain, part: partSorte(x), ico: icoMonstre(x.sorte) })),
         ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), textes: T };
     }
     function majBestiaire(force) { // la carte du tiroir : redessinée quand un compte change
       const e = bestEl(); if (!e || !Q.bestiaire || !F.gabarits || !F.gabarits.bestiaire) return;
-      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.n}${x.fait ? '*' : ''}`).join(',');
+      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.servis != null ? x.servis : x.n}${x.medaille || ''}`).join(',');
       if (!force && cle === lastBest && !e.hidden) return; lastBest = cle;
       e.hidden = false; e.innerHTML = F.gabarits.bestiaire(donneesBestiaire());
     }
@@ -338,24 +345,49 @@ const HANTEE_ACTIVITES = (() => {
       const n = Q.verserBestiaire(q), s = d.st(); if (s && n > 0) { s.etoiles += n; if (G && G.gagnerXp) G.gagnerXp(s, 10); }
       if (F.decos) F.decos(q.decos); X.save(); if (d.apres) d.apres(); return n;
     }
-    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 ») ; sa sorte complétée : les étoiles, la fête
+    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 », puis vers l'argent « 23/30 », vers l'or) ; un palier passé : les étoiles, la fête
       const sc = sceneEl(); lastBest = '';
+      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
       if (sc && F.gabarits && F.gabarits.bestiaireMot) {
         if (!btEl || !btEl.isConnected) { btEl = document.createElement('div'); btEl.className = 'mh-bt'; btEl.setAttribute('role', 'status'); sc.appendChild(btEl); }
-        const n = Math.min(be.n, be.par);
-        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, be.par) : `${court(be.sorte)} ${n}/${be.par}`, part: n / be.par, fait: n >= be.par });
-        btEl.classList.toggle('fait', n >= be.par); btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
+        const ici = faites.filter((x) => x.sorte === be.sorte).pop(); // (le palier que ce servi vient de passer)
+        let n, par, med = ici ? ici.palier || 'bronze' : be.medaille || null;
+        if (ici) { par = seuilDe(ici.palier); n = par; } else if (be.prochain === null) { par = 0; n = be.n; } else { par = be.prochain || be.par; n = Math.min(be.n, par); }
+        const fait = !!ici || par === 0, txt = par === 0 ? `${court(be.sorte)} ${n} · or` : T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, par) : `${court(be.sorte)} ${n}/${par}`;
+        const de = par === 0 ? 0 : !ici && be.depuis ? be.depuis : 0;
+        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: txt, part: par === 0 ? 1 : (n - de) / (par - de), fait });
+        btEl.classList.toggle('fait', fait); for (const m of ['bronze', 'argent', 'or']) btEl.classList.toggle('m-' + m, fait && med === m);
+        btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
         clearTimeout(btT); btT = setTimeout(() => { if (btEl) btEl.hidden = true; }, 2200);
       }
-      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
-      if (faites.length) { verserBestiaire(); for (const x of faites) fetes.push(x); montrerFete(); }
+      if (faites.length) { verserBestiaire(); feter(faites); }
       majBestiaire(true);
+    }
+    function feter(faites) { // les paliers passés : une fête chacun ; plusieurs d'argent ou d'or d'un coup (une vieille sauvegarde) : une seule pour eux
+      for (const m of ['bronze', 'argent', 'or']) {
+        const l = faites.filter((x) => (x.palier || 'bronze') === m); if (!l.length) continue;
+        if (m === 'bronze' || l.length === 1) { for (const x of l) fetes.push(x); continue; }
+        const der = l[l.length - 1];
+        fetes.push({ sorte: der.sorte, palier: m, rang: der.rang, etoiles: l.reduce((a, x) => a + x.etoiles, 0), deco: l.map((x) => x.deco).find(Boolean) || null, compagnon: false, sortes: l.map((x) => x.sorte) });
+      }
+      montrerFete();
     }
     const libre = () => document.querySelector('#feuille').hidden && !(X.mini && X.mini());
     function montrerFete() { // une sorte complétée : sa feuille de fête, quand la feuille est libre (jamais par-dessus une autre)
       if (!fetes.length || !ouvert || !libre() || !F.gabarits || !F.gabarits.bestiaireFete) return;
       const x = fetes.shift(), b = Q.bestiaire(qq()), G0 = G || {};
       const dons = [`+${x.etoiles} étoile${x.etoiles > 1 ? 's' : ''} pour ta boulangerie${G0.ETOILE_BONUS ? ` (+${Math.round(x.etoiles * G0.ETOILE_BONUS * 100)} % de gains, pour toujours)` : ''}`];
+      if (x.palier === 'argent' || x.palier === 'or') { // une médaille d'argent ou d'or (ou plusieurs d'un coup)
+        const or = x.palier === 'or', decoNom = or ? T.bestiaireDecoOr || 'l’étagère dorée' : T.bestiaireDecoArgent || 'l’étagère aux bocaux d’argent';
+        if (x.deco) dons.push(decoNom);
+        const plusieurs = x.sortes && x.sortes.length > 1, titre = plusieurs ? (T.bestiaireMedailles ? T.bestiaireMedailles(x.sortes.length, x.palier) : `${x.sortes.length} monstres en ${x.palier} !`) : T.bestiaireMedaille ? T.bestiaireMedaille(nomSorte(x.sorte), x.palier) : `${nomSorte(x.sorte)} : médaille ${or ? 'd’or' : 'd’argent'} !`;
+        d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(or ? 1 : 0.8);
+        const s3 = X.scene(); if (s3 && s3.fete) s3.fete();
+        d.openSheet(F.gabarits.bestiaireFete({ palier: x.palier, sorte: x.sorte, sortes: x.sortes || [x.sorte], titre, rang: x.rang, total: b.total, seuil: seuilDe(x.palier), dons, deco: !!x.deco, decoNom: decoNom.charAt(0).toUpperCase() + decoNom.slice(1).split(',')[0], reste: b.total - (or ? b.or : b.argent), ico: icoMonstre(x.sorte) }));
+        d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
+        d.on('[data-a="mh-best-voir"]', () => { d.son.tap(); feuilleBestiaire(); });
+        return;
+      }
       if (x.deco) dons.push(T.bestiaireDeco || 'l’étagère aux bocaux de monstres, pour ta boutique');
       if (x.compagnon) dons.push(T.bestiaireCompagnon || 'la chauve-souris, un compagnon pour ta boutique');
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(0.8);

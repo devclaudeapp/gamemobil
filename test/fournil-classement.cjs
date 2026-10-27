@@ -719,6 +719,8 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
 
     // ─── l'onglet « Événement » : la Planque d'un copain, en 3D (la vraie scène du Quartier), en lecture seule ───
     // Le Quartier est ouvert du 13 au 27 octobre 2026 (midi) : hors de sa fenêtre, le téléphone et le serveur sont mis au vendredi 16 à 15 h.
+    // Écarté depuis le 27 oct. (QUARTIER.ECARTE) : ce parcours attend son retour ; à la place, même au 16 oct., rien du Quartier (plus bas)
+    if (!Q.ECARTE) {
     faux.v6 = true; faux.mode = 'normal'; for (const j of faux.joueurs.values()) j.maj = 0;
     decalHeure = Q.fenetre(Date.now()).ouvert ? 0 : new Date('2026-10-16T15:00:00+02:00').getTime() - Date.now();
     const c7 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
@@ -778,6 +780,34 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await p7.evaluate(() => { Object.defineProperty(window.__fournil.SCENE, 'stats', window.__statsD); });
     await c7.close();
     decalHeure = 0; faux.v6 = false;
+    } else {
+    // ─── le Quartier écarté : à une heure du téléphone prise dans son ancienne fenêtre (le 16 oct.), une partie qui y est entrée (16 paliers,
+    //     des billets) : ni icône, ni écran, ni onglet au classement, ni billets envoyés (p_quartier), ni Planque dans la photo ───
+    faux.v6 = true; faux.mode = 'normal'; for (const j of faux.joueurs.values()) j.maj = 0;
+    decalHeure = new Date('2026-10-16T15:00:00+02:00').getTime() - Date.now();
+    const c7 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await c7.addInitScript((d) => { const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = FauxDate; }, decalHeure);
+    await c7.route(SUPA + '/rest/v1/rpc/*', gerer);
+    const p7 = await c7.newPage(); suivre(p7);
+    await p7.goto(BASE + '/fournil/'); await sleep(1300);
+    await p7.evaluate(() => { const F = window.__fournil, q = F.Q.etat(F.st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.ouvertLe = HORLOGE.maintenant(); q.total = 4e15; q.billets = 1e12; q.postes[0].niv = 50; q.postes[0].staff = true; F.save(); });
+    const n7 = faux.appels.length;
+    const rj7 = await p7.evaluate(() => window.__fournil.classement().choisirPseudo('Léon').then((r) => r.etat)), id7 = await p7.evaluate(() => window.__fournil.classement().etat().id), ph7 = faux.photos.get(id7);
+    const pub7 = faux.appels.slice(n7).filter((a) => a.nom === 'fournil_publier');
+    check(rj7 === 'ok' && pub7.length >= 1 && pub7.every((a) => !('p_quartier' in a.corps)), `Quartier écarté, au 16 oct. avec 4e15 billets : rejoindre n’envoie aucun billet (p_quartier absent de ${pub7.length} envoi${pub7.length > 1 ? 's' : ''})`);
+    check(!ph7 || !ph7.e, 'sa photo ne porte pas sa Planque (pas de champ e)');
+    const ouvre = await p7.evaluate(() => EVENEMENTS.quartier.ouvrir()); await sleep(400);
+    const vu7 = await p7.evaluate(() => ({ icone: !document.querySelector('#b-quartier').hidden, planque: !document.querySelector('#planque').hidden, visible: EVENEMENTS.quartier.visible() }));
+    check(ouvre === false && !vu7.icone && !vu7.planque && !vu7.visible, `ni icône ni écran : ouvrir() refusé (${JSON.stringify(vu7)})`);
+    await p7.evaluate(() => window.__fournil.feuilleClassement('quartier')); await attendre(() => p7.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste, #feuille-contenu .cl-squelette'))); await sleep(300);
+    const tabs7 = await p7.evaluate(() => [...document.querySelectorAll('#feuille [data-tab]')].map((b) => [b.dataset.tab, b.getAttribute('aria-selected')]));
+    check(tabs7.length >= 2 && !tabs7.some(([t]) => t === 'quartier') && tabs7.some(([t, a]) => t === 'semaine' && a === 'true'), `la feuille du classement : pas d’onglet Quartier, même demandé (${tabs7.map(([t]) => t).join(', ')})`);
+    await capture(p7, 'classement-sans-quartier');
+    await p7.evaluate(() => { const F = window.__fournil; F.st.quartier.total = 5e15; return F.classement().envoyer ? F.classement().envoyer('test') : null; }).catch(() => null); await sleep(600);
+    check(!faux.appels.slice(n7).some((a) => 'p_quartier' in (a.corps || {})), 'plus tard non plus : aucun p_quartier ne part');
+    await c7.close();
+    decalHeure = 0; faux.v6 = false;
+    }
   }
 
   // ─── l'artefact Claude : pas de config.js, le classement se cache ───

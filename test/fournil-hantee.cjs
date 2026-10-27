@@ -72,16 +72,16 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
 
   // une partie qui a joué au Quartier (son bilan n'est pas encore vu) et adopté le chat, chargée avant le lancement
   await page.goto(URL_JEU + '?qualite=haute&boutique=0'); await pret();
-  await ev(() => { const F = window.__fournil, st = F.st; F.G.adopterChat(st, 'Réglisse'); const q = F.Q.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.total = 3e11; q.billets = 1e9; delete st[F.evHantee.cle]; F.save(); }); // (ce premier lancement a pu annoncer la Maison hantée : on l'oublie)
+  await ev(() => { window.__sansQuartier = true; /* (ce premier chargement ne solde rien : sur une machine chargée, son annonce différée passait après cette préparation et soldait le bilan avant le lancement guetté) */ const F = window.__fournil, st = F.st; F.G.adopterChat(st, 'Réglisse'); const q = F.Q.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.total = 3e11; q.billets = 1e9; delete st[F.evHantee.cle]; F.save(); }); // (ce premier lancement a pu annoncer la Maison hantée : on l'oublie)
   await sleep(300);
 
-  console.log('── le 27 octobre à 13 h : le bilan du Quartier d’abord, puis l’annonce de la Maison hantée ──');
+  console.log('── le 27 octobre à 13 h : le bilan du Quartier d’abord (une feuille simple : le Quartier est écarté), puis l’annonce de la Maison hantée ──');
   await charger();
-  check(await attendre(() => page.evaluate(() => document.querySelector('#planque').dataset.ecran === 'bilan'), 6000), 'au lancement, le bilan du Quartier s’ouvre en premier');
+  check(await attendre(() => page.evaluate(() => !!document.querySelector('#feuille-contenu [data-bilan="quartier"]') && document.querySelector('#planque').hidden), 6000), 'au lancement, le bilan du Quartier passe en premier : une feuille simple, sans rouvrir la Planque');
   check(!/Maison hantée ouvre/.test(await feuille()), 'pas d’annonce de la Maison hantée par-dessus le bilan (jamais deux annonces à la fois)');
   let c = await ev(() => window.__fournil.coin());
   check(!c.quartier && c.hantee, `l’icône du Quartier est partie, la citrouille de la Maison hantée est là (${JSON.stringify({ quartier: c.quartier, hantee: c.hantee })})`);
-  await clic('#planque [data-pq="fin"]'); await sleep(600);
+  await clic('#feuille [data-a="pq-ok"]'); await sleep(600);
   check(!/Maison hantée ouvre/.test(await feuille()), 'le bilan refermé : un temps de calme, l’annonce ne surgit pas aussitôt');
   check(await ev(() => window.__fournil.annoncerEvenements(true)) === true && /La Maison hantée ouvre ses portes/.test(await feuille()), 'puis l’annonce : « La Maison hantée ouvre ses portes »');
   check(/tous les âges/.test(await feuille()) && !/18 ans/.test(await feuille()), 'tous âges, sans porte 18+');
