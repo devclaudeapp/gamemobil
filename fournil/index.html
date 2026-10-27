@@ -2299,7 +2299,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '9b40fdc4ef94';</script>
+<script>window.FOURNIL_VERSION = 'c9ad345fe40a';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -11120,7 +11120,7 @@ const EQUIPE3D = (() => {
     const contre = new T.DirectionalLight('#DCEBFF', 0.9); contre.position.set(-2.2, 2.4, -2.6); scene.add(contre);
     // l'estrade : un disque crème au bord biseauté, l'ombre douce posée dessus
     const estrade = new T.Mesh(new T.CylinderGeometry(0.78, 0.82, 0.08, 48), new T.MeshStandardMaterial({ color: '#F6E1C8', roughness: 0.9 })); estrade.position.y = -0.04; estrade.receiveShadow = true; scene.add(estrade);
-    const liseré = new T.Mesh(new T.TorusGeometry(0.8, 0.012, 6, 64), new T.MeshStandardMaterial({ color: '#E8B98C', roughness: 0.8 })); liseré.rotation.x = HP; liseré.position.y = 0.001; scene.add(liseré);
+    const lisere = new T.Mesh(new T.TorusGeometry(0.8, 0.012, 6, 64), new T.MeshStandardMaterial({ color: '#E8B98C', roughness: 0.8 })); lisere.rotation.x = HP; lisere.position.y = 0.001; scene.add(lisere);
     const mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 });
     V3 = { el, cv, zone, renderer, scene, camera, mat, estrade, ctx, a: null, yaw: 0.35, vyaw: 0, touche: -9, t: 0, piece: GAME.GARDEROBE.pieces.includes(piece) ? piece : 'tete', raf: 0, der: 0, joie: 0, images: 0 };
     VUE.ouvert = true;
@@ -11164,7 +11164,9 @@ const EQUIPE3D = (() => {
     let html = p === 'accessoire' ? `<button type="button" class="mb-piece" role="listitem" data-mb-porter="" aria-pressed="${porte === null}"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="13" fill="none" stroke="#C9B8AE" stroke-width="3" stroke-dasharray="4 4"/></svg>Rien<small>le cou libre</small></button>` : '';
     html += liste.map((v) => `<button type="button" class="mb-piece" role="listitem" data-mb-porter="${v.id}" aria-pressed="${porte === v.id}" aria-label="${esc(v.nom)}${porte === v.id ? ' : portée' : ''}">${ico(v)}${esc(v.nom)}</button>`).join('');
     if (p === 'accessoire' && g.auras && g.auras.length) html += g.auras.map((id) => { const au = GAME.AURAS[id], on = g.aura === id; return `<button type="button" class="mb-piece" role="listitem" data-mb-aura="${on ? '' : id}" aria-pressed="${on}"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="${au.couleur}" opacity=".25"/><circle cx="24" cy="24" r="12" fill="${au.couleur}" opacity=".45"/><circle cx="24" cy="24" r="6" fill="#F2FFE0"/></svg>${esc(au.nom)}<small>${on ? 'portée' : 'rangée'}</small></button>`; }).join('');
-    V3.el.querySelector('[data-mb="pieces"]').innerHTML = html;
+    const bande = V3.el.querySelector('[data-mb="pieces"]'); bande.innerHTML = html;
+    // la pièce portée en vue, au milieu de la bande (à l'ouverture, à l'onglet changé, après en avoir mis une : la bande refaite repartirait du début)
+    const pp = bande.querySelector('[aria-pressed="true"]'); if (pp) { const r = pp.getBoundingClientRect(), rb = bande.getBoundingClientRect(); bande.scrollLeft = Math.max(0, bande.scrollLeft + (r.left + r.width / 2) - (rb.left + rb.width / 2)); }
   }
   function imageVue(dt) { // une image de la vue (la boucle, ou les tests qui la pilotent)
     if (!V3) return; V3.t += dt; V3.images++;

@@ -223,6 +223,8 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
         const mis = await ev(() => { const b = document.querySelector('#mon-boulanger [data-mb-porter="parcours-toque"]'); if (!b) return false; b.click(); return true; });
         const apres = await ev(() => ({ e: EQUIPE3D.vue.etat, cle: window.__fournil.G.tenueBoulanger(window.__fournil.st).cle }));
         check(mis && apres.e.tenue !== avant && apres.e.tenue.endsWith('|' + apres.cle) && apres.cle.startsWith('parcours-toque|') && apres.e.joie, `une pièce mise depuis la vue : portée aussitôt (${avant} → ${apres.e.tenue}), il s'en réjouit`);
+        const vue = await ev(() => { const b = document.querySelector('#mon-boulanger [data-mb="pieces"]'), p = b && b.querySelector('[aria-pressed="true"]'); if (!p) return null; const r = p.getBoundingClientRect(), rb = b.getBoundingClientRect(); return { dedans: r.left >= rb.left - 1 && r.right <= rb.right + 1, defile: Math.round(b.scrollLeft) }; });
+        check(vue && vue.dedans, `la pièce portée se voit dans la bande, refaite (défilée de ${vue && vue.defile} px)`);
         await ev(() => document.querySelector('#mon-boulanger [data-mb-piece="haut"]').click()); await sleep(150);
         const n = await ev(() => document.querySelectorAll('#mon-boulanger .mb-piece').length);
         check(n >= 3, `l'onglet Haut : les pièces qu'on possède (${n})`);
