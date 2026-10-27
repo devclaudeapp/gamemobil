@@ -5,6 +5,6 @@ Le boulanger et les apprentis de la boutique (src/equipe3d.js, maquette derrièr
 · anims-equipe.glb : Walk_Carry et Defeat de ce pack ; Working_A, Hammering et Cheering de KayKit Character Animations 1.1 (Kay Lousberg, CC0 ;
   LICENCE-kaykit-animations.txt ; source : le miroir GitHub GeorgeQLe/assets-kaykit-3d-characters, commit af08a62, dossier
   character-animations-1.1), reciblés sur le rig UACP. Les autres clips (Idle, Walk, Victory…) sont ceux des clients (fournil/hd/clients/anims.glb).
-· p-chapeau.glb : le chapeau pointu Mage_Hat de KayKit Adventurers 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-adventurers.txt) ; p-lanterne.glb : la
-  citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; leur texture cuite en couleurs de sommets.
+· p-lanterne.glb : la citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; sa texture cuite
+  en couleurs de sommets. Les autres pièces des tenues (dont le chapeau pointu) sont bâties par le module, sans fichier.
 Refaits par outils/equipe3d/faire-equipe.mjs.

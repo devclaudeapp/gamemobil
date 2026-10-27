@@ -32,9 +32,9 @@ const HDM = (() => {
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
     // l'équipe de la boutique en 3D (src/equipe3d.js, la maquette du boulanger et des apprentis : seulement avec ?boulanger3d=1 ; fournil/hd/equipe/,
-    // ≈ 162 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), le chapeau pointu et la citrouille-lanterne. Sans les clips ou sans le corps
+    // ≈ 155 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module). Sans les clips ou sans le corps
     // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
-    equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-chapeau', 'p-lanterne'] },
+    equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
     // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
     planete: { planete: ['planete'] },

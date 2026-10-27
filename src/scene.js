@@ -97,6 +97,7 @@ const SCENE = (() => {
     let t = RICHE.jumeaux.get(m); if (t) return t;
     t = new THREE.MeshStandardMaterial({ color: m.color.clone(), vertexColors: m.vertexColors, map: m.map, emissive: m.emissive.clone(), emissiveMap: m.emissiveMap, emissiveIntensity: m.emissiveIntensity, transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite, side: m.side, alphaTest: m.alphaTest, depthTest: m.depthTest, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, flatShading: m.flatShading, roughness: rugosite(m), metalness: 0 });
     Object.defineProperty(t, 'envMapIntensity', { get: () => RICHE.envK, set: () => {} }); // une seule intensité d'ambiance pour toute la scène, réglée par la phase du jour
+    if (m.userData.lueur) { t.onBeforeCompile = m.onBeforeCompile; t.customProgramCacheKey = m.customProgramCacheKey; t.userData.lueur = true; } // (un matériau qui ajoute à son programme : la lueur de l'équipe 3D, src/equipe3d.js)
     t.userData.lambert = m; if (M.estPartage(m)) M.partager(t);
     RICHE.jumeaux.set(m, t); return t;
   }
@@ -448,9 +449,10 @@ const SCENE = (() => {
       remplacer('produits', g);
     }
     const garde = EVV && EVV.garde ? EVV.garde : G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (la boutique hantée : la tenue de l'événement) (REC.tenue, l'ancienne tenue du podium, ne décide plus)
-    const b3 = e3Pret() && !EVV, kb3 = b3 ? 'e3d|' + kb : kb; // (la maquette : le boulanger 3D, prêt et permis, hors de la boutique hantée)
+    const b3 = e3Pret() && !EVV, nomB = b3 ? G.nomBoutique(E.st) : '', kb3 = b3 ? 'e3d|' + kb + '|' + nomB : kb; // (la maquette : le boulanger 3D, prêt et permis, hors de la boutique hantée ; le nom de la boutique est brodé sur ses tabliers du podium)
+    if (b3 && boulangerG && boulangerG.userData.e3d && boulangerG.userData.e3d.cleHabit !== `${Math.max(0, Math.min(5, E.rang || 0))}|${garde.cle}`) cles.boulanger = null; // (l'acteur rhabillé ailleurs — un test, un outil de captures : la boutique le remet dans sa tenue)
     if (cles.boulanger !== kb3 && b3) { // le boulanger 3D : rhabillé sur place (même acteur, sa géométrie refaite) ; sa zone de touche : sa taille, toque comprise
-      cles.boulanger = kb3; const a = E3.boulanger(E.rang, garde);
+      cles.boulanger = kb3; const a = E3.boulanger(E.rang, garde, nomB, E.st);
       if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); }
       else cles.boulanger = null;
     }
@@ -712,10 +714,10 @@ const SCENE = (() => {
   function poserBoulanger3D(E, dt) {
     const a = boulangerG && boulangerG.userData.e3d; if (!a || !LAY) return;
     const cp = groupes.comptoir, dessus = cp && cp.userData.dessusY != null ? cp.userData.dessusY : wy(LAY.comptoir.hFace); // une estrade invisible derrière le comptoir : à la taille des clients (HAUT), il n'en dépasserait que la tête ; le comptoir lui arrive à la taille, comme au chibi
-    ctxB3.K = V.K; ctxB3.x = LAY.boulanger.x; ctxB3.y = Math.max(0, dessus - 0.56 * E3.HAUT * V.K); ctxB3.z = wz(LAY.boulanger.y); oB3.t = E.t; oB3.hop = E.hop; oB3.rush = E.rush;
+    ctxB3.K = V.K; ctxB3.x = LAY.boulanger.x; ctxB3.y = Math.max(0, dessus - 0.56 * E3.HAUT_BOULANGER * V.K); ctxB3.z = wz(LAY.boulanger.y); oB3.t = E.t; oB3.hop = E.hop; oB3.rush = E.rush;
     E3.poserBoulanger(a, oB3, dt, ctxB3);
   }
-  function zoneBoulanger3D(a) { const h = E3.HAUT * V.K, p = a.g.position, z = wz(LAY.boulanger.y), y0 = ctxB3.y; return new THREE.Box3(new THREE.Vector3(p.x - h * 0.3, y0, z - h * 0.15), new THREE.Vector3(p.x + h * 0.3, y0 + h * (a.h && a.h.tete === 'toque' ? 1.08 + a.h.hc * 0.012 : 1.12), z + h * 0.15)); } // (sa taille, toque comprise, sur son estrade)
+  function zoneBoulanger3D(a) { const h = E3.HAUT_BOULANGER * V.K, p = a.g.position, z = wz(LAY.boulanger.y), y0 = ctxB3.y; return new THREE.Box3(new THREE.Vector3(p.x - h * 0.3, y0, z - h * 0.15), new THREE.Vector3(p.x + h * 0.3, y0 + h * Math.max(a.h && a.h.tete === 'toque' ? 1.08 + a.h.hc * 0.012 : 1.12, ((a.habit && a.habit.haut) || 0) + 0.05), z + h * 0.15)); } // (sa taille, toque comprise — ou le chapeau pointu, mesuré —, sur son estrade)
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)
     if (e3Chauffe) { E3.rentrer(e3Chauffe); e3Chauffe = null; }
@@ -1083,9 +1085,9 @@ const SCENE = (() => {
       return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), compile: c3Compile, erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
     },
     get equipe3d() { // la maquette du boulanger et des apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
-      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le grade, l'étoile)
+      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le pâton, le grade, l'étoile)
       if (!E3) return null; const b = boulangerG && boulangerG.userData.e3d, mailles = (g) => { let n = 0; g.traverse((o) => { if ((o.isMesh || o.isSprite) && o.visible) n++; }); return n; };
-      const app = []; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g) continue; const x = g.userData.e3d; app.push(x ? { i: a.i, etat: a.etat, corps: x.pr.nom, clip: x.joue, repare: !!(x.actions.__repare && x.actions.__repare.isRunning()), plateau: !!x.plateau, cle: x.os.cle.scale.x > 0, grade: x.grade, etoile: x.os.etoile.scale.x > 0, mailles: mailles(g), echelle: +g.scale.x.toFixed(4), yaw: +x.yaw.toFixed(2), x: g.position.x, y: g.position.y, z: g.position.z } : { i: a.i, etat: a.etat, chibi: true }); }
+      const app = []; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g) continue; const x = g.userData.e3d; app.push(x ? { i: a.i, etat: a.etat, corps: x.pr.nom, clip: x.joue, repare: !!(x.actions.__repare && x.actions.__repare.isRunning()), plateau: !!x.plateau, cle: x.os.cle.scale.x > 0, pate: !!x.os.pate && x.os.pate.scale.x > 0, grade: x.grade, etoile: x.os.etoile.scale.x > 0, mailles: mailles(g), echelle: +g.scale.x.toFixed(4), yaw: +x.yaw.toFixed(2), x: g.position.x, y: g.position.y, z: g.position.z } : { i: a.i, etat: a.etat, chibi: true }); }
       return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, etat: E3.etat, info: E3.info };
     },
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)

@@ -7,13 +7,12 @@
 //   portant le plateau) et Defeat (la panne : les épaules tombent) de l'UACP ; Working_A (pétrir), Hammering (réparer le four, la clé à la main)
 //   et Cheering (la joie du boulanger) de KayKit Character Animations 1.1 (Kay Lousberg, CC0), reciblés sur le rig UACP par
 //   outils/clients3d/recibler.mjs. Les pistes constantes retirées, rééchantillonnés ; les clips du haut du corps n'ont que ses os.
-// · Le chapeau pointu (p-chapeau.glb) : Mage_Hat de KayKit Adventurers 1.0 (CC0) ; la citrouille-lanterne (p-lanterne.glb) : celle de KayKit
-//   Halloween Bits 1.0 (CC0) ; leur texture cuite en couleurs de sommets.
+// · La citrouille-lanterne (p-lanterne.glb) : celle de KayKit Halloween Bits 1.0 (CC0) ; sa texture cuite en couleurs de sommets. Les autres
+//   pièces des tenues (le chapeau pointu compris) sont bâties par src/equipe3d.js, sans fichier.
 // usage : node faire-equipe.mjs            (écrit fournil/hd/equipe/ ; ne touche à rien d'autre ; rejoué : fichiers identiques à l'octet)
 //         node faire-equipe.mjs --essai D   (écrit dans D un jeu de clips candidats, pour les juger en images : anims-candidats.glb)
 // Chemins : CLIENTS3D_SOURCES (src/quat-uacp/Chef_*.gltf et License.txt, comme faire-clients.mjs) ; KAYKIT_ANIMS (le dossier
-// « character-animations-1.1 » : Animations/gltf/Rig_Medium/*.glb ; sa licence, LICENSE.txt ou LICENSES/KayKit-CC0-License.txt, y est cherchée et dans ses parents) ; KAYKIT_AVENTURIERS (le dossier
-// « KayKit-Character-Pack-Adventures-1.0 » : addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb et LICENSE.txt) ; KAYKIT_HALLOWEEN (le dossier
+// « character-animations-1.1 » : Animations/gltf/Rig_Medium/*.glb ; sa licence, LICENSE.txt ou LICENSES/KayKit-CC0-License.txt, y est cherchée et dans ses parents) ; KAYKIT_HALLOWEEN (le dossier
 // « KayKit-Halloween-Bits-1.0 » : addons/kaykit_halloween_bits/Assets/gltf/pumpkin_orange_jackolantern.gltf et LICENSE.txt).
 // Paquets : @gltf-transform/core|extensions|functions 4.1.1, meshoptimizer 0.22.0, three 0.158.0, sharp 0.33.5, dans un node_modules visible
 // d'ici (par exemple un lien outils/equipe3d/node_modules vers le dossier où ils sont installés).
@@ -25,7 +24,7 @@ import { io, rig, recibler } from '../clients3d/recibler.mjs';
 await MeshoptSimplifier.ready;
 const ICI = path.dirname(new URL(import.meta.url).pathname), args = process.argv.slice(2), essai = args.includes('--essai') ? path.resolve(args[args.indexOf('--essai') + 1]) : null;
 const besoin = (v) => process.env[v] || process.exit(console.error(v + ' ?') || 1);
-const UACP = path.join(besoin('CLIENTS3D_SOURCES'), 'src/quat-uacp'), KKA = besoin('KAYKIT_ANIMS'), KKR = path.join(KKA, 'Animations/gltf/Rig_Medium'), KAV = besoin('KAYKIT_AVENTURIERS'), KHB = besoin('KAYKIT_HALLOWEEN');
+const UACP = path.join(besoin('CLIENTS3D_SOURCES'), 'src/quat-uacp'), KKA = besoin('KAYKIT_ANIMS'), KKR = path.join(KKA, 'Animations/gltf/Rig_Medium'), KHB = besoin('KAYKIT_HALLOWEEN');
 const HD = essai || path.resolve(ICI, '../../fournil/hd/equipe');
 const HAUT_DU_CORPS = /^(Abdomen|Torso|Neck|Head|Shoulder\.[LR]|UpperArm\.[LR]|LowerArm\.[LR]|Fist\.[LR])$/;
 
@@ -114,14 +113,12 @@ if (essai) { // le jeu de clips candidats (pour les juger en images ; rien n'est
     ['Rig_Medium_General.glb', [['Interact', 'Interact'], ['Use_Item', 'Use_Item'], ['PickUp', 'PickUp_KK'], ['Idle_A', 'Idle_A'], ['Idle_B', 'Idle_B'], ['Hit_A', 'Hit_A']]],
   ], 'anims-candidats'));
   console.log(await corps('Chef_Male', 0.25)); console.log(await corps('Chef_Female', 0.2));
-  console.log(await piece(path.join(KAV, 'addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb'), 'Mage_Hat', 'p-chapeau'));
   process.exit(0);
 }
 
 fs.rmSync(HD, { recursive: true, force: true }); fs.mkdirSync(HD, { recursive: true });
 fs.copyFileSync(path.join(UACP, 'License.txt'), path.join(HD, 'LICENCE.txt'));
 fs.copyFileSync(licence(KKA), path.join(HD, 'LICENCE-kaykit-animations.txt'));
-fs.copyFileSync(licence(KAV), path.join(HD, 'LICENCE-kaykit-adventurers.txt'));
 fs.copyFileSync(licence(KHB), path.join(HD, 'LICENCE-kaykit-halloween.txt'));
 for (const f of fs.readdirSync(HD)) fs.chmodSync(path.join(HD, f), 0o644); // (une licence copiée garde le mode de sa source)
 const lignes = [];
@@ -130,7 +127,6 @@ lignes.push(await clips(['Walk_Carry', 'Defeat'], [
   ['Rig_Medium_Tools.glb', [['Working_A', 'Working_A'], ['Hammering', 'Hammering', { haut: true }]]],
   ['Rig_Medium_Simulation.glb', [['Cheering', 'Cheering', { haut: true }]]],
 ], 'anims-equipe'));
-lignes.push(await piece(path.join(KAV, 'addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb'), 'Mage_Hat', 'p-chapeau'));
 lignes.push(await piece(path.join(KHB, 'addons/kaykit_halloween_bits/Assets/gltf/pumpkin_orange_jackolantern.gltf'), '', 'p-lanterne'));
 fs.writeFileSync(path.join(HD, 'LISEZMOI.txt'), `Le boulanger et les apprentis de la boutique (src/equipe3d.js, maquette derrière ?boulanger3d=1), en qualité haute et moyenne.
 · Chef_Male.glb, Chef_Female.glb : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ; LICENCE.txt ; source : le dépôt GitHub
@@ -139,8 +135,8 @@ fs.writeFileSync(path.join(HD, 'LISEZMOI.txt'), `Le boulanger et les apprentis d
 · anims-equipe.glb : Walk_Carry et Defeat de ce pack ; Working_A, Hammering et Cheering de KayKit Character Animations 1.1 (Kay Lousberg, CC0 ;
   LICENCE-kaykit-animations.txt ; source : le miroir GitHub GeorgeQLe/assets-kaykit-3d-characters, commit af08a62, dossier
   character-animations-1.1), reciblés sur le rig UACP. Les autres clips (Idle, Walk, Victory…) sont ceux des clients (fournil/hd/clients/anims.glb).
-· p-chapeau.glb : le chapeau pointu Mage_Hat de KayKit Adventurers 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-adventurers.txt) ; p-lanterne.glb : la
-  citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; leur texture cuite en couleurs de sommets.
+· p-lanterne.glb : la citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; sa texture cuite
+  en couleurs de sommets. Les autres pièces des tenues (dont le chapeau pointu) sont bâties par le module, sans fichier.
 Refaits par outils/equipe3d/faire-equipe.mjs.
 `);
 for (const l of lignes) console.log(l);

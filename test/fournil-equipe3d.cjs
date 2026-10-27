@@ -2,13 +2,17 @@
 // page, téléphone en portrait (390 × 844), le mardi 27 octobre 2026. On vérifie :
 // · sans le paramètre, rien ne change : le module inactif, aucun fichier de l'équipe demandé, le boulanger et les apprentis en chibis ;
 // · avec, en qualité haute : le lot « equipe » demandé après celui des clients, chaque fichier une fois, 600 Ko au plus ; le boulanger et les
-//   apprentis en personnages 3D (un maillage chacun, plus le plateau de celui qui porte ; à la taille des clients : 62 × K à 5 % près) ; le
-//   boulanger porte la tenue de la garde-robe (sa clé, GAME.tenueBoulanger), une pièce changée se voit à l'image suivante (la forme de
-//   chaque pièce), la mémoire ne monte pas ; les grades des apprentis (l'étoile dès le grade 3) ; le cycle des apprentis (pétrir au four,
-//   porter le plateau, le poser, revenir), la panne (Defeat, puis la clé à la main et Hammering), la joie du boulanger (un toucher : VIE.tap) ;
-//   le décor ≤ 80 appels de dessin, le boulanger et les apprentis comptés ; le temps processeur d'une image (×4, face aux mêmes en chibis) ;
-//   les revenus des fournées inchangés (GAME.revenuFournee de la page, avec et sans le paramètre : les mêmes que src/game.js seul, dans Node,
-//   sur le même état) ;
+//   apprentis en personnages 3D (un maillage chacun, plus le plateau de celui qui porte ; à la taille des clients : 62 × K à 5 % près, le
+//   boulanger ×1,1) ; le boulanger porte la tenue de la garde-robe (sa clé, GAME.tenueBoulanger), une pièce changée se voit à l'image suivante
+//   (la forme de chaque pièce), la mémoire ne monte pas ; les grades des apprentis (l'étoile dès le grade 3) ; le cycle des apprentis (pétrir au
+//   four, le pâton entre les mains ; porter le plateau, le poser, revenir), la panne (Defeat, puis la clé à la main et Hammering), la joie du
+//   boulanger (un toucher : VIE.tap) ; le décor ≤ 80 appels de dessin, le boulanger et les apprentis comptés ; le temps processeur d'une image
+//   (×4, face aux mêmes en chibis) ; les revenus des fournées inchangés (GAME.revenuFournee de la page, avec et sans le paramètre : les mêmes
+//   que src/game.js seul, dans Node, sur le même état) ;
+// · les tenues : chacune des 42 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
+//   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces (toutes les pièces seules, les ensembles, 30
+//   mélanges tirés au sort et 10 qui se frôlent, à trois poses) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans
+//   rien cuire, ≤ 25 ms chacun) ; la mémoire (géométries et tas JS) stable sur 20 changements de plus ;
 // · la vue « Mon boulanger » : ouverte depuis la garde-robe (onglet Boulanger), tournée au doigt, une pièce mise depuis la vue (portée
 //   aussitôt, sa joie), fermée (la boutique reprend) ; trois fois : la mémoire de la boutique ne monte pas ;
 // · la HD coupée dans les Réglages : les chibis à l'image suivante, la mémoire rendue après 10 s, le retour des personnages 3D ;
@@ -34,11 +38,42 @@ const server = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) { try { if (await fn()) return true; } catch (e) { /* rien */ } await sleep(200); } return false; };
-const FICHIERS = ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-chapeau', 'p-lanterne'];
+const FICHIERS = ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'];
 const G0 = require('../src/game.js'); // les règles seules (sans page) : les revenus des fournées, sur le même état
+// (évaluée dans la page) les traversées entre les pièces d'un acteur, à sa pose : pour chaque paire de kits (les pièces et les marques du titre),
+// les triangles de l'un dont un côté perce un triangle de l'autre (Möller–Trumbore, strictement dans le segment) ; une grille des boîtes pour
+// aller vite ; les triangles nuls (les pièces rangées à l'échelle nulle) ignorés. Rend { paires: [{ a, b, n, ou }], tris, ms }
+function traversees(a) {
+  const t0 = performance.now(), S = a.S, g = S.geometry, idx = g.index.array, n = g.attributes.position.count, P = new Float32Array(n * 3);
+  a.g.updateMatrixWorld(true); EQUIPE3D.sommetsMonde(S, n, (i, x, y, z) => { P[i * 3] = x; P[i * 3 + 1] = y; P[i * 3 + 2] = z; });
+  const kits = a.habit.kits, H = a.pr.hauteur * a.g.scale.x, eps = 1e-9, minA = H * H * 1e-9, c = H * 0.02, grilles = new Map(), A9 = new Float32Array(9), B9 = new Float32Array(9);
+  const tri = (t, out) => { for (let j = 0; j < 3; j++) { const v = idx[t * 3 + j]; out[j * 3] = P[v * 3]; out[j * 3 + 1] = P[v * 3 + 1]; out[j * 3 + 2] = P[v * 3 + 2]; } return out; };
+  const aire = (T) => { const ux = T[3] - T[0], uy = T[4] - T[1], uz = T[5] - T[2], vx = T[6] - T[0], vy = T[7] - T[1], vz = T[8] - T[2], cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx; return Math.sqrt(cx * cx + cy * cy + cz * cz) / 2; };
+  const segTri = (px, py, pz, qx, qy, qz, T) => {
+    const e1x = T[3] - T[0], e1y = T[4] - T[1], e1z = T[5] - T[2], e2x = T[6] - T[0], e2y = T[7] - T[1], e2z = T[8] - T[2], dx = qx - px, dy = qy - py, dz = qz - pz;
+    const hx = dy * e2z - dz * e2y, hy = dz * e2x - dx * e2z, hz = dx * e2y - dy * e2x, det = e1x * hx + e1y * hy + e1z * hz; if (Math.abs(det) < eps) return false;
+    const f = 1 / det, sx = px - T[0], sy = py - T[1], sz = pz - T[2], uu = f * (sx * hx + sy * hy + sz * hz); if (uu < 0 || uu > 1) return false;
+    const qx2 = sy * e1z - sz * e1y, qy2 = sz * e1x - sx * e1z, qz2 = sx * e1y - sy * e1x, vv = f * (dx * qx2 + dy * qy2 + dz * qz2); if (vv < 0 || uu + vv > 1) return false;
+    const tt = f * (e2x * qx2 + e2y * qy2 + e2z * qz2); return tt > 1e-6 && tt < 1 - 1e-6;
+  };
+  const coupe = (A, B) => { for (const [X, Y] of [[A, B], [B, A]]) for (const [i, j] of [[0, 1], [1, 2], [2, 0]]) if (segTri(X[i * 3], X[i * 3 + 1], X[i * 3 + 2], X[j * 3], X[j * 3 + 1], X[j * 3 + 2], Y)) return true; return false; };
+  const boite = (T) => [Math.min(T[0], T[3], T[6]), Math.min(T[1], T[4], T[7]), Math.min(T[2], T[5], T[8]), Math.max(T[0], T[3], T[6]), Math.max(T[1], T[4], T[7]), Math.max(T[2], T[5], T[8])];
+  const cases = (b, f) => { for (let i = Math.floor(b[0] / c); i <= Math.floor(b[3] / c); i++) for (let j = Math.floor(b[1] / c); j <= Math.floor(b[4] / c); j++) for (let l = Math.floor(b[2] / c); l <= Math.floor(b[5] / c); l++) f(i + ',' + j + ',' + l); };
+  const grille = (k) => { let G = grilles.get(k.cle); if (G) return G; G = new Map(); for (let t = k.t0; t < k.t1; t++) { tri(t, A9); if (aire(A9) < minA) continue; cases(boite(A9), (q) => { let L = G.get(q); if (!L) G.set(q, (L = [])); L.push(t); }); } grilles.set(k.cle, G); return G; };
+  const paires = [];
+  for (let x = 0; x < kits.length; x++) for (let y = x + 1; y < kits.length; y++) {
+    const ka = kits[x], kb = kits[y], Gb = grille(kb), ou = []; let nb = 0;
+    for (let t = ka.t0; t < ka.t1; t++) {
+      tri(t, A9); if (aire(A9) < minA) continue; const b = boite(A9), cand = new Set(); cases(b, (q) => { const L = Gb.get(q); if (L) for (const u of L) cand.add(u); });
+      for (const u of cand) { tri(u, B9); const bb = boite(B9); if (bb[0] > b[3] || bb[3] < b[0] || bb[1] > b[4] || bb[4] < b[1] || bb[2] > b[5] || bb[5] < b[2]) continue; if (coupe(A9, B9)) { nb++; if (ou.length < 2) ou.push([(A9[0] + A9[3] + A9[6]) / 3 / H, (A9[1] + A9[4] + A9[7]) / 3 / H, (A9[2] + A9[5] + A9[8]) / 3 / H].map((v) => v.toFixed(3)).join(',')); break; } }
+    }
+    if (nb) paires.push({ a: ka.cle, b: kb.cle, n: nb, ou });
+  }
+  return { paires, tris: a.habit.tris, ms: Math.round(performance.now() - t0) };
+}
 
 (async () => {
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }); // WebGL2 : la HD en haute
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--js-flags=--expose-gc'] }); // WebGL2 : la HD en haute ; gc() : la mesure du tas JS
   async function ouvrir(requete) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.addInitScript((d) => {
@@ -108,7 +143,7 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
     const eq = demandes.filter((p) => /\/hd\/equipe\//.test(p)), uniques = [...new Set(eq)], poids = uniques.reduce((s, p) => s + fs.statSync(path.join(root, p)).size, 0);
     const pc = [...new Set(demandes.filter((p) => /\/hd\/clients\//.test(p)))].reduce((s, p) => s + fs.statSync(path.join(root, p)).size, 0);
     check(iC >= 0 && iE > iC, `les fichiers de l'équipe sont demandés après ceux des clients (n° ${iE} après le n° ${iC} sur ${demandes.length})`);
-    check(uniques.length === FICHIERS.length && eq.length === FICHIERS.length && FICHIERS.every((n) => uniques.some((p) => p.endsWith(`/equipe/${n}.glb`))) && demandes.filter((p) => p.endsWith('/clients/anims.glb')).length === 1, `${FICHIERS.length} fichiers (les deux corps, leurs clips, le chapeau, la lanterne), chacun demandé une fois ; les clips des clients repris, pas redemandés`);
+    check(uniques.length === FICHIERS.length && eq.length === FICHIERS.length && FICHIERS.every((n) => uniques.some((p) => p.endsWith(`/equipe/${n}.glb`))) && demandes.filter((p) => p.endsWith('/clients/anims.glb')).length === 1, `${FICHIERS.length} fichiers (les deux corps, leurs clips, la lanterne), chacun demandé une fois ; les clips des clients repris, pas redemandés`);
     check(poids <= 600 * 1024, `leur poids : ${Math.round(poids / 1024)} Ko (≤ 600 Ko) ; avec le lot des clients : ${Math.round((poids + pc) / 1024)} Ko`);
     const e = await equipe(ev);
     check(e.info.corps.length === 2 && e.info.corps.every((c) => c.tris > 2500 && c.tris < 5000), `deux corps cuits (${e.info.corps.map((c) => `${c.nom} ${c.tris} triangles`).join(', ')})`);
@@ -125,9 +160,9 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
     check(e.apprentis.length === 3 && e.apprentis.every((a) => !a.chibi && a.mailles === (a.plateau ? 2 : 1)), `les apprentis : ${e.apprentis.length} personnages 3D, un maillage chacun, plus le plateau de celui qui porte (${e.apprentis.map((a) => `${a.corps} ${a.mailles}`).join(', ')})`);
     const gr = e.apprentis.map((a) => [a.grade, a.etoile]);
     check(e.apprentis.every((a) => a.etoile === (a.grade >= 3)) && new Set(e.apprentis.map((a) => a.grade)).size >= 2, `les grades : l'étoile dès le grade 3 (${gr.map(([g, s]) => `grade ${g} ${s ? 'étoile' : 'sans'}`).join(', ')})`);
-    // la taille : celle des clients (62 × K), à 5 % près, debout
-    const h = (await hauteurs(ev)).filter((x) => x.clip === 'Idle' || x.clip === 'Walk' || x.clip === 'Walk_Carry');
-    check(h.length >= 1 && h.every((x) => Math.abs(x.h - 1) <= 0.05), `à la taille des clients, debout : ${h.map((x) => `${x.qui} ${x.h}`).join(', ')} × 62 K (±5 %)`);
+    // la taille : celle des clients (62 × K), à 5 % près, debout ; le boulanger, le patron, un peu plus grand : ×1,1 (décision du joueur)
+    const h = (await hauteurs(ev)).filter((x) => x.clip === 'Idle' || x.clip === 'Walk' || x.clip === 'Walk_Carry'), cible = (x) => (x.qui === 'boulanger' ? 1.1 : 1);
+    check(h.some((x) => x.qui === 'boulanger') && h.every((x) => Math.abs(x.h / cible(x) - 1) <= 0.05), `à la taille des clients, debout : ${h.map((x) => `${x.qui} ${x.h}`).join(', ')} × 62 K (±5 % ; le boulanger ×1,1)`);
   }
   // le cycle des apprentis : au four (Working_A), porter (Walk_Carry, le plateau), poser (le plateau), revenir (Walk) ; 12 s
   {
@@ -200,6 +235,75 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
     }
   }
 
+  // ─── (après la mesure du temps processeur : ce qui suit bâtit et jette beaucoup, il ne pèse pas sur elle)
+  // ─── les tenues, pièce par pièce : chaque pièce se voit (la géométrie de son kit, ou ses couleurs), la tenue de la chaîne, rien ne passe à
+  //     travers rien (toutes les pièces seules, les ensembles, 30 mélanges tirés au sort, à trois poses), les budgets, le cache, la mémoire ───
+  console.log('── les tenues pièce par pièce : chaque pièce, la chaîne, les traversées, les budgets, le cache, la mémoire ──');
+  {
+    await ev(() => { const F = window.__fournil, G = F.G, st = F.st; for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'quartier-neon', 'hantee', 'hantee-or', 'hantee-lueur', 'parcours', 'chaine']) G.donnerCollection(st, c); });
+    await page.addScriptTag({ content: 'window.__traversees = ' + traversees.toString() + ';' });
+    // chaque pièce portée (les autres de base, titre « Boulanger ») : son kit à sa place, de la bonne forme, et le maillage change (sa géométrie
+    // ou ses couleurs : la cape et la lanterne en or ont la géométrie des autres)
+    const P = await ev(() => {
+      const G = window.__fournil.G, O = G.GARDEROBE.objets, P4 = ['tete', 'haut', 'pieds', 'accessoire'], EMP = { tete: 'T|', haut: 'H|', pieds: 'P|', accessoire: 'A|' };
+      const sig = (ids) => { const a = EQUIPE3D.boulanger(2, { cle: ids.join('|') }, 'Au Fournil du Village'), g = a.S.geometry, c = g.attributes.color.array, pp = g.attributes.position.array; let hc = 2166136261, hp = 2166136261; for (let i = 0; i < c.length; i++) hc = Math.imul(hc ^ c[i], 16777619) >>> 0; for (let i = 0; i < pp.length; i += 3) hp = Math.imul(hp ^ Math.round(pp[i] * 1e4), 16777619) >>> 0; return { kits: a.habit.kits.map((k) => k.cle), tris: a.habit.tris, sig: `${hp}/${hc}/${pp.length}`, mailles: (() => { let n = 0; a.g.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; })() }; };
+      const forme = (v) => ({ tete: { toque: 'T|toque|', casquette: 'T|casquette|', chapeau: 'T|chapeau|' }[v.forme], haut: v.id === 'chaine-veste' ? 'H|veste' : { tablier: 'H|tablier|', sweat: 'H|sweat|', cape: 'H|cape' }[v.forme], pieds: v.id === 'chaine-souliers' ? 'P|pieds|souliers' : v.id === 'sabots' ? 'P|pieds|sabots' : { chaussures: 'P|pieds|', baskets: 'P|pieds|baskets', bottes: 'P|pieds|bottes' }[v.forme], accessoire: v.id === 'chaine-cles' ? 'A|cles' : { lunettes: 'A|lunettes', foulard: 'A|foulard|', chaine: 'A|chaine|', lanterne: 'A|lanterne' }[v.forme] })[v.piece];
+      const base = sig(['toque-blanche', 'tablier-blanc', 'sabots', '']), out = [];
+      for (const v of Object.values(O)) { const ids = ['toque-blanche', 'tablier-blanc', 'sabots', '']; ids[P4.indexOf(v.piece)] = v.id; const s = sig(ids), k = s.kits.filter((x) => x.startsWith(EMP[v.piece])); out.push({ id: v.id, base: v.collection === 'base' && v.piece !== 'accessoire', kit: k.join(','), forme: !!forme(v) && k.some((x) => x.startsWith(forme(v))), sig: s.sig, tris: s.tris, mailles: s.mailles }); }
+      return { base, out, n: Object.keys(O).length };
+    });
+    const nonBase = P.out.filter((x) => !x.base), sigs = new Set(nonBase.map((x) => x.sig));
+    check(P.n === 42 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
+    check(nonBase.every((x) => x.sig !== P.base.sig) && sigs.size === nonBase.length && P.out.filter((x) => x.base).every((x) => x.sig === P.base.sig), `chaque pièce portée change le maillage : ${nonBase.length} maillages tous différents, et de la tenue de base (les trois pièces de base la redonnent)`);
+    console.log(`        les kits : ${P.out.map((x) => `${x.id} ${x.kit} (${x.tris})`).join(' · ')}`);
+    // la tenue de la chaîne : la palette TENUES.chaine (celle des chibis aussi), la veste de patron (pas un tablier), le trousseau à la ceinture
+    const C = await ev(() => { const h = EQUIPE3D.habitBoulanger(2, { cle: 'chaine-toque|chaine-veste|chaine-souliers|chaine-cles' }, 'Au Fournil du Village'), pal = EQUIPE3D.palette(h), R = EQUIPE3D.ROLES, c = new THREE.Color(PERSOS.TENUES.chaine.tissu), egal = (x) => !!x && Math.abs(x[0] - c.r) + Math.abs(x[1] - c.g) + Math.abs(x[2] - c.b) < 1e-4; return { veste: egal(pal.couleurs[R.indexOf('veste')]), toque: egal(pal.couleurs[R.indexOf('T.tissu')]), haut: h.haut, acc: h.acc, pieds: h.pieds, chibi: PERSOS.TENUES.chaine.tissu, icone: typeof ICONS !== 'undefined' && ICONS.TENUES ? (ICONS.TENUES.chaine || [])[0] : PERSOS.TENUES.chaine.tissu, kits: EQUIPE3D.kitsDe(h).map((k) => k[1] + '|' + k[0]) }; });
+    check(C.veste && C.toque && C.haut === 'veste' && C.acc === 'cles' && C.pieds === 'souliers' && C.icone === C.chibi && C.kits.includes('H|veste') && C.kits.includes('A|cles') && C.kits.some((k) => k.startsWith('T|toque|chaine|')), `la tenue de la chaîne : la palette TENUES.chaine (${C.chibi}, la même pour les chibis et les icônes), la toque à galon, la veste de patron, les souliers vernis, le trousseau (${C.kits.join(', ')})`);
+    // les traversées : toutes les pièces seules sur la tenue de base (au dernier titre : le foulard rouge, la moustache, le liseré, le col),
+    // les ensembles, 30 mélanges tirés au sort (graine fixe, titres au hasard) et des mélanges qui se frôlent ; chacun à trois poses (le
+    // repos, plus tard, la joie) : aucun triangle d'une pièce ne passe à travers une autre
+    const ids = await ev(() => Object.values(window.__fournil.G.GARDEROBE.objets).map((v) => [v.id, v.piece, v.collection]));
+    const parPiece = (p) => ids.filter((x) => x[1] === p).map((x) => x[0]), BASE = ['toque-blanche', 'tablier-blanc', 'sabots', ''], liste = [];
+    for (const [id, p] of ids) { const t = BASE.slice(); t[['tete', 'haut', 'pieds', 'accessoire'].indexOf(p)] = id; liste.push([...t, 5]); }
+    for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine']) liste.push([...['tete', 'haut', 'pieds', 'accessoire'].map((p) => (ids.find((x) => x[2] === c && x[1] === p) || [''])[0]), 5]);
+    let graine = 20261027; const hasard = (n) => { graine = (Math.imul(graine, 1664525) + 1013904223) >>> 0; return Math.floor(graine / 4294967296 * n); };
+    for (let k = 0; k < 30; k++) { const t = ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const l = parPiece(p).concat(p === 'accessoire' ? [''] : []); return l[hasard(l.length)]; }); liste.push([...t, hasard(6)]); }
+    for (const t of [['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'or-foulard'], ['hantee-chapeau', 'quartier-or-sweat', 'sabots', 'quartier-or-chaine'], ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'parcours-foulard'], ['parcours-toque', 'chaine-veste', 'hantee-bottes', 'quartier-chaine'], ['quartier-neon-casquette', 'hantee-cape', 'quartier-or-baskets', 'argent-foulard'], ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'chaine-cles'], ['bronze-toque', 'hantee-cape', 'chaine-souliers', 'quartier-chaine'], ['or-toque', 'quartier-sweat', 'or-chaussures', 'chaine-cles'], ['toque-blanche', 'parcours-tablier', 'hantee-bottes', 'chaine-cles'], ['hantee-lueur-chapeau', 'or-tablier', 'quartier-baskets', 'lunettes-rondes']]) liste.push([...t, 5]);
+    const T = await ev((liste) => {
+      const out = [], t0 = performance.now();
+      for (const t of liste) {
+        const a = EQUIPE3D.boulanger(t[4], { cle: t.slice(0, 4).join('|') }, 'Au Fournil du Village'), ctx = { K: a.pr.hauteur / EQUIPE3D.HAUT, x: 0, y: 0, z: 0, yaw: 0 }, vus = new Map();
+        for (const [tt, joie] of [[0.3, false], [2.1, false], [0, true]]) {
+          if (joie) { a.joieT = 1.4; a.joieAttente = 0; }
+          for (let k = 0; k < (joie ? 18 : 3); k++) EQUIPE3D.poserBoulanger(a, { t: tt + k / 30, hop: 0, rush: false, vue: true }, 1 / 30, ctx);
+          for (const p of window.__traversees(a, {}).paires) vus.set(`${p.a}×${p.b}`, (vus.get(`${p.a}×${p.b}`) || 0) + p.n);
+        }
+        a.joieT = 0; let n = 0; a.g.traverse((o) => { if (o.isMesh && o.visible) n++; }); out.push({ t: t.join('|'), tris: a.habit.tris, mailles: n, paires: [...vus].map(([k, n]) => `${k}:${n}`) });
+      }
+      return { out, ms: Math.round(performance.now() - t0) };
+    }, liste);
+    const touches = T.out.filter((x) => x.paires.length), trisMax = Math.max(...T.out.map((x) => x.tris)), trisMin = Math.min(...T.out.map((x) => x.tris));
+    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à trois poses (${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
+    check(T.out.every((x) => x.mailles === 1) && trisMax <= 10500, `le budget : un seul maillage par tenue (un appel de dessin), ${trisMin} à ${trisMax} triangles (≤ 10 500) ; le corps seul : ${await ev(() => window.__fournil.SCENE.equipe3d.info.corps.map((c) => c.tris).join(' / '))}`);
+    // le cache : toutes les pièces déjà cuites, 20 changements de tenue ne font que recoller (pas d'à-coup) ; la mémoire ne monte pas
+    const M = await ev((liste) => {
+      const ms = [], tas = () => (window.gc && window.gc(), performance.memory ? performance.memory.usedJSHeapSize : 0), S = window.__fournil.SCENE.stats;
+      const vingt = () => { for (let k = 0; k < 20; k++) { const t = liste[(k * 7) % liste.length], t0 = performance.now(); EQUIPE3D.boulanger(t[4], { cle: t.slice(0, 4).join('|') }, 'Au Fournil du Village'); ms.push(performance.now() - t0); } };
+      vingt(); window.__pas(2, true); const h0 = tas(), g0 = S.geometries, k0 = EQUIPE3D.etat.kits; ms.length = 0; vingt(); const k1 = EQUIPE3D.etat.kits; window.__pas(2, true); const h1 = tas(), g1 = S.geometries; // (entre deux, la boutique cuit d'avance les pièces possédées, au titre du moment)
+      const v = ms.slice().sort((a, b) => a - b); return { kits0: k0, kits1: k1, max: +v[v.length - 1].toFixed(1), med: +v[10].toFixed(1), h0, h1, g0, g1, gc: !!window.gc };
+    }, liste);
+    check(M.kits1 === M.kits0 && M.max <= 25, `le cache : 20 changements de tenue, aucun kit à cuire (${M.kits0} en cache), ${M.med} ms en médiane, ${M.max} ms au plus (≤ 25 ms)`);
+    check(M.g1 <= M.g0 + 1 && (!M.h0 || M.h1 - M.h0 < 3e6), `la mémoire : 20 changements de plus, géométries ${M.g0} → ${M.g1}, tas JS ${(M.h0 / 1e6).toFixed(1)} → ${(M.h1 / 1e6).toFixed(1)} Mo${M.gc ? ' (après gc)' : ''}`);
+    await ev(() => window.__pas(3, true)); // (la scène le rhabille de sa vraie tenue)
+    const b = await ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return { tenue: e.boulanger && e.boulanger.tenue, cle: F.G.tenueBoulanger(F.st).cle }; });
+    check(b.tenue && b.tenue.endsWith('|' + b.cle), `ensuite, la boutique le rhabille de sa tenue (${b.tenue})`);
+  }
+  // le pâton : entre les mains de l'apprenti qui pétrit au four, rangé dès qu'il le quitte
+  {
+    const vus = await ev(() => window.__pas(240, false, (e) => e.apprentis.map((a) => `${a.etat}/${a.clip}${a.pate ? '+pate' : ''}`)));
+    const tous = new Set(vus.flat());
+    check(tous.has('four/Working_A+pate') && [...tous].every((s) => s.endsWith('+pate') === s.startsWith('four/Working_A')), `le pâton entre les mains au four (Working_A), jamais ailleurs (${[...tous].sort().join(', ')})`);
+  }
   console.log('── la vue « Mon boulanger » : ouverte depuis la garde-robe, tournée au doigt, une pièce mise, fermée (trois fois) ──');
   {
     await ev(() => window.__rafManuel(false)); await sleep(400);
@@ -208,7 +312,7 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
     for (let k = 1; k <= 3; k++) {
       const ok = await ev(() => { const b = document.querySelector('[data-gr-3d]'); if (!b) return false; b.scrollIntoView(); b.click(); return true; });
       if (k === 1) check(ok, 'le bouton « Voir mon boulanger en 3D » de la garde-robe');
-      check(await attendre(() => ev(() => { const e = EQUIPE3D.vue.etat; return !!e && e.tris > 0 && e.images > 3 && !!document.getElementById('mon-boulanger'); }), 30000), `vue ${k} : ouverte, le boulanger en grand sur son estrade`);
+      check(await attendre(() => ev(() => { const e = EQUIPE3D.vue.etat; return !!e && e.tris > 0 && e.images > 3 && !!document.getElementById('mon-boulanger'); }), 30000), `vue ${k} : ouverte, le boulanger en grand sur son estrade${erreurs.length ? ' (' + erreurs.slice(0, 2).join(' | ') + ')' : ''}`);
       if (k === 1) {
         const e0 = await ev(() => EQUIPE3D.vue.etat);
         check(e0.appels <= 6 && e0.tris < 9000, `un personnage, son estrade : ${e0.appels} appels de dessin, ${e0.tris} triangles pour le boulanger`);
