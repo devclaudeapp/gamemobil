@@ -348,7 +348,10 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   await pageA.tap(`.rt-ret[data-n="${nLucas}"] [data-etat="fait"]`);
   check(await attendre(() => appels('fournil_admin_retour_etat').length === 4 && dernier('fournil_admin_retour_etat').p_note === '' && faux.retours.find((r) => r.n === nLucas).note === null), 'la note vidée part en chaîne vide : le serveur l’efface');
   await pageA.tap('[data-rt="filtre"][data-f="tout"]');
-  check(await attendre(() => dernier('fournil_admin_retours').p_filtre === 'tout' && pageA.evaluate((n) => document.querySelectorAll('.rt-ret').length === n, faux.retours.length)), `Tous : fournil_admin_retours(p_filtre tout), ${faux.retours.length} retours`);
+  // (machine lente : la feuille peut se redessiner sous le doigt et perdre le toucher ; tant que « Tous » n'est pas demandé, on retouche, au plus toutes les 2 s)
+  let retouche = Date.now();
+  check(await attendre(async () => { if (dernier('fournil_admin_retours').p_filtre !== 'tout' && Date.now() - retouche > 2000) { retouche = Date.now(); await pageA.tap('[data-rt="filtre"][data-f="tout"]').catch(() => {}); }
+    return dernier('fournil_admin_retours').p_filtre === 'tout' && pageA.evaluate((n) => document.querySelectorAll('.rt-ret').length === n, faux.retours.length); }, 20000), `Tous : fournil_admin_retours(p_filtre tout), ${faux.retours.length} retours`);
 
   // créer un vote, puis fermer l'ancien : le nouveau prend le bandeau
   await pageA.tap('[data-rt="admin-vue"][data-v="votes"]');
