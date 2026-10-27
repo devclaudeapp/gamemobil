@@ -820,12 +820,12 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 :is(#planque, #hantee)[data-ecran="porte"] :is(#pq-cartes, #ht-cartes), :is(#planque, #hantee)[data-ecran="bilan"] :is(#pq-cartes, #ht-cartes) { display: none; }
 /* (l'écran rogne ce qui dépasse, overflow: clip : jamais un conteneur qu'on fait défiler ; un scrollIntoView le décalait tout entier vers
    le haut, le bouton fermer hors de l'écran. Les vieux Safari, sans clip : src/evenement.js le remet en place à chaque image) */
-/* le tiroir (src/evenement.js, tiroir) : le bas de l'écran (la barre, les cartes) monte au doigt par-dessus la scène jusque sous le solde. Sa
-   marge du haut (--pq-tiroir-m) le pose au repos ; pendant la course, une translation, et son dessous (::after) comble le bas de l'écran */
-.pq-tiroir { position: relative; z-index: 1; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; margin-top: var(--pq-tiroir-m, 0px); background: #2E2B3A; border-radius: 22px 22px 0 0;
-  transition: transform .28s cubic-bezier(.2, .8, .2, 1), border-radius .2s ease-out; will-change: transform; }
+/* le tiroir (src/evenement.js, tiroir ; la mécanique : src/tiroir.js) : comme celui de la boutique (#tiroir, #pages), il fait toute la hauteur
+   de l'écran et glisse par une translation, --pq-tiroir-y (son cran : haut, mi, fermé) ; le même --pq-tiroir-y en marge du bas donne à sa
+   liste la hauteur qui reste : elle va toujours jusqu'au bas de l'écran, et défile dedans */
+.pq-tiroir { position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 1; display: flex; flex-direction: column; padding-bottom: var(--pq-tiroir-y, 0px); transform: translateY(var(--pq-tiroir-y, 0px));
+  background: #2E2B3A; border-radius: 22px 22px 0 0; transition: transform .28s cubic-bezier(.2, .8, .2, 1), border-radius .2s ease-out; will-change: transform; }
 .pq-tiroir.glisse { transition: none; }
-.pq-tiroir::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 100vh; background: inherit; pointer-events: none; }
 :is(#planque, #hantee)[data-tiroir="haut"] > .pq-tiroir { border-radius: 0; } /* en haut : une page sous le solde */
 :is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) > .pq-tiroir { display: none; }
 .pq-poignee { position: relative; flex: 0 0 auto; height: 24px; touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent; }
@@ -835,8 +835,9 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-tiroir-tete:empty, .pq-tiroir-tete:not(:has(> :not([hidden]))) { display: none; }
 .pq-tiroir > .pq-barre { flex: 0 0 auto; padding-top: 0; touch-action: none; } /* la barre se tire aussi (un toucher sur ses boutons reste un toucher) */
 .pq-tiroir > :is(#pq-cartes, #ht-cartes) { flex: 1 1 0; min-height: 0; }
+:is(#planque, #hantee)[data-tiroir="ferme"] > .pq-tiroir > :is(#pq-cartes, #ht-cartes) { padding-block: 0; } /* fermé : la liste n'a plus que le bas de l'écran (l'indicateur d'accueil), rien ne dépasse */
 @media (prefers-reduced-motion: reduce) { .pq-tiroir { transition: none; } }
-:is(#pq-cartes, #ht-cartes) { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px 16px; }
+:is(#pq-cartes, #ht-cartes) { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px calc(16px + env(safe-area-inset-bottom, 0px)); } /* (le bas de l'écran : au-dessus de l'indicateur d'accueil) */
 .carte.pq { background: #3F3A50; color: #FFF7EC; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
 .carte.pq .icone { background: #56516B; }
 .carte.pq .palier, .carte.pq .palier span + span { color: #C7B8FF; }

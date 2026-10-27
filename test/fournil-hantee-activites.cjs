@@ -23,7 +23,10 @@
 //   la poignée glissée vers le haut le monte jusque sous le solde (les cartes ont toute la hauteur), un toucher sur ×10 change le mode sans
 //   le bouger, une feuille et un mini-jeu passent par-dessus, la barre glissée vers le bas (depuis ×100, qui n'est pas touché) le redescend ;
 //   la liste tout en haut, un glisser vers le haut sur les cartes monte d'abord le tiroir, puis la liste défile ; une touche sur la poignée
-//   le bascule ; il revient en bas à la réouverture de l'écran ; la commande de la nuit : un bandeau juste au-dessus du tiroir (dans sa tête
+//   le bascule (mi → haut → fermé → mi, comme celui de la boutique) ; ses trois crans (haut, mi, fermé) en 390 × 844, 375 × 812, 360 × 640
+//   et installé (les marges de l'iPhone simulées) : après des glisser lents, vifs, arrêtés à mi-course, six d'affilée, une carte redessinée
+//   sous le doigt, une feuille refermée, une rotation, il est sur un cran exact et le bas de la liste touche le bas de l'écran (à 2 px),
+//   la colonne jamais à moitié couverte ; il revient au cran mi à la réouverture de l'écran ; la commande de la nuit : un bandeau juste au-dessus du tiroir (dans sa tête
 //   quand il est monté) ; rien de l'interface de la boulangerie ne se voit, la page ne défile pas (seule la liste) ; la pastille de
 //   Sortilèges compte ce qui est achetable ;
 // puis le soir (21 h 15, haute et éco : la file avec ses bulles, une apparition ; des captures), et, avec ?boutique=0 (le Manoir d'avant :
@@ -104,7 +107,9 @@ function faux(d) {
     // ─── la colonne des activités, en haut à droite de la scène ; le tiroir des cartes, qui monte au doigt (des touchers bruts : CDP) ───
     const cdp = await ctx.newCDPSession(page);
     const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
-    const glisser = async (x, y0, y1, n = 10) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= n; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / n]]); await sleep(16); } await touche('touchEnd', []); await sleep(600); };
+    // le tiroir posé : sa course finie (sa place est son cran, --pq-tiroir-y, sans translation de glisser) ; sous SwiftShader, une image peut prendre une demi-seconde
+    const pose = () => attendre(() => ev(() => { const t = document.querySelector('#hantee .pq-tiroir'); return !t.style.transform && Math.abs(t.getBoundingClientRect().top - document.querySelector('#hantee').getBoundingClientRect().top - parseFloat(t.style.getPropertyValue('--pq-tiroir-y'))) < 0.5; }), 5000, 50);
+    const glisser = async (x, y0, y1, n = 10, pas = 16, tenir = 0) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= n; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / n]]); await sleep(pas); } if (tenir) await sleep(tenir); await touche('touchEnd', []); await sleep(600); await pose(); };
     const toucherA = async (x, y) => { await touche('touchStart', [[x, y]]); await sleep(40); await touche('touchEnd', []); await sleep(500); };
     const geo = () => ev(() => { const R = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { g: b.left, d: b.right, h: b.top, b: b.bottom, l: b.width, ht: b.height }; }, el = document.querySelector('#hantee'), c = document.querySelector('#ht-cartes');
       return { pos: el.dataset.tiroir, solde: R(el.querySelector('.pq-solde')), scene: R(el.querySelector('.pq-scene')), tiroir: R(el.querySelector('.pq-tiroir')), barre: R(el.querySelector('.pq-barre')), cartes: R(c), defile: c.scrollTop,
@@ -287,7 +292,7 @@ function faux(d) {
       await ev(() => window.__fournil.evHantee.tiroir('haut')); await sleep(400);
       const g2 = await geo();
       check(g2.cmdOu === 'pq-tiroir-tete' && g2.cmd.h >= g2.solde.b - 1 && g2.cmd.b <= g2.barre.h + 1 && g2.cmd.ht > 40, `tiroir en haut : la commande dans sa tête, sous la poignée (${Math.round(g2.cmd.h)}–${Math.round(g2.cmd.b)})`);
-      await ev(() => window.__fournil.evHantee.tiroir('bas')); await sleep(400);
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await sleep(400);
       check((await geo()).cmdOu === 'pq-bandeaux', 'tiroir redescendu : la commande revient au-dessus de lui');
     }
     check(await ev(() => !!document.querySelector('#ht-commande .mh-commande-temps b') && document.querySelector('#ht-commande .btn').classList.contains('non')), 'sa jauge de temps, son bouton pas encore prêt');
@@ -372,7 +377,7 @@ function faux(d) {
     // ─── la colonne des activités et le tiroir, au doigt (en fin de parcours : les clients de plus n'y dérangent rien) ───
     const g0 = await verifierColonne('la colonne des activités');
     await colonneEtCoup('390 × 844');
-    check(g0.pos === 'bas' && Math.abs(g0.tiroir.h - (g0.scene.b - 22)) < 2 && g0.cartes.b <= 844 + 1, `le tiroir à sa place, sous la scène (son haut à ${Math.round(g0.tiroir.h)} px, les cartes ${Math.round(g0.cartes.h)}–${Math.round(g0.cartes.b)})`);
+    check(g0.pos === 'mi' && Math.abs(g0.tiroir.h - (g0.scene.b - 22)) < 2 && g0.cartes.b <= 844 + 1, `le tiroir à sa place, sous la scène (son haut à ${Math.round(g0.tiroir.h)} px, les cartes ${Math.round(g0.cartes.h)}–${Math.round(g0.cartes.b)})`);
     // la poignée tirée vers le haut : le tiroir monte par-dessus la scène, jusque sous le solde ; les cartes ont toute la hauteur
     const [px, py] = await centreDe('#hantee .pq-poignee');
     await glisser(px, py, g0.solde.b + 30);
@@ -399,7 +404,7 @@ function faux(d) {
     const [x100, y100] = await centreDe('#hantee .pq-modes [data-mode="100"]');
     await glisser(x100, y100, y100 + 320);
     const g3 = await geo();
-    check(g3.pos === 'bas' && Math.abs(g3.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g3.cartes.ht - g0.cartes.ht) < 1 && g3.mode === 10, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
+    check(g3.pos === 'mi' && Math.abs(g3.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g3.cartes.ht - g0.cartes.ht) < 1 && g3.mode === 10, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
     // la liste tout en haut, tiroir en bas : un glisser vers le haut sur les cartes monte d'abord le tiroir ; en haut, la liste défile
     await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
     const lx = 120, ly = Math.min(g3.cartes.b - 30, g3.cartes.h + 80);
@@ -410,11 +415,64 @@ function faux(d) {
     check(g5.pos === 'haut' && g5.defile > 50, `tiroir en haut, le même glisser fait défiler la liste (${Math.round(g5.defile)} px)`);
     await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await sleep(200);
     await glisser(lx, 420, 720); const g6 = await geo();
-    check(g6.pos === 'bas', `la liste revenue tout en haut, un glisser vers le bas sur les cartes redescend le tiroir (${g6.pos})`);
+    check(g6.pos === 'mi', `la liste revenue tout en haut, un glisser vers le bas sur les cartes redescend le tiroir (${g6.pos})`);
     // une simple touche sur la poignée : il bascule (en haut, puis en bas)
-    const [qx, qy] = await centreDe('#hantee .pq-poignee'); await toucherA(qx, qy); const g7 = await geo();
-    const [qx2, qy2] = await centreDe('#hantee .pq-poignee'); await toucherA(qx2, qy2); const g8 = await geo();
-    check(g7.pos === 'haut' && g8.pos === 'bas' && Math.abs(g8.tiroir.h - g0.tiroir.h) < 1, `une touche sur la poignée le monte, une autre le redescend (${g7.pos}, puis ${g8.pos})`);
+    const [qx, qy] = await centreDe('#hantee .pq-poignee'); await toucherA(qx, qy); await pose(); const g7 = await geo();
+    const [qx2, qy2] = await centreDe('#hantee .pq-poignee'); await toucherA(qx2, qy2); await pose(); const g8 = await geo();
+    const [qx3, qy3] = await centreDe('#hantee .pq-poignee'); await toucherA(qx3, qy3); await pose(); const g9 = await geo();
+    const [qx4, qy4] = await centreDe('#hantee .pq-poignee'); await toucherA(qx4, qy4); await pose(); const g10 = await geo();
+    check(g7.pos === 'haut' && g8.pos === 'ferme' && g9.pos === 'mi' && g10.pos === 'haut', `une touche sur la poignée le bascule comme celui de la boutique : mi → haut → fermé → mi → haut (${g7.pos}, ${g8.pos}, ${g9.pos}, ${g10.pos})`);
+    await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+    // ─── les crans, comme le tiroir de la boutique (src/tiroir.js) : haut (sous le solde), mi (sous la scène), fermé (la barre seule, la scène
+    // agrandie jusqu'à elle) ; après chaque glisser (lent, vif, arrêté à mi-course puis lâché, plusieurs d'affilée, un toucher dont la carte est
+    // redessinée en route, comme sur iPhone), il est posé sur un cran exact, et le bas de la liste touche le bas de l'écran (à 2 px près) ;
+    // la colonne des activités n'est jamais à moitié recouverte (entière au-dessus du tiroir au cran mi, toute couverte en haut). En 390 × 844,
+    // 375 × 812, 360 × 640 et en mode installé (plein écran, les marges de l'encoche et de l'indicateur d'accueil simulées)
+    const cran = () => ev(() => { const el = document.querySelector('#hantee'), t = el.querySelector('.pq-tiroir'), c = el.querySelector('#ht-cartes'), a = el.querySelector('.pq-act'), r0 = el.getBoundingClientRect(), R = (e) => e.getBoundingClientRect();
+      return { pos: el.dataset.tiroir, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: R(t).top - r0.top, tr: t.style.transform, bas: R(c).bottom, H: window.innerHeight, ecran: R(el).bottom, fond: R(t).bottom, col: [R(a).top, R(a).bottom], solde: R(el.querySelector('.pq-solde')).bottom, barre: R(el.querySelector('.pq-barre')).bottom, scene: R(el.querySelector('.pq-scene')).bottom, defile: document.scrollingElement.scrollTop + el.scrollTop }; });
+    const crans = {};
+    const surCran = async (ou, attendu) => {
+      const k = await cran(), exact = ['haut', 'mi', 'ferme'].includes(k.pos) && !k.tr && Math.abs(k.haut - k.y) < 1 && (!crans[k.pos] || Math.abs(crans[k.pos] - k.y) < 1);
+      const liste = Math.abs(k.bas - k.H) <= 2 && k.fond >= k.H - 1, col = k.pos === 'haut' ? k.col[0] >= k.haut : k.col[1] <= k.haut, rien = !k.defile && Math.abs(k.ecran - k.H) < 1;
+      const lieu = k.pos === 'haut' ? Math.abs(k.haut - k.solde) <= 2 : k.pos === 'ferme' ? Math.abs(k.barre - k.H) <= 40 && k.scene > k.H - 120 : true;
+      check(exact && liste && col && rien && lieu && (!attendu || k.pos === attendu), `${ou} : sur le cran ${k.pos}${attendu && k.pos !== attendu ? ` (attendu : ${attendu})` : ''} (${Math.round(k.haut)} px${k.tr ? ', ' + k.tr : ''}), le bas de la liste à ${Math.round(k.bas)} px pour un écran de ${k.H}, la colonne ${Math.round(k.col[0])}–${Math.round(k.col[1])} ${k.pos === 'haut' ? 'toute couverte' : 'entière au-dessus'}`);
+      return k;
+    };
+    const vite = async (x, y0, y1) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= 3; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / 3]]); await sleep(8); } await touche('touchEnd', []); };
+    for (const [w, h, pwa] of [[390, 844], [375, 812], [360, 640], [390, 844, true]]) {
+      const ou = `${w} × ${h}${pwa ? ', installé' : ''}`;
+      if (pwa) await ev(() => { const s2 = document.createElement('style'); s2.id = 'pwa-simule'; s2.textContent = '#hantee { padding: 47px 0 34px !important; } #ht-cartes { padding-bottom: 50px !important; } #hantee[data-tiroir="ferme"] > .pq-tiroir > #ht-cartes { padding-bottom: 0 !important; }'; document.head.appendChild(s2); window.dispatchEvent(new Event('resize')); }); // (env(safe-area-inset-…) de l'iPhone : 47 et 34 px)
+      for (const k in crans) delete crans[k]; // (les crans de cet écran)
+      await page.setViewportSize({ width: w, height: h }); await sleep(1200); await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+      for (const c of ['mi', 'haut', 'ferme', 'mi']) { await ev((c2) => window.__fournil.evHantee.tiroir(c2), c); await pose(); await sleep(150); const k = await surCran(`${ou}, posé ${c}`, c); crans[c] = k.y; if (w === 390 && !pwa) await shot(page, `${qual}-cran-${c}`); }
+      const P = async () => centreDe('#hantee .pq-poignee'), B = async () => centreDe('#hantee .pq-modes [data-mode="100"]');
+      let [x, y] = await P(); await glisser(x, y, crans.haut + 12, 14, 40); await surCran(`${ou}, la poignée glissée lentement jusqu’en haut`, 'haut');
+      [x, y] = await B(); await glisser(x, y, y + (crans.mi - crans.haut) * 0.55, 3, 8); { const k = await surCran(`${ou}, la barre tirée vite vers le bas`); check(k.pos !== 'haut', `${ou}, la barre tirée vite vers le bas le fait descendre (${k.pos})`); }
+      if (w === 390 && !pwa) await shot(page, `${qual}-apres-glisser-vif`);
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+      [x, y] = await P(); await glisser(x, y, y + (crans.ferme - crans.mi) * 0.3, 16, 60, 400); await surCran(`${ou}, glissé lentement vers le bas aux 3/10 du chemin, arrêté, lâché : il revient`, 'mi');
+      [x, y] = await P(); await glisser(x, y, y + (crans.ferme - crans.mi) * 0.7, 16, 60, 400); await surCran(`${ou}, glissé lentement aux 7/10 du chemin, arrêté, lâché : le cran suivant`, 'ferme');
+      [x, y] = await P(); await glisser(x, y, y - (crans.ferme - crans.mi) * 0.5 - 4, 10, 40, 300); await surCran(`${ou}, depuis le fermé, à mi-chemin et lâché`);
+      for (let k = 0; k < 6; k++) { [x, y] = await P(); await vite(x, y, k % 2 ? y + 260 : y - 260); await sleep(60); } // six pichenettes d'affilée, sans attendre la fin des courses
+      await sleep(600); await pose(); await surCran(`${ou}, six glisser rapides d’affilée`);
+      // un glisser sur la liste dont la carte touchée est redessinée en route (le chrono d'une fournée, sur iPhone) : le tiroir suit jusqu'au bout
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose(); await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
+      { const k0 = await cran(), lx2 = 120, ly2 = Math.min(k0.H - 40, k0.y + 140);
+        await touche('touchStart', [[lx2, ly2]]); for (let k = 1; k <= 4; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); }
+        const refait = await ev(([x2, y2]) => { const e = document.elementFromPoint(x2, y2), c = e && e.closest('#ht-cartes > *'); if (!c) return false; c.innerHTML = c.innerHTML; return true; }, [lx2, ly2 - 100]);
+        for (let k = 5; k <= 10; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); } await touche('touchEnd', []); await sleep(600); await pose();
+        await surCran(`${ou}, la liste glissée vers le haut, sa carte redessinée en route (${refait ? 'redessinée' : 'pas de carte sous le doigt'})`, 'haut'); }
+      // une feuille ouverte puis refermée (Sortilèges), le tiroir en haut : il y reste, la liste jusqu'en bas
+      { const [xs2, ys2] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs2, ys2); await attendre(() => ev(() => !document.querySelector('#feuille').hidden), 3000); await sleep(300);
+        await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
+        await surCran(`${ou}, une feuille ouverte et refermée`, 'haut'); }
+      if (pwa) await ev(() => { document.querySelector('#pwa-simule').remove(); window.dispatchEvent(new Event('resize')); });
+    }
+    // une rotation (paysage, puis portrait) : posé en haut, il reste en haut, la liste jusqu'en bas
+    for (const k in crans) delete crans[k];
+    await page.setViewportSize({ width: 844, height: 390 }); await sleep(800); await page.setViewportSize({ width: 390, height: 844 }); await sleep(1200); await pose();
+    await surCran('390 × 844, après une rotation', 'haut');
+    await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
     await ev(() => document.querySelector('#hantee .pq-modes [data-mode="1"]').click()); await sleep(200);
     // ─── la boulangerie derrière : rien de son interface ne se voit (seul son canvas) ; la page ne défile pas : seule la liste bouge ───
     {
@@ -450,15 +508,15 @@ function faux(d) {
     // ─── en 360 × 640, la colonne et le tiroir restent justes ───
     await page.setViewportSize({ width: 360, height: 640 }); await sleep(1500);
     const gp = await verifierColonne('en 360 × 640');
-    check(gp.pos === 'bas' && gp.cartes.b <= 640 + 1 && gp.cartes.ht > 40 && gp.barre.d <= 360 + 1, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
+    check(gp.pos === 'mi' && gp.cartes.b <= 640 + 1 && gp.cartes.ht > 40 && gp.barre.d <= 360 + 1, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
     await colonneEtCoup('360 × 640');
     await shot(page, `${qual}-360-tiroir-bas`);
     const [sx, sy] = await centreDe('#hantee .pq-poignee'); await glisser(sx, sy, gp.solde.b + 20);
     const gq = await geo();
     check(gq.pos === 'haut' && Math.abs(gq.tiroir.h - gq.solde.b) <= 2 && gq.cartes.b <= 640 + 1 && gq.cartes.ht > gp.cartes.ht + 120, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
     await shot(page, `${qual}-360-tiroir-haut`);
-    const [bx, by] = await centreDe('#hantee .pq-barre'); await glisser(bx, by, by + 260);
-    check((await geo()).pos === 'bas', 'en 360 × 640, glissé vers le bas : à sa place');
+    const [bx, by] = await centreDe('#hantee .pq-barre'); await glisser(bx, by, by + (gp.tiroir.h - gq.tiroir.h)); // (jusqu'au cran mi)
+    check((await geo()).pos === 'mi', 'en 360 × 640, glissé vers le bas : à sa place');
 
     await page.setViewportSize({ width: 390, height: 844 }); await sleep(800);
     // ─── le tiroir revient en bas à la réouverture de l'écran ───
@@ -466,7 +524,7 @@ function faux(d) {
     await ev(() => window.__fournil.fermerHantee()); await sleep(900);
     await ev(() => document.querySelector('#b-hantee').click()); await attendre(() => ev(() => window.__fournil.evHantee.ecran === window.__fournil.evHantee.F.ecran), 10000); await sleep(1500);
     const gr = await geo();
-    check(gr.pos === 'bas' && Math.abs(gr.tiroir.h - (gr.scene.b - 22)) < 2, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu à sa place, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px)`);
+    check(gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b - 22)) < 2, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px)`);
     { const t0 = await ev(() => window.__fournil.st.hantee.now); await sleep(1500); const t1 = await ev(() => window.__fournil.st.hantee.now); console.log(`   (rouvert : le temps des règles avance de ${t1 - t0} ms en 1,5 s)`); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();

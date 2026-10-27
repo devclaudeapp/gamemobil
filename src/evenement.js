@@ -230,9 +230,10 @@ const EVENEMENTS = (() => {
       id('corps').innerHTML = ''; // la porte ou le bilan s'effacent ; la scène, les cartes et la bannière sont des éléments fixes de l'écran
       entete(F.lieu, `Jour ${fen().jour} sur ${fen().jours}`);
       el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
-      tiroir.poser('bas', false); // le tiroir revient à sa place à chaque ouverture
+      tiroir.poser('mi', false); // le tiroir revient au cran mi à chaque ouverture
       construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv(); placerAct();
       if (!scene3) { essais3 = 0; creer3(false); }
+      tiroir.redim(); // (la scène de la boutique hantée change les marges de la fenêtre : les crans la suivent)
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
@@ -247,7 +248,7 @@ const EVENEMENTS = (() => {
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
       if (act) act.fermer();
-      liberer3(); tiroir.poser('bas', false);
+      liberer3(); tiroir.poser('mi', false);
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
       if (d.ferme) d.ferme();
@@ -291,6 +292,7 @@ const EVENEMENTS = (() => {
       if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); const ecart = Math.max(0, t - (qq.now || t)); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup && ecart <= TROU_EV) Q.pauseCoup(qq, ecart); }
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
+      if (performance.now() - tTiroir > 400) { tTiroir = performance.now(); tiroir.verifier(); } // les crans du tiroir suivent la mise en page
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); if (!miniOuvert()) placerAct(); }
       { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée ; l'écran non plus)
         if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (el.scrollTop || el.scrollLeft) { el.scrollTop = 0; el.scrollLeft = 0; } if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
@@ -529,7 +531,7 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
       if (act) act.fermer();
-      liberer3(); tiroir.poser('bas', false);
+      liberer3(); tiroir.poser('mi', false);
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
       if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
@@ -562,94 +564,110 @@ const EVENEMENTS = (() => {
     }
 
 
-    // ═══ le tiroir : le bas de l'écran (la barre ×1 ×10 ×100 Max, la commande et le bestiaire du Manoir, les cartes) monte au doigt par-dessus
-    // la scène jusque sous le solde, comme celui de la boutique (src/ui.js, tiroir) ; deux crans : 'bas' (sa place sous la scène) et 'haut'.
-    // Au repos, sa marge du haut (--pq-tiroir-m) le pose : en haut, la liste des cartes a toute la hauteur. Pendant la course, une translation
-    // seule (rien à remettre en page à chaque image ; son dessous, ::after, comble le bas de l'écran), puis la marge est reprise d'un coup, au
-    // même endroit. On le tire par sa poignée ou par la barre (un toucher sur ×10 ou Sortilèges reste un toucher : il faut 6 px pour glisser) ;
-    // tiroir en bas et liste tout en haut, un glisser vers le haut sur la liste monte d'abord le tiroir (en haut, liste tout en haut, un
-    // glisser vers le bas le redescend) ; une simple touche sur la poignée (ou Entrée) bascule. Lâché, il va au cran le plus proche, l'élan
-    // compris (le geste projeté 160 ms plus loin ; une pichenette change toujours de cran). Il revient en bas à chaque ouverture de l'écran.
+    // ═══ le tiroir : le bas de l'écran (la barre ×1 ×10 ×100 Max, la commande et le bestiaire du Manoir, les cartes), le même que celui de
+    // la boutique (src/tiroir.js, la mécanique commune ; src/ui.js) : trois crans, 'haut' (sous le solde), 'mi' (sa place, sous la scène) et
+    // 'ferme' (la barre seule au bas de l'écran, la scène agrandie jusqu'à elle) ; il suit le doigt, aimanté au cran le plus proche avec
+    // l'élan. Comme celui de la boutique, il fait toute la hauteur de l'écran et glisse par une translation (--pq-tiroir-y) ; sa liste va
+    // jusqu'au bas de l'écran à chaque cran (padding-bottom : le même --pq-tiroir-y) et défile dedans. On le tire par sa poignée (une simple
+    // touche, ou Entrée, le bascule : fermé → mi → haut → fermé), par la barre (un toucher sur ×10 ou Sortilèges reste un toucher : il faut
+    // 6 px pour glisser), ou par la liste quand elle est tout en haut (vers le haut, il monte ; vers le bas, il descend), le geste suivi sur
+    // l'élément même où le doigt s'est posé : la liste se redessine sans cesse (le chrono des fournées), et un toucher dont l'élément a quitté
+    // la page n'arrive plus à ses parents (sur iPhone, le tiroir restait figé à mi-course, sa liste coupée bien avant le bas de l'écran). Il
+    // revient au cran mi à chaque ouverture de l'écran ; ses crans suivent la mise en page (une rotation, le solde qui change de hauteur).
+    let tTiroir = 0;
     const bouge = () => !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const tiroir = (() => {
-      let t = null, poignee = null, tete = null, bx = null, pos = 'bas', y = 0, m = 0, drag = null, fin = 0, sansClic = 0, doigt = null;
+      let t = null, poignee = null, tete = null, bx = null, barre = null, fin = 0, sansClic = 0, doigt = null, court = false, cle = '';
+      const T = TIROIR.creer({ ordre: ['haut', 'mi', 'ferme'], Y: { haut: 0, mi: 300, ferme: 600 }, depart: 'mi', reduit: () => !bouge(),
+        poser(p, y, anime) {
+          t.style.setProperty('--pq-tiroir-y', y + 'px'); el.dataset.tiroir = p; poignee.setAttribute('aria-expanded', String(p !== 'ferme'));
+          clearTimeout(fin); fin = 0; tailleScene(true); // la scène descend jusqu'au tiroir (tout de suite si elle grandit : le tiroir qui descend la découvre)
+          const fini = () => { fin = 0; if (!T.glisse) tailleScene(false); ranger(); placerAct(); }; // remontée : elle rapetisse une fois couverte
+          if (anime) { ranger(); fin = setTimeout(fini, 300); } else fini();
+        },
+        bouge() { if (t) suivre2(court); },
+        permis: (e) => el.dataset.ecran === F.ecran && !(e.pointerType === 'mouse' && e.button !== 0) && (verifier(), true),
+        touche: () => { d.audio(); d.son.tap(); } });
       // ce qui suit le tiroir (.pq-suit : la commande de la nuit du Manoir) : un bandeau juste au-dessus de lui, sur la scène ; tiroir en haut,
-      // dans sa tête (sous la poignée), pour rester sous les yeux ; de même sur une scène basse (moins de 240 px visibles : un petit
-      // téléphone), où le bandeau cacherait la file des monstres
-      let court = false;
+      // dans sa tête (sous la poignée), pour rester sous les yeux ; de même au cran mi sur une scène basse (moins de 240 px visibles : un petit
+      // téléphone), où le bandeau cacherait la file des monstres ; fermé, toujours en bandeau (la scène est grande)
       const suivre2 = (haut) => { if (!t) return; for (const e of el.querySelectorAll('.pq-suit')) { const dest = haut ? tete : bx; if (e.parentElement !== dest) dest.append(e); } };
       const sceneEl = () => el.querySelector('.pq-scene');
-      const basTop = () => { const sc = sceneEl(); return sc ? sc.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(sc).marginBottom) || 0) : 0; }; // le haut du tiroir à sa place (sous la scène)
-      const course = () => { const so = el.querySelector('.pq-solde'); return so ? Math.max(0, Math.ceil(basTop() - so.getBoundingClientRect().bottom) + 1) : 0; }; // jusque sous le solde (1 px dessous : pas de jour)
-      const appliquer = () => { t.style.setProperty('--pq-tiroir-m', m + 'px'); t.style.transform = Math.abs(y - m) > 0.5 ? `translateY(${(y - m).toFixed(1)}px)` : ''; };
-      function poser(p, anime) { // p : 'bas' | 'haut' ; anime : la course jusqu'au cran (sinon d'un coup)
-        if (!t) return; clearTimeout(fin); fin = 0; drag = null; doigt = null; pos = p === 'haut' ? 'haut' : 'bas';
-        const cible = pos === 'haut' ? -course() : 0; poignee.setAttribute('aria-expanded', String(pos === 'haut'));
-        const reprendre = () => { fin = 0; t.classList.add('glisse'); court = course() < 240; suivre2(pos === 'haut' || court); m = cible; y = cible; appliquer(); el.dataset.tiroir = pos; void t.offsetHeight; t.classList.remove('glisse'); placerAct(); };
-        if (anime && bouge() && Math.abs(y - cible) > 1) { el.dataset.tiroir = 'glisse'; t.classList.remove('glisse'); y = cible; appliquer(); fin = setTimeout(reprendre, 300); } else reprendre();
+      function tailleScene(grandir) { // la scène va jusqu'au haut du tiroir posé (sa marge du bas comprise) : au cran mi, au cran fermé (en haut : celle du cran mi, couverte)
+        const sc = sceneEl(); if (!sc || el.hidden || ecran !== F.ecran) return; const r = el.getBoundingClientRect(), rs = sc.getBoundingClientRect(); if (!(r.height > 0) || !(rs.width > 0)) return; const mb = parseFloat(getComputedStyle(sc).marginBottom) || 0;
+        const h = Math.max(60, Math.round(T.Y[T.pos === 'ferme' ? 'ferme' : 'mi'] - mb - (rs.top - r.top)));
+        if (Math.abs(h - rs.height) < 0.5 || (grandir && h < rs.height)) return;
+        sc.style.height = h + 'px'; if (scene3 && scene3.redim) scene3.redim();
       }
-      function prendre(y0, depuis, id) { drag = { id, y0, depuis, depart: 0, D: 0, pts: [[performance.now(), y0]], bouge: false }; }
-      function suivre(cy) { // le doigt bouge : au-delà de 6 px, le tiroir le suit (élastique au-delà de ses crans)
-        const dy = cy - drag.y0;
-        if (!drag.bouge) {
-          if (Math.abs(dy) <= 6) return false;
-          drag.bouge = true; clearTimeout(fin); fin = 0; t.classList.add('glisse'); el.dataset.tiroir = 'glisse'; suivre2(court);
-          drag.D = course(); drag.depart = Math.round(t.getBoundingClientRect().top - basTop()); // d'où il est vraiment (une course pas finie comprise)
-        }
-        let v = drag.depart + dy; const D = drag.D;
-        if (v < -D) v = -D - (-D - v) * 0.25; if (v > 0) v *= 0.25;
-        y = v; appliquer(); drag.pts.push([performance.now(), cy]); if (drag.pts.length > 6) drag.pts.shift();
-        return true;
+      // les crans, en px depuis le haut de l'écran, ceux de la boutique (src/ui.js, layout) : haut, toute la page sous le solde (1 px dessous :
+      // pas de jour) ; fermé, la poignée et la barre seules au-dessus du bas (et de la zone de l'indicateur d'accueil) ; mi, à 55 % de ce qui
+      // reste sous le solde, en laissant au tiroir 360 px au plus, mais jamais sur la colonne des activités (8 px d'air sous elle, comme sous
+      // l'enseigne de la boutique) ; à 60 px au moins du haut, à 120 px au moins du fermé. La scène va jusqu'au tiroir (tailleScene).
+      function mesurer() {
+        const sc = sceneEl(), so = el.querySelector('.pq-solde'); if (!t || !sc || !so || el.hidden || ecran !== F.ecran) return null;
+        const r = el.getBoundingClientRect(); if (!(r.height > 0)) return null;
+        const bas = r.height - (parseFloat(getComputedStyle(el).paddingBottom) || 0), haut = Math.floor(so.getBoundingClientRect().bottom - r.top) - 1;
+        const ferme = Math.round(bas - poignee.offsetHeight - barre.offsetHeight), corpsH = bas - haut;
+        let col = haut; const a = el.querySelector('.pq-act'); if (a) { const serre = sc.classList.contains('pq-serre'); if (serre) sc.classList.remove('pq-serre'); const ra = a.getBoundingClientRect(); if (ra.height > 0) col = ra.bottom - r.top; if (serre) sc.classList.add('pq-serre'); } // (la colonne en grand)
+        const miH = haut + Math.min(corpsH - 360, Math.round(corpsH * 0.55));
+        return { haut, mi: Math.round(Math.max(haut + 60, col + 8, Math.min(miH, ferme - 120))), ferme };
       }
-      function lacher() {
-        const d0 = drag; drag = null; if (!d0) return;
-        if (!d0.bouge) { if (d0.depuis === 'poignee') { d.audio(); d.son.tap(); poser(pos === 'haut' ? 'bas' : 'haut', true); } return; } // une simple touche sur la poignée : il bascule
-        sansClic = performance.now() + 400; // un glisser n'est pas un toucher : pas de clic sur le bouton où il a commencé
-        const [t0, p0] = d0.pts[0], [t1, p1] = d0.pts[d0.pts.length - 1], vit = t1 > t0 ? (p1 - p0) / (t1 - t0) : 0; // px/ms
-        const proj = y + vit * 160; let cible = Math.abs(proj + d0.D) < Math.abs(proj) ? 'haut' : 'bas';
-        if (Math.abs(vit) > 0.5) cible = vit < 0 ? 'haut' : 'bas'; // une pichenette va toujours où elle part
-        poser(cible, true);
+      function verifier() { // les crans suivent la mise en page ; posé (pas pendant un glisser ni une course), il reste à son cran
+        const Y = mesurer(); if (!Y) return; const k = `${Y.haut}|${Y.mi}|${Y.ferme}`; if (k === cle) { if (!T.glisse && !fin) tailleScene(false); return; }
+        cle = k; court = Y.mi - Y.haut < 240; if (T.glisse || fin) Object.assign(T.Y, Y); else T.crans(Y);
+      }
+      function poser(p, anime) { // p : 'haut' | 'mi' (ou 'bas', l'ancien nom) | 'ferme' ; anime : la course jusqu'au cran (sinon d'un coup)
+        if (!t) return; T.annuler(); doigt = null; cle = ''; verifier();
+        T.aller(p === 'haut' || p === 'ferme' ? p : 'mi', !!anime && bouge());
       }
       function construire() {
-        const sc = sceneEl(), barre = el.querySelector('.pq-barre'); if (!sc || !barre || t) return;
+        const sc = sceneEl(); barre = el.querySelector('.pq-barre'); if (!sc || !barre || t) return;
         t = document.createElement('div'); t.className = 'pq-tiroir';
-        t.innerHTML = '<div class="pq-poignee" role="button" tabindex="0" aria-label="Monter ou descendre les cartes" aria-expanded="false"><i></i></div><div class="pq-tiroir-tete"></div>';
+        t.innerHTML = '<div class="pq-poignee" role="button" tabindex="0" aria-label="Monter ou descendre les cartes" aria-expanded="true"><i></i></div><div class="pq-tiroir-tete"></div>';
         poignee = t.firstChild; tete = t.lastChild; const corps = id('corps'); if (corps) sc.after(corps); (corps || sc).after(t);
-        t.append(barre, cartesEl); el.dataset.tiroir = 'bas';
+        t.append(barre, cartesEl); el.dataset.tiroir = 'mi'; T.brancher(t);
         // les bandeaux de la scène (comme ceux de la boutique) : juste au-dessus du tiroir, le coup de pouce, puis ce qui suit le tiroir
         bx = document.createElement('div'); bx.className = 'pq-bandeaux'; sc.appendChild(bx); bx.append(evEl);
         // la page derrière ne bouge jamais : seuls la liste des cartes (et le mini-jeu) défilent ; un geste ailleurs sur l'écran ne fait ni
         // défiler ni rebondir la page (l'élan d'iOS montrait la boulangerie derrière la scène)
         el.addEventListener('touchmove', (e) => { if (e.cancelable && !cartesEl.contains(e.target) && !e.target.closest('.pq-mini')) e.preventDefault(); }, { passive: false });
-        // la poignée et la barre : au doigt et à la souris (événements de pointeur ; touch-action: none, rien d'autre ne les fait défiler)
-        const appui = (depuis) => (e) => { if (drag || el.dataset.ecran !== F.ecran || (e.pointerType === 'mouse' && e.button !== 0)) return; if (depuis === 'poignee') e.preventDefault(); prendre(e.clientY, depuis, e.pointerId); };
-        poignee.addEventListener('pointerdown', appui('poignee')); barre.addEventListener('pointerdown', appui('barre'));
-        window.addEventListener('pointermove', (e) => { if (drag && e.pointerId === drag.id) suivre(e.clientY); });
-        const fini = (e) => { if (drag && e.pointerId === drag.id) lacher(); };
-        window.addEventListener('pointerup', fini); window.addEventListener('pointercancel', fini);
-        poignee.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poser(pos === 'haut' ? 'bas' : 'haut', true); } });
+        // la poignée : celle de la boutique (au doigt et à la souris, capturée ; une touche bascule)
+        T.poignee(poignee);
+        // le solde ou l'écran changent de taille (une ligne de plus, une rotation) : les crans suivent, sans attendre la boucle
+        if (window.ResizeObserver) { let rq = 0; const ro = new ResizeObserver(() => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; verifier(); }); }); ro.observe(el); const so = el.querySelector('.pq-solde'); if (so) ro.observe(so); }
+        // un nouveau doigt posé ailleurs, un glisser pas fini (son lâcher perdu) : il est lâché, le tiroir va à un cran
+        window.addEventListener('pointerdown', (e) => { if (T.glisse && T.doigt !== e.pointerId) T.lacher(false); }, true);
+        // la barre : 6 px avant de glisser (au doigt et à la souris ; touch-action: none, rien d'autre ne la fait défiler)
+        barre.addEventListener('pointerdown', (e) => { if (T.glisse || el.dataset.ecran !== F.ecran || (e.pointerType === 'mouse' && e.button !== 0)) return; verifier(); T.prendre(e.clientY, e.pointerId, 6); });
+        window.addEventListener('pointermove', (e) => { if (T.glisse && T.doigt === e.pointerId) T.suivre(e.clientY); });
+        const lache = (e) => { if (T.glisse && T.doigt === e.pointerId && T.lacher(false)) sansClic = performance.now() + 400; }; // un glisser n'est pas un toucher : pas de clic sur le bouton où il a commencé
+        window.addEventListener('pointerup', lache); window.addEventListener('pointercancel', lache);
         el.addEventListener('click', (e) => { if (performance.now() < sansClic) { e.preventDefault(); e.stopPropagation(); } }, true);
         // la liste (et la commande, le bestiaire) : elle défile d'elle-même ; seul le geste qui doit bouger le tiroir est pris (le premier pas de
-        // plus de 6 px décide, son touchmove annulé : le défilement ne part pas). Des événements tactiles : ceux de pointeur ne peuvent pas l'empêcher
+        // plus de 6 px décide, son touchmove annulé : le défilement ne part pas). Des événements tactiles (ceux de pointeur ne peuvent pas
+        // l'empêcher), écoutés sur l'élément touché lui-même : redessiné, il les reçoit encore, ses parents non
         t.addEventListener('touchstart', (e) => {
-          doigt = null; if (drag || e.touches.length !== 1 || el.dataset.ecran !== F.ecran || e.target.closest('.pq-poignee, .pq-barre')) return;
-          doigt = { y0: e.touches[0].clientY, enHaut: !cartesEl.contains(e.target) || cartesEl.scrollTop <= 0, pris: false, laisse: false };
+          if (doigt) doigt.fin(); if (T.glisse && T.doigt === 'liste') T.lacher(false);
+          if (T.glisse || e.touches.length !== 1 || el.dataset.ecran !== F.ecran || e.target.closest('.pq-poignee, .pq-barre')) return;
+          const cible = e.target, tid = e.touches[0].identifier, dg = { y0: e.touches[0].clientY, enHaut: !cartesEl.contains(cible) || cartesEl.scrollTop <= 0, pris: false, laisse: false };
+          const bouge2 = (ev2) => {
+            if (dg.laisse) return; const tc = [...ev2.changedTouches].find((x) => x.identifier === tid); if (!tc) return; const cy = tc.clientY, dy = cy - dg.y0;
+            if (!dg.pris) {
+              if (Math.abs(dy) <= 6) return;
+              if (!dg.enHaut || !((dy < 0 && T.pos !== 'haut') || (dy > 0 && T.pos !== 'ferme'))) { dg.laisse = true; return; } // la liste défile
+              verifier(); if (!T.prendre(dg.y0, 'liste', 6)) { dg.laisse = true; return; } dg.pris = true;
+            }
+            if (ev2.cancelable) ev2.preventDefault(); if (T.doigt === 'liste') T.suivre(cy);
+          };
+          const leve = () => { const pris = dg.pris; dg.fin(); if (pris && T.doigt === 'liste') T.lacher(false); };
+          dg.fin = () => { cible.removeEventListener('touchmove', bouge2); cible.removeEventListener('touchend', leve); cible.removeEventListener('touchcancel', leve); if (doigt === dg) doigt = null; };
+          cible.addEventListener('touchmove', bouge2, { passive: false }); cible.addEventListener('touchend', leve); cible.addEventListener('touchcancel', leve);
+          doigt = dg;
         }, { passive: true });
-        t.addEventListener('touchmove', (e) => {
-          if (!doigt || doigt.laisse) return; const cy = e.touches[0].clientY, dy = cy - doigt.y0;
-          if (!doigt.pris) {
-            if (Math.abs(dy) <= 6) return;
-            if (!doigt.enHaut || !((pos === 'bas' && dy < 0) || (pos === 'haut' && dy > 0))) { doigt.laisse = true; return; } // la liste défile
-            doigt.pris = true; prendre(doigt.y0, 'liste', 'liste');
-          }
-          if (e.cancelable) e.preventDefault(); if (drag && drag.id === 'liste') suivre(cy);
-        }, { passive: false });
-        const leve = () => { if (doigt && doigt.pris && drag && drag.id === 'liste') lacher(); doigt = null; };
-        t.addEventListener('touchend', leve); t.addEventListener('touchcancel', leve);
       }
-      const redim = () => { if (t && pos === 'haut' && !drag && !fin) poser('haut', false); }; // une rotation, une autre hauteur de scène : le cran du haut suit
-      const ranger = () => { if (!t || drag || fin) return; court = course() < 240; suivre2(pos === 'haut' || court); };
-      return { construire, poser, redim, ranger, get bandeaux() { return bx; }, couvre: () => !!t && pos === 'haut' && !drag && !fin && ecran === F.ecran, get pos() { return pos; } };
+      function ranger() { if (!t || T.glisse) return; suivre2(T.pos === 'haut' || (T.pos === 'mi' && court)); }
+      const redim = () => { if (!t) return; cle = ''; verifier(); }; // une rotation, une autre hauteur de scène : les crans suivent
+      return { construire, poser, redim, ranger, verifier, get bandeaux() { return bx; }, couvre: () => !!t && T.pos === 'haut' && !T.glisse && !fin && ecran === F.ecran, get pos() { return T.pos; } };
     })();
 
     // ═══ les activités (src/activites.js : le moteur commun à tous les événements ; l'habillage vient de la fiche de l'événement) ═══

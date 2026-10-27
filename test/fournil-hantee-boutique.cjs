@@ -136,6 +136,8 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     const autre = await ev(() => { const a = BOUTIQUE_HANTEE.acteurs().find((x) => x.role === 'client' && (x.etat === 'file' || x.etat === 'entre')); return a ? a.id : null; });
     if (autre) { const fa = await ev((id) => { const r = BOUTIQUE_HANTEE.fache(id), c = VIE.clients.find((x) => 'c' + x.id === id); return { r, humeur: c && c.humeur, etat: c && VIE.etatClient(c) }; }, autre); check(fa.r && fa.humeur === 'fache' && fa.etat === 'sort', `fache(${autre}) : il repart sans payer (${fa.etat})`); }
     check(await ev(() => BOUTIQUE_HANTEE.servir('c999999') === false && BOUTIQUE_HANTEE.client('c999999') === null), 'un client qui n\'existe pas : servir rend false, client rend null');
+    // (les apparitions des règles attendent une heure : une qui passerait d'elle-même, sur une machine lente, fausserait le compte des trois de l'API)
+    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); if (q.manoir) q.manoir.prochaineApp = HORLOGE.maintenant() + 3600e3; for (const a of BOUTIQUE_HANTEE.apparitions()) BOUTIQUE_HANTEE.retirer(a.id); });
     const ids = await ev(() => ['fantome', 'citrouille', 'chauve-souris'].map((t) => BOUTIQUE_HANTEE.apparition(t)));
     await sleep(700);
     let ap = await ev(() => BOUTIQUE_HANTEE.apparitions());

@@ -16,7 +16,7 @@
      est celui de la boutique, complété par ce que l'événement a gagné (des tables de plus à chaque monstre…). SCENE.setEvenement(vue)
      bascule la scène (la vie de la boutique attend de côté) ; detruire() appelle SCENE.setEvenement(null) : tout revient.
    · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes (qui monte
-     par-dessus au doigt : src/evenement.js, tiroir ; la fenêtre, elle, ne bouge pas) ; la
+     par-dessus au doigt : src/evenement.js, tiroir ; posé au cran mi ou fermé, la fenêtre descend jusqu'à lui, et redim la suit) ; la
      boutique, ses boutons, son tiroir, sa barre du haut et ses onglets sont masqués dessous (seul son canvas se voit), et la page ne défile
      ni ne rebondit (src/evenement.js : seule la liste des cartes défile). Une feuille de style ajoutée une fois porte ces règles (classes
      .ht-boutique sur #hantee et sur body).

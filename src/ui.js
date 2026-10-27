@@ -301,51 +301,21 @@ const UI = (() => {
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
 
   // ─── le tiroir : les pages glissent sur la boutique ; on le tire par sa poignée, il s'arrête à trois crans (ouvert, mi, fermé) ───
+  //     (la mécanique, commune avec les écrans d'événement : src/tiroir.js ; ici, ses crans et ce qu'il pose)
   const tiroir = (() => {
-    const POIGNEE = 36, OUVERT = 48, ORDRE = ['ouvert', 'mi', 'ferme'];
-    const Y = { ouvert: OUVERT, mi: 300, ferme: 500 }; let pos = 'mi', y = 300, drag = null, el, poignee;
-    const plusProche = (v) => ORDRE.reduce((a, b) => (Math.abs(Y[b] - v) < Math.abs(Y[a] - v) ? b : a));
-    const suivant = (sens) => ORDRE[Math.max(0, Math.min(2, ORDRE.indexOf(pos) + sens))];
-    function poser(p, anime) {
-      pos = p; y = Y[p];
-      el.classList.toggle('glisse', !anime); el.style.transform = '';
-      document.documentElement.style.setProperty('--tiroir-y', y + 'px');
-      el.dataset.pos = p; document.body.dataset.tiroir = p; poignee.setAttribute('aria-expanded', p !== 'ferme');
-      if (SCENE.visible) SCENE.visible(y);
-      if (st && st.tiroir !== p) st.tiroir = p;
-      if (!anime) requestAnimationFrame(() => el.classList.remove('glisse'));
-    }
-    const aller = (p, anime) => { if (Y[p] != null && el) poser(p, anime == null ? !reduceMotion : anime); };
-    function layout(corpsH, miH) { Y.ferme = corpsH - POIGNEE; Y.mi = Math.max(OUVERT + 60, Math.min(miH, Y.ferme - 120)); poser(pos, false); }
-    function init() {
-      el = $('#tiroir'); poignee = $('#poignee');
-      poignee.addEventListener('pointerdown', (e) => {
-        if (drag) return; e.preventDefault(); try { poignee.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
-        drag = { id: e.pointerId, y0: e.clientY, depart: y, pts: [[performance.now(), e.clientY]], bouge: false };
-        el.classList.add('glisse');
-      });
-      poignee.addEventListener('pointermove', (e) => {
-        if (!drag || e.pointerId !== drag.id) return;
-        const dy = e.clientY - drag.y0; if (Math.abs(dy) > 6) drag.bouge = true;
-        let v = drag.depart + dy; // élastique au-delà des bornes
-        if (v < Y.ouvert) v = Y.ouvert - (Y.ouvert - v) * 0.25;
-        if (v > Y.ferme) v = Y.ferme + (v - Y.ferme) * 0.25;
-        y = v; el.style.transform = `translateY(${v}px)`; if (SCENE.visible) SCENE.visible(v);
-        drag.pts.push([performance.now(), e.clientY]); if (drag.pts.length > 6) drag.pts.shift();
-      });
-      const fin = (e) => {
-        if (!drag || e.pointerId !== drag.id) return;
-        const d = drag; drag = null;
-        if (!d.bouge) { aller(pos === 'ouvert' ? 'ferme' : suivant(-1)); return; } // une simple touche : fermé → mi → ouvert → fermé
-        const [t0, p0] = d.pts[0], [t1, p1] = d.pts[d.pts.length - 1], vit = t1 > t0 ? (p1 - p0) / (t1 - t0) : 0; // px/ms
-        let cible = plusProche(y + vit * 160); // on projette le geste 160 ms plus loin
-        if (Math.abs(vit) > 0.8 && cible === pos) cible = suivant(Math.sign(vit)); // une pichenette avance toujours d'un cran
-        aller(cible);
-      };
-      poignee.addEventListener('pointerup', fin); poignee.addEventListener('pointercancel', fin);
-      poignee.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(pos === 'ouvert' ? 'ferme' : suivant(-1)); } });
-    }
-    return { init, aller, layout, get pos() { return pos; }, get y() { return y; }, get Y() { return Y; }, get glisse() { return !!drag; } };
+    const POIGNEE = 36, OUVERT = 48;
+    let el, poignee;
+    const T = TIROIR.creer({ ordre: ['ouvert', 'mi', 'ferme'], Y: { ouvert: OUVERT, mi: 300, ferme: 500 }, depart: 'mi', reduit: () => reduceMotion,
+      poser(p, y) {
+        document.documentElement.style.setProperty('--tiroir-y', y + 'px');
+        el.dataset.pos = p; document.body.dataset.tiroir = p; poignee.setAttribute('aria-expanded', p !== 'ferme');
+        if (SCENE.visible) SCENE.visible(y);
+        if (st && st.tiroir !== p) st.tiroir = p;
+      },
+      bouge(v) { if (SCENE.visible) SCENE.visible(v); } });
+    function layout(corpsH, miH) { T.crans({ ferme: corpsH - POIGNEE, mi: Math.max(OUVERT + 60, Math.min(miH, corpsH - POIGNEE - 120)) }); }
+    function init() { el = $('#tiroir'); poignee = $('#poignee'); T.brancher(el); T.poignee(poignee); }
+    return { init, aller: T.aller, layout, get pos() { return T.pos; }, get y() { return T.y; }, get Y() { return T.Y; }, get glisse() { return T.glisse; } };
   })();
   // ─── pages : une seule visible ; un onglet ouvre le tiroir au moins à mi-hauteur ───
   function showPage(id) {
