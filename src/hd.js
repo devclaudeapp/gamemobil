@@ -31,8 +31,12 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
+    // l'équipe de la boutique en 3D (src/equipe3d.js, la maquette du boulanger et des apprentis : seulement avec ?boulanger3d=1 ; fournil/hd/equipe/,
+    // ≈ 162 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), le chapeau pointu et la citrouille-lanterne. Sans les clips ou sans le corps
+    // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
+    equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-chapeau', 'p-lanterne'] },
   };
-  const MOD = {}, PER = {}, CLI = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
+  const MOD = {}, PER = {}, CLI = {}, EQ = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   const image = (u) => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = ko; im.src = BASE + u; });
   function lireH3(n) { // le lot de la boutique hantée : le pack (ses scènes par nom), les clips, ou un personnage (le gltf entier : son squelette)
@@ -44,13 +48,15 @@ const HDM = (() => {
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
       if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
       else if (dossier === 'clients') { if (!CLI[n]) t.push(lire(`clients/${n}.glb`).then((g) => { CLI[n] = g; }, () => console.warn('HD : client manquant', n))); } // (le gltf entier : sa scène, son squelette, ses clips)
+      else if (dossier === 'equipe') { if (!EQ[n]) t.push(lire(`equipe/${n}.glb`).then((g) => { EQ[n] = g; }, () => console.warn('HD : équipe, fichier manquant', n))); } // (le gltf entier)
       else if (dossier === 'hantee3') { const p = lireH3(n); if (p) t.push(p); } // (tout ou rien : un fichier manquant fait échouer le lot, la boutique hantée reste en procédural)
       else if (dossier === 'images') { if (!H3.images[n]) t.push(image(n).then((im) => { H3.images[n] = im; })); }
       else { const cle = dossier === 'meubles2' || dossier === 'luxe' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
     e.promesse = Promise.all(t).then(() => {
       if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants');
-      if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
+      if (LOTS[lot].equipe) { if (!(CLI.anims && EQ['anims-equipe'] && EQ.Chef_Male)) throw new Error('équipe HD manquante'); }
+      else if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
       e.pret = true; API.version++; return true;
     }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
@@ -131,6 +137,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, equipe: (n) => EQ[n] || null });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
