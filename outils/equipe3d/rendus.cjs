@@ -9,8 +9,9 @@
 //   vignettes : une vignette carrée par pièce de la garde-robe (portée, en gros plan, son nom dessous) : <sortie>/vignettes/<id>.png (256 px) et
 //               leur planche <nom>.png
 //   melanges  : des tenues mêlées pièce par pièce, dans la boutique (--tenues "tête,haut,pieds,acc;…") : la boutique et la loupe du boulanger
+//               (l'aura portée, sauf avec --sansaura)
 //   tourne    : une vidéo (--video 9) du boulanger dans la vue, qui tourne en changeant de tenue
-// usage : node rendus.cjs <scénario> <nom> [--requete "qualite=haute"] [--port 9902] [--video 9] [--tenues …] [--tourne] [--sortie dossier] [--sans3d]
+// usage : node rendus.cjs <scénario> <nom> [--requete "qualite=haute"] [--port 9902] [--video 9] [--tenues …] [--tourne] [--sortie dossier] [--sans3d] [--sansaura]
 // Sorties dans --sortie (par défaut $EQUIPE3D_TRAVAIL ou <tmp>/equipe3d) : <nom>.png, <nom>-loupeN.png, <nom>-<tenue>.png, <nom>.mp4, <nom>-mesures.json.
 // Le jeu servi : ce dépôt (node build.js d'abord). Playwright et son Chromium (NODE_PATH), ffmpeg pour la vidéo.
 'use strict';
@@ -142,7 +143,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   if (scenario === 'melanges') { // des tenues mêlées pièce par pièce, dans la boutique : la boutique entière (390 × 844) et la loupe sur le boulanger
     await pas(3, false);
     await ev(() => { const S = window.__fournil.SCENE; for (const z of ['table', 'table', 'banquette']) S.installer(z, 600); });
-    await ev(() => { const f = window.__fournil, G = f.G, st = f.st; for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'quartier-neon', 'hantee', 'hantee-or', 'hantee-lueur', 'parcours', 'chaine']) G.donnerCollection(st, c); G.donnerAura(st, 'lueur'); });
+    await ev((sans) => { const f = window.__fournil, G = f.G, st = f.st; for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'quartier-neon', 'hantee', 'hantee-or', 'hantee-lueur', 'parcours', 'chaine']) G.donnerCollection(st, c); G.donnerAura(st, 'lueur'); if (sans) G.porterAura(st, null); }, opt('--sansaura')); // (l'aura gagnée se porte d'office ; --sansaura la range)
     const liste = val('--tenues', 'parcours-toque,quartier-or-sweat,hantee-bottes,lunettes-rondes;quartier-neon-casquette,hantee-or-cape,quartier-baskets,chaine-cles;hantee-chapeau,or-tablier,chaine-souliers,quartier-chaine').split(';').map((t) => t.split(',').map((x) => x || null));
     for (const [k, ids] of liste.entries()) {
       await ev((ids) => { const f = window.__fournil, G = f.G, st = f.st; ['tete', 'haut', 'pieds', 'accessoire'].forEach((p, i) => G.equiper(st, p, ids[i] || (p === 'accessoire' ? null : G.GARDEROBE.base[p]))); }, ids);
