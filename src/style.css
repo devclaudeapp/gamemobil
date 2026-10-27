@@ -1223,14 +1223,14 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-barre { display: block; width: 80%; height: 5px; border-radius: 999px; background: #EADBEF; overflow: hidden; }
 .mh-best-barre b { display: block; height: 100%; border-radius: inherit; background: #FF8A1F; }
 .mh-best-case.fait .mh-best-barre { background: #FFC79E; }
-.mh-best-recomp { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
-.mh-best-recomp li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
-.mh-best-recomp li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
-.mh-best-recomp li div { min-width: 0; display: grid; gap: 2px; }
-.mh-best-recomp li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
-.mh-best-recomp li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
-.mh-best-recomp em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
-.mh-best-recomp li.fait em { color: #2E9C70; }
+.mh-best-recomp, .mh-best-paliers { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.mh-best-recomp li, .mh-best-paliers li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
+.mh-best-recomp li.fait, .mh-best-paliers li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
+.mh-best-recomp li div, .mh-best-paliers li div { min-width: 0; display: grid; gap: 2px; }
+.mh-best-recomp li div b, .mh-best-paliers li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
+.mh-best-recomp li div small, .mh-best-paliers li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
+.mh-best-recomp em, .mh-best-paliers em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
+.mh-best-recomp li.fait em, .mh-best-paliers li.fait em { color: #2E9C70; }
 .mh-best-r-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F1E9FF; }
 .mh-best-r-ico svg { width: 36px; height: 36px; }
 .mh-best-r-et { font: 700 26px/1 var(--titre); color: #FF8A1F; }
@@ -1245,6 +1245,33 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-cs p { margin: 0; font: 700 13.5px/1.35 var(--texte-font); color: #3D2748; }
 .mh-best-fete-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 @keyframes mhFete { 0% { scale: .3; rotate: -12deg; opacity: 0; } 100% { scale: 1; rotate: 0deg; opacity: 1; } }
+/* les médailles du bestiaire (le bronze, l'argent, l'or de chaque sorte) : la carte du tiroir (son résumé, les miniatures cerclées), les cases
+   de la feuille (la médaille du portrait, la marche suivante), le petit mot sur la scène, la fête d'argent ou d'or, les étagères */
+.mh-best-tete { flex-wrap: wrap; row-gap: 2px; }
+.mh-best-meds { font-variant-numeric: tabular-nums; }
+.mh-best-meds .m-bronze { color: #A55A1C; } .mh-best-meds .m-argent { color: #677585; } .mh-best-meds .m-or { color: #A87700; }
+.mh-best-mini i.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-mini i.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-mini i.fait.m-bronze::after, .mh-best-mini i.fait.m-argent::after { display: block; background: #9AA6B4; }
+.mh-best-mini i.fait.m-argent::after { background: #E0A91B; }
+.mh-best-case.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-case.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-case.m-argent > small { color: #4F5B69; } .mh-best-case.m-or > small { color: #8A6100; }
+.mh-best-case.m-bronze .mh-best-barre b { background: #9AA6B4; } .mh-best-case.m-argent .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-argent .mh-best-barre { background: #D6DDE5; } .mh-best-case.m-or .mh-best-barre { background: #FFE07A; } .mh-best-case.m-or .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-bronze .mh-best-et { background: #C77B30; box-shadow: 0 2px 0 #8F5216; }
+.mh-best-case.m-argent .mh-best-et { background: linear-gradient(#F4F7FA, #B5BFCB); color: #fff; text-shadow: 0 1px 0 #6E7B8A; box-shadow: 0 2px 0 #7D8997; }
+.mh-best-case.m-or .mh-best-et { background: linear-gradient(#FFE58A, #F0B11F); color: #fff; text-shadow: 0 1px 0 #A87700; box-shadow: 0 2px 0 #B98300; }
+.mh-best-r-et.m-argent { color: #8E9AA8; } .mh-best-r-et.m-or { color: #E0A91B; }
+.mh-best-r-deco { display: grid; place-items: center; } .mh-best-r-deco svg { width: 36px; height: 36px; }
+.mh-best-r-deco.m-argent svg { filter: grayscale(1) brightness(1.08) contrast(.95); }
+.mh-best-r-deco.m-or svg { filter: sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.05); }
+.mh-bt.fait.m-argent { background: #E6EBF1; color: #2F3945; } .mh-bt.fait.m-argent .mh-bt-barre b { background: #6E7B8A; } .mh-bt.fait.m-argent .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #6E7B8A; }
+.mh-bt.fait.m-or { background: #FFD45A; color: #3D2A00; } .mh-bt.fait.m-or .mh-bt-barre b { background: #3D2A00; } .mh-bt.fait.m-or .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #A87700; }
+.mh-best-fete.m-argent .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFFFFF 0 45%, #DDE3EA 46% 70%, #EEF2F7 71%); box-shadow: 0 0 0 4px #9AA6B4, 0 8px 24px rgba(110, 123, 138, .35); }
+.mh-best-fete.m-argent .mh-best-fete-pic > b { background: linear-gradient(#F4F7FA, #A9B4C1); box-shadow: 0 3px 0 #6E7B8A; }
+.mh-best-fete.m-or .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFF8D6 0 45%, #FFE07A 46% 70%, #FFF1BF 71%); box-shadow: 0 0 0 4px #E0A91B, 0 8px 24px rgba(224, 169, 27, .45); }
+.mh-best-fete.m-or .mh-best-fete-pic > b { background: linear-gradient(#FFE58A, #E9A714); box-shadow: 0 3px 0 #A87700; }
 @media (prefers-reduced-motion: reduce) { .mh-bt.mh-bt-vu, .mh-best-fete-pic { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .mh-bulle.presse, .mh-monstre, #hantee .carte.pq[data-mh~="voulu"] .icone, .mh-halo, .mh-dodo { animation: none; } .mh-flotte { animation-duration: 1.6s; } }
 /* les prix en bonbons : le nombre et un petit bonbon emballé (pas d'emoji : une image SVG en fond, au trait du jeu) */

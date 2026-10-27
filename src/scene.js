@@ -298,14 +298,15 @@ const SCENE = (() => {
     // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
     // (le néon remonte au-dessus des bocaux du bestiaire quand l'étagère est là aussi : même fenêtre ; dans la boutique hantée, pas de néon)
-    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
+    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire || HDECO['bestiaire-argent'] || HDECO['bestiaire-or'] ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
     // le chien : couché dans son coin, SAUF quand il est le compagnon de la boutique (« chien-quartier », GAME.COMPAGNONS) : c'est le même
     // chien, il s'est levé pour te suivre ; pas deux chiens identiques dans la salle. Un autre compagnon choisi : il retourne se coucher.
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
     // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (htDeco(id) && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
-    // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques
-    { id: 'ht-bestiaire', cle: () => (HDECO.bestiaire && MEUBLES.bocaux ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c) },
+    // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques ;
+    // les neuf sortes en argent ('bestiaire-argent'), puis en or ('bestiaire-or') : la même étagère, à la teinte du plus beau métal gagné
+    { id: 'ht-bestiaire', cle: () => (!MEUBLES.bocaux ? null : HDECO['bestiaire-or'] ? 'or' : HDECO['bestiaire-argent'] ? 'argent' : HDECO.bestiaire ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c, k) },
     // la lanterne de la légende (le 20e palier de la Maison hantée) : seulement gagnée, dans les deux boutiques, comme l'étagère aux bocaux
     { id: 'ht-legende', cle: () => (HDECO.legende && MEUBLES.lanterneLegende ? '1' : null), faire: (k, c) => MEUBLES.lanterneLegende(c) },
     // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
@@ -341,7 +342,7 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, 'bestiaire-argent': false, 'bestiaire-or': false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -936,6 +937,7 @@ const SCENE = (() => {
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
+    get teinteBocaux() { const k = groupes['ht-bestiaire'] ? String(cles['ht-bestiaire'] || '').split('|')[0] : ''; return k === '1' ? 'bronze' : k || null; }, // l'étagère du bestiaire posée : 'bronze', 'argent', 'or' (null : pas posée ; pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
     get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
     precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite

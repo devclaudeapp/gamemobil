@@ -42,7 +42,8 @@
    de présence s'endort sans toucher (toucher, eveil, presence), les clients-monstres (servir), les fournées parfaites (parfait), les
    apparitions (attraper(q, id)), les commandes de la nuit (livrerCommande) ; FICHE.manoir, leurs mots ; SORTES, les neuf clients.
    Lot 6, le bestiaire (20 octobre) : les clients-monstres servis remplissent un bestiaire (BESTIAIRE, bestiaire, verserBestiaire, plus bas) ;
-   dix servis d'une sorte la complètent (des étoiles pour la boulangerie), cinq sortes : un décor pour la boutique, les neuf : la chauve-souris. */
+   dix servis d'une sorte la complètent (des étoiles pour la boulangerie), cinq sortes : un décor pour la boutique, les neuf : la chauve-souris.
+   Le 27 octobre, les paliers d'argent et d'or de chaque sorte (BESTIAIRE.argent, BESTIAIRE.or) : des étoiles encore, et deux étagères. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
   else root.HANTEE = factory(root.ACTIVITES);
@@ -373,6 +374,23 @@
   //      boutique (q.decos : 'bestiaire', l'étagère aux bocaux de monstres, posée comme ceux des paliers) ; aux neuf, le compagnon
   //      chauve-souris (q.chauvesouris : GAME.COMPAGNONS, « chauve-souris », le lit). Aucun bonbon : l'enveloppe du serveur ne bouge pas.
   //      Vieille sauvegarde : q.bestiaire absent → vide (rien n'est inventé ; les servis d'avant ne comptent pas).
+  //      Les paliers d'ARGENT et d'OR (27 octobre, le bestiaire fini en trois heures par les plus mordus) : ce qui précède devient le BRONZE,
+  //      inchangé (q.bestiaireFaits reste sa liste : déjà payé, jamais rejoué). q.bestiaire[sorte] n'a jamais été plafonné : les servis
+  //      au-delà de dix comptent. À BESTIAIRE.argent.par servis, la sorte passe en argent (q.bestiaireArgent : +1 ★), à BESTIAIRE.or.par en
+  //      or (q.bestiaireOr : +2 ★), une fois chacune, dans l'ordre (bronze, argent, or) ; comptées dans q.etoiles et q.bestiaireAVerser comme
+  //      le bronze. Les neuf en argent : le décor 'bestiaire-argent' (l'étagère aux bocaux d'argent) ; les neuf en or : 'bestiaire-or'
+  //      (l'étagère dorée, qui remplace l'autre dans la boutique). Toujours aucun bonbon : l'enveloppe du serveur ne bouge pas. Vieille
+  //      sauvegarde : les deux listes absentes → vides ; une sorte déjà au-delà du seuil est payée au prochain client servi.
+  //      Les seuils, réglés par la simulation (simuler : parJour[j].bestiaire, les servis par sorte au soir ; graines 1 à 8, mesuré le 27 octobre) :
+  //      · argent à 30 : le quotidien a les neuf le 6e jour (graines 1 à 6) ou le 5e (7 et 8) ; à 35, le 6e ou le 7e ; à 40, le 7e ou jamais.
+  //        L'assidu les a le 2e ou le 3e jour ; l'occasionnel finit entre 10 et 28 servis par sorte (le bronze des neuf du 4e au 7e jour,
+  //        aucun argent) ;
+  //      · or à 140 : l'assidu finit avec 1 à 5 sortes en or (115 à 160 servis par sorte au dernier soir ; à 120 il en aurait 7 à 9, à 150
+  //        de 0 à 3) ; le quotidien, aucune (40 à 60 par sorte).
+  //        Le très actif de la simulation (8 h par jour, chaque client servi 2 s après son arrivée : près de 250 clients à l'heure, 1 300 à
+  //        1 450 par sorte en sept jours) a l'or des neuf dès le 2e jour : le tenir jusqu'au 6e voudrait un or vers 1 200, hors d'atteinte
+  //        de tous les autres profils. Le joueur réel qui a fini le bronze en 3 h (une cinquantaine de clients à l'heure) mettrait environ
+  //        35 h de jeu pour l'or des neuf.
   // L'état : q.manoir = { graine, tirages, file, prochainClient, seqClient, apps, prochaineApp, seqApp, serie, commande, prochaineCommande,
   // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées, et
   // minParfaits, leurs minutes),
@@ -389,7 +407,9 @@
   const COMMANDES = { durees: [5, 10, 15], part: 0.12, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 18, parJour: 120 };
   const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
   const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
-  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'bestiaire', compagnon: 9 }; // etoiles : par rang de la sorte complétée (11 en tout)
+  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'bestiaire', compagnon: 9, // le bronze. etoiles : par rang de la sorte complétée (11 en tout)
+    argent: { par: 30, etoiles: 1, deco: 'bestiaire-argent', liste: 'bestiaireArgent' }, or: { par: 140, etoiles: 2, deco: 'bestiaire-or', liste: 'bestiaireOr' } }; // les paliers d'après (par sorte ; les seuils : voir plus haut)
+  const MEDAILLES = ['argent', 'or']; // (après le bronze, dans l'ordre)
   const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
   function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
   const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0, minParfaits: 0 }); // (parfaits : des fournées ; minParfaits : ce qu'elles ont payé, en minutes)
@@ -421,7 +441,9 @@
     const b = q.bestiaire && typeof q.bestiaire === 'object' && !Array.isArray(q.bestiaire) ? q.bestiaire : (q.bestiaire = {});
     for (const k of Object.keys(b)) if (!SORTES.includes(k)) delete b[k];
     for (const k of SORTES) b[k] = Number.isFinite(b[k]) && b[k] > 0 ? Math.floor(b[k]) : 0;
-    const vus = new Set(); q.bestiaireFaits = (Array.isArray(q.bestiaireFaits) ? q.bestiaireFaits : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true));
+    const propre = (l) => { const vus = new Set(); return (Array.isArray(l) ? l : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true)); };
+    q.bestiaireFaits = propre(q.bestiaireFaits);
+    for (const m of MEDAILLES) q[BESTIAIRE[m].liste] = propre(q[BESTIAIRE[m].liste]); // l'argent et l'or (une vieille sauvegarde : vides)
     if (!(q.bestiaireAVerser >= 0) || !Number.isFinite(q.bestiaireAVerser)) q.bestiaireAVerser = 0;
     q.chauvesouris = q.chauvesouris === true;
     return b;
@@ -485,11 +507,16 @@
   }
 
   // ─── 6. le bestiaire ───
-  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, rang, etoiles, deco, compagnon } }
+  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, palier, rang, etoiles, deco, compagnon }, completes, prochain, depuis, medaille }
     const b = reparerBestiaire(q); if (!SORTES.includes(sorte)) return null;
     b[sorte]++;
     const dus = bestiaireDus(q);
-    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus };
+    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus, ...paliersSorte(q, sorte) };
+  }
+  function paliersSorte(q, k) { // où en est une sorte : { medaille (null | 'bronze' | 'argent' | 'or'), depuis (le seuil passé), prochain (le seuil visé ; null : l'or) }
+    const medaille = q.bestiaireOr.includes(k) ? 'or' : q.bestiaireArgent.includes(k) ? 'argent' : q.bestiaireFaits.includes(k) ? 'bronze' : null;
+    const seuils = { bronze: BESTIAIRE.par, argent: BESTIAIRE.argent.par, or: BESTIAIRE.or.par };
+    return { medaille, depuis: medaille ? seuils[medaille] : 0, prochain: medaille === 'or' ? null : medaille === 'argent' ? seuils.or : medaille === 'bronze' ? seuils.argent : seuils.bronze };
   }
   function bestiaireDus(q) { // les sortes arrivées à BESTIAIRE.par et pas encore payées : payées ici, une fois, dans l'ordre (q.bestiaireFaits fait foi)
     const b = reparerBestiaire(q), dus = [];
@@ -497,17 +524,31 @@
       if (b[k] < BESTIAIRE.par || q.bestiaireFaits.includes(k)) continue;
       q.bestiaireFaits.push(k); const rang = q.bestiaireFaits.length, et = BESTIAIRE.etoiles[rang - 1] || 1;
       q.etoiles = (q.etoiles || 0) + et; q.bestiaireAVerser += et; // (le bilan, et ce que l'écran doit verser dans la boulangerie)
-      const x = { sorte: k, rang, etoiles: et, deco: null, compagnon: false };
+      const x = { sorte: k, palier: 'bronze', rang, etoiles: et, deco: null, compagnon: false };
       if (rang === BESTIAIRE.deco && !q.decos.includes(BESTIAIRE.decoId)) { q.decos.push(BESTIAIRE.decoId); x.deco = BESTIAIRE.decoId; }
       if (rang === BESTIAIRE.compagnon && !q.chauvesouris) { q.chauvesouris = true; x.compagnon = true; }
       note(q, `Bestiaire : ${NOMS_COURTS[k]}, ${rang}/${SORTES.length} sortes, +${et} ★`);
       dus.push(x);
     }
+    for (const m of MEDAILLES) { // l'argent puis l'or : chaque sorte arrivée au seuil, une fois (sa liste fait foi) ; les neuf : l'étagère de ce métal
+      const P = BESTIAIRE[m], l = q[P.liste];
+      for (const k of SORTES) {
+        if (b[k] < P.par || l.includes(k) || (m === 'or' && !q.bestiaireArgent.includes(k)) || !q.bestiaireFaits.includes(k)) continue;
+        l.push(k); const rang = l.length;
+        q.etoiles = (q.etoiles || 0) + P.etoiles; q.bestiaireAVerser += P.etoiles;
+        const x = { sorte: k, palier: m, rang, etoiles: P.etoiles, deco: null, compagnon: false };
+        if (rang === SORTES.length && !q.decos.includes(P.deco)) { q.decos.push(P.deco); x.deco = P.deco; }
+        note(q, `Bestiaire : ${NOMS_COURTS[k]} en ${m}, ${rang}/${SORTES.length}, +${P.etoiles} ★`);
+        dus.push(x);
+      }
+    }
     return dus;
   }
-  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait }], faits, total (9), deco, chauvesouris, aVerser }
-    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k) }));
-    return { sortes, faits: q.bestiaireFaits.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId), chauvesouris: q.chauvesouris, aVerser: q.bestiaireAVerser };
+  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait (le bronze), servis (le compte entier), medaille, depuis, prochain }],
+    // faits (le bronze), argent, or (combien de sortes), total (9), deco, decoArgent, decoOr, chauvesouris, aVerser }
+    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k), servis: b[k], ...paliersSorte(q, k) }));
+    return { sortes, faits: q.bestiaireFaits.length, argent: q.bestiaireArgent.length, or: q.bestiaireOr.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId),
+      decoArgent: q.decos.includes(BESTIAIRE.argent.deco), decoOr: q.decos.includes(BESTIAIRE.or.deco), chauvesouris: q.chauvesouris, aVerser: q.bestiaireAVerser };
   }
   function verserBestiaire(q) { reparerBestiaire(q); const n = q.bestiaireAVerser; q.bestiaireAVerser = 0; return n; } // les étoiles du bestiaire, à verser dans la boulangerie (l'écran)
 
@@ -624,7 +665,7 @@
     return p;
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
-  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', legende: 'la lanterne de la légende' };
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', 'bestiaire-argent': 'l’étagère aux bocaux d’argent (le bestiaire)', 'bestiaire-or': 'l’étagère dorée aux bocaux (le bestiaire)', legende: 'la lanterne de la légende' };
   const NOMS_AURAS = { lueur: 'l’aura phosphorescente' }, NOMS_DISTINCTIONS = { 'legende-manoir': 'le titre « Légende du Manoir »' }; // le 20e palier (src/game.js : AURAS, DISTINCTIONS)
   const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
@@ -792,7 +833,7 @@
         }
         q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations } });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations }, bestiaire: { ...reparerBestiaire(q) } }); // (bestiaire : les servis par sorte au soir, pour régler les paliers d'argent et d'or)
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -860,9 +901,12 @@
         commandeLivree: (m) => `Commande livrée : +${m}`, commandeRatee: 'Trop tard : la commande est partie chez les voisins.',
         plafond: 'Pour le plaisir : le plein de l’heure est fait',
         // le bestiaire (6) : la carte du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée
-        bestiaire: 'Le bestiaire', bestiaireSous: 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.',
+        // (et, depuis le 27 octobre, les paliers d'argent et d'or de chaque sorte : sa médaille, la fête, les deux étagères)
+        bestiaire: 'Le bestiaire', bestiaireSous: `Sers dix clients de chaque sorte de monstre pour le bronze, ${BESTIAIRE.argent.par} pour l’argent, ${BESTIAIRE.or.par} pour l’or.`,
         bestiaireAvance: (nom, n, par) => `${nom} ${n}/${par}`, bestiaireFait: (nom) => `${nom} rejoint le bestiaire !`,
+        bestiaireMedaille: (nom, m) => `${nom} : médaille ${m === 'or' ? 'd’or' : 'd’argent'} !`, bestiaireMedailles: (n, m) => `${n} monstres en ${m === 'or' ? 'or' : 'argent'} !`,
         bestiaireDeco: 'l’étagère aux bocaux de monstres, accrochée au mur de ta boutique', bestiaireCompagnon: 'Myrtille la chauve-souris, un compagnon pour ta boutique (à choisir dans « Les compagnons »)',
+        bestiaireDecoArgent: 'l’étagère aux bocaux d’argent, pour ta boutique', bestiaireDecoOr: 'l’étagère dorée, qui remplace l’autre dans ta boutique',
       },
     },
     // les activités (src/activites.js) : l'habillage d'Halloween ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)

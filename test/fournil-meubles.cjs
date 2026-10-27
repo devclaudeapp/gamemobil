@@ -304,6 +304,14 @@ const server = http.createServer((req, res) => {
     await page.screenshot({ path: path.join(out, 'decos-hantee-eco.png') });
     await page.screenshot({ path: path.join(out, 'bocaux-eco.png'), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
     if (out3) { fs.copyFileSync(path.join(out, 'decos-hantee-eco.png'), path.join(out3, 'bestiaire-decor-boutique.png')); fs.copyFileSync(path.join(out, 'bocaux-eco.png'), path.join(out3, 'bestiaire-decor.png')); }
+    // le bestiaire continue (27 octobre) : les neuf en argent, puis en or : la même étagère, à la teinte du plus beau métal gagné (l'or
+    // remplace l'argent, qui remplaçait le bronze), toujours un seul appel de dessin
+    for (const [l, t] of [[['bestiaire', 'bestiaire-argent'], 'argent'], [['bestiaire', 'bestiaire-argent', 'bestiaire-or'], 'or']]) {
+      await ev((x) => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille'].concat(x)), l); await sleep(1500); const m = await appels(), te = await ev(() => window.__fournil.SCENE.teinteBocaux);
+      check(te === t && m.bocaux === 1 && m.decor === aph.decor, `les neuf en ${t} : l’étagère ${t === 'or' ? 'dorée' : 'aux bocaux d’argent'} à la place (teinte ${te}), ${m.decor} appels (${m.bocaux} pour elle, comme le bronze)`);
+      await page.screenshot({ path: path.join(out, `bocaux-${t}-eco.png`), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
+      if (out3) fs.copyFileSync(path.join(out, `bocaux-${t}-eco.png`), path.join(out3, `bestiaire-decor-${t}.png`));
+    }
     // les acharnés (lot 6) : la lanterne de la légende (le 20e palier de la Maison hantée), seule puis avec toutes les autres : deux appels de plus
     const appelsL = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, lanterne: a['ht-legende'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
     await ev(() => window.__fournil.SCENE.decosHantee(['legende'])); await sleep(1500); const leg = await appelsL();

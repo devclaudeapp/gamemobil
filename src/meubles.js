@@ -775,16 +775,25 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // une planche en rebord de la fenêtre (au-dessus du four : le milieu du mur passe sous l'enseigne de la boutique), quatre bocaux au couvercle de couleur, un petit monstre dans chacun (un fantôme, une
   // tête-citrouille, une chauve-souris, un crâne), leur étiquette. Un seul appel de dessin (le budget de la boutique) : le verre n'est pas
   // transparent, c'est le fond du bocal (un demi-cylindre bleuté, aplati contre le mur) avec ses deux cerclages et un reflet ; le petit
-  // monstre est posé devant, dedans
-  function bocaux(c) {
+  // monstre est posé devant, dedans.
+  // teinte : 'argent' (les neuf sortes en argent, q.decos 'bestiaire-argent') ou 'or' (les neuf en or, 'bestiaire-or' : elle remplace
+  // l'autre) : la même étagère, mêmes pièces, mêmes bocaux et mêmes petits monstres, la planche, les équerres, les couvercles et les
+  // cerclages dans ce métal (les couleurs des sommets : toujours un seul appel de dessin)
+  const TEINTES_BOCAUX = {
+    argent: { bois: '#B9C3CF', couv: ['#E3E9F0', '#C9D2DD', '#E3E9F0', '#C9D2DD'], cercle: '#F2F5F9', fond: '#D9E6F2' },
+    or: { bois: '#D9A62E', couv: ['#FFD45A', '#F2B937', '#FFD45A', '#F2B937'], cercle: '#FFE58A', fond: '#F4ECD2' },
+  };
+  function bocaux(c, teinte) {
+    const T = TEINTES_BOCAUX[teinte] || null;
     const f = c.LAY.fenetre, K = c.K, g = grp('bocaux'), pr = [], n = 4, ys = f.y + f.h + 1, Yp = murY(c, ys);
     const cx = f.x + f.w / 2, w = f.w - 6, pas = w / n, r = Math.min(6.4 * K, pas * 0.36), hj = c.wy(17), Q = c.Q;
-    pr.push(P(bo(w, 2.4, 10, 0.8), Q.bois, { x: cx, y: Yp - 2.4, z: 5.5 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx - w / 2 + 4, y: Yp - 8, z: 3.2 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx + w / 2 - 4, y: Yp - 8, z: 3.2 })); // la planche, ses deux équerres
-    const couv = ['#8E5CF7', '#FF8A1F', '#5FD3A4', '#E1496C'];
+    const bois = T ? T.bois : Q.bois, fond = T ? T.fond : '#CFE3F4', cercle = T ? T.cercle : '#A9C8E2';
+    pr.push(P(bo(w, 2.4, 10, 0.8), bois, { x: cx, y: Yp - 2.4, z: 5.5 }), P(bo(2, 6, 6, 0.6), bois, { x: cx - w / 2 + 4, y: Yp - 8, z: 3.2 }), P(bo(2, 6, 6, 0.6), bois, { x: cx + w / 2 - 4, y: Yp - 8, z: 3.2 })); // la planche, ses deux équerres
+    const couv = T ? T.couv : ['#8E5CF7', '#FF8A1F', '#5FD3A4', '#E1496C'];
     for (let i = 0; i < n; i++) {
       const x = cx - w / 2 + pas * (i + 0.5), z = 5.5, y0 = Yp, ym = y0 + hj * 0.42, rm = r * 0.55;
-      pr.push(P(M.cylindre(r, r, hj, 12), '#CFE3F4', { x, y: y0 + hj / 2, z: z - r * 0.45, sz: 0.55 }), P(M.sphere(r, 12), '#CFE3F4', { x, y: y0 + hj, z: z - r * 0.45, sy: 0.35, sz: 0.55 }), // le fond du bocal (son épaule arrondie)
-        P(M.tore(r, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + 0.5, z, rx: HP }), P(M.tore(r * 0.86, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + hj + 0.4, z, rx: HP }), // ses deux cerclages
+      pr.push(P(M.cylindre(r, r, hj, 12), fond, { x, y: y0 + hj / 2, z: z - r * 0.45, sz: 0.55 }), P(M.sphere(r, 12), fond, { x, y: y0 + hj, z: z - r * 0.45, sy: 0.35, sz: 0.55 }), // le fond du bocal (son épaule arrondie)
+        P(M.tore(r, 0.45, TAU, 5, 14), cercle, { x, y: y0 + 0.5, z, rx: HP }), P(M.tore(r * 0.86, 0.45, TAU, 5, 14), cercle, { x, y: y0 + hj + 0.4, z, rx: HP }), // ses deux cerclages
         P(bo(0.9, hj * 0.55, 0.4, 0.2), '#FFFFFF', { x: x - r * 0.6, y: y0 + hj * 0.55, z: z + r * 0.75 })); // un reflet
       pr.push(P(M.cylindre(r * 0.82, r * 0.82, 2.2, 12), couv[i], { x, y: y0 + hj + 1.2, z }), P(M.sphere(0.9, 6), couv[i], { x, y: y0 + hj + 2.6, z })); // le couvercle et son bouton
       pr.push(P(bo(r * 1.1, c.wy(3.4), 0.5, 0.2), '#FFF3DC', { x, y: y0 + hj * 0.18, z: z + r + 0.2 })); // l'étiquette

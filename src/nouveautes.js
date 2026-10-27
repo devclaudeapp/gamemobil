@@ -16,6 +16,13 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-27-b', date: '2026-10-27', titre: 'Le bestiaire continue : paliers d’argent et d’or',
+      points: [
+        'Le bestiaire du Manoir ne s’arrête plus à dix : chaque monstre a maintenant sa médaille de bronze (dix servis, comme avant), d’argent (30 servis) et d’or (140 servis). Tes clients déjà servis comptent.',
+        'Chaque médaille d’argent rapporte une étoile à ta boulangerie, chaque médaille d’or deux. Les neuf en argent : une étagère aux bocaux d’argent ; les neuf en or : l’étagère dorée, pour ta boutique, à vie.',
+      ],
+    },
+    {
       id: '2026-10-27-a', date: '2026-10-27', titre: 'La Maison hantée est ouverte',
       points: [
         'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',

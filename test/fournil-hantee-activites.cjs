@@ -16,7 +16,9 @@
 //   la scène baisse, « ×1 » ; un toucher sur la scène, et tout revient ;
 // · le bestiaire : chaque client servi fait avancer sa sorte (un petit mot sur la scène, « Zombie 4/10 », la carte du tiroir) ; une sorte
 //   complétée (la sauvegarde préparée : la 5e) : la feuille de fête, les étoiles versées une fois dans la boulangerie, le décor posé ; la
-//   feuille du bestiaire (les neuf, « 3/10 », les récompenses) ; en éco, la 9e : la chauve-souris, choisie depuis la fête ;
+//   feuille du bestiaire (les neuf, « 3/10 », les récompenses) ; en éco, la 9e : la chauve-souris, choisie depuis la fête ; puis l'argent
+//   (le bronze 9/9 fini, le 30e servi d'une sorte) : la fête d'argent, la carte « Bronze 9/9 · Argent 1/9 · Or 0/9 », la feuille (la
+//   médaille de chaque portrait, « 30/140 », les étagères d'argent et d'or) ;
 // · les bulles : leur pointe montre la tête de leur monstre (même écartées), et elles ne passent jamais sous l'en-tête (borne haute) ;
 // · la colonne des activités (Mini-jeux, Contrats et sa pastille, Opération, de haut en bas, 44 px au moins), en haut à droite de la scène :
 //   elle ne cache ni la file, ni les bulles, ni la bannière d'un coup de pouce (en 390 × 844 comme en 360 × 640) ; le tiroir des cartes :
@@ -339,6 +341,35 @@ function faux(d) {
         await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
+
+    // ─── le bestiaire continue (27 octobre) : la sauvegarde préparée, le bronze 9/9 fini, des servis au-delà de dix ; le 30e servi d'une
+    //     sorte : sa médaille d'argent (la fête, l'étoile), la carte « Bronze 9/9 · Argent 1/9 · Or 0/9 », la feuille (la médaille, « 30/140 »)
+    { const SA = 'momie';
+      await ev((sa) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); const cpt = [29, 12, 25, 10, 17, 22, 14, 11, 19];
+        F.HT.SORTES.forEach((k, i) => { q.bestiaire[k] = k === sa ? 29 : cpt[i]; }); q.bestiaireFaits = F.HT.SORTES.slice(); q.bestiaireArgent = []; q.bestiaireOr = []; q.bestiaireAVerser = 0;
+        if (!q.decos.includes('bestiaire')) q.decos.push('bestiaire'); q.bestiaire.squelette = 28; F.save(); }, SA);
+      const carte0 = await attendre(() => ev(() => { const x = document.querySelector('#ht-bestiaire .mh-best-meds'); return x && /Bronze 9\/9/.test(x.textContent) ? x.textContent.replace(/\s+/g, ' ').trim() : null; }), 4000);
+      check(carte0 === 'Bronze 9/9 · Argent 0/9 · Or 0/9', `la carte du tiroir : « ${carte0} »`);
+      const r = await ev((sa) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), id = 880101; q.manoir.file = q.manoir.file.slice(0, 2); q.manoir.file.push({ id, sorte: sa, commande: [{ i: 0, n: 1, servi: false }], arrive: q.now });
+        const e0 = F.st.etoiles, r = F.evHantee.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, argent: q.bestiaireArgent.slice(), mot: F.evHantee.act.etat().mot }; }, SA);
+      const fa = await attendre(() => ev(() => { const x = document.querySelector('#feuille:not([hidden]) [data-bestiaire-fete][data-palier="argent"]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 6000);
+      check(r.c && r.c.palier === 'argent' && r.c.rang === 1 && r.de === 1 && r.argent.join() === SA && /30\/30/.test(r.mot), `le 30e (la momie) : la médaille d’argent, +1 étoile versée dans la boulangerie ; le petit mot « ${r.mot} »`);
+      check(!!fa && fa.sorte === SA && /médaille d’argent/.test(fa.txt) && /1\/9 monstres en argent/.test(fa.txt) && /\+1 étoile/.test(fa.txt), `la fête d’argent : « ${fa && fa.txt.slice(0, 110)}… »`);
+      await sleep(900); await shot(page, `${qual}-bestiaire-fete-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete-argent.png`), path.join(out3, 'bestiaire-fete-argent.png'));
+      if (fa) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evHantee.act.feuilleBestiaire());
+      const fe = await ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { sous: x.querySelector('.sous').innerText.replace(/\s+/g, ' '), cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, med: c.dataset.medaille || '', txt: c.innerText.replace(/\s+/g, ' ').trim() })), paliers: [...x.querySelectorAll('.mh-best-paliers li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })), anciens: x.querySelectorAll('.mh-best-recomp li').length } : null; });
+      const cm = fe && fe.cases.find((c) => c.sorte === SA), csq = fe && fe.cases.find((c) => c.sorte === 'squelette');
+      check(fe && cm && cm.med === 'argent' && /30\/140/.test(cm.txt) && csq && csq.med === 'bronze' && /28\/30/.test(csq.txt) && fe.cases.filter((c) => c.med === 'bronze').length === 8 && /Argent 1\/9/.test(fe.sous) && /30 pour l’argent, 140 pour l’or/.test(fe.sous),
+        `la feuille : la momie en argent (« ${cm && cm.txt} »), le squelette en bronze vers l’argent (« ${csq && csq.txt} ») ; « ${fe && fe.sous} »`);
+      check(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /bocaux d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait),
+        `les étagères : ${fe && fe.paliers.map((l) => l.txt).join(' | ')}`);
+      await sleep(300); await shot(page, `${qual}-bestiaire-feuille-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-argent.png`), path.join(out3, 'bestiaire-feuille-argent.png'));
+      if (out3 && qual === 'haute') { await ev(() => { const l = document.querySelector('#feuille .mh-best-paliers'); if (l) l.scrollIntoView({ block: 'center' }); }); await sleep(400); await shot(page, `${qual}-bestiaire-feuille-etageres`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-etageres.png`), path.join(out3, 'bestiaire-feuille-etageres.png')); }
+      await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(500);
+      const carte1 = await attendre(() => ev((sa) => { const x = document.querySelector('#ht-bestiaire'), m = x && x.querySelector(`.mh-best-mini i[data-sorte="${sa}"]`); return x && m && /Argent 1\/9/.test(x.textContent) ? { meds: x.querySelector('.mh-best-meds').textContent.replace(/\s+/g, ' ').trim(), cls: m.className } : null; }, SA), 4000);
+      check(carte1 && carte1.meds === 'Bronze 9/9 · Argent 1/9 · Or 0/9' && /\bm-argent\b/.test(carte1.cls), `la carte : « ${carte1 && carte1.meds} », la miniature de la momie cerclée d’argent (${carte1 && carte1.cls})`);
+      if (out3 && qual === 'haute') { await ev(() => document.querySelector('#ht-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte-argent`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte-argent.png`), path.join(out3, 'bestiaire-carte-argent.png')); }
+      await sleep(300); }
 
     // ─── un coup de pouce sous un mini-jeu : en pause selon le vrai temps. Des images espacées de 0,8 s (l'horloge avancée à chaque image,
     //     comme un téléphone qui rame : ui.js plafonne son dt à 0,25 s) ; l'échéance recule d'autant, le temps restant ne bouge pas ───
