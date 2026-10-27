@@ -292,8 +292,8 @@ const EVENEMENTS = (() => {
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); if (!miniOuvert()) placerAct(); }
-      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée)
-        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
+      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée ; l'écran non plus)
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (el.scrollTop || el.scrollLeft) { el.scrollTop = 0; el.scrollLeft = 0; } if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
@@ -675,10 +675,11 @@ const EVENEMENTS = (() => {
       barreAct = document.createElement('div'); barreAct.className = 'pq-act'; barreAct.setAttribute('role', 'group'); barreAct.setAttribute('aria-label', 'Les activités');
       barreAct.innerHTML = [['mini', t.mini], ['contrats', t.contrats], ['operation', t.operation]].map(([k, nom]) => `<button type="button" class="pq-act-btn" data-act="${k}"><span class="pq-act-ico">${icoAct(k)}</span><span class="pq-act-txt"><b>${esc(nom)}</b><small></small></span>${k === 'contrats' ? '<i class="pq-pastille" hidden></i>' : ''}</button>`).join('');
       el.querySelector('.pq-scene').appendChild(barreAct);
-      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée) ; et seul un toucher commencé
-      // sur la colonne l'ouvre (une apparition attrapée à travers elle, .pq-traverse, ne déclenche pas le bouton revenu dessous au lâcher)
+      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée)… sauf là où une apparition passe
+      // sous le bouton (.pq-traverse, ou act.sousDoigt : on vise l'apparition, la scène la reçoit, et le bouton ne s'ouvre pas au lâcher) ; seul un toucher commencé
+      // sur la colonne l'ouvre
       let appuiAct = -1e9;
-      barreAct.addEventListener('pointerdown', (e) => { e.stopPropagation(); appuiAct = performance.now(); });
+      barreAct.addEventListener('pointerdown', (e) => { const b = e.target.closest('.pq-act-btn'), vise = !!(act && act.sousDoigt && act.sousDoigt(e.clientX, e.clientY)); if (vise || (b && b.classList.contains('pq-traverse'))) { appuiAct = -1e9; return; } e.stopPropagation(); appuiAct = performance.now(); }); // (sousDoigt d'abord : le repli en images attrape là)
       barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (e.detail !== 0 && performance.now() - appuiAct > 1500) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
       mv = document.createElement('div'); mv.className = 'pq-mini'; mv.hidden = true; mv.setAttribute('role', 'dialog'); mv.setAttribute('aria-modal', 'true');
       mv.innerHTML = `<div class="at-haut"><button type="button" class="at-fermer" data-mini="fermer" aria-label="Quitter le mini-jeu"><i class="ico">${(ICONS.UI && ICONS.UI.fermer) || '×'}</i></button><div class="at-titre"><b data-mini="titre"></b><small data-mini="sous"></small></div><b class="at-chrono" data-mini="chrono" hidden></b></div>

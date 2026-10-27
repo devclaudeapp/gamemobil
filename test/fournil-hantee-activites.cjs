@@ -422,10 +422,11 @@ function faux(d) {
       check(vus.length === 0, `pendant le Manoir, rien de l’interface de la boulangerie ne se voit (barre du haut, onglets, tiroir, coin)${vus.length ? ' : ' + vus.map((x) => x.s).join(', ') : ''}`);
       const avant = await geo();
       await ev(() => { document.querySelector('#ht-cartes').scrollTop = 500; window.scrollTo(0, 400); document.scrollingElement.scrollTop = 400; document.body.scrollTop = 400; });
-      await page.mouse.move(200, 300); await page.mouse.wheel(0, 600); await glisser(200, 300, 120); await sleep(500);
-      const apres = await geo(), page0 = await ev(() => ({ y: window.scrollY, s: document.scrollingElement.scrollTop, b: document.body.scrollTop }));
-      check(Math.abs(apres.scene.h - avant.scene.h) < 1 && Math.abs(apres.solde.h - avant.solde.h) < 1 && Math.abs(apres.tiroir.h - avant.tiroir.h) < 1 && !page0.y && !page0.s && !page0.b && apres.defile > 0,
-        `la liste défile (${Math.round(apres.defile)} px), mais ni la page (${page0.y}, ${page0.s}, ${page0.b}), ni la scène (${Math.round(avant.scene.h)} → ${Math.round(apres.scene.h)}), ni le solde, ni le tiroir ne bougent`);
+      await page.mouse.move(200, 300); await page.mouse.wheel(0, 600); await glisser(200, 300, 120);
+      await ev(() => { const l = document.querySelectorAll('#ht-cartes .carte'); l[l.length - 1].scrollIntoView({ block: 'end' }); }); await sleep(500); // (un scrollIntoView ne décale pas l'écran tout entier)
+      const apres = await geo(), page0 = await ev(() => ({ y: window.scrollY, s: document.scrollingElement.scrollTop, b: document.body.scrollTop, e: document.querySelector('#hantee').scrollTop }));
+      check(Math.abs(apres.scene.h - avant.scene.h) < 1 && Math.abs(apres.solde.h - avant.solde.h) < 1 && Math.abs(apres.tiroir.h - avant.tiroir.h) < 1 && !page0.y && !page0.s && !page0.b && !page0.e && apres.defile > 0,
+        `la liste défile (${Math.round(apres.defile)} px), mais ni la page (${page0.y}, ${page0.s}, ${page0.b}, l’écran ${page0.e}), ni la scène (${Math.round(avant.scene.h)} → ${Math.round(apres.scene.h)}), ni le solde, ni le tiroir ne bougent`);
       await shot(page, `${qual}-liste-defilee`);
       await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await sleep(200);
     }

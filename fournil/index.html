@@ -790,7 +790,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ticket.boosts .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
 .ticket.boosts.actif .tk-pill { background: var(--menthe); color: #fff; font-variant-numeric: tabular-nums; }
 .ticket.boosts.actif > .ico { background: #E3F7EE; }
-:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
+:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; overflow: clip; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
 :is(#planque, #hantee) .at-haut { padding-bottom: 2px; }
 :is(#planque, #hantee) .at-fermer { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
 :is(#planque, #hantee) .at-fermer svg { stroke: #fff; }
@@ -841,6 +841,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 :is(#planque, #hantee)[data-ecran="porte"] .pq-solde, :is(#planque, #hantee)[data-ecran="porte"] .pq-scene, :is(#planque, #hantee)[data-ecran="porte"] .pq-barre, :is(#planque, #hantee)[data-ecran="porte"] .pq-paliers-btn,
 :is(#planque, #hantee)[data-ecran="bilan"] .pq-solde, :is(#planque, #hantee)[data-ecran="bilan"] .pq-scene, :is(#planque, #hantee)[data-ecran="bilan"] .pq-barre { display: none; }
 :is(#planque, #hantee)[data-ecran="porte"] :is(#pq-cartes, #ht-cartes), :is(#planque, #hantee)[data-ecran="bilan"] :is(#pq-cartes, #ht-cartes) { display: none; }
+/* (l'écran rogne ce qui dépasse, overflow: clip : jamais un conteneur qu'on fait défiler ; un scrollIntoView le décalait tout entier vers
+   le haut, le bouton fermer hors de l'écran. Les vieux Safari, sans clip : src/evenement.js le remet en place à chaque image) */
 /* le tiroir (src/evenement.js, tiroir) : le bas de l'écran (la barre, les cartes) monte au doigt par-dessus la scène jusque sous le solde. Sa
    marge du haut (--pq-tiroir-m) le pose au repos ; pendant la course, une translation, et son dessous (::after) comble le bas de l'écran */
 .pq-tiroir { position: relative; z-index: 1; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; margin-top: var(--pq-tiroir-m, 0px); background: #2E2B3A; border-radius: 22px 22px 0 0;
@@ -1698,8 +1700,8 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt b { white-space: nowrap; } /* (la bannière plus étroite : son titre sur une ligne, son détail sur deux) */
 .pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt > span { -webkit-line-clamp: 2; }
 #hantee.ht-boutique { --pq-scene-haut: 20px; } /* la boutique hantée : le haut de la scène passe sous le solde */
-.pq-act { transition: opacity .15s ease-out; }
-.pq-act.pq-traverse { opacity: .3; pointer-events: none; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, on l'attrape à travers */
+.pq-act-btn { transition: opacity .15s ease-out; }
+.pq-act-btn.pq-traverse { opacity: .3; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, un toucher sur ce bouton l'attrape */
 .pq-pastille { position: absolute; top: -7px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 13px/22px var(--titre); font-style: normal; text-align: center; box-shadow: 0 2px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
 :is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) .pq-act { display: none; }
 @media (max-height: 760px) { .pq-act { grid-auto-rows: minmax(44px, auto); gap: 4px; } .pq-act-btn { min-height: 44px; padding-block: 3px; } .pq-act-txt small { display: none; } } /* (une scène basse : l'état par la couleur et la pastille) */
@@ -2351,7 +2353,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '8a5772e6cbb7';</script>
+<script>window.FOURNIL_VERSION = 'd1ac7ab3639e';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -15185,14 +15187,20 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   const fache = (id) => { const n = numero(id); return n != null && !!courant && VIE.congedier(n, 'fache'); }; // il repart sans payer
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
-  function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (la plus proche, rayon d'au moins 22 px), un client (44 × 44 au moins), ou le vide
-    if (!cbToucher) return; const x = e.clientX, y = e.clientY;
-    // (une cible qui file : le doigt vise là où il l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes)
+  // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null. Une cible qui file : le doigt vise là où il
+  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (aussi pour un toucher sur la colonne des
+  // activités posée sur la scène : src/hanteeactivites.js, sousDoigt)
+  function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
       const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
+    return best;
+  }
+  function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (viser), un client (44 × 44 au moins), ou le vide
+    if (!cbToucher) return; const x = e.clientX, y = e.clientY;
+    const best = viser(x, y);
     if (best) { cbToucher({ genre: 'apparition', id: best.id }); return; }
     let cl = null, cd = 1e9;
     for (const a of acteurs()) {
@@ -15245,7 +15253,7 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
     };
     courant = s3; return s3;
   }
-  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance, get ouverte() { return !!courant; } };
+  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, vise: (x, y) => !!courant && !!viser(x, y), fete, ambiance, get ouverte() { return !!courant; } };
 })();
 if (typeof module !== 'undefined') module.exports = BOUTIQUE_HANTEE;
 
@@ -15316,7 +15324,7 @@ const HANTEE_ACTIVITES = (() => {
       for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
       if (btEl) { btEl.remove(); btEl = null; }
       lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
-      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) ca.classList.remove('pq-traverse');
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) for (const b of ca.children) b.classList.remove('pq-traverse');
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -15624,14 +15632,22 @@ const HANTEE_ACTIVITES = (() => {
     }
 
     // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ; la colonne des activités (en haut à droite de la
-    //     scène, src/evenement.js) : les bulles passent à sa gauche, et une apparition qui passe dessous la rend transparente au doigt et à
-    //     l'œil (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; on l'attrape à travers ───
-    let tTraverse = -1e9;
+    //     scène, src/evenement.js) : les bulles passent à sa gauche ; une apparition qui passe sous un de ses boutons le rend transparent
+    //     (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; un toucher sur ce bouton-là, ou là où elle passe
+    //     (sousDoigt), va à l'apparition ; ailleurs, il ouvre le bouton ───
+    const tTraverse = new Map(); // bouton de la colonne → l'instant où une apparition était encore dessous
+    function sousDoigt(x, y) { // une apparition sous ce point (le doigt arrive un peu après : 16 px de plus) ? le repli l'attrape ici ; la scène, elle, la reçoit du toucher
+      if (!ouvert) return false;
+      if (mode === 'scene' && B()) return B().vise ? B().vise(x, y) : B().apparitions().some((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 16); // (la même visée que le toucher de la scène)
+      for (const o of apps.values()) if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && x >= b.left - 16 && x <= b.right + 16 && y >= b.top - 16 && y <= b.bottom + 16) { d.audio(); attraper(o.id); return true; } }
+      return false;
+    }
     function image() {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
-      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null;
-      const dessous = (x, y, rr) => !!rc && rc.width > 0 && x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null, tuiles = ca ? [...ca.children].map((b) => [b, b.getBoundingClientRect()]) : [];
+      const dessous = (x, y, rr) => { if (!rc || !(rc.width > 0) || !(x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom)) return false;
+        for (const [b, r] of tuiles) if (x + rr > r.left && x - rr < r.right && y + rr > r.top && y - rr < r.bottom) tTraverse.set(b, performance.now()); return true; };
       if (mode === 'scene' && B()) {
         const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
@@ -15680,10 +15696,10 @@ const HANTEE_ACTIVITES = (() => {
           if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
           if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
           o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
-          if (dessous(p.x, p.y, p.r)) tTraverse = performance.now();
+          dessous(p.x, p.y, p.r);
         }
-      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2)) tTraverse = performance.now(); } }
-      const sous = performance.now() - tTraverse < 400; if (ca && ca.classList.contains('pq-traverse') !== sous) ca.classList.toggle('pq-traverse', sous);
+      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width) dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2); } }
+      for (const [b] of tuiles) { const sous = performance.now() - (tTraverse.get(b) || -1e9) < 400; if (b.classList.contains('pq-traverse') !== sous) b.classList.toggle('pq-traverse', sous); }
     }
 
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───
@@ -15710,7 +15726,7 @@ const HANTEE_ACTIVITES = (() => {
         serie: M ? M.serie : 0, record: M ? M.record || 0 : 0, eveil: Q.presence ? Q.presence(q, maint()) : null,
         bestiaire: Q.bestiaire ? Q.bestiaire(q) : null, fetes: fetes.length, mot: btEl && !btEl.hidden ? btEl.textContent.trim() : '' };
     }
-    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire };
+    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire, sousDoigt };
   }
   return { creer };
 })();
@@ -16010,8 +16026,8 @@ const EVENEMENTS = (() => {
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); if (!miniOuvert()) placerAct(); }
-      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée)
-        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
+      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée ; l'écran non plus)
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (el.scrollTop || el.scrollLeft) { el.scrollTop = 0; el.scrollLeft = 0; } if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
@@ -16393,10 +16409,11 @@ const EVENEMENTS = (() => {
       barreAct = document.createElement('div'); barreAct.className = 'pq-act'; barreAct.setAttribute('role', 'group'); barreAct.setAttribute('aria-label', 'Les activités');
       barreAct.innerHTML = [['mini', t.mini], ['contrats', t.contrats], ['operation', t.operation]].map(([k, nom]) => `<button type="button" class="pq-act-btn" data-act="${k}"><span class="pq-act-ico">${icoAct(k)}</span><span class="pq-act-txt"><b>${esc(nom)}</b><small></small></span>${k === 'contrats' ? '<i class="pq-pastille" hidden></i>' : ''}</button>`).join('');
       el.querySelector('.pq-scene').appendChild(barreAct);
-      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée) ; et seul un toucher commencé
-      // sur la colonne l'ouvre (une apparition attrapée à travers elle, .pq-traverse, ne déclenche pas le bouton revenu dessous au lâcher)
+      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée)… sauf là où une apparition passe
+      // sous le bouton (.pq-traverse, ou act.sousDoigt : on vise l'apparition, la scène la reçoit, et le bouton ne s'ouvre pas au lâcher) ; seul un toucher commencé
+      // sur la colonne l'ouvre
       let appuiAct = -1e9;
-      barreAct.addEventListener('pointerdown', (e) => { e.stopPropagation(); appuiAct = performance.now(); });
+      barreAct.addEventListener('pointerdown', (e) => { const b = e.target.closest('.pq-act-btn'), vise = !!(act && act.sousDoigt && act.sousDoigt(e.clientX, e.clientY)); if (vise || (b && b.classList.contains('pq-traverse'))) { appuiAct = -1e9; return; } e.stopPropagation(); appuiAct = performance.now(); }); // (sousDoigt d'abord : le repli en images attrape là)
       barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (e.detail !== 0 && performance.now() - appuiAct > 1500) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
       mv = document.createElement('div'); mv.className = 'pq-mini'; mv.hidden = true; mv.setAttribute('role', 'dialog'); mv.setAttribute('aria-modal', 'true');
       mv.innerHTML = `<div class="at-haut"><button type="button" class="at-fermer" data-mini="fermer" aria-label="Quitter le mini-jeu"><i class="ico">${(ICONS.UI && ICONS.UI.fermer) || '×'}</i></button><div class="at-titre"><b data-mini="titre"></b><small data-mini="sous"></small></div><b class="at-chrono" data-mini="chrono" hidden></b></div>

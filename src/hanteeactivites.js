@@ -64,7 +64,7 @@ const HANTEE_ACTIVITES = (() => {
       for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
       if (btEl) { btEl.remove(); btEl = null; }
       lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
-      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) ca.classList.remove('pq-traverse');
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) for (const b of ca.children) b.classList.remove('pq-traverse');
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -372,14 +372,22 @@ const HANTEE_ACTIVITES = (() => {
     }
 
     // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ; la colonne des activités (en haut à droite de la
-    //     scène, src/evenement.js) : les bulles passent à sa gauche, et une apparition qui passe dessous la rend transparente au doigt et à
-    //     l'œil (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; on l'attrape à travers ───
-    let tTraverse = -1e9;
+    //     scène, src/evenement.js) : les bulles passent à sa gauche ; une apparition qui passe sous un de ses boutons le rend transparent
+    //     (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; un toucher sur ce bouton-là, ou là où elle passe
+    //     (sousDoigt), va à l'apparition ; ailleurs, il ouvre le bouton ───
+    const tTraverse = new Map(); // bouton de la colonne → l'instant où une apparition était encore dessous
+    function sousDoigt(x, y) { // une apparition sous ce point (le doigt arrive un peu après : 16 px de plus) ? le repli l'attrape ici ; la scène, elle, la reçoit du toucher
+      if (!ouvert) return false;
+      if (mode === 'scene' && B()) return B().vise ? B().vise(x, y) : B().apparitions().some((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 16); // (la même visée que le toucher de la scène)
+      for (const o of apps.values()) if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && x >= b.left - 16 && x <= b.right + 16 && y >= b.top - 16 && y <= b.bottom + 16) { d.audio(); attraper(o.id); return true; } }
+      return false;
+    }
     function image() {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
-      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null;
-      const dessous = (x, y, rr) => !!rc && rc.width > 0 && x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null, tuiles = ca ? [...ca.children].map((b) => [b, b.getBoundingClientRect()]) : [];
+      const dessous = (x, y, rr) => { if (!rc || !(rc.width > 0) || !(x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom)) return false;
+        for (const [b, r] of tuiles) if (x + rr > r.left && x - rr < r.right && y + rr > r.top && y - rr < r.bottom) tTraverse.set(b, performance.now()); return true; };
       if (mode === 'scene' && B()) {
         const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
@@ -428,10 +436,10 @@ const HANTEE_ACTIVITES = (() => {
           if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
           if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
           o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
-          if (dessous(p.x, p.y, p.r)) tTraverse = performance.now();
+          dessous(p.x, p.y, p.r);
         }
-      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2)) tTraverse = performance.now(); } }
-      const sous = performance.now() - tTraverse < 400; if (ca && ca.classList.contains('pq-traverse') !== sous) ca.classList.toggle('pq-traverse', sous);
+      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width) dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2); } }
+      for (const [b] of tuiles) { const sous = performance.now() - (tTraverse.get(b) || -1e9) < 400; if (b.classList.contains('pq-traverse') !== sous) b.classList.toggle('pq-traverse', sous); }
     }
 
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───
@@ -458,7 +466,7 @@ const HANTEE_ACTIVITES = (() => {
         serie: M ? M.serie : 0, record: M ? M.record || 0 : 0, eveil: Q.presence ? Q.presence(q, maint()) : null,
         bestiaire: Q.bestiaire ? Q.bestiaire(q) : null, fetes: fetes.length, mot: btEl && !btEl.hidden ? btEl.textContent.trim() : '' };
     }
-    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire };
+    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire, sousDoigt };
   }
   return { creer };
 })();

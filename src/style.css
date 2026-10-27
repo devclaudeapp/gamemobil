@@ -767,7 +767,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ticket.boosts .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
 .ticket.boosts.actif .tk-pill { background: var(--menthe); color: #fff; font-variant-numeric: tabular-nums; }
 .ticket.boosts.actif > .ico { background: #E3F7EE; }
-:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
+:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; overflow: clip; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
 :is(#planque, #hantee) .at-haut { padding-bottom: 2px; }
 :is(#planque, #hantee) .at-fermer { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
 :is(#planque, #hantee) .at-fermer svg { stroke: #fff; }
@@ -818,6 +818,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 :is(#planque, #hantee)[data-ecran="porte"] .pq-solde, :is(#planque, #hantee)[data-ecran="porte"] .pq-scene, :is(#planque, #hantee)[data-ecran="porte"] .pq-barre, :is(#planque, #hantee)[data-ecran="porte"] .pq-paliers-btn,
 :is(#planque, #hantee)[data-ecran="bilan"] .pq-solde, :is(#planque, #hantee)[data-ecran="bilan"] .pq-scene, :is(#planque, #hantee)[data-ecran="bilan"] .pq-barre { display: none; }
 :is(#planque, #hantee)[data-ecran="porte"] :is(#pq-cartes, #ht-cartes), :is(#planque, #hantee)[data-ecran="bilan"] :is(#pq-cartes, #ht-cartes) { display: none; }
+/* (l'écran rogne ce qui dépasse, overflow: clip : jamais un conteneur qu'on fait défiler ; un scrollIntoView le décalait tout entier vers
+   le haut, le bouton fermer hors de l'écran. Les vieux Safari, sans clip : src/evenement.js le remet en place à chaque image) */
 /* le tiroir (src/evenement.js, tiroir) : le bas de l'écran (la barre, les cartes) monte au doigt par-dessus la scène jusque sous le solde. Sa
    marge du haut (--pq-tiroir-m) le pose au repos ; pendant la course, une translation, et son dessous (::after) comble le bas de l'écran */
 .pq-tiroir { position: relative; z-index: 1; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; margin-top: var(--pq-tiroir-m, 0px); background: #2E2B3A; border-radius: 22px 22px 0 0;
@@ -1675,8 +1677,8 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt b { white-space: nowrap; } /* (la bannière plus étroite : son titre sur une ligne, son détail sur deux) */
 .pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt > span { -webkit-line-clamp: 2; }
 #hantee.ht-boutique { --pq-scene-haut: 20px; } /* la boutique hantée : le haut de la scène passe sous le solde */
-.pq-act { transition: opacity .15s ease-out; }
-.pq-act.pq-traverse { opacity: .3; pointer-events: none; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, on l'attrape à travers */
+.pq-act-btn { transition: opacity .15s ease-out; }
+.pq-act-btn.pq-traverse { opacity: .3; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, un toucher sur ce bouton l'attrape */
 .pq-pastille { position: absolute; top: -7px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 13px/22px var(--titre); font-style: normal; text-align: center; box-shadow: 0 2px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
 :is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) .pq-act { display: none; }
 @media (max-height: 760px) { .pq-act { grid-auto-rows: minmax(44px, auto); gap: 4px; } .pq-act-btn { min-height: 44px; padding-block: 3px; } .pq-act-txt small { display: none; } } /* (une scène basse : l'état par la couleur et la pastille) */
