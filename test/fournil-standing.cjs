@@ -4,7 +4,9 @@
 // 2) Dans Chromium, téléphone 390 × 844 : chaque palier 0 à 5, au village et à la capitale, en haute et en éco → captures dans
 //    test/shots/standing/ ; un décor distinct par palier ; les modèles cuits du palier en haute (fournil/hd/luxe/, ≤ 150 Ko, et les décors de
 //    la boutique entière < 400 Ko ; ses clients 3D, leur lot à part, ≤ 500 Ko ; le tout < 900 Ko, 400 Ko avant les clients 3D) ; le budget
-//    d'appels de dessin au pire palier, tout le mobilier au max (éco ≤ 72, haute ≤ 80) ; l'annonce « Ta boutique
+//    d'appels de dessin au pire palier, tout le mobilier au max ET, depuis « Mes décos » (lot de la chaîne), les 6 décos les plus lourdes
+//    posées (chaudron, lanterne, citrouilles, néon, bestiaire, toiles : fusionnées avec les petits décors fixes, src/meubles.js fusion) :
+//    éco ≤ 72, haute ≤ 80, les mêmes budgets (mesurés : 59 et 66 au pire, contre 72 et 79 sans déco avant la fusion) ; l'annonce « Ta boutique
 //    monte en gamme » au passage de la n°5 à la n°6 (et pas de la n°6 à la n°7) ; la ligne « Standing » des feuilles Étoiles et Parcours ;
 //    la visite d'un copain au palier 3 ; une vieille photo (sans l) → palier 0 ; aucune erreur dans la page.
 // 2 bis) Le soir et à Noël (budgets) ; le cache des textures de salle borné ; en 390 × 844 et 360 × 640, les pièces du standing (colonnes,
@@ -70,6 +72,8 @@ const server = http.createServer((req, res) => {
 }).listen(PORT);
 const attendre = async (f, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 5000)) { try { if (await f()) return true; } catch (e) { /* rien */ } await sleep(250); } return false; };
 const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === 'capitale')]];
+// les 6 décos les plus lourdes d'avant la fusion (5, 2, 2, 3, 1 et 3 appels de dessin chacune), posées à des places de leur type (src/vie.js LAY.decos)
+const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], ['neon', 'm2'], ['bestiaire', 'm1'], ['toiles', 'r1']];
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   async function ouvrir(q, taille) {
@@ -77,6 +81,7 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     await ctx.addInitScript(() => { window.__sansEvenements = true; window.__sansQuartier = true; Object.defineProperty(window, 'confetti', { configurable: true, get: () => () => null, set: () => {} }); }); // des confettis comptés mais pas dessinés (des captures nettes)
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [];
+    page.setDefaultTimeout(120000); // (le rendu logiciel est lent quand la machine est chargée : les captures attendent plus longtemps)
     page.on('pageerror', (e) => erreurs.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) erreurs.push(m.text()); });
     await page.goto(`http://localhost:${PORT}/fournil/?qualite=${q}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(800);
@@ -92,7 +97,8 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     const { ctx, page, erreurs, ev } = await ouvrir(qual);
     demandes.length = 0;
     await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } f.tiroir('ferme'); });
-    if (qual === 'haute') check(await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000), 'en haute, les meubles de la salle en KayKit');
+    await ev((l) => window.__fournil.SCENE.decos(l), LOURDES); // les 6 décos les plus lourdes posées, tout du long (à Noël, le sapin garde sa place : 5)
+    if (qual === 'haute') check(await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 180000), 'en haute, les meubles de la salle en KayKit');
     let pire = { decor: 0 }; const max = qual === 'haute' ? 80 : 72;
     for (const [qn, qi] of QS) for (let s = 0; s <= 5; s++) {
       await poser(ev, qi, s);
@@ -100,10 +106,11 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
       await sleep(qual === 'haute' ? 1800 : 900);
       const v = await ev(() => window.__fournil.SCENE.standingVu), a = await decorAppels(ev);
       if (a.decor > pire.decor) pire = Object.assign({ ou: `${qn}, palier ${s}` }, a);
-      check(ok && v.decor === (s ? `${qn}-s${s}` : qn) && a.decor <= max, `${qn}, palier ${s} : décor ${v.decor}${s ? `, objets du standing en ${v.mailles} maillage(s)${qual === 'haute' ? (v.hd ? ', modèles cuits' : ', SANS les modèles cuits') : ''}` : ''} ; ${a.decor} appels pour le décor (≤ ${max}), dont ${a.standing} pour le standing`);
+      const nd = await ev(() => (window.__fournil.SCENE.decosPosees || []).length);
+      check(ok && v.decor === (s ? `${qn}-s${s}` : qn) && a.decor <= max && nd === 6, `${qn}, palier ${s} : décor ${v.decor}${s ? `, objets du standing en ${v.mailles} maillage(s)${qual === 'haute' ? (v.hd ? ', modèles cuits' : ', SANS les modèles cuits') : ''}` : ''} ; ${nd} décos posées ; ${a.decor} appels pour le décor (≤ ${max}), dont ${a.standing} pour le standing`);
       await page.screenshot({ path: path.join(out, `${qn}-${s}-${qual}.png`) });
     }
-    check(pire.decor <= max, `${qual} : le pire palier (${pire.ou}) fait ${pire.decor} appels de dessin pour le décor (≤ ${max}), dont ${pire.standing} pour le standing`);
+    check(pire.decor <= max, `${qual} : le pire palier (${pire.ou}), avec les 6 décos les plus lourdes, fait ${pire.decor} appels de dessin pour le décor (≤ ${max}), dont ${pire.standing} pour le standing`);
     if (qual === 'haute') {
       const luxe = [...new Set(demandes.filter((d) => /\/hd\/luxe\//.test(d)))], poidsL = luxe.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
       // (les décors : tout sauf les clients 3D, qui ont leur lot à eux, src/clients3d.js, et leur budget, vérifié juste après)
@@ -132,6 +139,7 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
       check(pireS.decor <= max && pireS.standing <= 1, `${qual}, le soir, capitale, paliers 0 à 5 : au pire (palier ${pireS.s}) ${pireS.decor} appels pour le décor (≤ ${max}), dont ${pireS.standing} pour le standing, lueur des lanternes comprise (≤ 1)`); }
     // Noël (le sapin et la guirlande : 6 appels) : un budget de saison, documenté. Sur master, mesuré comme ici, éco 76 et haute 80 :
     // éco dépassait déjà 72 ; le standing y ajoute son maillage et, au palier 1+, les fleurs (qu'un joueur à trois améliorations a déjà) : +2 au plus.
+    // Depuis la fusion des décos, avec les décos les plus lourdes posées (le sapin garde s2 : 5 d'entre elles), mesuré 66 et 70.
     { const maxNoel = qual === 'haute' ? 82 : 78; let pireN = { decor: 0 };
       for (const h of qual === 'haute' ? [11, 21.5] : [11]) for (const s of [0, 3, 5]) {
         await ev((h) => window.__fournil.scene({ heure: h, saison: ['noel'] }), h); await poser(ev, QS[1][1], s);
@@ -232,7 +240,8 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     const { ctx, page, erreurs, ev } = await ouvrir(qual), cdp = await ctx.newCDPSession(page), max = qual === 'haute' ? 80 : 72;
     const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
     await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } f.tiroir('ferme'); });
-    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000);
+    await ev((l) => window.__fournil.SCENE.decos(l), LOURDES); // (les décos posées : leurs places au mur, au sol, à la fenêtre, jamais sur la grille des meubles)
+    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 180000);
     for (const [qn, qi] of QS) {
       await poser(ev, qi, 5);
       // un aménagement libre : des tables, le coin salon et deux tables de la terrasse déplacés, chacun sur une place valide loin de la sienne

@@ -131,7 +131,11 @@ check(sv.compagnon === 'dragon' && sv.compagnons.join() === 'dragon' && G.compag
 
 console.log('── les bonus : seulement le compagnon montré ──');
 {
-  check(C.every((c) => c.bonus && G.texteBonus(c.bonus).length === 1), `chaque compagnon a un bonus : ${C.map((c) => `${c.nom} (${G.texteBonus(c.bonus).join('')})`).join(', ')}`);
+  // le pigeon voyageur (« Ma chaîne de boutiques », acheté en jetons de chaîne) est le seul sans bonus : décision du joueur, les objets rares
+  // de la chaîne n'accélèrent pas la boulangerie ; tous les autres gardent le leur, un seul chacun
+  const AVEC = C.filter((c) => c.id !== 'pigeon');
+  check(AVEC.length === C.length - 1 && AVEC.every((c) => c.bonus && G.texteBonus(c.bonus).length === 1), `chaque compagnon a un bonus : ${AVEC.map((c) => `${c.nom} (${G.texteBonus(c.bonus).join('')})`).join(', ')}`);
+  { const p = G.compagnon('pigeon'), s = G.newState(T0); check(p && p.prix === null && typeof p.condition === 'function' && JSON.stringify(p.bonus) === '{}' && !G.texteBonus(p.bonus).length && !G.aCompagnon(s, 'pigeon') && G.acheterCompagnon(s, 'pigeon').raison === 'gratuit', 'le pigeon voyageur (« Ma chaîne ») : sans aucun bonus, il ne s’achète pas avec l’argent de la boutique (il se gagne en jetons de chaîne)'); }
   check(C.every((c) => (!c.bonus.gains || c.bonus.gains.pct <= 5) && (c.bonus.vitesse || 0) <= 7 && (c.bonus.absence || 0) <= 1.5 && (c.bonus.pourboire || 0) <= 10), 'tous petits : gains ≤ 5 %, cuisson ≤ 7 %, absence ≤ 1,5 h, pourboires ≤ 10 %');
   const base = () => { const b = G.newState(T0); for (let i = 0; i < 4; i++) { b.stations[i].niv = 50; b.stations[i].staff = true; } return b; };
   const sans = base(); // pas encore de compagnon : aucun bonus

@@ -2,17 +2,24 @@
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
-  const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
+  // la version d'essai (fournil-essai/, contrat « Ma chaîne » § 5) : toutes les clés de stockage passent par FOURNIL_CLE (build.js la pose ;
+  // l'essai préfixe « fournil.essai. »), la base IndexedDB aussi (FOURNIL_ESSAI.db) ; sans elles (le vrai jeu, les tests), rien ne change
+  const cle = (k) => (typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE(k) : k);
+  const ESSAI = typeof window !== 'undefined' && window.FOURNIL_ESSAI && typeof window.FOURNIL_ESSAI === 'object' ? window.FOURNIL_ESSAI : null;
+  const G = GAME, $ = (s) => document.querySelector(s), KEY = cle('fournil.v2');
+  const CH = typeof CHAINE !== 'undefined' ? CHAINE : null, CE = typeof CHAINE_ECRAN !== 'undefined' && CHAINE_ECRAN.actif ? CHAINE_ECRAN : null; // « Ma chaîne » : les règles (src/chaine.js), l'écran (src/chaine-ecran.js)
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
-  let absencePrete = false, absencePayee = 0, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
+  // gerantsPayes : pour la même absence, ce que chaque gérant de la chaîne a déjà touché (n → ms) : le saut d'une heure sûre en retard le complète
+  // jusqu'à sa durée, jamais au-delà (CHAINE.encaisserTout, contrat § 1.5)
+  let absencePrete = false, absencePayee = 0, gerantsPayes = {}, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
 
   // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
-  const DB = 'fournil', STORE = 'sauvegarde';
+  const DB = (ESSAI && ESSAI.db) || 'fournil', STORE = 'sauvegarde';
   const idb = () => new Promise((res) => {
     try {
       if (!window.indexedDB) return res(null);
@@ -46,15 +53,58 @@ const UI = (() => {
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
+      if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
       return s;
     } catch (e) { return null; }
   }
+  const plusRecente = (a, b) => (a && b ? ((b.lifetime > a.lifetime || (b.lifetime === a.lifetime && b.lastSeen > a.lastSeen)) ? b : a) : a || b);
   async function load() {
     let a = null, b = null;
     try { a = lire(localStorage.getItem(KEY)); } catch (e) { /* stockage indisponible */ }
     try { b = lire(await idbLire()); } catch (e) { /* rien */ }
-    if (a && b) return (b.lifetime > a.lifetime || (b.lifetime === a.lifetime && b.lastSeen > a.lastSeen)) ? b : a;
-    return a || b;
+    if (!a && !b && ESSAI) return copierVraie(); // la version d'essai, ouverte pour la première fois : la vraie partie, copiée
+    return plusRecente(a, b);
+  }
+  // ─── la version d'essai (contrat § 5.3) : à la 1re ouverture, la vraie partie est COPIÉE, en lecture seule. On lit sa clé (fournil.v2) et sa
+  //     base IndexedDB (fournil), ouverte sans jamais la créer ; la plus récente des deux est gardée, puis sauvée sous les clés de l'essai.
+  //     Jamais une écriture sur une clé du vrai jeu. Rien trouvé (sur iPhone, le jeu de l'écran d'accueil a son propre stockage) : la
+  //     feuille « coller le code », après le lancement.
+  let essaiVide = false, essaiCopie = false;
+  const VRAIE = () => ({ cle: (ESSAI && ESSAI.vraie && ESSAI.vraie.cle) || 'fournil.v2', db: (ESSAI && ESSAI.vraie && ESSAI.vraie.db) || 'fournil' }); // essai : la vraie partie, lue seulement
+  function idbVraieLire() {
+    return new Promise((res) => {
+      let fini = false; const fin = (v) => { if (!fini) { fini = true; res(v); } };
+      try {
+        if (!window.indexedDB) return fin(null);
+        const V = VRAIE(), r = indexedDB.open(V.db);
+        r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) { /* rien */ } fin(null); }; // elle n'existait pas : on ne la crée pas
+        r.onsuccess = () => {
+          const db = r.result, clore = (v) => { try { db.close(); } catch (e) { /* rien */ } fin(v); };
+          try { if (!db.objectStoreNames.contains(STORE)) return clore(null); const g = db.transaction(STORE, 'readonly').objectStore(STORE).get(V.cle); g.onsuccess = () => clore(typeof g.result === 'string' ? g.result : null); g.onerror = () => clore(null); } catch (e) { clore(null); }
+        };
+        r.onerror = () => fin(null); r.onblocked = () => fin(null);
+        setTimeout(() => fin(null), 1500);
+      } catch (e) { fin(null); }
+    });
+  }
+  async function copierVraie() {
+    let a = null, b = null;
+    try { a = lire(localStorage.getItem(VRAIE().cle)); } catch (e) { /* rien */ }
+    try { b = lire(await idbVraieLire()); } catch (e) { /* rien */ }
+    const s = plusRecente(a, b);
+    if (!s) { essaiVide = true; return null; }
+    s.essaiCopie = HORLOGE.maintenant(); essaiCopie = true;
+    // les coupes du podium (la vitrine, Mes décos) : une copie de fournil.classement, SANS l'identité (id, jeton), sous la clé de l'essai
+    try { const cl = cle('fournil.classement'); if (cl !== 'fournil.classement' && localStorage.getItem(cl) == null) { const o = JSON.parse(localStorage.getItem('fournil.classement') || 'null'); if (o && typeof o === 'object') { delete o.id; delete o.jeton; localStorage.setItem(cl, JSON.stringify(o)); } } } catch (e) { /* rien */ } // essai : la vraie partie, lue seulement
+    return s;
+  }
+  // « Recommencer l'essai » : les seules clés de l'essai effacées (le préfixe de FOURNIL_CLE, la base de l'essai), puis la page relue la recopie
+  function recommencerEssai() {
+    const pre = cle('fournil.'); if (!ESSAI || pre === 'fournil.' || DB === VRAIE().db) return; // (jamais sans préfixe : ce serait le vrai jeu)
+    fige = true;
+    try { const l = []; for (let k = 0; k < localStorage.length; k++) { const x = localStorage.key(k); if (x && x.startsWith(pre)) l.push(x); } l.forEach((x) => localStorage.removeItem(x)); } catch (e) { /* rien */ }
+    const fin = () => location.reload();
+    try { const r = indexedDB.deleteDatabase(DB); r.onsuccess = fin; r.onerror = fin; r.onblocked = () => setTimeout(fin, 300); setTimeout(fin, 2000); } catch (e) { fin(); }
   }
   function effacer() { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } return idbEffacer(); }
   // code de sauvegarde : l'état en base64, à copier pour le garder ailleurs ou le transférer
@@ -260,7 +310,18 @@ const UI = (() => {
     const e = $('#enseigne'), s = e.querySelector('span'); s.textContent = nom; e.classList.remove('long');
     if (s.scrollWidth > s.clientWidth + 1) e.classList.add('long');
   }
+  function hudChaine() { // dans une boutique de la chaîne : sa caisse, son rythme (ses apprentis), les jetons de chaîne en haut à droite
+    const v = chaineVue.v, taux = CH.tauxBase(st, v.b), c = CH.etat(st);
+    const bonus = G.AMELIORATIONS.filter((a) => !v.ameliorations[a.id] && G.ameliorationOuverte(st, a) && v.coins >= a.cout).length + G.MOBILIER.filter((m) => CH.cran(v.b, m.id) < m.max && v.coins >= CH.prixMeuble(v.b, m.id)).length; // (ce que sa caisse peut s'offrir)
+    const key = `ch|${G.fmtEur(v.coins)}|${G.fmtEur(taux)}|${c.jetons}|${bonus}`;
+    if (key === lastHud) return; lastHud = key;
+    $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
+    $('#coins').textContent = G.fmtEur(v.coins);
+    $('#taux').innerHTML = `<span>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche une recette !'}</span>`;
+    const bj = $('#b-jetons'); bj.querySelector('span').textContent = G.fmt(c.jetons); bj.setAttribute('aria-label', `${G.fmt(c.jetons)} jeton${c.jetons > 1 ? 's' : ''} de chaîne : la boutique des jetons`);
+  }
   function hud() {
+    if (chaineVue) { hudChaine(); return; }
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), pret = etoilesPretes(st, gain), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && G.ameliorationOuverte(st, a) && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
@@ -370,12 +431,13 @@ const UI = (() => {
   function deplacer(on) {
     const v = !!on && SCENE.amenager; if (glisse) finGlisse(true); SCENE.setDeplacer(v); document.body.classList.toggle('deplace', v);
     const b = $('#b-deplacer'); if (b) { b.setAttribute('aria-pressed', String(v)); b.querySelector('b').textContent = v ? 'Améliorer' : 'Déplacer'; b.querySelector('.ico').innerHTML = ICONS.UI[v ? 'amenager' : 'deplacer'] || ''; } // actif, le bouton ramène aux améliorations
-    $('#b-origine').hidden = !v || !st.amenagement;
+    $('#b-origine').hidden = !v || !amenCible().amenagement;
     if (v && VIE.amenagementDemande && !VIE.amenagementApplique) toast('Ton plan ne tient pas sur cet écran : la boutique est au plan d’origine. Le premier meuble posé part de là.'); // (VIE.proposer part du plan affiché)
     else if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
   }
   // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
   function debutGlisse(e, sx, sy) {
+    if (debutGlisseDeco(e, sx, sy)) return; // une déco posée sous le doigt (« Mes décos ») passe avant le meuble
     const m = VIE.mobileSous(sx, sy, false); if (!m) return;
     if (!VIE.mobileAchete(m)) { son.non(); montrerToast('Ce meuble n’est pas encore acheté : sa place lui est gardée.'); return; }
     glisse = { id: m.id, pid: e.pointerId, dx: m.x - sx, dy: m.y - sy, x0: sx, y0: sy, bouge: false, cle: '', p: null };
@@ -384,25 +446,53 @@ const UI = (() => {
   }
   function majGlisse(sx, sy) {
     const g = glisse; if (!g) return; if (Math.hypot(sx - g.x0, sy - g.y0) > 6) g.bouge = true;
-    const p = VIE.proposer(st, g.id, sx + g.dx, sy + g.dy); if (!p) return;
+    if (g.deco) { // une déco : aimantée à la place de son type la plus proche, vert ou rouge (CHAINE.peutPoser)
+      const p = VIE.proposerDeco(g.poses, g.id, sx, sy, qualiteDecos()); if (!p) return;
+      const avant = g.p; g.p = p; if (avant && avant.place === p.place) return; // la même place : rien à refaire
+      SCENE.glisserDeco(p); if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
+      return;
+    }
+    const p = VIE.proposer(amenCible(), g.id, sx + g.dx, sy + g.dy); if (!p) return;
     const cle = JSON.stringify(p.a); if (cle === g.cle) return; // la même case : rien à refaire
     const avant = g.p; g.cle = cle; g.p = p; SCENE.glisser({ id: g.id, rect: p.rect, ok: p.ok, raison: p.raison, x: p.x, y: p.y, autre: p.autre });
     if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
   }
   function finGlisse(annule) {
-    const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
+    const g = glisse; glisse = null; SCENE.glisser(null);
+    if (g && g.deco) { SCENE.glisserDeco(null); SCENE.setDeplacerDecos(false); finGlisseDeco(g, annule); return; }
+    if (!g || !g.p || annule || !g.bouge) return;
     const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
     const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
     if (!a && bouge) { son.non(); buzz([20, 40, 20]); montrerToast(`${nom.charAt(0).toUpperCase() + nom.slice(1)} ne peut pas aller si loin : il reste à sa place.`); return; } // une place que le plan ne sait pas écrire : on n'efface jamais l'aménagement pour autant
-    if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
-    if (a) st.amenagement = a; else delete st.amenagement;
-    son.achat(); buzz(10); save(); $('#b-origine').hidden = !st.amenagement;
+    if (G.codeAmenagement(a) === G.codeAmenagement(amenCible().amenagement)) return;
+    if (chaineVue) CH.amenager(st, chaineVue.v, a); else if (a) st.amenagement = a; else delete st.amenagement; // (une boutique de la chaîne : son plan à elle, b.am)
+    son.achat(); buzz(10); save(); $('#b-origine').hidden = !amenCible().amenagement;
+  }
+  const amenCible = () => (chaineVue ? chaineVue.v : st); // le plan que Déplacer modifie : celui de la boutique de la chaîne où l'on est, sinon la boulangerie
+  // une déco posée (« Mes décos », contrat « Ma chaîne » § 6.3) se prend aussi au doigt en mode Déplacer : aimantée à la place de son type
+  // la plus proche (VIE.proposerDeco ; vert ou rouge par CHAINE.peutPoser), la scène dessine les 12 places (SCENE.setDeplacerDecos). Une
+  // place prise : les deux décos s'échangent. Seulement une disposition déjà faite : au plan d'origine, le carnet « Mes décos » la commence.
+  const qualiteDecos = () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; };
+  function debutGlisseDeco(e, sx, sy) {
+    if (!CE || !CH || !SCENE.decoSous || !SCENE.setDeplacerDecos || !SCENE.glisserDeco || !VIE.proposerDeco) return false;
+    const id = SCENE.decoSous(sx, sy), poses = id ? CE.posesDe(chaineVue ? chaineVue.n : 0) : null; if (!id || !poses || !poses.length) return false;
+    glisse = { deco: true, id, poses, pid: e.pointerId, x0: sx, y0: sy, bouge: false, p: null };
+    SCENE.setDeplacerDecos(true);
+    try { $('#scene').setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
+    son.tap(); buzz(6); majGlisse(sx, sy); return true;
+  }
+  function finGlisseDeco(g, annule) {
+    if (!g.p || annule || !g.bouge) return;
+    if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} La déco reste à sa place.`); return; }
+    const l = CH.nettoyerPoses(g.p.poses); if (JSON.stringify(l) === JSON.stringify(g.poses)) return;
+    if (chaineVue) CH.poser(st, chaineVue.n, l); else st.decos = { v: 1, d: CH.codeDecos(l) }; // (la boulangerie : st.decos, comme le carnet)
+    son.achat(); buzz(10); save(); decosScene();
   }
   function planOrigine() {
-    if (!st.amenagement) return;
+    if (!amenCible().amenagement) return;
     openSheet(`<h2>Revenir au plan d’origine ?</h2><p class="sous">Les tables, le bar, le coin salon et la terrasse retournent à leur place du premier jour. Tu pourras les déplacer encore.</p><button type="button" class="btn large" data-a="oui"><b>Oui, le plan d’origine</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde mes places</b></button>`);
-    on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { delete st.amenagement; save(); closeSheet(); son.deblocage(); toast('Le plan d’origine est revenu.'); $('#b-origine').hidden = true; });
+    on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { if (chaineVue) CH.amenager(st, chaineVue.v, null); else delete st.amenagement; save(); closeSheet(); son.deblocage(); toast('Le plan d’origine est revenu.'); $('#b-origine').hidden = true; });
   }
   function repeindre() { closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); toast('Touche un meuble pour l’améliorer.'); }
   const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
@@ -491,7 +581,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}`,
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -500,6 +590,7 @@ const UI = (() => {
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
         <div class="card boulanger-tete"><span class="portrait">${ICONS.boulanger(rang, tenueVue())}</span><div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau <b>${np.n}</b> · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div>${suivant ? `<p class="note">${esc(suivant[1])} au niveau ${suivant[0]}</p>` : ''}</div></div>
+        ${carteChaine()}
         <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
@@ -526,6 +617,8 @@ const UI = (() => {
         son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
       });
       onIn(sec, '[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
+      onIn(sec, '[data-a="ma-chaine"]', () => { son.tap(); ouvrirChaine(); });
+      onIn(sec, '[data-a="mes-decos"]', () => { son.tap(); if (CE) CE.carnet({ cible: chaineVue ? chaineVue.n : 0 }); });
       if (GRU) GRU.bind(sec, ctxGarderobe());
     },
     maj: (sec) => { const v = valeursStats(); sec.querySelectorAll('[data-s]').forEach((el) => { const t = v[el.dataset.s]; if (t != null && el.textContent !== t) el.textContent = t; }); },
@@ -844,6 +937,42 @@ const UI = (() => {
       on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); closeSheet(); renderPage(true); });
     });
   }
+  // ─── la version d'essai : son bandeau (24 px, en haut, crème et orange), sa feuille (quoi essayer, recommencer, le vrai jeu), et la feuille
+  //     « coller le code » quand la vraie partie n'est pas lisible d'ici (iPhone : le jeu de l'écran d'accueil garde sa sauvegarde à part) ───
+  const QUOI_ESSAYER = ['Ma chaîne : tes anciennes boutiques sur une petite planète (le rond en haut à droite de ta boutique, ou la page Boulanger).',
+    'Entre dans une boutique de ta chaîne, monte ses recettes et prends tes jetons de chaîne à chaque palier.', 'Embauche ton premier gérant (offert), puis reviens plus tard : il a vendu pour toi.',
+    'La boutique des jetons, et le carnet « Mes décos » : pose tes décos dans ta boulangerie (Réglages › Repeindre la boutique).'];
+  function bandeauEssai() {
+    const b = $('#essai-bandeau'); if (!b) return; b.hidden = false; document.body.classList.add('essai');
+    b.querySelector('[data-a="essai"]').addEventListener('click', () => { audio(); son.tap(); sheetEssai(); });
+  }
+  function sheetEssai() {
+    const quoi = Array.isArray(ESSAI.quoi) ? ESSAI.quoi : typeof ESSAI.quoi === 'string' && ESSAI.quoi ? [ESSAI.quoi] : QUOI_ESSAYER, vrai = typeof ESSAI.vraiJeu === 'string' ? ESSAI.vraiJeu : '../fournil/';
+    openSheet(`<div class="ch-fiche-tete"><i class="ico">${ICONS.UI.essai}</i><div><h2>La version d’essai</h2><p class="sous">Les nouveautés avant tout le monde. Ta vraie partie n’est pas touchée : l’essai joue sur une copie, rangée à part.</p></div></div>
+      <h3 class="titre-section">Quoi essayer</h3><ul class="essai-quoi">${quoi.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      ${st && st.essaiCopie ? `<p class="note">Copie de ta vraie partie faite le ${new Date(st.essaiCopie).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}. Le classement, le chat et les envois sont coupés ici.</p>` : '<p class="note">Le classement, le chat et les envois sont coupés ici.</p>'}
+      <button type="button" class="btn large beurre" data-a="recommencer"><small>Recopier ma vraie partie</small><b>Recommencer l’essai</b></button>
+      <a class="btn large lavande essai-lien" href="${esc(vrai)}"><b>Aller au vrai jeu</b></a>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-a="recommencer"]', () => {
+      openSheet(`<h2>Recommencer l’essai ?</h2><p class="sous">Tout ce que tu as fait dans l’essai s’efface, puis ta vraie partie est recopiée telle qu’elle est maintenant. Ta vraie partie, elle, ne bouge pas.</p>
+        <button type="button" class="btn large beurre" data-a="oui"><b>Oui, recommencer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non</b></button>`);
+      on('[data-a="non"]', sheetEssai); on('[data-a="oui"]', () => { closeSheet(); toast('L’essai repart de ta vraie partie…'); recommencerEssai(); });
+    });
+  }
+  function sheetEssaiCode() {
+    openSheet(`<div class="ch-fiche-tete"><i class="ico">${ICONS.UI.essai}</i><div><h2>Ta vraie partie n’est pas ici</h2><p class="sous">Sur iPhone, le jeu ajouté à l’écran d’accueil garde sa sauvegarde à part : l’essai, ouvert dans Safari, ne la voit pas.</p></div></div>
+      <h3 class="titre-section">Avec ta vraie partie</h3><p class="note">Colle le code de sauvegarde de ta vraie partie (Réglages › Le jeu › Code de sauvegarde). L’essai en fait une copie.</p>
+      <textarea class="code" data-r="entree" placeholder="Colle ton code ici" aria-label="Le code de sauvegarde de ta vraie partie"></textarea>
+      <button type="button" class="btn large lavande" data-a="charger"><b>Essayer avec ma partie</b></button>
+      <button type="button" class="btn large beurre" data-a="neuve" style="margin-top:8px"><b>Commencer une partie neuve</b></button>`);
+    on('[data-a="neuve"]', () => { closeSheet(); sheetNom(true); });
+    on('[data-a="charger"]', () => {
+      const s2 = lireCode(fc.querySelector('[data-r="entree"]').value);
+      if (!s2) { son.non(); toast('Ce code n’est pas valide.'); return; }
+      s2.essaiCopie = HORLOGE.maintenant(); st = s2; save(); fige = true; closeSheet(); toast('Ta partie arrive dans l’essai…'); setTimeout(() => location.reload(), 150);
+    });
+  }
   // le nom de la boutique : demandé à chaque ouverture, modifiable depuis l'enseigne ou les Réglages
   function sheetNom(nouvelle) {
     const q = G.QUARTIERS[G.quartier(st)], actuel = st.nomBoutique || q.enseigne;
@@ -980,7 +1109,7 @@ const UI = (() => {
     on('[data-a="prestige"]', () => {
       const dp = G.defiPassage(st); if (dp && !dp.fait) { son.non(); toast(`D’abord le défi de passage : ${dp.txt}.`); return; }
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
-      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.</p>
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.${CH ? ' Ta boutique d’aujourd’hui ne disparaît pas : elle rejoint ta chaîne telle qu’elle est, avec ses niveaux, ses bonus, ses meubles et sa caisse.' : ''}</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const avant = G.standing ? G.standing(st) : 0, r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); const rec = r.recompenses && r.recompenses.find((x) => x.n === st.boutiques); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★${rec ? ` · ${rec.texte}` : ''}`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); if (G.standing && G.standing(st) > avant) sheetMonteeGamme(() => sheetNom(true)); else sheetNom(true); } }); // un nouveau palier de standing : l'annonce d'abord, puis le nom
@@ -1083,14 +1212,26 @@ const UI = (() => {
     });
     document.body.appendChild(b);
   }
-  function sheetRetour(abs) {
+  // enc : ce que les gérants de la chaîne ont versé aux caisses de leurs boutiques (CHAINE.encaisserTout, au même moment que GAME.absence)
+  function sheetRetour(abs, enc) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
+    const ger = enc && enc.total > 0 ? (() => { const c = CH.etat(st), nom = (n) => { const b = c.b.find((x) => x.n === n); return b ? CH.nomDe(b) : `n°${n}`; };
+      return `<div class="encadre doux retour-gerants"><div class="rg-tete"><i class="ico">${ICONS.UI.gerant || ''}</i><span><b>Tes gérants ont rapporté ${G.fmtEur(enc.total)}</b><small>dans les caisses de ta chaîne</small></span></div>
+        <ul class="detail">${enc.detail.slice().sort((a, b) => b.gain - a.gain).map((d) => `<li><span>n°${d.n} · ${esc(nom(d.n))} <small>${G.fmtDuree(d.secs)}</small></span><b>${G.fmtEur(d.gain)}</b></li>`).join('')}</ul></div>`; })() : '';
     openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.fmtDuree(G.heuresAbsence(st) * 3600)})` : ''}</p>
-      <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
-      <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
+      ${abs.total > 0 || !ger ? `<div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>` : ''}${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
+      ${ger}<button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
+  // les gérants de la chaîne : payés sur l'heure du jeu, à côté de chaque GAME.absence (le lancement, le retour, les sauts de l'heure sûre),
+  // à l'ouverture de « Ma chaîne » et une fois par minute en jouant. Idempotent : l'appeler de trop ne paie rien de plus (CHAINE.encaisser).
+  // plafond (CHAINE.encaisserTout) : rien au lancement et au retour ; le reste de chaque gérant au saut d'heure ; EN_JEU en jouant (une minute
+  // entre deux appels : un trou plus long est une absence, déjà réglée par le lancement, le retour ou le saut)
+  const EN_JEU = 120e3;
+  function encaisserChaine(t, plafond) { if (!CH || !st) return null; try { return CH.encaisserTout(st, Number.isFinite(t) ? t : HORLOGE.maintenant(), plafond); } catch (e) { return null; } }
+  const payesDe = (enc) => { const m = {}; if (enc) for (const d of enc.detail) m[d.n] = d.secs * 1000; return m; };
+  const montrerRetour = (abs, enc) => abs.secs > 90 && (abs.total > 0 || !!(enc && enc.total > 0));
 
   // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
   // Le moteur (src/classement.js) n'existe que si fournil/config.js donne l'adresse et la clé publique Supabase : dans l'artefact Claude, tout se cache.
@@ -1175,7 +1316,7 @@ const UI = (() => {
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
   function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué
   function majCoin() {
-    majCoinQuartier();
+    majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
     if (!classement) { b.hidden = true; return; }
     const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
@@ -1632,6 +1773,75 @@ const UI = (() => {
   // Ce que fait la ligne touchée dépend de l'onglet : « Cette semaine », la visite de sa boutique (ici) ; « Tous les temps », sa fiche de
   // statistiques (ficheCopain, sans 3D) ; l'onglet d'un événement, la visite de sa Planque (ou de son Manoir) : la vraie scène de l'événement
   // (F.scene) sur un canvas à part, bâtie depuis le champ e de sa photo (CLASSEMENT.evenementDepuisPhoto), jamais sauvée, libérée au retour.
+  // ─── « Ma chaîne » : l'écran (src/chaine-ecran.js), et ENTRER dans une boutique de la chaîne, sur le modèle de la visite ───
+  // La règle d'or : la boutique de la chaîne n'est JAMAIS st. chaineVue.v est une vue jetable (CHAINE.ouvrir, comme boutiqueDepuisPhoto) ;
+  // ses achats passent par CHAINE (la vue et sa boutique compacte v.b, qui vit dans st.chaine). La boulangerie (st) continue de tourner
+  // derrière, ses événements attendent (comme pendant l'Atelier) ; save() sauve st, la boutique de la chaîne est dedans.
+  let chaineVue = null, dernierPassage = -1e9; // { n, v (la vue), tiroir, depuis } ; le dernier passage (entrée ou sortie) : pas de rafale
+  function ouvrirChaine(o) {
+    if (!CE || visite || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) return false;
+    closeSheet(); amenager(false); eveiller();
+    return CE.ouvrir(o);
+  }
+  function entrerChaine(n, depuis, force) {
+    if (!CH || !CE || !st) return false;
+    const t0 = performance.now(); if (!force && t0 - dernierPassage < 1000) return false; // l'entrée suivante bloquée 1 s (la scène rebâtit tout son décor)
+    if (visite || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) return false;
+    if (chaineVue && chaineVue.n === n) { if (CE.ouvert) CE.fermer(); return true; }
+    if (!CH.boutique(st, n)) return false;
+    if (chaineVue) sortirChaine(true);
+    const t = HORLOGE.maintenant(), v = CH.ouvrir(st, n, t); if (!v) return false; // (son gérant encaisse, puis se repose : on la fait tourner soi-même)
+    dernierPassage = t0;
+    if (CE.ouvert) CE.fermer();
+    closeSheet(); if (glisse) finGlisse(true); amenager(false);
+    chaineVue = { n, v, tiroir: tiroir.pos, depuis: depuis || '' }; v.mode = st.mode;
+    if (VIE.basculer) VIE.basculer('chaine'); // les clients, apprentis et textes de la boulangerie mis de côté, rendus au retour
+    decosScene();
+    document.body.classList.add('chaine-dans');
+    const bd = $('#chaine-bandeau'); bd.hidden = false; CE.bandeau(bd, v, true);
+    $('#cartes').hidden = true; const box = $('#chaine-cartes'); box.hidden = false; CE.cartes.batir(box, v);
+    if (pageActive !== 'boutique') showPage('boutique');
+    if (tiroir.pos === 'ferme' || tiroir.pos === 'ouvert') tiroir.aller('mi');
+    lastHud = ''; hud(); lastFrame = performance.now(); eveiller(); serrerCoinBientot();
+    return true;
+  }
+  function sortirChaine(pourEntrer) {
+    if (!chaineVue) return; const c = chaineVue; chaineVue = null; dernierPassage = performance.now();
+    if (glisse) finGlisse(true); amenager(false);
+    CH.fermer(st, c.v, HORLOGE.maintenant()); // sa caisse et son heure reviennent à la boutique compacte ; son gérant reprend
+    if (VIE.basculer) VIE.basculer('');
+    CE.cartes.lacher(); const box = $('#chaine-cartes'); box.hidden = true; box.innerHTML = ''; $('#cartes').hidden = false;
+    $('#chaine-bandeau').hidden = true; document.body.classList.remove('chaine-dans');
+    if (!pourEntrer) { decosScene(); derniereRecScene = ''; majRecompenses(); dernierModele = ''; majChat(); }
+    lastHud = ''; enseigneVue = ''; renderCards(true); hud(); majCoinChaine(); save(); lastFrame = performance.now(); serrerCoinBientot();
+  }
+  // les décos que la scène montre : celles de la boutique de la chaîne où l'on est, sinon celles de la boulangerie (st.decos ; absent : le
+  // plan d'origine, SCENE.decos(null)). Une boutique de la chaîne ne montre jamais les décos des événements de la boulangerie à leur place d'office.
+  function decosScene() {
+    if (chaineVue) { SCENE.decosQuartier([]); SCENE.decosHantee([]); }
+    else { SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []); }
+    if (SCENE.decos && CE) { try { SCENE.decos(chaineVue ? CH.posesDe(chaineVue.v.b) : CE.posesDe(0)); } catch (e) { /* rien */ } }
+  }
+  // l'icône ronde de la planète, en tête du coin de la boutique : dès que la chaîne a une boutique ; sa pastille, les jetons à prendre
+  let cleCoinChaine = '';
+  function majCoinChaine() {
+    const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
+    const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
+    b.hidden = !r.boutiques; const p = b.querySelector('.rang-pastille'); p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    b.setAttribute('aria-label', `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}`);
+  }
+  function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
+    if (chaineVue) { CE.cartes.rendre(true); CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } else renderCards(true);
+    lastHud = ''; hud(); cleCoinChaine = ''; majCoinChaine(); renderBoosts(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); }
+  }
+  // la carte « Ma chaîne » et la carte « Mes décos » de la page Boulanger
+  const cleChaine = () => { if (!CH || !CE) return ''; const r = CH.resume(st, HORLOGE.maintenant()); return `${r.boutiques}|${r.gerants}|${r.or}|${r.aPrendre}|${r.jetons}`; };
+  function carteChaine() {
+    if (!CH || !CE) return '';
+    const r = CH.resume(st, HORLOGE.maintenant()), pl = (n, a, b) => `${n} ${n > 1 ? b : a}`;
+    return `<div class="ch-cartes-boulanger"><button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>
+      <button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
+  }
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
   const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
@@ -1644,6 +1854,8 @@ const UI = (() => {
   const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   async function visiter(pseudo, depuisCl, ev) {
     if (!classement || visite || !pseudo) return;
+    if (chaineVue) sortirChaine(); // (la boutique d'un copain s'affiche à la place de la sienne : on sort d'abord de sa boutique de la chaîne)
+    if (CE && CE.ouvert) CE.fermer();
     audio(); son.tap();
     const E = ev ? evDe(ev) : null;
     visite = { pseudo: String(pseudo), depuisCl: !!depuisCl, charge: true, etat: '', data: null, b: null, scene: false, tiroir: tiroir.pos, envoi: false, E, qe: null, ev3: null, images: 0, fini: false };
@@ -1910,7 +2122,7 @@ const UI = (() => {
   }
 
   // ─── boucle ───
-  let derniereImage = 0;
+  let derniereImage = 0, tGerants = 0;
   function frame(now) {
     // l'intervalle qui suit une image traitée : son vrai coût (rendu compris), que la qualité de la scène mesure ; les images que la cadence
     // espace volontairement (33 ou 100 ms) ne sont pas de la lenteur
@@ -1925,7 +2137,8 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // (la maquette ?boulanger3d=1 : la vue « Mon boulanger » couvre la boutique) // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // (la maquette ?boulanger3d=1 : la vue « Mon boulanger » couvre la boutique) // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
+    const atelier = couvert || !!chaineVue; // pendant l'Atelier, la Planque, une visite ou dans une boutique de la chaîne : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte
     // pas ici) ; on le retrouve en refermant. Les autres continuent : le coup de feu, le meunier et l'anniversaire ne demandent rien (les ventes
@@ -1936,30 +2149,42 @@ const UI = (() => {
     const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
-      if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
-      if (!st.stations[first.i].staff && pageActive === 'boutique' && tiroir.pos !== 'ferme') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      if (!visite && !chaineVue && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
+      if (!chaineVue && !st.stations[first.i].staff && pageActive === 'boutique' && tiroir.pos !== 'ferme') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden && !visite) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
-    if (out.habitue && !visite) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
+    if (out.habitue && !visite && !chaineVue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
-    if (out.chat && $('#feuille').hidden && !visite) sheetChat(true);
+    if (out.chat && $('#feuille').hidden && !visite && !chaineVue) sheetChat(true);
     if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
-    if (out.venteSaison && !visite) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
+    if (out.venteSaison && !visite && !chaineVue) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); feter(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
-    renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
+    if (chaineVue) { // la boutique de la chaîne où l'on est : ses fournées dans sa caisse (CHAINE.tick, jamais GAME.tick), ses ventes dans la scène
+      const tv = HORLOGE.maintenant(), o = CH.tick(st, chaineVue.v, dt, tv);
+      if (o.ventes.length && !couvert) {
+        const gros = o.ventes.reduce((a, x) => a + x.montant, 0), first = o.ventes[0], main = !chaineVue.v.stations[first.i].staff;
+        if (G.PRODUITS[first.i].temps >= 3 || main || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), main); son.vente(gros); }
+        const el = main && pageActive === 'boutique' && tiroir.pos !== 'ferme' ? CE.cartes.el(first.i) : null, br = el && el.querySelector('.barre');
+        if (br) { const r = br.getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      }
+      CE.cartes.rendre(); CE.bandeau($('#chaine-bandeau'), chaineVue.v);
+    } else renderCards();
+    hud(); renderObjectifs(); renderEvenement(); renderPage();
+    if (CH && now - tGerants > 60e3) { tGerants = now; encaisserChaine(HORLOGE.maintenant(), EN_JEU); majCoinChaine(); } // les gérants, une fois par minute en jouant (sans feuille)
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
+    else if (chaineVue && !couvert) { const t = HORLOGE.maintenant(); chaineVue.v.now = t; SCENE.frame(dt, chaineVue.v, t, msImage, espacee); } // dans une boutique de la chaîne : la scène montre la vue, jamais st
     else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t, msImage, espacee); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
     else if (visite && visite.ev3) { // sa Planque : la scène de l'événement tourne sur son état rebâti (aucun tick : rien ne s'y vend, rien ne se sauve)
       const e3 = visite.ev3;
       if (!e3.perdu) { e3.frame(dt, visite.qe); visite.images++; } else if (performance.now() - e3.perdu > 1000) { libererEv3(visite); peindreVisite(); } // le contexte perdu ne revient pas : le résumé seul
     }
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
-    if (now - tChat > 500) { tChat = now; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
+    if (now - tChat > 500) { tChat = now; majChat(); majCoinChaine(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
     indices();
     if (now - lastSave > 5000) save();
@@ -1980,7 +2205,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); eveiller(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = montrerRetour(abs, enc); if (montre) { sheetRetour(abs, enc); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -2044,15 +2269,19 @@ const UI = (() => {
   // pour une même absence (avec ce qui a été payé au lancement ou au retour, jamais plus que heuresAbsence) ; voir src/horloge.js (d)
   function payerSaut(r) {
     if (!st || !absencePrete || retourEnCours || fige) return; // au lancement et au retour, l'absence part de l'ancien lastSeen : le saut y est déjà
-    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3);
-    if (!(paye > 0)) return;
-    const now = HORLOGE.maintenant();
+    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3), now = HORLOGE.maintenant();
+    // les gérants d'abord, et même quand la boulangerie n'a plus rien à toucher : chacun reçoit le reste de SA durée pour cette absence (8 à
+    // 16 h en tout, pas celle des apprentis), au plus le saut ; vu revient à maintenant (sans quoi l'encaissement d'une minute plus tard
+    // repaierait tout le saut)
+    const enc = encaisserChaine(now, (b) => HORLOGE.sautAPayer(r.saut, gerantsPayes[b.n] || 0, CH.heuresGerant(b) * 3600e3));
+    if (enc) for (const d of enc.detail) gerantsPayes[d.n] = (gerantsPayes[d.n] || 0) + d.secs * 1000;
+    if (!(paye > 0)) { if (enc && enc.total > 0) { majCoinChaine(); save(); } return; }
     st.lastSeen = now - paye;
     const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
     if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
-    const montre = abs.total > 0 && abs.secs > 90;
-    if (montre) { sheetRetour(abs); renderCards(true); }
+    const montre = montrerRetour(abs, enc);
+    if (montre) { sheetRetour(abs, enc); renderCards(true); }
     noterRetour('heure', abs, paye, montre, true);
     save();
   }
@@ -2087,6 +2316,23 @@ const UI = (() => {
       sc.addEventListener('pointerup', (e) => { if (glisse && e.pointerId === glisse.pid) { majGlisse(...pos(e)); finGlisse(false); } });
       sc.addEventListener('pointercancel', (e) => { if (glisse && e.pointerId === glisse.pid) finGlisse(true); }); }
     $('#b-atelier').addEventListener('click', () => { audio(); son.tap(); sheetAtelier(); });
+    // « Ma chaîne » (src/chaine-ecran.js) : l'écran, la boutique des jetons, le carnet, et ce qu'on fait dans une boutique de la chaîne
+    if (CE) {
+      CE.init({ st: () => st, maintenant: () => HORLOGE.maintenant(), save, toast, son: Object.assign({}, son, { pieces: son.pourboire }), buzz, audio, openSheet, closeSheet, on, confettis, fete: () => SCENE.fete(), reduit: reduceMotion,
+        qualite: () => { const q = SCENE.stats && SCENE.stats.qualite; return ['haute', 'moyenne', 'eco'].includes(q) ? q : 'eco'; }, heure: () => { try { const f = VIE.force; return f && f.heure != null ? f.heure : G.heureParis(HORLOGE.maintenant()); } catch (e) { return 12; } }, // (le ciel de la planète : celui de la boutique)
+        sceneDe: () => (visite || (EVS && EVS.ouvert) ? -1 : chaineVue ? chaineVue.n : 0), // la boutique que montre la scène (le carnet y lit les places tenues par un décor automatique)
+        recompenses: recVue, encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), entrer: (n, depuis) => entrerChaine(n, depuis), rafraichir: rafraichirChaine, decosChangees: decosScene,
+        ferme: () => { eveiller(); lastFrame = performance.now(); cleCoinChaine = ''; majCoinChaine(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } },
+        amenager: () => { if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); } });
+      $('#b-chaine').addEventListener('click', () => { audio(); son.tap(); ouvrirChaine(); });
+      $('#b-jetons').addEventListener('click', () => { audio(); son.tap(); CE.jetons(); });
+      $('#b-decos').addEventListener('click', () => { audio(); son.tap(); CE.carnet({ cible: chaineVue ? chaineVue.n : 0 }); });
+      $('#chaine-bandeau').addEventListener('click', (e) => {
+        if (!chaineVue) return; const a = CE.bandeauClic(e, chaineVue.v);
+        if (a === 'retour') sortirChaine(); else if (a === 'chaine') ouvrirChaine(); else if (a === 'nom') { const n = chaineVue.n; CE.renommer(n, () => { if (chaineVue && chaineVue.n === n) { chaineVue.v.nomBoutique = chaineVue.v.b.nm || ''; CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } }); }
+      });
+      $('#chaine-cartes').addEventListener('click', (e) => { if (!chaineVue) return; const r = CE.cartes.clic(e); if (r && r.lance) SCENE.tap(); if (r) { lastHud = ''; hud(); } });
+    } else { const b = $('#b-decos'); if (b) b.hidden = true; }
     $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
     $('#b-hantee').addEventListener('click', () => { audio(); son.tap(); if (HTE) HTE.ouvrir(); });
@@ -2101,6 +2347,8 @@ const UI = (() => {
     if (HTE) HTE.init(depsEv(HTE.cle));
     majChat();
     buildCards();
+    decosScene(); // « Mes décos » : la disposition de la boulangerie (st.decos), sinon le plan d'origine
+    if (ESSAI) bandeauEssai();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
@@ -2108,9 +2356,9 @@ const UI = (() => {
       ouvert: () => { closeSheet(); eveiller(); if (SCENE.alleger) SCENE.alleger(); }, // la boutique, cachée, rend sa passe d'effets (recréée au retour)
       ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
-    document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
+    document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); if (chaineVue) { chaineVue.v.mode = st.mode; CE.cartes.rendre(true); } else renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
-    $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
+    $('#b-ameliorations').addEventListener('click', () => { audio(); if (chaineVue) CE.bonus(chaineVue.v); else sheetAmeliorations(); });
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
@@ -2123,6 +2371,7 @@ const UI = (() => {
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.deplacer) { if (!glisse) debutGlisse(e, sx, sy); return; } // le mode Déplacer : on prend un meuble, rien d'autre
+      if (chaineVue) { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) CE.meuble(chaineVue.v, id); else SCENE.tap(); return; } // une boutique de la chaîne : ses meubles, rien de la boulangerie (ni client mystère, ni porte du fond)
       const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
@@ -2149,8 +2398,13 @@ const UI = (() => {
     // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, AVANT l'absence (ses bonus de
     // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
     const rattrape = fresh ? [] : G.rattraperParcours(st);
-    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; const montre = abs.total > 0 && abs.secs > 90; if (montre) sheetRetour(abs); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
-    absencePrete = true;
+    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t), enc = encaisserChaine(t); absencePayee = abs.secs * 1000; gerantsPayes = payesDe(enc); const montre = montrerRetour(abs, enc); if (montre) sheetRetour(abs, enc); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
+    // le détecteur de réveil repart du lancement : un lancement lent (plus de 5 s, l'heure sûre attendue comprise) n'est pas une page gelée.
+    // Sans cela, son premier passage voyait un « gel » et lançait un retour qui payait le reste d'une heure sûre en retard comme une nouvelle
+    // absence (la boulangerie et les gérants : 12 h pour une absence de 12 h, au lieu de 8), sans passer par payerSaut
+    absencePrete = true; reveilW = Date.now(); reveilP = performance.now();
+    if (essaiCopie) save(); // (la vraie partie copiée : sauvée sous les clés de l'essai, jamais sous les siennes)
+    if (essaiVide) { const montrer = () => sheetEssaiCode(); if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     HORLOGE.surSaut(payerSaut);
     if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
@@ -2163,7 +2417,7 @@ const UI = (() => {
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
     // + ses statistiques (x) et l'événement EN COURS (e) : seulement pendant sa fenêtre, s'il y est entré (la porte passée, ouvertLe) et ne l'a pas masqué
     const evPhoto = () => { for (const E of [EVT, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; };
-    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
+    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); const ch = CH ? CH.resume(st, HORLOGE.maintenant()) : null; return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto(), dc: st.decos && typeof st.decos.d === 'string' ? st.decos.d : '', ch: ch ? [ch.boutiques, ch.or] : null }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
@@ -2195,7 +2449,13 @@ const UI = (() => {
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null),
       tchat: TC,
       retours: RT,
-      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false),
+      // « Ma chaîne » (les tests) : l'état, entrer et sortir, la vue (jamais st), des jetons, une absence des gérants (vu reculé de ms, comme une vraie absence)
+      chaine: CH ? { get etat() { return CH.etat(st); }, ouvrir: (n) => entrerChaine(n, 'test', true), fermer: () => sortirChaine(), get vue() { return chaineVue ? chaineVue.v : null; }, get n() { return chaineVue ? chaineVue.n : 0; },
+        ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
+        donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
+        absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); gerantsPayes = payesDe(enc); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
+        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

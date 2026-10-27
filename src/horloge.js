@@ -29,7 +29,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const CLE = 'fournil.horloge'; // { sure, jeu } : la dernière heure sûre connue et le dernier « maintenant » du jeu (aussi dans la sauvegarde, st.horloge)
+  // { sure, jeu } : la dernière heure sûre connue et le dernier « maintenant » du jeu (aussi dans la sauvegarde, st.horloge) ; la version d'essai : « fournil.essai.horloge »
+  const CLE = typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE('fournil.horloge') : 'fournil.horloge';
   const REGLES = {
     periode: 30 * 60e3, // une heure sûre relue toutes les 30 min
     attente: 2500, // au lancement et au retour, on attend l'heure sûre au plus 2,5 s, puis on joue avec ce qu'on a

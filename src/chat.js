@@ -52,7 +52,7 @@ const TCHAT = (() => {
   let observe = null;
 
   // ─── ses propres messages : ceux envoyés d'ici (gardés sur le téléphone), ou signés de son pseudo ───
-  const CLE = 'fournil.tchat';
+  const CLE = typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE('fournil.tchat') : 'fournil.tchat'; // (la version d'essai : « fournil.essai.tchat »)
   const mesN = new Set((() => { try { const o = JSON.parse(localStorage.getItem(CLE) || 'null'); return o && Array.isArray(o.mes) ? o.mes.filter((n) => Number.isSafeInteger(n) && n > 0) : []; } catch (e) { return []; } })());
   function noterMien(n) { mesN.add(n); try { localStorage.setItem(CLE, JSON.stringify({ mes: [...mesN].slice(-200) })); } catch (e) { /* rien */ } }
   const moteur = () => { try { return d && d.classement ? d.classement() : null; } catch (e) { return null; } };

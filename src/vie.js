@@ -197,13 +197,35 @@ const VIE = (() => {
       }
     }
     const tx = Math.min(...tables.map((t) => t.x)), ty = Math.min(...tables.map((t) => t.y));
+    // « Mes décos » : les 12 places typées (le contrat de la chaîne, § 4.2 ; les codes d'une lettre de CHAINE.PLACES), en pixels d'écran.
+    // Au mur : x, y le centre de la place sur le mur ; au sol : le point où la déco pose le pied (p : la profondeur permise) ; sur le
+    // comptoir : un point du dessus (comme les fleurs) ; au rebord : le milieu de sa moitié de fenêtre, sur l'appui ; dehors : le scooter,
+    // peint derrière la vitre. w, h : la place qu'elle peut prendre à l'écran (la déco rapetisse pour y tenir) ; r : son rectangle d'écran ;
+    // z : au mur, l'épaisseur de ce qui est déjà accroché là (la porte du fond).
+    const fen = { x: W * 0.04, y: T * 0.05, w: W * 0.24, h: T * 0.21 }, arr = { x: W * 0.292, y: T * 0.20, w: W * 0.054, h: murH - T * 0.20 }, hor = { x: W * 0.52, y: T * 0.22 }, dip = { x: W * 0.60, y: T * 0.19 };
+    const PL = (id, code, type, x, y, w, h, o) => { const r = type === 'mur' ? R(x - w / 2, y - h / 2, w, h) : R(x - w / 2, y - h, w, h); return Object.assign({ id, code, type, x, y, w, h, r }, o || {}); };
+    const decos = [
+      PL('m1', 'a', 'mur', W * 0.66, T * 0.20 + 4, 32, 22, { nom: 'le second cadre' }), // (la place du second tableau de la déco : une déco posée le décroche ; sous l'applique)
+      PL('m2', 'b', 'mur', fen.x + fen.w / 2, fen.y + fen.h * 0.36, fen.w * 0.46, fen.h * 0.56, { nom: 'la fenêtre' }), // (le néon ; le haut de la vitre, au-dessus de ce qui tient sur l'appui)
+      PL('m3', 'c', 'mur', arr.x + arr.w / 2, arr.y + arr.h * 0.32, Math.min(24, arr.w + 2), arr.h * 0.5, { z: 3.2, nom: 'la porte du fond' }), // (les toques ; z : devant le vantail)
+      PL('m4', 'd', 'mur', (hor.x + dip.x) / 2 - 2 * K, hor.y + 8 * K, 16 * K, 26 * K, { nom: 'entre l’horloge et le diplôme' }), // (la rosette)
+      PL('s1', 'e', 'sol', W * 0.745, T * 0.40, 30, 46, { p: 22, nom: 'le coin de la déco' }),
+      PL('s2', 'f', 'sol', W * 0.655, T * 0.42, 30, 52, { p: 22, nom: 'la place du sapin' }),
+      PL('s3', 'g', 'sol', chien.x, chien.y, 44, 40, { p: 18, nom: 'le coin de la porte' }), // (le chien)
+      PL('c1', 'h', 'comptoir', W * 0.34, T * 0.515, 24, 34, { nom: 'le comptoir, aux fleurs' }),
+      PL('c2', 'i', 'comptoir', W * 0.55, T * 0.515, 26, 34, { nom: 'le comptoir, à la recette' }),
+      // (l'appui de la fenêtre : à gauche, la chambre froide passe devant la vitre ; les deux places restent à sa droite)
+      PL('r1', 'j', 'rebord', fen.x + fen.w * 0.44, fen.y + fen.h + 1, fen.w * 0.3, fen.h * 0.4, { nom: 'la fenêtre, à gauche' }),
+      PL('r2', 'k', 'rebord', fen.x + fen.w * 0.8, fen.y + fen.h + 1, fen.w * 0.3, fen.h * 0.4, { nom: 'la fenêtre, à droite' }),
+      PL('x1', 'l', 'dehors', fen.x + fen.w * 0.8, fen.y + fen.h - 2, 30, 22, { nom: 'le trottoir' }), // (le scooter, peint derrière la vitre)
+    ];
     return {
       T, murH, spread: sp, W, H, K,
-      fenetre: { x: W * 0.04, y: T * 0.05, w: W * 0.24, h: T * 0.21 },
+      fenetre: fen,
       etagere: { x: W * 0.73, y: T * 0.05, w: W * 0.12 },
-      cadre: { x: W * 0.39, y: T * 0.20 }, horloge: { x: W * 0.52, y: T * 0.22 }, diplome: { x: W * 0.60, y: T * 0.19 }, cadre2: { x: W * 0.66, y: T * 0.20 },
+      cadre: { x: W * 0.39, y: T * 0.20 }, horloge: hor, diplome: dip, cadre2: { x: W * 0.66, y: T * 0.20 },
       appliques: [{ x: W * 0.38, y: T * 0.22 }, { x: W * 0.65, y: T * 0.22 }], lampe: { x: W * 0.5, y: T * 0.07 },
-      arriere: { x: W * 0.292, y: T * 0.20, w: W * 0.054, h: murH - T * 0.20 }, // la petite porte de l'arrière-boutique, entre la fenêtre et le tableau (src/arriere.js)
+      arriere: arr, // la petite porte de l'arrière-boutique, entre la fenêtre et le tableau (src/arriere.js)
       porte: { x: W * 0.86, y: T * 0.04, w: W * 0.11, h: murH - T * 0.04 },
       entree: { x: W * 0.915, y: murH }, paillasson: { x: W * 0.915, y: murH + 9 },
       deco: { x: W * 0.80, y: T * 0.36 }, plante, sapin: { x: W * 0.655, y: T * 0.42 },
@@ -232,6 +254,7 @@ const VIE = (() => {
       grille, // la grille du « tout déplaçable » (st.amenagement)
       utile: Math.min(H, bord + 24 * K),
       chatSpots: spots, mobiles, fixes, standingSol, sig, verdict, abords,
+      decos, // les places typées de « Mes décos »
     };
   }
   const inter = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; // deux rectangles qui se recouvrent (se toucher ne compte pas)
@@ -414,7 +437,7 @@ const VIE = (() => {
     libererPlace(c);
     const envie = Math.min(0.9, 0.45 + 0.1 * Math.min(4, places.tables) + 0.03 * (places.bar + places.banquette + places.terrasse)), siege = !c.or && (force.assis || c.hab || Math.random() < envie) ? siegeLibre(c) : null;
     if (siege) { c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, ...siege.voie, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable'; }
-    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique hantée : il fête son achat sur place (Cheer) avant de repartir
+    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '' && modeVie !== 'chaine') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique d'un événement (la hantée) : il fête son achat sur place (Cheer) avant de repartir ; pas dans une boutique de la chaîne, qui vit comme la boulangerie
   }
   function libererPlace(c) { // sa place dans la file se libère : ceux de derrière avancent d'un cran
     const slotLibre = c.slot; c.slot = -2;
@@ -555,7 +578,8 @@ const VIE = (() => {
     return etat;
   }
 
-  // ─── basculer(mode) : la boutique hantée (mode 'hantee') et la boutique ('') ne partagent pas leur salle. En entrant dans l'événement, la
+  // ─── basculer(mode) : la boutique hantée (mode 'hantee'), une boutique de « Ma chaîne » (mode 'chaine', src/chaine.js : la scène y montre
+  //     la vue de cette boutique, un autre état) et la boulangerie ('') ne partagent pas leur salle. En entrant dans l'événement ou la chaîne, la
   //     vie de la boutique (clients, apprentis, chat, textes, vapeurs, flocons, passants, confettis, minuteries) est mise de côté telle
   //     quelle ; l'événement part d'une salle vide ; en sortant, la sienne est jetée et celle de la boutique revient (chaque client
   //     retrouve sa place par l'id du siège : un siège disparu entre-temps, il repart par l'allée) ───
@@ -610,6 +634,47 @@ const VIE = (() => {
     const L = plan(a, true, id), mo = L.mobiles.find((o) => o.id === id), v = L.verdict;
     const p = { a, ok: v.ok, raison: v.ok ? '' : v.raison, rect: mo.r, x: mo.x, y: mo.y, autre: v.ok ? null : v.avec || null }; dernierePro = { cle, p }; return p;
   }
+  // ─── « Mes décos » : le mode Déplacer des décos, sur les 12 places typées de LAY.decos ───
+  // Le type de place d'une déco : celui des règles (CHAINE.FAMILLES, src/chaine.js) quand elles sont là, sinon celui de la scène (MEUBLES.DECOS)
+  let typesDecos = null;
+  function typeDeco(id) {
+    if (!typesDecos) {
+      const ch = typeof CHAINE !== 'undefined' && CHAINE && CHAINE.FAMILLES ? CHAINE : null, mb = typeof MEUBLES !== 'undefined' && MEUBLES && MEUBLES.DECOS ? MEUBLES.DECOS : null;
+      if (ch) { typesDecos = {}; for (const f of ch.FAMILLES) if (f.posable) for (const x of f.items) if (x.place) typesDecos[x.id] = x.place; }
+      else if (mb) { typesDecos = {}; for (const [k, x] of Object.entries(mb)) typesDecos[k] = x.type; }
+      else return null;
+    }
+    return typesDecos[id] || null;
+  }
+  const DECOS_MAX = 6, OU = { mur: 'au mur', sol: 'au sol', comptoir: 'sur le comptoir', rebord: 'sur le rebord de la fenêtre', dehors: 'dehors' };
+  const RAISONS_DECO = { inconnue: 'Cette déco n’existe pas.', type: (t) => `Elle se pose ${OU[t] || 'ailleurs'}.`, max: `${DECOS_MAX} décos au plus : range-en une d’abord.`, budget: 'Trop de lueurs pour la boutique.', place: 'Une seule déco par place.', double: 'Elle est déjà posée.' };
+  // validerDeco(poses) : la disposition ([[id, place]…]) tient-elle ? { ok, raison, poses (ce qui en reste de bon, dans l'ordre) }
+  function validerDeco(poses) {
+    if (!LAY) calculer();
+    const out = [], prises = new Set(), vues = new Set(); let raison = '';
+    for (const x of Array.isArray(poses) ? poses : []) {
+      const p = Array.isArray(x) && x.length === 2 ? LAY.decos.find((q) => q.id === x[1]) : null, t = p ? typeDeco(x[0]) : null;
+      const r = !p || !t ? RAISONS_DECO.inconnue : t !== p.type ? RAISONS_DECO.type(t) : prises.has(p.id) ? RAISONS_DECO.place : vues.has(x[0]) ? RAISONS_DECO.double : out.length >= DECOS_MAX ? RAISONS_DECO.max : '';
+      if (r) { raison = raison || r; continue; }
+      prises.add(p.id); vues.add(x[0]); out.push([x[0], p.id]);
+    }
+    return { ok: !raison, raison, poses: out };
+  }
+  // proposerDeco(poses, id, x, y, qualite) : la déco id glissée au doigt jusqu'en (x, y), aimantée à la place de son type la plus proche.
+  // Une place prise : la déco qui l'occupait prend la place qu'on vient de quitter (un échange), sinon elle est rangée. Vert ou rouge :
+  // CHAINE.peutPoser (le type, six au plus, le budget d'appels de dessin) quand les règles sont là, sinon validerDeco.
+  // → { id, place, ok, raison, poses (la disposition proposée ; refusée : celle d'avant), rect, x, y, remplace } ; null : une déco inconnue
+  function proposerDeco(poses, id, x, y, qualite) {
+    if (!LAY) calculer();
+    const t = typeDeco(id); if (!t) return null;
+    const l = validerDeco(poses).poses, cand = LAY.decos.filter((p) => p.type === t);
+    const d2 = (p) => (p.r.x + p.r.w / 2 - x) ** 2 + (p.r.y + p.r.h / 2 - y) ** 2, p = cand.reduce((a, b) => (d2(b) < d2(a) ? b : a));
+    const avant = l.find((e) => e[0] === id), occ = l.find((e) => e[1] === p.id && e[0] !== id);
+    const nouv = l.filter((e) => e[0] !== id && e !== occ); if (occ && avant) nouv.push([occ[0], avant[1]]); nouv.push([id, p.id]);
+    const ch = typeof CHAINE !== 'undefined' && CHAINE && CHAINE.peutPoser ? CHAINE : null, v = ch ? ch.peutPoser(l, id, p.id, qualite || 'haute') : null;
+    const raison = v ? (v.ok ? '' : v.raison === 'type' ? RAISONS_DECO.type(t) : RAISONS_DECO[v.raison] || RAISONS_DECO.inconnue) : validerDeco(nouv).raison;
+    return { id, place: p.id, ok: !raison, raison, poses: raison ? l : nouv, rect: p.r, x: p.r.x + p.r.w / 2, y: p.r.y + p.r.h / 2, remplace: occ && !avant ? occ[0] : null };
+  }
   // le meuble déplaçable sous le doigt (son emprise et la hauteur du meuble au-dessus, au moins 44 × 44) ; achetes : seulement les meubles achetés
   function mobileSous(x, y, achetes) {
     if (!LAY) return null;
@@ -622,7 +687,7 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { typeDeco, validerDeco, proposerDeco, DECOS_MAX, hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },

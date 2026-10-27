@@ -35,6 +35,9 @@ const HDM = (() => {
     // ≈ 162 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), le chapeau pointu et la citrouille-lanterne. Sans les clips ou sans le corps
     // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
     equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-chapeau', 'p-lanterne'] },
+    // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
+    // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
+    planete: { planete: ['planete'] },
   };
   const MOD = {}, PER = {}, CLI = {}, EQ = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
@@ -64,7 +67,7 @@ const HDM = (() => {
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
   // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre, avec sa raison
   // ('non:écran noir', 'non:joueur' ; un ancien 'non' tout court vaut 'joueur'), pour que le petit texte des Réglages reste juste après un rechargement
-  let coupeMem = null; const CLE = 'fournil.hd';
+  let coupeMem = null; const CLE = typeof FOURNIL_CLE === 'function' ? FOURNIL_CLE('fournil.hd') : 'fournil.hd'; // (la version d'essai : « fournil.essai.hd »)
   const coupe = () => {
     if (coupeMem === null) { let v = null; try { v = localStorage.getItem(CLE); } catch (e) { /* rien */ } coupeMem = v === 'non' || /^non:/.test(v || ''); API.raison = coupeMem ? v.slice(4) || 'joueur' : ''; }
     return coupeMem;
@@ -137,6 +140,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, equipe: (n) => EQ[n] || null });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, equipe: (n) => EQ[n] || null, scene: (n) => MOD[n] || null });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
