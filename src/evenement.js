@@ -1559,6 +1559,16 @@ const EVENEMENTS = (() => {
   // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
   // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
   //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete, bouton (le mot du bouton prêt : « Livrer ! ») } ; son bouton porte data-a="mh-commande".
+  // le bestiaire, ses médailles (le bronze, l'argent, l'or de chaque sorte) : « Bronze 9/9 · Argent 2/9 · Or 0/9 », et la fête d'un palier
+  // d'argent ou d'or (o : { palier, sorte, sortes (plusieurs passées d'un coup : une vieille sauvegarde), titre, rang, total, seuil, dons, deco,
+  // decoNom, reste, ico })
+  const NOM_MED = { bronze: 'de bronze', argent: 'd’argent', or: 'd’or' };
+  const medaillesTxt = (o) => `<span class="m-bronze">Bronze ${o.faits}/${o.total}</span> · <span class="m-argent">Argent ${o.argent || 0}/${o.total}</span> · <span class="m-or">Or ${o.or || 0}/${o.total}</span>`;
+  const feteMedaille = (o) => `<div class="pq-sheet ht mh-best-fete m-${o.palier}" data-bestiaire-fete="${esc(o.sorte)}" data-palier="${o.palier}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres en ${o.palier === 'or' ? 'or' : 'argent'} · ${o.seuil} servis${(o.sortes || []).length > 1 ? ` · ${o.sortes.length} d’un coup` : ''}</p>
+      <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="encadre">${o.deco ? `${esc(o.decoNom || 'L’étagère')} : elle est dans ta boutique. ` : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} : aux ${o.total} en ${o.palier === 'or' ? 'or, l’étagère dorée' : 'argent, l’étagère aux bocaux d’argent'}.` : o.palier === 'argent' ? 'Prochaine étape : l’or, et l’étagère dorée.' : 'Le bestiaire est en or : bravo !'}</p>
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`;
   const gabarits = {
     eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
     serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
@@ -1567,34 +1577,44 @@ const EVENEMENTS = (() => {
         <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
         <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
       <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? esc(o.bouton || 'Servir') : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
-    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, total, par, etoiles, gagnees, deco, chauvesouris, rangDeco, rangCompagnon, rangs,
-    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du
-    // tiroir (les neuf en miniature, sombres tant qu'aucun n'est servi), sa feuille, le petit mot sur la scène, la feuille de fête
-    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : ${o.faits} sorte${o.faits > 1 ? 's' : ''} sur ${o.total}`)}">
+    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, argent, or (combien de sortes à chaque métal), total, par, etoiles, gagnees, deco,
+    // decoArgent, decoOr, chauvesouris, rangDeco, rangCompagnon, rangs, seuils: { argent, or }, etoilesArgent, etoilesOr,
+    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), servis, medaille (null | 'bronze' | 'argent' | 'or'), depuis,
+    // prochain (null : l'or), part (vers le palier suivant, 0..1), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du tiroir (les neuf
+    // en miniature, sombres tant qu'aucun n'est servi, cerclés de leur médaille), sa feuille, le petit mot sur la scène, la feuille de fête
+    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : bronze ${o.faits} sur ${o.total}, argent ${o.argent || 0}, or ${o.or || 0}`)}">
       <span class="mh-best-pic" aria-hidden="true">${o.ico}</span>
-      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small>${o.faits}/${o.total} monstres</small></span>
-        <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}" data-sorte="${esc(s.sorte)}" style="--p:${(s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
+      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small class="mh-best-meds">${medaillesTxt(o)}</small></span>
+        <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}" style="--p:${(s.part != null ? s.part : s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
       <span class="mh-best-fleche" aria-hidden="true">›</span></button>`,
     bestiaireFeuille: (o) => {
       const prochaine = o.faits < o.total ? o.rangs[o.faits] : 0, li = (fait, ico, titre, sous, fin) => `<li class="${fait ? 'fait' : ''}"><span class="mh-best-r-ico">${ico}</span><div><b>${esc(titre)}</b><small>${esc(sous)}</small></div><em>${esc(fin)}</em></li>`;
-      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${o.faits}/${o.total}.</p></div></div>
-        <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}" data-sorte="${esc(s.sorte)}"><span class="mh-best-por">${s.ico}${s.fait ? '<b class="mh-best-et" aria-hidden="true">★</b>' : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${s.fait ? 'au complet' : `${s.n}/${s.par}`}</small><i class="mh-best-barre"><b style="width:${Math.round(s.n / s.par * 100)}%"></b></i></div>`).join('')}</div>
+      const S0 = o.seuils || {}, avance = (s) => (s.medaille === 'or' ? `${s.servis} servis` : `${s.servis != null ? s.servis : s.n}/${s.prochain || s.par}`), part = (s) => (s.part != null ? s.part : s.n / s.par);
+      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${medaillesTxt(o)}.</p></div></div>
+        <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}"${s.medaille ? ` data-medaille="${s.medaille}"` : ''}><span class="mh-best-por">${s.ico}${s.medaille ? `<b class="mh-best-et" role="img" aria-label="${esc(`médaille ${NOM_MED[s.medaille]}`)}">★</b>` : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${esc(avance(s))}</small><i class="mh-best-barre"><b style="width:${Math.round(Math.min(1, part(s)) * 100)}%"></b></i></div>`).join('')}</div>
         <h3 class="titre-section">Les récompenses</h3>
         <ul class="mh-best-recomp">
           ${li(o.faits >= o.total, '<b class="mh-best-r-et">★</b>', 'Chaque sorte complétée : des étoiles', `+1 ★ pour ta boulangerie, +2 à la ${o.rangDeco}e et à la ${o.rangCompagnon}e (${o.etoiles} ★ en tout)${prochaine ? ` · la prochaine : +${prochaine} ★` : ''}`, `${o.gagnees}/${o.etoiles} ★`)}
           ${li(o.deco, o.icoDeco, `${o.rangDeco} sortes : l’étagère aux bocaux de monstres`, 'Un décor pour ta boutique, à vie', o.deco ? 'gagnée ✓' : `${Math.min(o.faits, o.rangDeco)}/${o.rangDeco}`)}
           ${li(o.chauvesouris, o.icoCompagnon, `Les ${o.total} : Myrtille la chauve-souris`, 'Un compagnon pour ta boutique, à vie : elle tourne sous le plafond (+1 h d’absence)', o.chauvesouris ? 'gagnée ✓' : `${o.faits}/${o.total}`)}
         </ul>
+        ${S0.argent ? `<h3 class="titre-section">L’argent et l’or</h3>
+        <ul class="mh-best-paliers">
+          ${li(o.argent >= o.total, '<b class="mh-best-r-et m-argent">★</b>', `${S0.argent} servis d’une sorte : sa médaille d’argent`, `+${o.etoilesArgent} ★ pour ta boulangerie, par sorte`, `${o.argent}/${o.total}`)}
+          ${li(o.or >= o.total, '<b class="mh-best-r-et m-or">★</b>', `${S0.or} servis d’une sorte : sa médaille d’or`, `+${o.etoilesOr} ★ pour ta boulangerie, par sorte`, `${o.or}/${o.total}`)}
+          ${li(o.decoArgent, `<span class="mh-best-r-deco m-argent">${o.icoDeco}</span>`, `Les ${o.total} en argent : l’étagère aux bocaux d’argent`, 'Un décor pour ta boutique, à vie', o.decoArgent ? 'gagnée ✓' : `${o.argent}/${o.total}`)}
+          ${li(o.decoOr, `<span class="mh-best-r-deco m-or">${o.icoDeco}</span>`, `Les ${o.total} en or : l’étagère dorée`, 'Elle remplace l’autre dans ta boutique, à vie', o.decoOr ? 'gagnée ✓' : `${o.or}/${o.total}`)}
+        </ul>` : ''}
         <p class="note centre">Pas de bonbons ici : tout va à ta boulangerie, et le bestiaire reste après Halloween.</p>
         <button type="button" class="btn large ht-btn" data-a="mh-best-ok" style="margin-top:12px"><b>Retour au Manoir</b></button></div>`;
     },
     bestiaireMot: (o) => `<span class="mh-bt-ico" aria-hidden="true">${o.ico}</span><span class="mh-bt-corps"><b>${esc(o.texte)}</b><i class="mh-bt-barre"><b style="width:${Math.round(Math.max(0, Math.min(1, o.part)) * 100)}%"></b></i></span>${o.fait ? '<span class="mh-bt-et" aria-hidden="true">★</span>' : ''}`,
-    bestiaireFete: (o) => `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+    bestiaireFete: (o) => (o.palier === 'argent' || o.palier === 'or' ? feteMedaille(o) : `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}" data-palier="bronze"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
       <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres au bestiaire · dix servis</p>
       <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
       ${o.compagnon ? `<div class="mh-best-cs"><span>${o.icoCompagnon}</span><p>Le bestiaire est complet ! Myrtille t’attend dans « Les compagnons » (la garde-robe ou les Réglages).</p></div><button type="button" class="btn large menthe" data-a="mh-best-choisir" style="margin-top:10px"><b>Choisir Myrtille tout de suite</b></button>`
         : `<p class="encadre">${o.deco ? 'L’étagère aux bocaux de monstres est accrochée dans ta boutique. ' : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} de monstre${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, une chauve-souris de compagnie.` : ''}</p>`}
-      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`,
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`),
   };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
@@ -1611,7 +1631,7 @@ const EVENEMENTS = (() => {
     const COMMENT_JOUER = [
       ['taper', 'Sers les monstres.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les apparitions et livre les commandes de la nuit.'],
       ['mult', 'Le ×6 s’endort.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
-      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris.'],
+      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris. Puis l’argent et l’or : encore des étoiles, et deux étagères.'],
       ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’Halloween, la tenue de sorcière, le chat noir ; au 20e, le titre « Légende du Manoir ».'],
       ['classement', 'Le classement.', 'Les 15 premiers de l’événement sont récompensés.'],
       ['date', 'Jusqu’au lundi 2\u00a0novembre, 20\u00a0h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],

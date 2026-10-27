@@ -1246,14 +1246,14 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-barre { display: block; width: 80%; height: 5px; border-radius: 999px; background: #EADBEF; overflow: hidden; }
 .mh-best-barre b { display: block; height: 100%; border-radius: inherit; background: #FF8A1F; }
 .mh-best-case.fait .mh-best-barre { background: #FFC79E; }
-.mh-best-recomp { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
-.mh-best-recomp li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
-.mh-best-recomp li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
-.mh-best-recomp li div { min-width: 0; display: grid; gap: 2px; }
-.mh-best-recomp li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
-.mh-best-recomp li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
-.mh-best-recomp em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
-.mh-best-recomp li.fait em { color: #2E9C70; }
+.mh-best-recomp, .mh-best-paliers { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.mh-best-recomp li, .mh-best-paliers li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
+.mh-best-recomp li.fait, .mh-best-paliers li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
+.mh-best-recomp li div, .mh-best-paliers li div { min-width: 0; display: grid; gap: 2px; }
+.mh-best-recomp li div b, .mh-best-paliers li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
+.mh-best-recomp li div small, .mh-best-paliers li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
+.mh-best-recomp em, .mh-best-paliers em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
+.mh-best-recomp li.fait em, .mh-best-paliers li.fait em { color: #2E9C70; }
 .mh-best-r-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F1E9FF; }
 .mh-best-r-ico svg { width: 36px; height: 36px; }
 .mh-best-r-et { font: 700 26px/1 var(--titre); color: #FF8A1F; }
@@ -1268,6 +1268,33 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-cs p { margin: 0; font: 700 13.5px/1.35 var(--texte-font); color: #3D2748; }
 .mh-best-fete-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 @keyframes mhFete { 0% { scale: .3; rotate: -12deg; opacity: 0; } 100% { scale: 1; rotate: 0deg; opacity: 1; } }
+/* les médailles du bestiaire (le bronze, l'argent, l'or de chaque sorte) : la carte du tiroir (son résumé, les miniatures cerclées), les cases
+   de la feuille (la médaille du portrait, la marche suivante), le petit mot sur la scène, la fête d'argent ou d'or, les étagères */
+.mh-best-tete { flex-wrap: wrap; row-gap: 2px; }
+.mh-best-meds { font-variant-numeric: tabular-nums; }
+.mh-best-meds .m-bronze { color: #A55A1C; } .mh-best-meds .m-argent { color: #677585; } .mh-best-meds .m-or { color: #A87700; }
+.mh-best-mini i.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-mini i.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-mini i.fait.m-bronze::after, .mh-best-mini i.fait.m-argent::after { display: block; background: #9AA6B4; }
+.mh-best-mini i.fait.m-argent::after { background: #E0A91B; }
+.mh-best-case.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-case.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-case.m-argent > small { color: #4F5B69; } .mh-best-case.m-or > small { color: #8A6100; }
+.mh-best-case.m-bronze .mh-best-barre b { background: #9AA6B4; } .mh-best-case.m-argent .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-argent .mh-best-barre { background: #D6DDE5; } .mh-best-case.m-or .mh-best-barre { background: #FFE07A; } .mh-best-case.m-or .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-bronze .mh-best-et { background: #C77B30; box-shadow: 0 2px 0 #8F5216; }
+.mh-best-case.m-argent .mh-best-et { background: linear-gradient(#F4F7FA, #B5BFCB); color: #fff; text-shadow: 0 1px 0 #6E7B8A; box-shadow: 0 2px 0 #7D8997; }
+.mh-best-case.m-or .mh-best-et { background: linear-gradient(#FFE58A, #F0B11F); color: #fff; text-shadow: 0 1px 0 #A87700; box-shadow: 0 2px 0 #B98300; }
+.mh-best-r-et.m-argent { color: #8E9AA8; } .mh-best-r-et.m-or { color: #E0A91B; }
+.mh-best-r-deco { display: grid; place-items: center; } .mh-best-r-deco svg { width: 36px; height: 36px; }
+.mh-best-r-deco.m-argent svg { filter: grayscale(1) brightness(1.08) contrast(.95); }
+.mh-best-r-deco.m-or svg { filter: sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.05); }
+.mh-bt.fait.m-argent { background: #E6EBF1; color: #2F3945; } .mh-bt.fait.m-argent .mh-bt-barre b { background: #6E7B8A; } .mh-bt.fait.m-argent .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #6E7B8A; }
+.mh-bt.fait.m-or { background: #FFD45A; color: #3D2A00; } .mh-bt.fait.m-or .mh-bt-barre b { background: #3D2A00; } .mh-bt.fait.m-or .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #A87700; }
+.mh-best-fete.m-argent .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFFFFF 0 45%, #DDE3EA 46% 70%, #EEF2F7 71%); box-shadow: 0 0 0 4px #9AA6B4, 0 8px 24px rgba(110, 123, 138, .35); }
+.mh-best-fete.m-argent .mh-best-fete-pic > b { background: linear-gradient(#F4F7FA, #A9B4C1); box-shadow: 0 3px 0 #6E7B8A; }
+.mh-best-fete.m-or .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFF8D6 0 45%, #FFE07A 46% 70%, #FFF1BF 71%); box-shadow: 0 0 0 4px #E0A91B, 0 8px 24px rgba(224, 169, 27, .45); }
+.mh-best-fete.m-or .mh-best-fete-pic > b { background: linear-gradient(#FFE58A, #E9A714); box-shadow: 0 3px 0 #A87700; }
 @media (prefers-reduced-motion: reduce) { .mh-bt.mh-bt-vu, .mh-best-fete-pic { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .mh-bulle.presse, .mh-monstre, #hantee .carte.pq[data-mh~="voulu"] .icone, .mh-halo, .mh-dodo { animation: none; } .mh-flotte { animation-duration: 1.6s; } }
 /* les prix en bonbons : le nombre et un petit bonbon emballé (pas d'emoji : une image SVG en fond, au trait du jeu) */
@@ -2353,7 +2380,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'd1ac7ab3639e';</script>
+<script>window.FOURNIL_VERSION = 'b1480909d19a';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -8432,16 +8459,25 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // une planche en rebord de la fenêtre (au-dessus du four : le milieu du mur passe sous l'enseigne de la boutique), quatre bocaux au couvercle de couleur, un petit monstre dans chacun (un fantôme, une
   // tête-citrouille, une chauve-souris, un crâne), leur étiquette. Un seul appel de dessin (le budget de la boutique) : le verre n'est pas
   // transparent, c'est le fond du bocal (un demi-cylindre bleuté, aplati contre le mur) avec ses deux cerclages et un reflet ; le petit
-  // monstre est posé devant, dedans
-  function bocaux(c) {
+  // monstre est posé devant, dedans.
+  // teinte : 'argent' (les neuf sortes en argent, q.decos 'bestiaire-argent') ou 'or' (les neuf en or, 'bestiaire-or' : elle remplace
+  // l'autre) : la même étagère, mêmes pièces, mêmes bocaux et mêmes petits monstres, la planche, les équerres, les couvercles et les
+  // cerclages dans ce métal (les couleurs des sommets : toujours un seul appel de dessin)
+  const TEINTES_BOCAUX = {
+    argent: { bois: '#B9C3CF', couv: ['#E3E9F0', '#C9D2DD', '#E3E9F0', '#C9D2DD'], cercle: '#F2F5F9', fond: '#D9E6F2' },
+    or: { bois: '#D9A62E', couv: ['#FFD45A', '#F2B937', '#FFD45A', '#F2B937'], cercle: '#FFE58A', fond: '#F4ECD2' },
+  };
+  function bocaux(c, teinte) {
+    const T = TEINTES_BOCAUX[teinte] || null;
     const f = c.LAY.fenetre, K = c.K, g = grp('bocaux'), pr = [], n = 4, ys = f.y + f.h + 1, Yp = murY(c, ys);
     const cx = f.x + f.w / 2, w = f.w - 6, pas = w / n, r = Math.min(6.4 * K, pas * 0.36), hj = c.wy(17), Q = c.Q;
-    pr.push(P(bo(w, 2.4, 10, 0.8), Q.bois, { x: cx, y: Yp - 2.4, z: 5.5 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx - w / 2 + 4, y: Yp - 8, z: 3.2 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx + w / 2 - 4, y: Yp - 8, z: 3.2 })); // la planche, ses deux équerres
-    const couv = ['#8E5CF7', '#FF8A1F', '#5FD3A4', '#E1496C'];
+    const bois = T ? T.bois : Q.bois, fond = T ? T.fond : '#CFE3F4', cercle = T ? T.cercle : '#A9C8E2';
+    pr.push(P(bo(w, 2.4, 10, 0.8), bois, { x: cx, y: Yp - 2.4, z: 5.5 }), P(bo(2, 6, 6, 0.6), bois, { x: cx - w / 2 + 4, y: Yp - 8, z: 3.2 }), P(bo(2, 6, 6, 0.6), bois, { x: cx + w / 2 - 4, y: Yp - 8, z: 3.2 })); // la planche, ses deux équerres
+    const couv = T ? T.couv : ['#8E5CF7', '#FF8A1F', '#5FD3A4', '#E1496C'];
     for (let i = 0; i < n; i++) {
       const x = cx - w / 2 + pas * (i + 0.5), z = 5.5, y0 = Yp, ym = y0 + hj * 0.42, rm = r * 0.55;
-      pr.push(P(M.cylindre(r, r, hj, 12), '#CFE3F4', { x, y: y0 + hj / 2, z: z - r * 0.45, sz: 0.55 }), P(M.sphere(r, 12), '#CFE3F4', { x, y: y0 + hj, z: z - r * 0.45, sy: 0.35, sz: 0.55 }), // le fond du bocal (son épaule arrondie)
-        P(M.tore(r, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + 0.5, z, rx: HP }), P(M.tore(r * 0.86, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + hj + 0.4, z, rx: HP }), // ses deux cerclages
+      pr.push(P(M.cylindre(r, r, hj, 12), fond, { x, y: y0 + hj / 2, z: z - r * 0.45, sz: 0.55 }), P(M.sphere(r, 12), fond, { x, y: y0 + hj, z: z - r * 0.45, sy: 0.35, sz: 0.55 }), // le fond du bocal (son épaule arrondie)
+        P(M.tore(r, 0.45, TAU, 5, 14), cercle, { x, y: y0 + 0.5, z, rx: HP }), P(M.tore(r * 0.86, 0.45, TAU, 5, 14), cercle, { x, y: y0 + hj + 0.4, z, rx: HP }), // ses deux cerclages
         P(bo(0.9, hj * 0.55, 0.4, 0.2), '#FFFFFF', { x: x - r * 0.6, y: y0 + hj * 0.55, z: z + r * 0.75 })); // un reflet
       pr.push(P(M.cylindre(r * 0.82, r * 0.82, 2.2, 12), couv[i], { x, y: y0 + hj + 1.2, z }), P(M.sphere(0.9, 6), couv[i], { x, y: y0 + hj + 2.6, z })); // le couvercle et son bouton
       pr.push(P(bo(r * 1.1, c.wy(3.4), 0.5, 0.2), '#FFF3DC', { x, y: y0 + hj * 0.18, z: z + r + 0.2 })); // l'étiquette
@@ -10641,14 +10677,15 @@ const SCENE = (() => {
     // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
     // (le néon remonte au-dessus des bocaux du bestiaire quand l'étagère est là aussi : même fenêtre ; dans la boutique hantée, pas de néon)
-    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
+    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire || HDECO['bestiaire-argent'] || HDECO['bestiaire-or'] ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
     // le chien : couché dans son coin, SAUF quand il est le compagnon de la boutique (« chien-quartier », GAME.COMPAGNONS) : c'est le même
     // chien, il s'est levé pour te suivre ; pas deux chiens identiques dans la salle. Un autre compagnon choisi : il retourne se coucher.
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
     // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (htDeco(id) && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
-    // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques
-    { id: 'ht-bestiaire', cle: () => (HDECO.bestiaire && MEUBLES.bocaux ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c) },
+    // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques ;
+    // les neuf sortes en argent ('bestiaire-argent'), puis en or ('bestiaire-or') : la même étagère, à la teinte du plus beau métal gagné
+    { id: 'ht-bestiaire', cle: () => (!MEUBLES.bocaux ? null : HDECO['bestiaire-or'] ? 'or' : HDECO['bestiaire-argent'] ? 'argent' : HDECO.bestiaire ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c, k) },
     // la lanterne de la légende (le 20e palier de la Maison hantée) : seulement gagnée, dans les deux boutiques, comme l'étagère aux bocaux
     { id: 'ht-legende', cle: () => (HDECO.legende && MEUBLES.lanterneLegende ? '1' : null), faire: (k, c) => MEUBLES.lanterneLegende(c) },
     // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
@@ -10684,7 +10721,7 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, 'bestiaire-argent': false, 'bestiaire-or': false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -11279,6 +11316,7 @@ const SCENE = (() => {
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
+    get teinteBocaux() { const k = groupes['ht-bestiaire'] ? String(cles['ht-bestiaire'] || '').split('|')[0] : ''; return k === '1' ? 'bronze' : k || null; }, // l'étagère du bestiaire posée : 'bronze', 'argent', 'or' (null : pas posée ; pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
     get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
     precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite
@@ -13731,7 +13769,8 @@ const GARDEROBE_UI = (() => {
    de présence s'endort sans toucher (toucher, eveil, presence), les clients-monstres (servir), les fournées parfaites (parfait), les
    apparitions (attraper(q, id)), les commandes de la nuit (livrerCommande) ; FICHE.manoir, leurs mots ; SORTES, les neuf clients.
    Lot 6, le bestiaire (20 octobre) : les clients-monstres servis remplissent un bestiaire (BESTIAIRE, bestiaire, verserBestiaire, plus bas) ;
-   dix servis d'une sorte la complètent (des étoiles pour la boulangerie), cinq sortes : un décor pour la boutique, les neuf : la chauve-souris. */
+   dix servis d'une sorte la complètent (des étoiles pour la boulangerie), cinq sortes : un décor pour la boutique, les neuf : la chauve-souris.
+   Le 27 octobre, les paliers d'argent et d'or de chaque sorte (BESTIAIRE.argent, BESTIAIRE.or) : des étoiles encore, et deux étagères. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
   else root.HANTEE = factory(root.ACTIVITES);
@@ -14062,6 +14101,23 @@ const GARDEROBE_UI = (() => {
   //      boutique (q.decos : 'bestiaire', l'étagère aux bocaux de monstres, posée comme ceux des paliers) ; aux neuf, le compagnon
   //      chauve-souris (q.chauvesouris : GAME.COMPAGNONS, « chauve-souris », le lit). Aucun bonbon : l'enveloppe du serveur ne bouge pas.
   //      Vieille sauvegarde : q.bestiaire absent → vide (rien n'est inventé ; les servis d'avant ne comptent pas).
+  //      Les paliers d'ARGENT et d'OR (27 octobre, le bestiaire fini en trois heures par les plus mordus) : ce qui précède devient le BRONZE,
+  //      inchangé (q.bestiaireFaits reste sa liste : déjà payé, jamais rejoué). q.bestiaire[sorte] n'a jamais été plafonné : les servis
+  //      au-delà de dix comptent. À BESTIAIRE.argent.par servis, la sorte passe en argent (q.bestiaireArgent : +1 ★), à BESTIAIRE.or.par en
+  //      or (q.bestiaireOr : +2 ★), une fois chacune, dans l'ordre (bronze, argent, or) ; comptées dans q.etoiles et q.bestiaireAVerser comme
+  //      le bronze. Les neuf en argent : le décor 'bestiaire-argent' (l'étagère aux bocaux d'argent) ; les neuf en or : 'bestiaire-or'
+  //      (l'étagère dorée, qui remplace l'autre dans la boutique). Toujours aucun bonbon : l'enveloppe du serveur ne bouge pas. Vieille
+  //      sauvegarde : les deux listes absentes → vides ; une sorte déjà au-delà du seuil est payée au prochain client servi.
+  //      Les seuils, réglés par la simulation (simuler : parJour[j].bestiaire, les servis par sorte au soir ; graines 1 à 8, mesuré le 27 octobre) :
+  //      · argent à 30 : le quotidien a les neuf le 6e jour (graines 1 à 6) ou le 5e (7 et 8) ; à 35, le 6e ou le 7e ; à 40, le 7e ou jamais.
+  //        L'assidu les a le 2e ou le 3e jour ; l'occasionnel finit entre 10 et 28 servis par sorte (le bronze des neuf du 4e au 7e jour,
+  //        aucun argent) ;
+  //      · or à 140 : l'assidu finit avec 1 à 5 sortes en or (115 à 160 servis par sorte au dernier soir ; à 120 il en aurait 7 à 9, à 150
+  //        de 0 à 3) ; le quotidien, aucune (40 à 60 par sorte).
+  //        Le très actif de la simulation (8 h par jour, chaque client servi 2 s après son arrivée : près de 250 clients à l'heure, 1 300 à
+  //        1 450 par sorte en sept jours) a l'or des neuf dès le 2e jour : le tenir jusqu'au 6e voudrait un or vers 1 200, hors d'atteinte
+  //        de tous les autres profils. Le joueur réel qui a fini le bronze en 3 h (une cinquantaine de clients à l'heure) mettrait environ
+  //        35 h de jeu pour l'or des neuf.
   // L'état : q.manoir = { graine, tirages, file, prochainClient, seqClient, apps, prochaineApp, seqApp, serie, commande, prochaineCommande,
   // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées, et
   // minParfaits, leurs minutes),
@@ -14078,7 +14134,9 @@ const GARDEROBE_UI = (() => {
   const COMMANDES = { durees: [5, 10, 15], part: 0.12, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 18, parJour: 120 };
   const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
   const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
-  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'bestiaire', compagnon: 9 }; // etoiles : par rang de la sorte complétée (11 en tout)
+  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'bestiaire', compagnon: 9, // le bronze. etoiles : par rang de la sorte complétée (11 en tout)
+    argent: { par: 30, etoiles: 1, deco: 'bestiaire-argent', liste: 'bestiaireArgent' }, or: { par: 140, etoiles: 2, deco: 'bestiaire-or', liste: 'bestiaireOr' } }; // les paliers d'après (par sorte ; les seuils : voir plus haut)
+  const MEDAILLES = ['argent', 'or']; // (après le bronze, dans l'ordre)
   const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
   function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
   const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0, minParfaits: 0 }); // (parfaits : des fournées ; minParfaits : ce qu'elles ont payé, en minutes)
@@ -14110,7 +14168,9 @@ const GARDEROBE_UI = (() => {
     const b = q.bestiaire && typeof q.bestiaire === 'object' && !Array.isArray(q.bestiaire) ? q.bestiaire : (q.bestiaire = {});
     for (const k of Object.keys(b)) if (!SORTES.includes(k)) delete b[k];
     for (const k of SORTES) b[k] = Number.isFinite(b[k]) && b[k] > 0 ? Math.floor(b[k]) : 0;
-    const vus = new Set(); q.bestiaireFaits = (Array.isArray(q.bestiaireFaits) ? q.bestiaireFaits : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true));
+    const propre = (l) => { const vus = new Set(); return (Array.isArray(l) ? l : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true)); };
+    q.bestiaireFaits = propre(q.bestiaireFaits);
+    for (const m of MEDAILLES) q[BESTIAIRE[m].liste] = propre(q[BESTIAIRE[m].liste]); // l'argent et l'or (une vieille sauvegarde : vides)
     if (!(q.bestiaireAVerser >= 0) || !Number.isFinite(q.bestiaireAVerser)) q.bestiaireAVerser = 0;
     q.chauvesouris = q.chauvesouris === true;
     return b;
@@ -14174,11 +14234,16 @@ const GARDEROBE_UI = (() => {
   }
 
   // ─── 6. le bestiaire ───
-  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, rang, etoiles, deco, compagnon } }
+  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, palier, rang, etoiles, deco, compagnon }, completes, prochain, depuis, medaille }
     const b = reparerBestiaire(q); if (!SORTES.includes(sorte)) return null;
     b[sorte]++;
     const dus = bestiaireDus(q);
-    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus };
+    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus, ...paliersSorte(q, sorte) };
+  }
+  function paliersSorte(q, k) { // où en est une sorte : { medaille (null | 'bronze' | 'argent' | 'or'), depuis (le seuil passé), prochain (le seuil visé ; null : l'or) }
+    const medaille = q.bestiaireOr.includes(k) ? 'or' : q.bestiaireArgent.includes(k) ? 'argent' : q.bestiaireFaits.includes(k) ? 'bronze' : null;
+    const seuils = { bronze: BESTIAIRE.par, argent: BESTIAIRE.argent.par, or: BESTIAIRE.or.par };
+    return { medaille, depuis: medaille ? seuils[medaille] : 0, prochain: medaille === 'or' ? null : medaille === 'argent' ? seuils.or : medaille === 'bronze' ? seuils.argent : seuils.bronze };
   }
   function bestiaireDus(q) { // les sortes arrivées à BESTIAIRE.par et pas encore payées : payées ici, une fois, dans l'ordre (q.bestiaireFaits fait foi)
     const b = reparerBestiaire(q), dus = [];
@@ -14186,17 +14251,31 @@ const GARDEROBE_UI = (() => {
       if (b[k] < BESTIAIRE.par || q.bestiaireFaits.includes(k)) continue;
       q.bestiaireFaits.push(k); const rang = q.bestiaireFaits.length, et = BESTIAIRE.etoiles[rang - 1] || 1;
       q.etoiles = (q.etoiles || 0) + et; q.bestiaireAVerser += et; // (le bilan, et ce que l'écran doit verser dans la boulangerie)
-      const x = { sorte: k, rang, etoiles: et, deco: null, compagnon: false };
+      const x = { sorte: k, palier: 'bronze', rang, etoiles: et, deco: null, compagnon: false };
       if (rang === BESTIAIRE.deco && !q.decos.includes(BESTIAIRE.decoId)) { q.decos.push(BESTIAIRE.decoId); x.deco = BESTIAIRE.decoId; }
       if (rang === BESTIAIRE.compagnon && !q.chauvesouris) { q.chauvesouris = true; x.compagnon = true; }
       note(q, `Bestiaire : ${NOMS_COURTS[k]}, ${rang}/${SORTES.length} sortes, +${et} ★`);
       dus.push(x);
     }
+    for (const m of MEDAILLES) { // l'argent puis l'or : chaque sorte arrivée au seuil, une fois (sa liste fait foi) ; les neuf : l'étagère de ce métal
+      const P = BESTIAIRE[m], l = q[P.liste];
+      for (const k of SORTES) {
+        if (b[k] < P.par || l.includes(k) || (m === 'or' && !q.bestiaireArgent.includes(k)) || !q.bestiaireFaits.includes(k)) continue;
+        l.push(k); const rang = l.length;
+        q.etoiles = (q.etoiles || 0) + P.etoiles; q.bestiaireAVerser += P.etoiles;
+        const x = { sorte: k, palier: m, rang, etoiles: P.etoiles, deco: null, compagnon: false };
+        if (rang === SORTES.length && !q.decos.includes(P.deco)) { q.decos.push(P.deco); x.deco = P.deco; }
+        note(q, `Bestiaire : ${NOMS_COURTS[k]} en ${m}, ${rang}/${SORTES.length}, +${P.etoiles} ★`);
+        dus.push(x);
+      }
+    }
     return dus;
   }
-  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait }], faits, total (9), deco, chauvesouris, aVerser }
-    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k) }));
-    return { sortes, faits: q.bestiaireFaits.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId), chauvesouris: q.chauvesouris, aVerser: q.bestiaireAVerser };
+  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait (le bronze), servis (le compte entier), medaille, depuis, prochain }],
+    // faits (le bronze), argent, or (combien de sortes), total (9), deco, decoArgent, decoOr, chauvesouris, aVerser }
+    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k), servis: b[k], ...paliersSorte(q, k) }));
+    return { sortes, faits: q.bestiaireFaits.length, argent: q.bestiaireArgent.length, or: q.bestiaireOr.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId),
+      decoArgent: q.decos.includes(BESTIAIRE.argent.deco), decoOr: q.decos.includes(BESTIAIRE.or.deco), chauvesouris: q.chauvesouris, aVerser: q.bestiaireAVerser };
   }
   function verserBestiaire(q) { reparerBestiaire(q); const n = q.bestiaireAVerser; q.bestiaireAVerser = 0; return n; } // les étoiles du bestiaire, à verser dans la boulangerie (l'écran)
 
@@ -14313,7 +14392,7 @@ const GARDEROBE_UI = (() => {
     return p;
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
-  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', legende: 'la lanterne de la légende' };
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', 'bestiaire-argent': 'l’étagère aux bocaux d’argent (le bestiaire)', 'bestiaire-or': 'l’étagère dorée aux bocaux (le bestiaire)', legende: 'la lanterne de la légende' };
   const NOMS_AURAS = { lueur: 'l’aura phosphorescente' }, NOMS_DISTINCTIONS = { 'legende-manoir': 'le titre « Légende du Manoir »' }; // le 20e palier (src/game.js : AURAS, DISTINCTIONS)
   const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
@@ -14481,7 +14560,7 @@ const GARDEROBE_UI = (() => {
         }
         q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations } });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations }, bestiaire: { ...reparerBestiaire(q) } }); // (bestiaire : les servis par sorte au soir, pour régler les paliers d'argent et d'or)
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -14549,9 +14628,12 @@ const GARDEROBE_UI = (() => {
         commandeLivree: (m) => `Commande livrée : +${m}`, commandeRatee: 'Trop tard : la commande est partie chez les voisins.',
         plafond: 'Pour le plaisir : le plein de l’heure est fait',
         // le bestiaire (6) : la carte du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée
-        bestiaire: 'Le bestiaire', bestiaireSous: 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.',
+        // (et, depuis le 27 octobre, les paliers d'argent et d'or de chaque sorte : sa médaille, la fête, les deux étagères)
+        bestiaire: 'Le bestiaire', bestiaireSous: `Sers dix clients de chaque sorte de monstre pour le bronze, ${BESTIAIRE.argent.par} pour l’argent, ${BESTIAIRE.or.par} pour l’or.`,
         bestiaireAvance: (nom, n, par) => `${nom} ${n}/${par}`, bestiaireFait: (nom) => `${nom} rejoint le bestiaire !`,
+        bestiaireMedaille: (nom, m) => `${nom} : médaille ${m === 'or' ? 'd’or' : 'd’argent'} !`, bestiaireMedailles: (n, m) => `${n} monstres en ${m === 'or' ? 'or' : 'argent'} !`,
         bestiaireDeco: 'l’étagère aux bocaux de monstres, accrochée au mur de ta boutique', bestiaireCompagnon: 'Myrtille la chauve-souris, un compagnon pour ta boutique (à choisir dans « Les compagnons »)',
+        bestiaireDecoArgent: 'l’étagère aux bocaux d’argent, pour ta boutique', bestiaireDecoOr: 'l’étagère dorée, qui remplace l’autre dans ta boutique',
       },
     },
     // les activités (src/activites.js) : l'habillage d'Halloween ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)
@@ -15272,6 +15354,9 @@ if (typeof module !== 'undefined') module.exports = BOUTIQUE_HANTEE;
    servi, colorés à dix) ouvre sa feuille (les neuf, « 3/10 », les récompenses à venir) ; chaque client servi qui le fait avancer, un petit
    mot sur la scène (« Zombie 4/10 ») ; chaque sorte complétée, une feuille de fête (et au 5e le décor, au 9e la chauve-souris) ; les étoiles
    gagnées sont versées dans la boulangerie tout de suite (verserBestiaire : une fois). Les gabarits : F.gabarits (src/evenement.js).
+   Depuis le 27 octobre, l'argent et l'or de chaque sorte (BESTIAIRE.argent, .or) : chaque miniature porte sa médaille, le petit mot dit la
+   marche suivante (« Zombie 23/30 »), chaque médaille a sa fête (plusieurs d'un coup, une vieille sauvegarde : une seule fête), et les neuf
+   d'un métal, leur étagère. Une sauvegarde déjà au-delà d'un seuil est payée à l'entrée (bestiaireDus).
    Les liens : un id des règles ↔ un id de la scène (clients : 'c12' ; apparitions : un nombre), tenus ici et remis d'aplomb à chaque pas
    (réconciliés sur l'état des règles : une file vidée par une absence, une apparition perdue, une sauvegarde rechargée). Sans la scène de la
    boutique hantée (?boutique=0, le Manoir d'avant ; ou pas de WebGL), le repli est en DOM : la file en bas de la scène (un monstre, sa
@@ -15316,6 +15401,7 @@ const HANTEE_ACTIVITES = (() => {
         const z = document.createElement('div'); z.className = 'mh-dodo'; z.hidden = true; z.setAttribute('aria-hidden', 'true'); z.textContent = T.reveil || 'Zzz… touche le Manoir pour le réveiller'; couche.appendChild(z); // (le boss dort : le mot sur la scène, et le voile)
       }
       if (Q.reparerManoir) Q.reparerManoir(qq(), maint());
+      if (Q.bestiaireDus) { const dus = Q.bestiaireDus(qq()); if (dus.length) { verserBestiaire(); feter(dus); } } // (une sauvegarde déjà au-delà d'un seuil : l'argent ou l'or, payés ici, une fois)
       majTout();
     }
     function fermer() {
@@ -15581,15 +15667,18 @@ const HANTEE_ACTIVITES = (() => {
     const icoMonstre = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.monstres && ICONS.HANTEE.monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
     const court = (k) => (M0.courts && M0.courts[k]) || nomSorte(k);
     const etatSorte = (s) => (s.fait ? 'fait' : s.n > 0 ? 'encours' : 'vide'); // sombre (aucun servi), en cours, coloré (complété)
+    const partSorte = (x) => (x.prochain == null ? 1 : Math.max(0, Math.min(1, ((x.servis != null ? x.servis : x.n) - (x.depuis || 0)) / (x.prochain - (x.depuis || 0))))); // vers le palier suivant
+    const seuilDe = (m) => (m === 'argent' || m === 'or' ? Q.BESTIAIRE[m].par : Q.BESTIAIRE.par);
     function donneesBestiaire() { // l'état des règles, prêt pour les gabarits (src/evenement.js, F.gabarits.bestiaire*)
       const b = Q.bestiaire(qq()), B0 = Q.BESTIAIRE, et = B0.etoiles.reduce((a, x) => a + x, 0), gagnees = B0.etoiles.slice(0, b.faits).reduce((a, x) => a + x, 0);
-      return { faits: b.faits, total: b.total, deco: b.deco, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
-        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), ico: icoMonstre(x.sorte) })),
+      return { faits: b.faits, argent: b.argent || 0, or: b.or || 0, total: b.total, deco: b.deco, decoArgent: !!b.decoArgent, decoOr: !!b.decoOr, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
+        seuils: B0.argent ? { argent: B0.argent.par, or: B0.or.par } : null, etoilesArgent: B0.argent ? B0.argent.etoiles : 0, etoilesOr: B0.or ? B0.or.etoiles : 0,
+        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), servis: x.servis, medaille: x.medaille, depuis: x.depuis, prochain: x.prochain, part: partSorte(x), ico: icoMonstre(x.sorte) })),
         ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), textes: T };
     }
     function majBestiaire(force) { // la carte du tiroir : redessinée quand un compte change
       const e = bestEl(); if (!e || !Q.bestiaire || !F.gabarits || !F.gabarits.bestiaire) return;
-      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.n}${x.fait ? '*' : ''}`).join(',');
+      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.servis != null ? x.servis : x.n}${x.medaille || ''}`).join(',');
       if (!force && cle === lastBest && !e.hidden) return; lastBest = cle;
       e.hidden = false; e.innerHTML = F.gabarits.bestiaire(donneesBestiaire());
     }
@@ -15598,24 +15687,49 @@ const HANTEE_ACTIVITES = (() => {
       const n = Q.verserBestiaire(q), s = d.st(); if (s && n > 0) { s.etoiles += n; if (G && G.gagnerXp) G.gagnerXp(s, 10); }
       if (F.decos) F.decos(q.decos); X.save(); if (d.apres) d.apres(); return n;
     }
-    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 ») ; sa sorte complétée : les étoiles, la fête
+    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 », puis vers l'argent « 23/30 », vers l'or) ; un palier passé : les étoiles, la fête
       const sc = sceneEl(); lastBest = '';
+      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
       if (sc && F.gabarits && F.gabarits.bestiaireMot) {
         if (!btEl || !btEl.isConnected) { btEl = document.createElement('div'); btEl.className = 'mh-bt'; btEl.setAttribute('role', 'status'); sc.appendChild(btEl); }
-        const n = Math.min(be.n, be.par);
-        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, be.par) : `${court(be.sorte)} ${n}/${be.par}`, part: n / be.par, fait: n >= be.par });
-        btEl.classList.toggle('fait', n >= be.par); btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
+        const ici = faites.filter((x) => x.sorte === be.sorte).pop(); // (le palier que ce servi vient de passer)
+        let n, par, med = ici ? ici.palier || 'bronze' : be.medaille || null;
+        if (ici) { par = seuilDe(ici.palier); n = par; } else if (be.prochain === null) { par = 0; n = be.n; } else { par = be.prochain || be.par; n = Math.min(be.n, par); }
+        const fait = !!ici || par === 0, txt = par === 0 ? `${court(be.sorte)} ${n} · or` : T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, par) : `${court(be.sorte)} ${n}/${par}`;
+        const de = par === 0 ? 0 : !ici && be.depuis ? be.depuis : 0;
+        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: txt, part: par === 0 ? 1 : (n - de) / (par - de), fait });
+        btEl.classList.toggle('fait', fait); for (const m of ['bronze', 'argent', 'or']) btEl.classList.toggle('m-' + m, fait && med === m);
+        btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
         clearTimeout(btT); btT = setTimeout(() => { if (btEl) btEl.hidden = true; }, 2200);
       }
-      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
-      if (faites.length) { verserBestiaire(); for (const x of faites) fetes.push(x); montrerFete(); }
+      if (faites.length) { verserBestiaire(); feter(faites); }
       majBestiaire(true);
+    }
+    function feter(faites) { // les paliers passés : une fête chacun ; plusieurs d'argent ou d'or d'un coup (une vieille sauvegarde) : une seule pour eux
+      for (const m of ['bronze', 'argent', 'or']) {
+        const l = faites.filter((x) => (x.palier || 'bronze') === m); if (!l.length) continue;
+        if (m === 'bronze' || l.length === 1) { for (const x of l) fetes.push(x); continue; }
+        const der = l[l.length - 1];
+        fetes.push({ sorte: der.sorte, palier: m, rang: der.rang, etoiles: l.reduce((a, x) => a + x.etoiles, 0), deco: l.map((x) => x.deco).find(Boolean) || null, compagnon: false, sortes: l.map((x) => x.sorte) });
+      }
+      montrerFete();
     }
     const libre = () => document.querySelector('#feuille').hidden && !(X.mini && X.mini());
     function montrerFete() { // une sorte complétée : sa feuille de fête, quand la feuille est libre (jamais par-dessus une autre)
       if (!fetes.length || !ouvert || !libre() || !F.gabarits || !F.gabarits.bestiaireFete) return;
       const x = fetes.shift(), b = Q.bestiaire(qq()), G0 = G || {};
       const dons = [`+${x.etoiles} étoile${x.etoiles > 1 ? 's' : ''} pour ta boulangerie${G0.ETOILE_BONUS ? ` (+${Math.round(x.etoiles * G0.ETOILE_BONUS * 100)} % de gains, pour toujours)` : ''}`];
+      if (x.palier === 'argent' || x.palier === 'or') { // une médaille d'argent ou d'or (ou plusieurs d'un coup)
+        const or = x.palier === 'or', decoNom = or ? T.bestiaireDecoOr || 'l’étagère dorée' : T.bestiaireDecoArgent || 'l’étagère aux bocaux d’argent';
+        if (x.deco) dons.push(decoNom);
+        const plusieurs = x.sortes && x.sortes.length > 1, titre = plusieurs ? (T.bestiaireMedailles ? T.bestiaireMedailles(x.sortes.length, x.palier) : `${x.sortes.length} monstres en ${x.palier} !`) : T.bestiaireMedaille ? T.bestiaireMedaille(nomSorte(x.sorte), x.palier) : `${nomSorte(x.sorte)} : médaille ${or ? 'd’or' : 'd’argent'} !`;
+        d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(or ? 1 : 0.8);
+        const s3 = X.scene(); if (s3 && s3.fete) s3.fete();
+        d.openSheet(F.gabarits.bestiaireFete({ palier: x.palier, sorte: x.sorte, sortes: x.sortes || [x.sorte], titre, rang: x.rang, total: b.total, seuil: seuilDe(x.palier), dons, deco: !!x.deco, decoNom: decoNom.charAt(0).toUpperCase() + decoNom.slice(1).split(',')[0], reste: b.total - (or ? b.or : b.argent), ico: icoMonstre(x.sorte) }));
+        d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
+        d.on('[data-a="mh-best-voir"]', () => { d.son.tap(); feuilleBestiaire(); });
+        return;
+      }
       if (x.deco) dons.push(T.bestiaireDeco || 'l’étagère aux bocaux de monstres, pour ta boutique');
       if (x.compagnon) dons.push(T.bestiaireCompagnon || 'la chauve-souris, un compagnon pour ta boutique');
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(0.8);
@@ -17293,6 +17407,16 @@ const EVENEMENTS = (() => {
   // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
   // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
   //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete, bouton (le mot du bouton prêt : « Livrer ! ») } ; son bouton porte data-a="mh-commande".
+  // le bestiaire, ses médailles (le bronze, l'argent, l'or de chaque sorte) : « Bronze 9/9 · Argent 2/9 · Or 0/9 », et la fête d'un palier
+  // d'argent ou d'or (o : { palier, sorte, sortes (plusieurs passées d'un coup : une vieille sauvegarde), titre, rang, total, seuil, dons, deco,
+  // decoNom, reste, ico })
+  const NOM_MED = { bronze: 'de bronze', argent: 'd’argent', or: 'd’or' };
+  const medaillesTxt = (o) => `<span class="m-bronze">Bronze ${o.faits}/${o.total}</span> · <span class="m-argent">Argent ${o.argent || 0}/${o.total}</span> · <span class="m-or">Or ${o.or || 0}/${o.total}</span>`;
+  const feteMedaille = (o) => `<div class="pq-sheet ht mh-best-fete m-${o.palier}" data-bestiaire-fete="${esc(o.sorte)}" data-palier="${o.palier}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres en ${o.palier === 'or' ? 'or' : 'argent'} · ${o.seuil} servis${(o.sortes || []).length > 1 ? ` · ${o.sortes.length} d’un coup` : ''}</p>
+      <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="encadre">${o.deco ? `${esc(o.decoNom || 'L’étagère')} : elle est dans ta boutique. ` : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} : aux ${o.total} en ${o.palier === 'or' ? 'or, l’étagère dorée' : 'argent, l’étagère aux bocaux d’argent'}.` : o.palier === 'argent' ? 'Prochaine étape : l’or, et l’étagère dorée.' : 'Le bestiaire est en or : bravo !'}</p>
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`;
   const gabarits = {
     eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
     serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
@@ -17301,34 +17425,44 @@ const EVENEMENTS = (() => {
         <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
         <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
       <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? esc(o.bouton || 'Servir') : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
-    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, total, par, etoiles, gagnees, deco, chauvesouris, rangDeco, rangCompagnon, rangs,
-    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du
-    // tiroir (les neuf en miniature, sombres tant qu'aucun n'est servi), sa feuille, le petit mot sur la scène, la feuille de fête
-    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : ${o.faits} sorte${o.faits > 1 ? 's' : ''} sur ${o.total}`)}">
+    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, argent, or (combien de sortes à chaque métal), total, par, etoiles, gagnees, deco,
+    // decoArgent, decoOr, chauvesouris, rangDeco, rangCompagnon, rangs, seuils: { argent, or }, etoilesArgent, etoilesOr,
+    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), servis, medaille (null | 'bronze' | 'argent' | 'or'), depuis,
+    // prochain (null : l'or), part (vers le palier suivant, 0..1), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du tiroir (les neuf
+    // en miniature, sombres tant qu'aucun n'est servi, cerclés de leur médaille), sa feuille, le petit mot sur la scène, la feuille de fête
+    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : bronze ${o.faits} sur ${o.total}, argent ${o.argent || 0}, or ${o.or || 0}`)}">
       <span class="mh-best-pic" aria-hidden="true">${o.ico}</span>
-      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small>${o.faits}/${o.total} monstres</small></span>
-        <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}" data-sorte="${esc(s.sorte)}" style="--p:${(s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
+      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small class="mh-best-meds">${medaillesTxt(o)}</small></span>
+        <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}" style="--p:${(s.part != null ? s.part : s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
       <span class="mh-best-fleche" aria-hidden="true">›</span></button>`,
     bestiaireFeuille: (o) => {
       const prochaine = o.faits < o.total ? o.rangs[o.faits] : 0, li = (fait, ico, titre, sous, fin) => `<li class="${fait ? 'fait' : ''}"><span class="mh-best-r-ico">${ico}</span><div><b>${esc(titre)}</b><small>${esc(sous)}</small></div><em>${esc(fin)}</em></li>`;
-      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${o.faits}/${o.total}.</p></div></div>
-        <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}" data-sorte="${esc(s.sorte)}"><span class="mh-best-por">${s.ico}${s.fait ? '<b class="mh-best-et" aria-hidden="true">★</b>' : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${s.fait ? 'au complet' : `${s.n}/${s.par}`}</small><i class="mh-best-barre"><b style="width:${Math.round(s.n / s.par * 100)}%"></b></i></div>`).join('')}</div>
+      const S0 = o.seuils || {}, avance = (s) => (s.medaille === 'or' ? `${s.servis} servis` : `${s.servis != null ? s.servis : s.n}/${s.prochain || s.par}`), part = (s) => (s.part != null ? s.part : s.n / s.par);
+      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${medaillesTxt(o)}.</p></div></div>
+        <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}"${s.medaille ? ` data-medaille="${s.medaille}"` : ''}><span class="mh-best-por">${s.ico}${s.medaille ? `<b class="mh-best-et" role="img" aria-label="${esc(`médaille ${NOM_MED[s.medaille]}`)}">★</b>` : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${esc(avance(s))}</small><i class="mh-best-barre"><b style="width:${Math.round(Math.min(1, part(s)) * 100)}%"></b></i></div>`).join('')}</div>
         <h3 class="titre-section">Les récompenses</h3>
         <ul class="mh-best-recomp">
           ${li(o.faits >= o.total, '<b class="mh-best-r-et">★</b>', 'Chaque sorte complétée : des étoiles', `+1 ★ pour ta boulangerie, +2 à la ${o.rangDeco}e et à la ${o.rangCompagnon}e (${o.etoiles} ★ en tout)${prochaine ? ` · la prochaine : +${prochaine} ★` : ''}`, `${o.gagnees}/${o.etoiles} ★`)}
           ${li(o.deco, o.icoDeco, `${o.rangDeco} sortes : l’étagère aux bocaux de monstres`, 'Un décor pour ta boutique, à vie', o.deco ? 'gagnée ✓' : `${Math.min(o.faits, o.rangDeco)}/${o.rangDeco}`)}
           ${li(o.chauvesouris, o.icoCompagnon, `Les ${o.total} : Myrtille la chauve-souris`, 'Un compagnon pour ta boutique, à vie : elle tourne sous le plafond (+1 h d’absence)', o.chauvesouris ? 'gagnée ✓' : `${o.faits}/${o.total}`)}
         </ul>
+        ${S0.argent ? `<h3 class="titre-section">L’argent et l’or</h3>
+        <ul class="mh-best-paliers">
+          ${li(o.argent >= o.total, '<b class="mh-best-r-et m-argent">★</b>', `${S0.argent} servis d’une sorte : sa médaille d’argent`, `+${o.etoilesArgent} ★ pour ta boulangerie, par sorte`, `${o.argent}/${o.total}`)}
+          ${li(o.or >= o.total, '<b class="mh-best-r-et m-or">★</b>', `${S0.or} servis d’une sorte : sa médaille d’or`, `+${o.etoilesOr} ★ pour ta boulangerie, par sorte`, `${o.or}/${o.total}`)}
+          ${li(o.decoArgent, `<span class="mh-best-r-deco m-argent">${o.icoDeco}</span>`, `Les ${o.total} en argent : l’étagère aux bocaux d’argent`, 'Un décor pour ta boutique, à vie', o.decoArgent ? 'gagnée ✓' : `${o.argent}/${o.total}`)}
+          ${li(o.decoOr, `<span class="mh-best-r-deco m-or">${o.icoDeco}</span>`, `Les ${o.total} en or : l’étagère dorée`, 'Elle remplace l’autre dans ta boutique, à vie', o.decoOr ? 'gagnée ✓' : `${o.or}/${o.total}`)}
+        </ul>` : ''}
         <p class="note centre">Pas de bonbons ici : tout va à ta boulangerie, et le bestiaire reste après Halloween.</p>
         <button type="button" class="btn large ht-btn" data-a="mh-best-ok" style="margin-top:12px"><b>Retour au Manoir</b></button></div>`;
     },
     bestiaireMot: (o) => `<span class="mh-bt-ico" aria-hidden="true">${o.ico}</span><span class="mh-bt-corps"><b>${esc(o.texte)}</b><i class="mh-bt-barre"><b style="width:${Math.round(Math.max(0, Math.min(1, o.part)) * 100)}%"></b></i></span>${o.fait ? '<span class="mh-bt-et" aria-hidden="true">★</span>' : ''}`,
-    bestiaireFete: (o) => `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+    bestiaireFete: (o) => (o.palier === 'argent' || o.palier === 'or' ? feteMedaille(o) : `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}" data-palier="bronze"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
       <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres au bestiaire · dix servis</p>
       <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
       ${o.compagnon ? `<div class="mh-best-cs"><span>${o.icoCompagnon}</span><p>Le bestiaire est complet ! Myrtille t’attend dans « Les compagnons » (la garde-robe ou les Réglages).</p></div><button type="button" class="btn large menthe" data-a="mh-best-choisir" style="margin-top:10px"><b>Choisir Myrtille tout de suite</b></button>`
         : `<p class="encadre">${o.deco ? 'L’étagère aux bocaux de monstres est accrochée dans ta boutique. ' : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} de monstre${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, une chauve-souris de compagnie.` : ''}</p>`}
-      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`,
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`),
   };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
@@ -17345,7 +17479,7 @@ const EVENEMENTS = (() => {
     const COMMENT_JOUER = [
       ['taper', 'Sers les monstres.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les apparitions et livre les commandes de la nuit.'],
       ['mult', 'Le ×6 s’endort.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
-      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris.'],
+      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris. Puis l’argent et l’or : encore des étoiles, et deux étagères.'],
       ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’Halloween, la tenue de sorcière, le chat noir ; au 20e, le titre « Légende du Manoir ».'],
       ['classement', 'Le classement.', 'Les 15 premiers de l’événement sont récompensés.'],
       ['date', 'Jusqu’au lundi 2\u00a0novembre, 20\u00a0h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
@@ -18724,6 +18858,13 @@ const RETOURS = (() => {
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const NOUVEAUTES = [
+    {
+      id: '2026-10-27-b', date: '2026-10-27', titre: 'Le bestiaire continue : paliers d’argent et d’or',
+      points: [
+        'Le bestiaire du Manoir ne s’arrête plus à dix : chaque monstre a maintenant sa médaille de bronze (dix servis, comme avant), d’argent (30 servis) et d’or (140 servis). Tes clients déjà servis comptent.',
+        'Chaque médaille d’argent rapporte une étoile à ta boulangerie, chaque médaille d’or deux. Les neuf en argent : une étagère aux bocaux d’argent ; les neuf en or : l’étagère dorée, pour ta boutique, à vie.',
+      ],
+    },
     {
       id: '2026-10-27-a', date: '2026-10-27', titre: 'La Maison hantée est ouverte',
       points: [
