@@ -4,6 +4,12 @@
 //   boutique  : la boutique en haute, les apprentis au travail (capture, gros plans de l'équipe, mesures) ; --video s : une vidéo
 //   vue       : la vue « Mon boulanger », une tenue par capture (--tenues "base;or;quartier;hantee") ; --tourne : quatre angles
 //   eco       : la boutique en qualité éco (les chibis)
+//   collections : une planche par collection de la garde-robe (face, profil, dos, et la vue « Mon boulanger » entière), une pour l'aura, une pour
+//               les six titres (la toque qui grandit, le foulard du titre, la moustache, le liseré, le col tricolore)
+//   vignettes : une vignette carrée par pièce de la garde-robe (portée, en gros plan, son nom dessous) : <sortie>/vignettes/<id>.png (256 px) et
+//               leur planche <nom>.png
+//   melanges  : des tenues mêlées pièce par pièce, dans la boutique (--tenues "tête,haut,pieds,acc;…") : la boutique et la loupe du boulanger
+//   tourne    : une vidéo (--video 9) du boulanger dans la vue, qui tourne en changeant de tenue
 // usage : node rendus.cjs <scénario> <nom> [--requete "qualite=haute"] [--port 9902] [--video 9] [--tenues …] [--tourne] [--sortie dossier] [--sans3d]
 // Sorties dans --sortie (par défaut $EQUIPE3D_TRAVAIL ou <tmp>/equipe3d) : <nom>.png, <nom>-loupeN.png, <nom>-<tenue>.png, <nom>.mp4, <nom>-mesures.json.
 // Le jeu servi : ce dépôt (node build.js d'abord). Playwright et son Chromium (NODE_PATH), ffmpeg pour la vidéo.
@@ -12,7 +18,7 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), { execFileSync } = require('child_process');
 const args = process.argv.slice(2), scenario = args[0], nom = args[1] || scenario, opt = (k) => args.includes(k), val = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const OUT = path.resolve(val('--sortie', process.env.EQUIPE3D_TRAVAIL || path.join(os.tmpdir(), 'equipe3d'))); fs.mkdirSync(path.join(OUT, 'tmp'), { recursive: true });
-const ROOT = path.resolve(__dirname, '../..'), PORT = +val('--port', 9902), DT = 1 / 30, FPS = +val('--fps', 25);
+const ROOT = path.resolve(__dirname, '../..'), PORT = +val('--port', 9902), DT = 1 / 30, FPS = +val('--fps', 25), HP = Math.PI / 2;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.glb': 'model/gltf-binary', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const demandes = [];
 const server = http.createServer((req, res) => {
@@ -130,6 +136,100 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
       const e = await ev(() => EQUIPE3D.vue.etat); console.log('vue', nomT, JSON.stringify(e)); mes['vue-' + nomT] = e;
       await ev(() => EQUIPE3D.vue.fermer()); await dodo(300);
     }
+  }
+
+
+  if (scenario === 'melanges') { // des tenues mêlées pièce par pièce, dans la boutique : la boutique entière (390 × 844) et la loupe sur le boulanger
+    await pas(3, false);
+    await ev(() => { const S = window.__fournil.SCENE; for (const z of ['table', 'table', 'banquette']) S.installer(z, 600); });
+    await ev(() => { const f = window.__fournil, G = f.G, st = f.st; for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'quartier-neon', 'hantee', 'hantee-or', 'hantee-lueur', 'parcours', 'chaine']) G.donnerCollection(st, c); G.donnerAura(st, 'lueur'); });
+    const liste = val('--tenues', 'parcours-toque,quartier-or-sweat,hantee-bottes,lunettes-rondes;quartier-neon-casquette,hantee-or-cape,quartier-baskets,chaine-cles;hantee-chapeau,or-tablier,chaine-souliers,quartier-chaine').split(';').map((t) => t.split(',').map((x) => x || null));
+    for (const [k, ids] of liste.entries()) {
+      await ev((ids) => { const f = window.__fournil, G = f.G, st = f.st; ['tete', 'haut', 'pieds', 'accessoire'].forEach((p, i) => G.equiper(st, p, ids[i] || (p === 'accessoire' ? null : G.GARDEROBE.base[p]))); }, ids);
+      for (let s2 = 0; s2 < 2; s2++) await pas(60, false, entretenir);
+      await pas(2, true); await dodo(400);
+      await page.screenshot({ path: path.join(OUT, `${nom}-${k + 1}.png`) });
+      const x = await etat3d(); mes['melange' + (k + 1)] = { ids, calls: x.stats.calls, triangles: x.stats.triangles, boulanger: x.e3 && x.e3.boulanger };
+      const [px, py] = await ev(() => { const S = window.__fournil.SCENE, L = VIE.LAY, p = S.trois.ecran(L.boulanger.x, 0, (L.boulanger.y - 20 * VIE.K - L.murH) / Math.sin(52 * Math.PI / 180)); return [p.x, p.y]; });
+      await ev(([px, py, z]) => { const S = window.__fournil.SCENE, cam = S.trois.camera, cv = document.querySelector('#scene').getBoundingClientRect(); window.__camAvant = [cam.left, cam.right, cam.top, cam.bottom];
+        const [l, r, t, b] = window.__camAvant, x = l + (px - cv.left) / cv.width * (r - l), y = t - (py - cv.top) / cv.height * (t - b), w = (r - l) / z, h = (t - b) / z;
+        cam.left = x - w / 2; cam.right = x + w / 2; cam.top = y + h / 2; cam.bottom = y - h / 2; cam.updateProjectionMatrix(); for (const el of document.querySelectorAll('#scene-ui')) el.style.visibility = 'hidden'; }, [px, py, 3]);
+      await pas(1, true); await dodo(300);
+      await page.screenshot({ path: path.join(OUT, `${nom}-${k + 1}-loupe.png`), clip: await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(); return { x: r.left, y: Math.max(0, r.top), width: r.width, height: Math.min(r.height, 700) }; }) });
+      await ev(() => { const cam = window.__fournil.SCENE.trois.camera, [l, r, t, b] = window.__camAvant; cam.left = l; cam.right = r; cam.top = t; cam.bottom = b; cam.updateProjectionMatrix(); for (const el of document.querySelectorAll('#scene-ui')) el.style.visibility = ''; window.__camAvant = null; });
+      console.log('mélange', k + 1, JSON.stringify(mes['melange' + (k + 1)]));
+    }
+  }
+  // ─── les outils de la vue « Mon boulanger » (collections, vignettes, tourne) : la garde-robe complète, une tenue mise, la vue ouverte et posée ───
+  const O = () => ev(() => window.__fournil.G.GARDEROBE.objets);
+  const toutDonner = () => ev(() => { const f = window.__fournil, G = f.G, st = f.st; for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'quartier-neon', 'hantee', 'hantee-or', 'hantee-lueur', 'parcours', 'chaine']) G.donnerCollection(st, c); G.donnerAura(st, 'lueur'); G.porterAura(st, null); f.rafraichir(); });
+  const xpDuRang = (r) => ev((r) => { const f = window.__fournil, G = f.G, st = f.st; for (const c of [0, 50, 100, 200, 400, 700, 1000, 1500, 2000, 3000, 5000, 8000, 12000, 20000, 30000, 50000, 80000, 120000, 200000, 300000, 500000, 1e6, 3e6]) { st.xp = c; if (G.rangTitre(st) >= r) return c; } return st.xp; }, r);
+  const mettre = (ids, aura, rang) => ev(([ids, aura]) => { const f = window.__fournil, G = f.G, st = f.st; ['tete', 'haut', 'pieds', 'accessoire'].forEach((p, i) => G.equiper(st, p, ids[i] || (p === 'accessoire' ? null : G.GARDEROBE.base[p]))); G.porterAura(st, aura ? 'lueur' : null); }, [ids, aura]).then(() => (rang != null ? xpDuRang(rang) : null));
+  const ouvrirVue = async () => { const ok = await ev(() => EQUIPE3D.vue.ouvrir({ st: window.__fournil.st, save() {}, apres() {} })); for (let i = 0; i < 45; i++) await ev(() => EQUIPE3D.vue.image(1 / 30)); await dodo(200); return ok; };
+  const fermerVue = () => ev(() => EQUIPE3D.vue.fermer());
+  const toile = () => ev(() => { const r = document.querySelector('#mon-boulanger .mb-scene').getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; });
+  if (scenario === 'collections') {
+    await toutDonner(); await ev(() => { window.__fournil.page('boulanger'); }); await dodo(300);
+    const COLL = [['base', 'La tenue de toujours'], ['or', 'Podium d’or'], ['argent', 'Podium d’argent'], ['bronze', 'Podium de bronze'], ['parcours', 'Le parcours du boulanger'], ['quartier', 'Le Quartier'], ['quartier-or', 'Le Quartier, podium final'], ['quartier-neon', 'Le Quartier, palier 20'], ['hantee', 'La Maison hantée'], ['hantee-or', 'La Maison hantée, podium final'], ['hantee-lueur', 'La Maison hantée, palier 20 (et l’aura)'], ['chaine', 'Ma chaîne : la tenue du patron']];
+    const objets = await O(), rang = +val('--rang', 2);
+    for (const [c, titre] of COLL) {
+      const ids = ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = Object.values(objets).find((o) => o.collection === c && o.piece === p); return v ? v.id : c === 'base' || p !== 'accessoire' ? (Object.values(objets).find((o) => o.collection === 'base' && o.piece === p) || {}).id : null; });
+      await mettre(ids, c === 'hantee-lueur', rang); await ouvrirVue();
+      const fichiers = [], zone = await toile(), nomsP = ids.filter(Boolean).map((id) => objets[id].nom).join(' · ');
+      for (const [y, l] of [[0, 'face'], [HP, 'profil'], [Math.PI, 'dos']]) { await ev((y) => { EQUIPE3D.vue.tourner(y); for (let i = 0; i < 4; i++) EQUIPE3D.vue.image(1 / 30); }, y); await dodo(150); const f = path.join(OUT, 'tmp', `${nom}-${c}-${l}.png`); await page.screenshot({ path: f, clip: zone }); fichiers.push([f, l]); }
+      await ev(() => { EQUIPE3D.vue.tourner(0.35); for (let i = 0; i < 4; i++) EQUIPE3D.vue.image(1 / 30); }); await dodo(150); const fv = path.join(OUT, 'tmp', `${nom}-${c}-vue.png`); await page.screenshot({ path: fv }); fichiers.push([fv, 'la vue « Mon boulanger »']);
+      const e = await ev(() => EQUIPE3D.vue.etat); mes[c] = { ids, tris: e.tris, appels: e.appels, kits: e.kits, ms: e.ms };
+      const tuiles = []; for (const [f, l] of fichiers) { const t = f.replace(/\.png$/, '-t.png'); execFileSync('convert', [f, '-resize', 'x1000', '-background', '#FFF7EC', '-gravity', 'center', '-extent', l.includes('vue') ? '463x1000' : '520x1000', t]); tuiles.push('-label', l, t); }
+      const fp = path.join(OUT, `${nom}-${c}.png`); execFileSync('montage', ['-font', 'DejaVu-Sans-Bold', '-pointsize', '26', '-background', '#FFF7EC', '-fill', '#4A3328', ...tuiles, '-tile', '4x', '-geometry', '+10+10', fp]);
+      execFileSync('convert', [fp, '-gravity', 'north', '-background', '#FFF7EC', '-splice', '0x104', '-font', 'DejaVu-Sans-Bold', '-fill', '#4A3328', '-pointsize', '38', '-annotate', '+0+12', titre, '-font', 'DejaVu-Sans', '-pointsize', '26', '-annotate', '+0+62', nomsP, fp]); // (le titre de la collection, ses pièces dessous)
+      console.log('collection', c, JSON.stringify(mes[c])); await fermerVue(); await dodo(150);
+    }
+    // les titres : la tenue de toujours, d'Apprenti à Meilleur Ouvrier de France
+    const TIT = ['Apprenti', 'Mitron', 'Boulanger', 'Compagnon', 'Maître boulanger', 'Meilleur Ouvrier de France'], tt = [];
+    for (let r = 0; r < 6; r++) { await mettre(['toque-blanche', 'tablier-blanc', 'sabots', null], false, r); await ouvrirVue(); await ev(() => { EQUIPE3D.vue.tourner(0.25); EQUIPE3D.vue.zoom(0.69, 0.56, 0.1, true); for (let i = 0; i < 4; i++) EQUIPE3D.vue.image(1 / 30); }); await dodo(150); const f = path.join(OUT, 'tmp', `${nom}-titre-${r}.png`); await page.screenshot({ path: f, clip: await toile() }); tt.push('-label', TIT[r], f); await fermerVue(); } // (le même cadre pour les six : la toque grandit dedans)
+    const ft = path.join(OUT, `${nom}-titres.png`); execFileSync('montage', ['-font', 'DejaVu-Sans-Bold', '-pointsize', '24', '-background', '#FFF7EC', '-fill', '#4A3328', ...tt, '-tile', '6x', '-geometry', '+8+8', ft]);
+    execFileSync('convert', [ft, '-gravity', 'north', '-background', '#FFF7EC', '-splice', '0x96', '-font', 'DejaVu-Sans-Bold', '-fill', '#4A3328', '-pointsize', '38', '-annotate', '+0+10', 'Les titres du boulanger', '-font', 'DejaVu-Sans', '-pointsize', '26', '-annotate', '+0+58', 'la toque qui grandit et bouffe, le foulard rouge et la moustache du Compagnon, le liseré doré du Maître, le col tricolore du MOF', ft]);
+  }
+  if (scenario === 'vignettes') { // une vignette par pièce : portée (les autres pièces de base), en gros plan sur son emplacement, son nom dessous
+    await toutDonner(); await ev(() => { window.__fournil.page('boulanger'); }); await dodo(300);
+    const objets = await O(), dir = path.join(OUT, 'vignettes'); fs.mkdirSync(dir, { recursive: true });
+    const EMP = { tete: 'T', haut: 'H', pieds: 'P', accessoire: 'A' }, liste = Object.values(objets).map((v) => v.id), tuiles = [];
+    // le cadre de chaque pièce : l'angle (yaw : le boulanger tourné vers sa gauche quand il est positif ; la lanterne et le trousseau sont à sa
+    // droite), la hauteur de vue (el), la marge, un peu du corps autour (haut, bas, cote : en fois sa hauteur)
+    const cadre = (v) => ({ toque: { yaw: 0.3, el: 0.1, marge: 1.12, bas: 0.05 }, casquette: { yaw: 0.8, el: 0.14, marge: 1.18, bas: 0.07 }, chapeau: { yaw: 0.3, el: 0.12, marge: 1.06, bas: 0.04 },
+      tablier: { yaw: 0.3, el: 0.16, marge: 1.06 }, sweat: { yaw: 0.75, el: 0.24, marge: 1.04, haut: 0.04 }, cape: { yaw: 1.05, el: 0.2, marge: 1.02 }, veste: { yaw: 0.35, el: 0.16, marge: 1.06 },
+      pieds: { yaw: 0.62, el: 0.4, marge: 1.06 }, foulard: { yaw: 0.25, el: 0.02, marge: 1.12, haut: 0.035, bas: 0.02, cote: 0.02 }, chaine: { yaw: 0.25, el: 0.05, marge: 1.1, haut: 0.03, cote: 0.01 },
+      lunettes: { yaw: 0.4, el: 0.08, marge: 1.3, haut: 0.03, bas: 0.05 }, lanterne: { yaw: 0.75, el: 0.2, marge: 1.3, haut: 0.08, cote: 0.02 }, cles: { yaw: 0.6, el: 0.2, marge: 1.35, haut: 0.03, cote: 0.012 } })[
+      v.piece === 'pieds' ? 'pieds' : v.id === 'chaine-veste' ? 'veste' : v.id === 'chaine-cles' ? 'cles' : v.forme] || { yaw: 0.3, el: 0.2, marge: 1.2 };
+    for (const id of liste.concat(['aura:lueur'])) {
+      const aura = id === 'aura:lueur', v = aura ? { piece: 'accessoire', nom: 'Aura phosphorescente', forme: 'aura' } : objets[id], ids = ['toque-blanche', 'tablier-blanc', 'sabots', null], cd = cadre(v);
+      if (!aura) ids[['tete', 'haut', 'pieds', 'accessoire'].indexOf(v.piece)] = id;
+      await mettre(ids, aura, 2); await ouvrirVue();
+      await ev(([y, emp, cd]) => { EQUIPE3D.vue.tourner(y); for (let i = 0; i < 4; i++) EQUIPE3D.vue.image(1 / 30); if (emp) EQUIPE3D.vue.zoomPiece(emp, cd.marge, Object.assign({ carre: true, ratio: 218 / 256 }, cd)); else EQUIPE3D.vue.zoom(0.5, 1.15); EQUIPE3D.vue.image(1 / 30); }, [aura ? 0.3 : cd.yaw, aura ? null : (v.forme === 'lunettes' ? 'A' : EMP[v.piece]), cd]);
+      await dodo(150); const z = await toile(), hc = z.width * 218 / 256, f = path.join(OUT, 'tmp', `vig-${id.replace(':', '-')}.png`); // (l'image : la largeur du canevas, 256 × 218 ; le nom dessous, sur 38)
+      await page.screenshot({ path: f, clip: { x: z.x, y: z.y + (z.height - hc) / 2, width: z.width, height: hc } });
+      const out = path.join(dir, `${id.replace(':', '-')}.png`);
+      execFileSync('convert', [f, '-resize', '256x218!', '-background', '#FFF7EC', '-gravity', 'south', '-splice', '0x38', '-font', 'DejaVu-Sans-Bold', '-pointsize', String(v.nom.length > 22 ? 13 : 15), '-fill', '#4A3328', '-annotate', '+0+11', v.nom, out]);
+      tuiles.push(out); await fermerVue(); await dodo(100); process.stdout.write('.');
+    }
+    execFileSync('montage', [...tuiles, '-tile', '7x', '-geometry', '+6+6', '-background', '#F3E3D3', path.join(OUT, `${nom}.png`)]);
+    console.log('\nvignettes', tuiles.length, path.join(OUT, `${nom}.png`)); mes.vignettes = tuiles.length;
+  }
+  if (scenario === 'tourne') { // la vue : il tourne (deux tours en 9 s) et change de tenue toutes les 1,5 s
+    await toutDonner(); await ev(() => { window.__fournil.page('boulanger'); }); await dodo(300);
+    const T6 = [['toque-blanche', 'tablier-blanc', 'sabots', 'lunettes-rondes'], ['or-toque', 'or-tablier', 'or-chaussures', 'or-foulard'], ['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'quartier-chaine'], ['hantee-chapeau', 'hantee-cape', 'hantee-bottes', 'hantee-lanterne'], ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'chaine-cles'], ['parcours-toque', 'parcours-tablier', 'parcours-chaussures', 'parcours-foulard']];
+    await mettre(T6[0], false, +val('--rang', 3)); await ouvrirVue();
+    const n = Math.round(+val('--video', 9) * FPS), dir = path.join(OUT, 'tmp', nom + '-images'); fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true }); let tenue = 0;
+    for (let k = 0; k < n; k++) {
+      const t = k / FPS, j = Math.min(T6.length - 1, Math.floor(t / 1.5));
+      if (j !== tenue) { tenue = j; await mettre(T6[j], false); await ev(() => EQUIPE3D.vue.rhabiller()); }
+      await ev(([t, dt]) => { EQUIPE3D.vue.tourner(0.3 + t * (4 * Math.PI / 9)); EQUIPE3D.vue.image(dt); }, [t, 1 / FPS]);
+      await page.screenshot({ path: path.join(dir, `i${String(k).padStart(4, '0')}.png`) });
+      if (k % 25 === 0) process.stdout.write(`${k}/${n} `);
+    }
+    const out = path.join(OUT, nom + '.mp4');
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, 'i%04d.png'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '21', '-preset', 'medium', '-movflags', '+faststart', out]);
+    console.log('\nvidéo', out, fs.statSync(out).size, 'o'); await fermerVue();
   }
   if (scenario === 'gestes') { // des planches d'images, la caméra resserrée : le cycle des apprentis, la panne, la joie du boulanger
     await pas(3, false); const avance = +val('--avance', 6); for (let s = 0; s < avance; s += 2) await pas(60, false, entretenir);
