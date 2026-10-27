@@ -10,10 +10,11 @@
      brodé aux initiales de la boutique, la casquette néon qui clignote, le chapeau phosphorescent, la cape doublée qui fait « whoosh », le
      trousseau qui tinte…) ; les marques du titre (la toque qui grandit, le foulard rouge, la moustache, le liseré doré, le col tricolore) et
      des grades des apprentis aussi. Un kit est bâti une fois par corps, sur ses mesures (le crâne, la façade du buste, les pieds), puis gardé
-     en cache : changer de pièce ne fait que recoller des tableaux (pas d'à-coup). Trois techniques, une seule géométrie, UN appel de dessin
-     par personnage (plus l'aura, un sprite, et le plateau d'un apprenti qui porte) : des pièces rigides sur des os (la toque, les chaussures,
-     le foulard noué, la chaîne, les lunettes ; en main : la citrouille-lanterne, la clé, le pâton ; sur des os à ressort : la cape, le
-     trousseau) ;
+     en cache : changer de pièce ne fait que recoller des tableaux (pas d'à-coup : les pièces possédées, et la toque du titre suivant, sont
+     cuites d'avance, à petits pas, dans les images qui suivent leur gain). Trois techniques, une seule géométrie, UN appel de dessin par
+     personnage (plus l'aura, un plan dressé derrière lui, et le plateau d'un apprenti qui porte) : des pièces rigides sur des os (la toque, les
+     chaussures, le foulard noué, la chaîne, les lunettes ; en main : la citrouille-lanterne, la clé, le pâton ; sur des os à ressort : la cape,
+     le trousseau) ;
      des surfaces drapées sur le corps, chaque sommet avec les poids d'os du corps tout proche (le tablier, la poche du sweat, la capuche, la
      cape) ; des masques de sommets (les poignets, l'ourlet, le dessous des chaussures, les boutons du Chef rentrés sous le sweat) et la
      recoloration du reste (la veste, le sweat, la robe sous la cape, le col du Chef). Ce qui brille (la casquette néon, le chapeau phosphorescent, les yeux de la citrouille, l'éclat de la
@@ -60,7 +61,7 @@ const EQUIPE3D = (() => {
 
   const _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion();
   const _m1 = new T.Matrix4(), _m2 = new T.Matrix4(), _c = new T.Color(), _s1 = new T.Vector3(), AXE_Y = new T.Vector3(0, 1, 0), _e = new T.Euler();
-  const etat = { acteurs: 0, enService: 0, chauffe: false, msCuisson: 0, liberes: 0, rhabillages: 0, msRhabillage: 0, msRhabillageMax: 0, kits: 0, msKits: 0, msKitMax: 0, kitLent: '' };
+  const etat = { acteurs: 0, enService: 0, chauffe: false, msCuisson: 0, liberes: 0, rhabillages: 0, msRhabillage: 0, msRhabillageMax: 0, kits: 0, msKits: 0, msKitMax: 0, kitLent: '', surPlace: 0, avance: 0, imagesAvance: 0, msAvance: 0, msAvanceMax: 0 }; // (surPlace : les kits cuits à l'image où on les porte ; avance : ceux cuits d'avance, en imagesAvance images, msAvance ms dans la dernière, msAvanceMax au plus)
   const permis = (renderer) => !!(typeof HDM !== 'undefined' && HDM.permis(renderer));
   function demander() { if (!HDM.etat.equipe) HDM.charger('equipe'); }
   const lin = (hex, k) => { _c.set(hex); if (k != null) _c.multiplyScalar(k); return [_c.r, _c.g, _c.b]; };
@@ -363,8 +364,9 @@ const EQUIPE3D = (() => {
   }
 
   // les parts d'un kit, en tableaux : chaque part dans le monde au repos, ramenée dans l'espace de liaison, en facettes ; os et poids par sommet ;
-  // un rôle global par sommet (l'emplacement du kit et le rôle local de la part). Les géométries des parts sont jetées
-  function emettre(pr, parts, emp) {
+  // un rôle global par sommet (l'emplacement du kit et le rôle local de la part). Les géométries des parts sont jetées. Un générateur : il rend
+  // la main tous les 128 sommets et après chaque part (la cuisson d'avance s'étale ainsi sur plusieurs images, quelques millisecondes chacune)
+  function* emettre(pr, parts, emp) {
     const P = [], N = [], C = [], R = [], MU = [], SI = [], SW = [], I = [], vus = new Map(), q = (x, k) => Math.round(x * k); let yMax = -Infinity;
     const iB = pr.iB, nm = new T.Matrix3().getNormalMatrix(iB), osDe = (nom) => (pr.osIdx.has(nom) ? pr.osIdx.get(nom) : 0);
     const role = (l) => (l == null ? RI.fixe : RI[emp + '.' + l] != null ? RI[emp + '.' + l] : RI[l] != null ? RI[l] : RI.fixe);
@@ -387,8 +389,10 @@ const EQUIPE3D = (() => {
           for (let i = 0; i < 4; i++) { SI.push(ww[i] ? ww[i][0] : 0); SW.push(ww[i] ? ww[i][1] / s : 0); }
         }
         I.push(k);
+        if ((j & 127) === 127) yield;
       }
       g.dispose(); if (!p.garder && !(p.geo.userData && p.geo.userData.cache)) p.geo.dispose();
+      yield;
     }
     return { P: new Float32Array(P), N: new Float32Array(N), C: new Float32Array(C), R: new Uint8Array(R), MU: new Float32Array(MU), SI: new Uint16Array(SI), SW: new Float32Array(SW), I: new Uint32Array(I), n: R.length, tris: I.length / 3, yMax };
   }
@@ -458,23 +462,24 @@ const EQUIPE3D = (() => {
 
   // ─── la casquette (le quartier) : six pans (une couture entre deux), le bandeau, la visière tournée vers l'arrière (« comme il faut ») et son
   //     dessous de couleur, le bouton du sommet ; devant, au-dessus du front, l'ouverture de la patte de réglage ; derrière, l'étoile du quartier.
-  //     La néon : rose, ses coutures, son bouton et le bord de sa visière en cyan, qui brillent (et clignotent un peu) ───
+  //     La néon : rose, ses coutures, son bouton et le bord de sa visière en cyan, qui brillent (et clignotent un peu). La dorée (le podium
+  //     final) : noire, l'or en grand, qui se voit de la salle d'en haut : le bandeau, les coutures épaisses, le dessus de la visière ───
   function kitCasquette(pr, o) {
     const t = pr.m.tete, y = pr.m.yeux, u = pr.m.u, v = o.v || 'quartier', yB = y.sourcils + (t.sommet - y.sourcils) * 0.3, R = Math.max(rayonCrane(pr, yB, t.sommet + 0.1), t.rx) * 1.12, hD = (t.sommet - yB) * 1.3 + R * 0.08, kz = t.rz / t.rx, cx = t.cx, cz = t.cz, parts = [], os = OS.tete;
-    const neon = v === 'neon', couture = neon ? 'lueur' : 'bord', NP = 6, NS = 3, NR = 6;
+    const neon = v === 'neon', or = v === 'quartier-or', couture = neon ? 'lueur' : or ? 'fonce' : 'bord', NP = 6, NS = 3, NR = 6;
     const pt = (a, k) => { const ph = k / NR * HP * 0.98, r = R * Math.cos(ph) * (1 + 0.04 * Math.max(0, Math.cos(a)) * Math.sin(ph * 2)); return new T.Vector3(cx + Math.sin(a) * r, yB + hD * Math.sin(ph), cz + Math.cos(a) * r * kz); };
     for (let p = 0; p < NP; p++) { // les pans, un sur deux un peu plus sombre
       const a0 = (p - 0.5) / NP * TAU, anneaux = []; for (let k = 0; k <= NR; k++) { const l = []; for (let i = 0; i <= NS; i++) l.push(pt(a0 + i / NS * TAU / NP, k)); anneaux.push(l); }
       parts.push(pc(nappe(anneaux, { ouvert: true, haut: new T.Vector3(cx, yB + hD, cz) }), 'tissu', null, os, { nuance: p % 2 ? 0.9 : 1 }));
       const l = []; for (let k = 0; k <= NR; k++) { const q = pt(a0, k); q.x = cx + (q.x - cx) * 1.012; q.z = cz + (q.z - cz) * 1.012; q.y += 0.003 * u; l.push(q); }
-      parts.push(pc(tube(l, 0.0042 * u, 4, 12), couture, null, os));
+      parts.push(pc(tube(l, (or ? 0.0062 : 0.0042) * u, 4, 12), couture, null, os));
     }
-    parts.push(pc(nappe([anneau(cx, yB - 0.004 * u, cz, R * 1.016, R * kz * 1.016, 24), anneau(cx, yB + hD * 0.17, cz, R * 1.012, R * kz * 1.012, 24)]), neon ? 'lueur' : 'tissu', null, os, { nuance: 0.94 }));
+    parts.push(pc(nappe([anneau(cx, yB - 0.004 * u, cz, R * 1.016, R * kz * 1.016, 24), anneau(cx, yB + hD * 0.17, cz, R * 1.012, R * kz * 1.012, 24)]), neon ? 'lueur' : or ? 'fonce' : 'tissu', null, os, { nuance: or ? 1 : 0.94 }));
     // la visière, derrière : un arc aplati qui descend un peu vers sa pointe ; dessus le tissu, dessous la couleur, le bord
     const NV = 12, va = Math.PI - 1.0, vb = Math.PI + 1.0, rIn = R * 0.96, rOut = R * 1.6, ep = 0.011 * u;
     const visiere = (k, dy) => { const l = []; for (let i = 0; i <= NV; i++) { const tt = i / NV, a = va + (vb - va) * tt, sv = Math.pow(Math.sin(tt * Math.PI), 0.7), r = rIn + (rOut - rIn) * sv * k; l.push(new T.Vector3(cx + Math.sin(a) * r, yB - 0.004 * u - k * k * 0.05 * u * sv + dy, cz + Math.cos(a) * r * kz)); } return l; };
     const dessusV = [0, 0.5, 1].map((k) => visiere(k, ep)), dessousV = [0, 0.5, 1].map((k) => visiere(k, 0));
-    parts.push(pc(nappe(dessusV, { ouvert: true, dedans: true }), 'tissu', null, os), pc(nappe(dessousV, { ouvert: true }), 'fonce', null, os));
+    parts.push(pc(nappe(dessusV, { ouvert: true, dedans: true }), or ? 'fonce' : 'tissu', null, os), pc(nappe(dessousV, { ouvert: true }), or ? 'tissu' : 'fonce', null, os, { nuance: or ? 0.8 : 1 }));
     parts.push(pc(nappe([dessousV[2], dessusV[2]], { ouvert: true }), neon ? 'lueur' : 'fonce', null, os));
     // le bouton du sommet
     parts.push(pc(new T.SphereGeometry(R * 0.11, 8, 4, 0, TAU, 0, HP), neon ? 'lueur' : 'fonce', { x: cx, y: yB + hD - 0.006 * u, z: cz, sy: 0.7 }, os));
@@ -486,14 +491,15 @@ const EQUIPE3D = (() => {
     return { parts, info: { bord: yB, rayon: R * 0.97 } };
   }
 
-  // ─── le chapeau pointu (la Maison hantée) : le large bord qui ondule et retombe un peu, le cône qui se plie vers l'arrière au bout, le ruban et
-  //     sa boucle, les étoiles (« pointu, étoilé ») ; le doré : le cône et le bord dorés, le ruban noir ; le phosphorescent : violet nuit, le
-  //     ruban, les étoiles et le liseré du bord en vert qui brille dans le noir ───
+  // ─── le chapeau pointu (la Maison hantée) : le bord qui ondule, retombe un peu sur les côtés et derrière et se relève devant (d'en haut, la
+  //     caméra de la boutique voit les yeux sous le bord), le cône qui se plie vers l'arrière au bout, le ruban et sa boucle, les étoiles
+  //     (« pointu, étoilé ») ; le doré : le cône et le bord dorés, le ruban noir ; le phosphorescent : violet nuit, le ruban, les étoiles et le
+  //     liseré du bord en vert qui brille dans le noir ───
   function kitChapeau(pr, o) {
     const t = pr.m.tete, y = pr.m.yeux, u = pr.m.u, v = o.v || 'hantee', yB = y.sourcils + (t.sommet - y.sourcils) * 0.36, rT = rayonCrane(pr, yB, yB + t.ry * 0.3) * 1.1 + t.rx * 0.02, cx = t.cx, cz = t.cz - t.rz * 0.02, parts = [], os = OS.tete, N = 28;
-    const lueur = v === 'lueur', rBord = rT * 1.58, chute = 0.05 * u, ep = 0.012 * u;
-    // le bord : dessus, dessous, la tranche ; il ondule (5 creux) et retombe vers l'extérieur
-    const yb = (r, th) => { const k = Math.max(0, (r - rT) / (rBord - rT)); return yB + 0.004 * u - k * k * chute + Math.sin(th * 5 + 0.7) * 0.012 * u * Math.pow(k, 1.5); };
+    const lueur = v === 'lueur', rBord = rT * 1.3, chute = 0.05 * u, releve = 0.14 * u, ep = 0.012 * u;
+    // le bord : dessus, dessous, la tranche ; il ondule (5 creux), retombe vers l'extérieur et se relève devant (θ = 0)
+    const yb = (r, th) => { const k = Math.max(0, (r - rT) / (rBord - rT)), c = Math.max(0, Math.cos(th)); return yB + 0.004 * u - k * k * chute + k * k * releve * c * c + Math.sin(th * 5 + 0.7) * 0.012 * u * Math.pow(k, 1.5); };
     const bordA = (k, dy) => { const r = rT * 0.97 + (rBord - rT * 0.97) * k; return anneau(cx, (th) => yb(r, th) + dy, cz, r, r, N); };
     const ks = [0, 0.35, 0.7, 1], dessus = ks.map((k) => bordA(k, ep * 0.5)), dessous = ks.map((k) => bordA(k, -ep * 0.5));
     parts.push(pc(nappe(dessus, { dedans: true }), 'tissu', null, os), pc(nappe(dessous), 'tissu', null, os, { nuance: 0.82 }), pc(nappe([dessous[3], dessus[3]]), lueur ? 'lueur' : 'tissu', null, os));
@@ -606,9 +612,10 @@ const EQUIPE3D = (() => {
   //     posé sur les épaules derrière la nuque, qui s'affine devant et descend en V sur la poitrine (ses deux pans à plat, qui se rejoignent sous
   //     le col), et sa poche qui pend dans le dos (sa couture au milieu, son ouverture plus claire) ; les cordons qui sortent du V, leurs embouts
   //     de métal ; la poche kangourou (le même tissu, ses rebords, ses deux entrées) ; l'étoile du quartier sur la poitrine ; les côtes des
-  //     poignets et de l'ourlet. En or : « noir et or, rien d'autre » ───
+  //     poignets et de l'ourlet. En or : « noir et or, rien d'autre », l'or en grand pour qu'on le voie de la salle, d'en haut : le bord de la
+  //     capuche, les côtes des poignets et de l'ourlet, les rebords de la poche, des cordons plus épais ───
   function kitSweat(pr, o) {
-    const m = pr.m, u = m.u, v = o.v || 'quartier', f = facade(pr, 1), fd = facade(pr, -1), cx = m.tete.cx, parts = [], wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/), wF = poidsFacade(pr);
+    const m = pr.m, u = m.u, v = o.v || 'quartier', or = v === 'quartier-or', f = facade(pr, 1), fd = facade(pr, -1), cx = m.tete.cx, parts = [], wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/), wF = poidsFacade(pr);
     const C = contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'), cz = C.cz, yN = m.foulard.max.y - 0.02 * u, K = 22, PH = 2.3, pts = [], rr = [];
     const To = toit(pr), r0s = [];
     for (let k = 0; k <= K; k++) { const ph = -PH + 2 * PH * k / K, th = Math.PI + ph; r0s.push(Math.max(C.r(th, yN - 0.01 * u), 0.15 * u)); }
@@ -618,7 +625,7 @@ const EQUIPE3D = (() => {
       let yc = yN - 0.022 * u * (1 - c2) + 0.004 * u * c2 - 0.034 * u * bt * bt; for (const dr of [-0.8, 0, 0.8]) { const r = r0 + dr * rb; yc = Math.max(yc, To(cx + Math.sin(th) * r, cz + Math.cos(th) * r) + ra * 0.9); }
       pts.push(new T.Vector3(cx + Math.sin(th) * r0, yc, cz + Math.cos(th) * r0)); rr.push([ra, rb]);
     }
-    parts.push(pc(fourreau(pts, rr, 8, { n0: new T.Vector3(0, 1, 0), debut: true, bout: true }), 'tissu', null, wC));
+    parts.push(pc(fourreau(pts, rr, 8, { n0: new T.Vector3(0, 1, 0), debut: true, bout: true }), or ? 'fonce' : 'tissu', null, wC));
     // ses deux pans, devant : à plat sur la poitrine, du bout du boudin jusqu'au V sous le col (le gauche passe sur le droit)
     const xV0 = 0.12 * u, yV0 = yN - 0.05 * u, yV1 = m.foulard.min.y - 0.085 * u, eV = 0.0032 * u, ancres = []; // (à plat : une chaîne de cou passe dessus)
     for (const s of [1, -1]) {
@@ -637,15 +644,15 @@ const EQUIPE3D = (() => {
     parts.push(pc(plaque(ov, 0.004 * u), 'doublure', surSurface(new T.Vector3(cx, yH - 0.006 * u, fd.zA(cx, yH) - 0.03 * u), new T.Vector3(0, 0.75, -0.66).normalize()), wC));
     // les cordons : ils sortent des pans du V et pendent, leurs embouts
     for (const [i, s] of [[0, 1], [1, -1]]) {
-      const a0 = ancres[i], l = []; for (let k = 0; k <= 4; k++) { const y = a0.y - 0.004 * u - k * 0.03 * u, x = a0.x + s * k * 0.004 * u; l.push(new T.Vector3(x, y, f.zA(x, y) + (k ? 0.0062 * u : a0.z - f.zA(a0.x, a0.y) + eV + 0.006 * u))); }
-      parts.push(pc(tube(l, 0.0048 * u, 4, 10), 'fonce', null, OS.torse));
-      const [pe, ne] = surFacade(pr, l[4].x, l[4].y - 0.012 * u, 0.009 * u); parts.push(pc(new T.CylinderGeometry(0.0085 * u, 0.0085 * u, 0.024 * u, 6), 'bijou', surSurface(pe, ne).multiply(new T.Matrix4().makeRotationX(HP)), OS.torse));
+      const a0 = ancres[i], l = [], rc = (or ? 0.0072 : 0.0048) * u, ec = (or ? 0.0086 : 0.0062) * u; for (let k = 0; k <= 4; k++) { const y = a0.y - 0.004 * u - k * 0.03 * u, x = a0.x + s * k * 0.004 * u; l.push(new T.Vector3(x, y, f.zA(x, y) + (k ? ec : a0.z - f.zA(a0.x, a0.y) + eV + 0.006 * u))); }
+      parts.push(pc(tube(l, rc, 4, 10), 'fonce', null, OS.torse));
+      const [pe, ne] = surFacade(pr, l[4].x, l[4].y - 0.012 * u, (or ? 0.0115 : 0.009) * u), re = (or ? 0.011 : 0.0085) * u; parts.push(pc(new T.CylinderGeometry(re, re, 0.024 * u, 6), 'bijou', surSurface(pe, ne).multiply(new T.Matrix4().makeRotationX(HP)), OS.torse));
     }
     // la poche kangourou : le même tissu, un peu plus clair ; ses rebords piqués, ses deux entrées sur les côtés
     const yb = m.pantalon.max.y + 0.035 * u, yh = yb + (m.buste.max.y - yb) * 0.24, lk = Math.max(Math.abs(m.buste.min.x - cx), Math.abs(m.buste.max.x - cx)) * 0.5;
     parts.push(drape(pr, { yH: yh, yB: yb, pas: (yh - yb) / 4, colonnes: 8, e: 0.013 * u, largeur: (y) => lk * (0.86 + 0.14 * (y - yb) / (yh - yb)), role: (uu, vv) => (vv < 0.2 || Math.abs(uu) > 0.78 && vv < 0.75 ? 'bord' : 'poche') }));
     // l'étoile, sur la poitrine gauche
-    const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), v === 'quartier-or' ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y)));
+    const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), or ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y)));
     parts.push(...poignets(pr, 'bord', 0.006 * u, 0.04 * u), ...ourlet(pr, 'bord', 0.034 * u));
     return { parts };
   }
@@ -1004,14 +1011,23 @@ const EQUIPE3D = (() => {
     if (h.pate) l.push(['pate', 'X', () => kitPate()]);
     return l;
   }
-  // un kit cuit, en cache par corps (le premier usage le bâtit ; ensuite, rien que des tableaux à recoller)
-  function kitCuit(pr, cle, emp, faire) {
-    const k0 = emp + '|' + cle; let k = pr.kits.get(k0);
-    if (!k) {
-      const t0 = performance.now(), r = faire(pr); k = emettre(pr, r.parts, emp); k.info = r.info || null; k.cle = cle; k.emp = emp; k.ms = Math.round((performance.now() - t0) * 10) / 10;
-      pr.kits.set(k0, k); etat.kits++; etat.msKits = Math.round((etat.msKits + k.ms) * 10) / 10; if (k.ms > etat.msKitMax) { etat.msKitMax = k.ms; etat.kitLent = k0; }
-    }
+  // un kit cuit, en cache par corps : le premier usage le bâtit ; ensuite, rien que des tableaux à recoller. cuireKit est un générateur (les
+  // parts, puis leur émission à petits pas ; son temps de calcul compté sans les attentes entre deux images) : la cuisson d'avance le mène pas
+  // à pas (cuireAvance) ; kitCuit le mène d'un trait, sur place (le kit commencé d'avance, s'il l'est, est fini plutôt que recommencé)
+  let cuisson = null; // le kit qui cuit d'avance : { pr, k0, gen }
+  function* cuireKit(pr, cle, emp, faire) {
+    let ms = 0, t0 = performance.now(); const r = faire(pr); ms += performance.now() - t0; yield;
+    const g = emettre(pr, r.parts, emp); let x;
+    for (;;) { t0 = performance.now(); x = g.next(); ms += performance.now() - t0; if (x.done) break; yield; }
+    const k = x.value, k0 = emp + '|' + cle; k.info = r.info || null; k.cle = cle; k.emp = emp; k.ms = Math.round(ms * 10) / 10;
+    pr.kits.set(k0, k); etat.kits++; etat.msKits = Math.round((etat.msKits + k.ms) * 10) / 10; if (k.ms > etat.msKitMax) { etat.msKitMax = k.ms; etat.kitLent = k0; }
     return k;
+  }
+  function kitCuit(pr, cle, emp, faire) {
+    const k0 = emp + '|' + cle, k = pr.kits.get(k0); if (k) return k;
+    const c = cuisson && cuisson.pr === pr && cuisson.k0 === k0 ? cuisson : { gen: cuireKit(pr, cle, emp, faire) }; if (c === cuisson) cuisson = null;
+    let x; do x = c.gen.next(); while (!x.done);
+    etat.surPlace++; return x.value; // (cuit sur place, à l'image où on le porte : ce que la cuisson d'avance évite)
   }
 
   // les boutons de la veste du Chef (le masque « boutons » de geometrie) : chaque sommet et le centre de son bouton (ses sommets reliés), dans
@@ -1105,7 +1121,7 @@ const EQUIPE3D = (() => {
       set('H.galon', h.galonOrH || (h.galonOr && !t && !h.apprenti) ? OR : t ? t.fonce : h.apprenti ? biais : BLANC); set('H.bord', h.apprenti ? biais : t ? t.fonce : '#ECE6DC'); set('H.poche', t ? M.melange(t.tissu, BLANC, 0.1) : '#FAF7F2'); set('H.broderie', t ? (c.haut === 'or' ? '#A8650E' : t.fonce) : '#D9D2C6');
     } else if (h.haut === 'sweat') {
       const t = pal(c.haut, 'quartier'); veste = t.tissu; poignet = t.fonce; ourlet = t.fonce; band = M.assombrir(t.tissu, 0.15);
-      set('H.tissu', t.tissu); set('H.fonce', t.fonce); set('H.clair', c.haut === 'quartier-or' ? t.fonce : t.clair); set('H.bijou', c.haut === 'quartier-or' ? '#FFF2C2' : t.bijou || OR); set('H.poche', M.assombrir(t.tissu, 0.1)); set('H.doublure', t.fonce); set('H.bord', M.assombrir(t.tissu, 0.35)); // (la doublure de la capuche : rose, ou or)
+      set('H.tissu', t.tissu); set('H.fonce', t.fonce); set('H.clair', c.haut === 'quartier-or' ? t.fonce : t.clair); set('H.bijou', c.haut === 'quartier-or' ? '#FFF2C2' : t.bijou || OR); set('H.poche', M.assombrir(t.tissu, 0.1)); set('H.doublure', t.fonce); set('H.bord', c.haut === 'quartier-or' ? t.fonce : M.assombrir(t.tissu, 0.35)); // (la doublure de la capuche : rose, ou or ; les rebords, les poignets et l'ourlet : sombres, ou or)
     } else if (h.haut === 'cape') {
       const or = c.haut === 'hantee-or'; veste = or ? '#3A3442' : '#5B3A8E'; band = or ? '#2A2531' : '#43296B';
       set('H.tissu', or ? '#1E1B26' : '#2C2342'); set('H.doublure', or ? '#FFC84A' : '#9A70E2'); set('H.bijou', OR);
@@ -1176,15 +1192,17 @@ const EQUIPE3D = (() => {
   }
 
   // ═══ la préparation, à petits pas (src/scene.js l'appelle à chaque image, tant que l'image n'a pas passé 6 ms, un pas au moins) : les clips ;
-  //     chaque corps, une partie par pas, ses mesures, son gabarit, ce que les pièces lisent du corps (ses façades, ses contours) ; les kits des
-  //     apprentis, leur géométrie partagée ; la réserve, un acteur par pas. Prêt, il cuit encore à l'avance, un kit par image, les pièces que le
-  //     boulanger possède (changer de pièce ne bâtit alors plus rien) ═══
-  const PROTOS = {}; let iCuit = 0, enCours = null, echec = false, aRemplir = false, clipsLus = false, geoApp = 0, avance = null;
+  //     chaque corps, une partie par pas, ses mesures, son gabarit, ce que les pièces lisent du corps (ses façades, ses contours, ses épaules,
+  //     les boutons du Chef) ; les kits des apprentis, chacun à petits pas, leur géométrie partagée ; la réserve, un acteur par pas. Prêt, il
+  //     cuit encore à l'avance, à petits pas (quelques millisecondes par image), la tenue portée, les pièces que le boulanger possède et la
+  //     toque de son titre suivant (st, rang, nom : sa partie, que src/scene.js lui passe à chaque image ; une pièce gagnée est cuite dans les
+  //     images qui suivent, la porter ou changer de titre ne bâtit alors plus rien) ═══
+  const PROTOS = {}; let iCuit = 0, enCours = null, echec = false, aRemplir = false, clipsLus = false, geoApp = 0, avance = null, pasKit = null;
   const AVANCE = []; // les kits à cuire à l'avance : [corps, clé, emplacement, fabrique]
-  function preparer() {
+  function preparer(st, rang, nom) {
     if (API.pret) {
       if (aRemplir) remplir();
-      else if (AVANCE.length) { const t0 = performance.now(), [pr, cle, emp, faire] = AVANCE.shift(); if (!pr.kits.has(emp + '|' + cle)) { kitCuit(pr, cle, emp, faire); etat.avance = (etat.avance || 0) + 1; etat.msAvanceMax = Math.max(etat.msAvanceMax || 0, Math.round((performance.now() - t0) * 10) / 10); } }
+      else { if (st) prevoir(st, rang, nom); cuireAvance(3); }
       return true;
     }
     if (echec || !HDM.pret('equipe')) return false;
@@ -1201,25 +1219,39 @@ const EQUIPE3D = (() => {
     if (!PROTOS.Chef_Male) throw new Error('pas de corps pour le boulanger');
     if (!API.info) { const ref = Math.min(...Object.values(PROTOS).map((p) => p.hauteur)); for (const p of Object.values(PROTOS)) p.echelle = ref / p.hauteur; API.info = { corps: Object.values(PROTOS).map((p) => ({ nom: p.nom, sommets: p.n, tris: p.I.length / 3, hauteur: +p.hauteur.toFixed(3) })) }; return 'mesures'; }
     const noms = Object.keys(PROTOS);
-    if (!avance) { // ce que les pièces lisent du corps, un morceau par pas ; puis les kits des apprentis, un par pas
+    if (!avance) { // ce que les pièces lisent du corps, un morceau par pas ; puis les kits des apprentis, chacun à petits pas (un générateur)
       avance = [];
-      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facade(pr, 1)], ['dos ' + nom, () => facade(pr, -1)], ['proches ' + nom, () => proches(pr)], ['contours ' + nom, () => { contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'); contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'); contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape'); }]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => kitCuit(pr, cle, emp, faire)]); }
+      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facade(pr, 1)], ['dos ' + nom, () => facade(pr, -1)], ['proches ' + nom, () => proches(pr)], ['contours ' + nom, () => { contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'); contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'); contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape'); }], ['épaules ' + nom, () => toit(pr)], ['boutons ' + nom, () => boutonsDe(pr)]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => (pr.kits.has(emp + '|' + cle) ? null : cuireKit(pr, cle, emp, faire))]); }
     }
-    if (avance.length) { const [quoi, f] = avance.shift(); f(); return quoi; }
+    if (pasKit) { if (pasKit.gen.next().done) pasKit = null; return pasKit ? pasKit.quoi : 'kit cuit'; }
+    if (avance.length) { const [quoi, f] = avance.shift(), gen = f(); if (gen && typeof gen.next === 'function') pasKit = { quoi, gen }; return quoi; }
     if (geoApp < noms.length) { const pr = PROTOS[noms[geoApp++]]; pr.app = geometrie(pr, HABIT_APPRENTI); pr.app.geo.userData.partagee = true; return 'apprentis ' + pr.nom; }
     for (const nom of noms) { const l = LIBRES.get(nom) || []; LIBRES.set(nom, l); if (TOUS.filter((a) => a.pr.nom === nom && !a.boul).length < RESERVE) { l.push(creerApprenti(PROTOS[nom])); return 'réserve'; } }
     etat.chauffe = false; API.pret = true; return 'prêt';
   }
-  // cuire à l'avance les kits des pièces que le boulanger possède (et ceux de son titre) : la garde-robe de st, une fois par version
+  // ce qui est à cuire à l'avance pour le boulanger de st : sa tenue portée d'abord, puis chaque pièce qu'il possède (portée avec les pièces de
+  // base : un kit ne dépend que de sa pièce, du titre et du nom de la boutique) ; au titre du moment, puis au suivant (la toque qui grandit, la
+  // moustache et le foulard du titre). Revu dès que la garde-robe (sa version), le titre ou le nom changent : à chaque image, la clé seule
   let vuAvance = '';
   function prevoir(st, rang, nom) {
-    const pr = PROTOS.Chef_Male; if (!pr || !st) return; const g = G.garderobe(st), k = `${g.v}|${Object.keys(g.objets).length}|${rang}|${nom}`; if (k === vuAvance) return; vuAvance = k;
-    const O = G.GARDEROBE.objets, deja = new Set(AVANCE.map((x) => x[2] + '|' + x[1]));
-    for (const id of Object.keys(g.objets)) { // chaque pièce possédée, portée avec les pièces de base (un kit ne dépend que de sa pièce, du titre et du nom de la boutique)
-      const v = O[id]; if (!v) continue;
-      const h = habitBoulanger(rang, { cle: PIECES4.map((p) => (p === v.piece ? id : p === 'accessoire' ? '' : G.GARDEROBE.base[p])).join('|') }, nom);
-      for (const [c, emp, faire] of kitsDe(h)) if (!pr.kits.has(emp + '|' + c) && !deja.has(emp + '|' + c)) { deja.add(emp + '|' + c); AVANCE.push([pr, c, emp, faire]); }
+    const pr = PROTOS.Chef_Male; if (!pr || !st) return; rang = Math.max(0, Math.min(5, rang || 0)); nom = nom || '';
+    const g = G.garderobe(st), k = `${g.v}|${Object.keys(g.objets).length}|${rang}|${nom}`; if (k === vuAvance) return; vuAvance = k;
+    const O = G.GARDEROBE.objets, deja = new Set(AVANCE.map((x) => x[2] + '|' + x[1])); if (cuisson) deja.add(cuisson.k0);
+    const ajouter = (h) => { for (const [c, emp, faire] of kitsDe(h)) { const k0 = emp + '|' + c; if (!pr.kits.has(k0) && !deja.has(k0)) { deja.add(k0); AVANCE.push([pr, c, emp, faire]); } } };
+    for (const r of rang < 5 ? [rang, rang + 1] : [rang]) {
+      ajouter(habitBoulanger(r, G.tenueBoulanger(st), nom));
+      for (const id of Object.keys(g.objets)) { const v = O[id]; if (v) ajouter(habitBoulanger(r, { cle: PIECES4.map((p) => (p === v.piece ? id : p === 'accessoire' ? '' : G.GARDEROBE.base[p])).join('|') }, nom)); }
     }
+  }
+  // la cuisson d'avance, à petits pas : budget ms au plus par image (un pas au moins), le kit commencé d'abord
+  function cuireAvance(budget) {
+    if (!cuisson && !AVANCE.length) { etat.msAvance = 0; return; }
+    const t0 = performance.now();
+    do {
+      if (!cuisson) { const [pr, cle, emp, faire] = AVANCE.shift(); if (pr.kits.has(emp + '|' + cle)) continue; cuisson = { pr, k0: emp + '|' + cle, gen: cuireKit(pr, cle, emp, faire) }; }
+      if (cuisson.gen.next().done) { cuisson = null; etat.avance++; }
+    } while ((cuisson || AVANCE.length) && performance.now() - t0 < budget);
+    const ms = Math.round((performance.now() - t0) * 10) / 10; etat.msAvance = ms; etat.imagesAvance++; if (ms > etat.msAvanceMax) etat.msAvanceMax = ms;
   }
 
   // ═══ les acteurs : un clone du gabarit, sa géométrie (les attributs partagés de celle des apprentis, sa couleur ; ou la sienne pour le
@@ -1258,9 +1290,10 @@ const EQUIPE3D = (() => {
     a.S.geometry = x.geo; if (vieux && !vieux.userData.partagee && vieux !== x.geo) vieux.dispose();
     teindre(x.geo, x.R, x.C0, x.MU, palette(h));
     a.habit = x; a.h = h; a.cleHabit = h.cle0; a.clesKits = cles; etat.rhabillages++;
-    // l'aura : un sprite dressé derrière lui (un appel de dessin de plus), qui respire
-    if (h.aura && !a.aura) { a.aura = new T.Sprite(auraMat()); a.aura.renderOrder = -1; a.aura.castShadow = false; a.g.add(a.aura); }
-    else if (!h.aura && a.aura) { a.g.remove(a.aura); a.aura.material.dispose(); a.aura = null; }
+    // l'aura : un plan dressé derrière lui (un appel de dessin de plus), qui respire ; posé à chaque rendu face à la caméra (poserAura), dessiné
+    // juste avant lui (son ordre : 1, le sien : 2 ; tout le reste de la boutique avant eux)
+    if (h.aura && !a.aura) { a.aura = new T.Mesh(new T.PlaneGeometry(1, 1), auraMat()); a.aura.renderOrder = 1; a.S.renderOrder = 2; a.aura.frustumCulled = false; a.aura.castShadow = false; a.aura.receiveShadow = false; a.aura.userData.acteur = a; a.aura.onBeforeRender = poserAura; a.g.add(a.aura); }
+    else if (!h.aura && a.aura) { a.g.remove(a.aura); a.aura.geometry.dispose(); a.aura.material.dispose(); a.aura = null; }
     a.g.userData.tenue = garde && garde.tete && PODIUM.includes(garde.tete.metal) ? garde.tete.metal : null; a.g.userData.garde = garde || null;
     a.g.userData.parts = { aura: a.aura || null };
     // les os à ressort et l'éclat, remis au repos
@@ -1297,14 +1330,18 @@ const EQUIPE3D = (() => {
   }
   function liberer() { // la HD interdite depuis 10 s (src/scene.js) : la réserve et le boulanger rendent leur mémoire (les gabarits et les kits restent)
     if (!TOUS.length || TOUS.some((a) => a.g.visible && a.g.parent)) return false;
-    for (const a of TOUS) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); if (a.aura) a.aura.material.dispose(); if (a.g.parent) a.g.parent.remove(a.g); }
+    for (const a of TOUS) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); if (a.aura) { a.aura.geometry.dispose(); a.aura.material.dispose(); } if (a.g.parent) a.g.parent.remove(a.g); }
     TOUS.length = 0; LIBRES.clear(); BOUL = null; etat.acteurs = 0; etat.liberes++; aRemplir = true; return true;
   }
   function chauffer() { if (etat.chauffe || !API.pret) return null; const gs = []; for (const l of LIBRES.values()) for (const a of l) { a.g.position.set(0, -5000, 0); a.g.scale.setScalar(1); a.g.visible = true; gs.push(a.g); } etat.chauffe = true; etat.chauffes = (etat.chauffes || 0) + 1; return gs; }
   function rentrer(gs) { for (const g of gs || []) { const a = g.userData.e3d; if (a && a.c) continue; if (g.parent) g.parent.remove(g); g.visible = false; } }
   function echantillon() { for (const l of LIBRES.values()) if (l.length) return l[0].g; return null; }
 
-  // ─── l'aura phosphorescente : un halo vert qui respire autour de lui, plus vif sur son pourtour, piqué de petites lueurs ───
+  // ─── l'aura phosphorescente : un halo vert qui respire autour de lui, plus vif sur son pourtour, piqué de petites lueurs. Un plan dressé, qui
+  //     ne tourne qu'autour de la verticale, face à la caméra, posé derrière lui (penché face à la caméra plongeante de la boutique, comme un
+  //     sprite, sa moitié basse passerait devant lui et le teindrait de vert). Il est dessiné parmi les objets opaques, juste avant lui, sans
+  //     écrire la profondeur : ce qui est devant lui le cache, le boulanger passe par-dessus (rien de lui n'est jamais teint, pas même la
+  //     visière, la cape ou le chapeau qui dépassent derrière), le mélange est celui d'un objet transparent ───
   let TEX_AURA = null;
   function auraMat() {
     if (!TEX_AURA) {
@@ -1313,7 +1350,20 @@ const EQUIPE3D = (() => {
         for (let k = 0; k < 12; k++) { const a = k * 2.399, r = w * (0.3 + 0.1 * ((k * 7) % 5) / 4), x = w / 2 + Math.cos(a) * r, y = h / 2 + Math.sin(a) * r, s = w * (0.005 + 0.003 * (k % 3)), gg = c.createRadialGradient(x, y, 0, x, y, s * 2.5); gg.addColorStop(0, 'rgba(255,255,255,.75)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gg; c.fillRect(x - s * 2.5, y - s * 2.5, s * 5, s * 5); }
       }, 128, 128); TEX_AURA.userData.partagee = true;
     }
-    return new T.SpriteMaterial({ map: TEX_AURA, color: '#7CFF6B', transparent: true, opacity: 0.44, depthWrite: false });
+    return new T.MeshBasicMaterial({ map: TEX_AURA, color: '#7CFF6B', opacity: 0.44, transparent: false, depthWrite: false, blending: T.CustomBlending, blendSrc: T.SrcAlphaFactor, blendDst: T.OneMinusSrcAlphaFactor, blendSrcAlpha: T.OneFactor, blendDstAlpha: T.OneMinusSrcAlphaFactor });
+  }
+  // l'aura, posée à chaque rendu (onBeforeRender : la caméra de ce rendu, celle de la boutique ou celle de la vue) : dressée, tournée vers la
+  // caméra autour de la verticale seulement, derrière lui à AURA_RECUL fois sa hauteur de son axe (à l'opposé de la caméra) ; sa hauteur et sa
+  // taille du moment (la respiration : position.y et scale, en unités du modèle, que poserBoulanger règle), allongée de 1 / cos(plongée) : la
+  // caméra plongeante de la boutique la voit de la même hauteur que la vue, presque de face (elle encadre encore sa tête)
+  const AURA_RECUL = 0.17, _va = new T.Vector3(), _vb = new T.Vector3(), _sa = new T.Vector3(), _qa = new T.Quaternion();
+  function poserAura(renderer, scene, camera) {
+    const a = this.userData.acteur; if (!a) return; const mw = a.g.matrixWorld, s = _sa.setFromMatrixScale(mw).x;
+    camera.getWorldDirection(_va); let dx = _va.x, dz = _va.z; const l = Math.hypot(dx, dz), allonge = 1 / Math.max(0.4, l);
+    if (l < 1e-3) { dx = -Math.sin(a.yaw); dz = -Math.cos(a.yaw); } else { dx /= l; dz /= l; } // (la caméra droit au-dessus : derrière son dos)
+    _vb.setFromMatrixPosition(mw); _vb.x += dx * AURA_RECUL * a.pr.hauteur * s; _vb.z += dz * AURA_RECUL * a.pr.hauteur * s; _vb.y += this.position.y * s;
+    _qa.setFromAxisAngle(AXE_Y, Math.atan2(-dx, -dz));
+    this.matrixWorld.compose(_vb, _qa, _sa.set(this.scale.x * s, this.scale.y * s * allonge, 1));
   }
 
 
@@ -1404,14 +1454,16 @@ const EQUIPE3D = (() => {
     restaurer(a); a.mixer.update(dt); garderPose(a);
     const u = a.joieT > 0 ? 1 - a.joieT / 1.4 : 1, kj = a.joieT > 0 ? Math.min(1, u * 6, (1 - u) * 4) : 0; couche(a, '__joie', kj, 4);
     g.position.set(ctx.x, ctx.y - pr.sol * s + hop * hop * 4 * ctx.K * kB, ctx.z); g.updateMatrixWorld(true);
-    // ses gestes, au repos (pas pendant la joie ni le coup de feu) : toutes les 11 s, le revers de la main sur le front ; ou il se frotte les mains
-    const os = a.os, w = (t * 0.09 + a.graine) % 1, lanterne = !!(a.h && a.h.acc === 'lanterne');
+    // ses gestes, au repos (pas pendant la joie ni le coup de feu) : toutes les 11 s, le revers de la main sur le front ; ou il se frotte les
+    // mains. Sous des lunettes ou le chapeau pointu, la main n'a pas la place d'aller au front (elle passerait à travers les verres ou le bord) :
+    // il se frotte les mains, là aussi
+    const os = a.os, w = (t * 0.09 + a.graine) % 1, lanterne = !!(a.h && a.h.acc === 'lanterne'), front = !(a.h && (a.h.lunettes || a.h.tete === 'chapeau'));
     if (!o.rush && a.joieT <= 0 && !o.vue && !lanterne) { // (la lanterne à la main : ni le front ni les mains frottées)
-      if (w < 0.07) { // (le front : au-dessus de l'os de la tête, devant le visage ; la main va et vient de côté)
+      if (w < 0.07 && front) { // (le front : au-dessus de l'os de la tête, devant le visage ; la main va et vient de côté)
         const k = Math.sin(w / 0.07 * Math.PI), d = pr.dessus * s; _v2.set(Math.sin(a.yaw), 0, Math.cos(a.yaw)); _v3.set(Math.cos(a.yaw), 0, -Math.sin(a.yaw));
         posM(os.tete, _v1); _v1.y += d * 0.5; _v1.addScaledVector(_v2, d * 0.62).addScaledVector(_v3, -d * 0.12 - Math.sin(t * 9) * 0.1 * d * k); ikBras(os.brasD, os.avantD, os.mainD, _v1, k * 0.95);
       }
-      else if (w > 0.5 && w < 0.58) { const k = Math.sin((w - 0.5) / 0.08 * Math.PI), f = Math.sin(t * 16) * 0.05 * pr.hauteur * s; posM(os.torse, _v1); _v1.y -= 0.12 * pr.hauteur * s; _v1.x += Math.sin(a.yaw) * 0.16 * pr.hauteur * s; _v1.z += Math.cos(a.yaw) * 0.16 * pr.hauteur * s; _v2.set(Math.cos(a.yaw), 0, -Math.sin(a.yaw)); _v3.copy(_v1).addScaledVector(_v2, -0.02 * pr.hauteur * s + f); _v4.copy(_v1).addScaledVector(_v2, 0.02 * pr.hauteur * s + f); ikBras(os.brasD, os.avantD, os.mainD, _v3, k); ikBras(os.brasG, os.avantG, os.mainG, _v4, k); }
+      else if (w < 0.07 || (w > 0.5 && w < 0.58)) { const k = Math.sin((w < 0.07 ? w / 0.07 : (w - 0.5) / 0.08) * Math.PI), f = Math.sin(t * 16) * 0.05 * pr.hauteur * s; posM(os.torse, _v1); _v1.y -= 0.12 * pr.hauteur * s; _v1.x += Math.sin(a.yaw) * 0.16 * pr.hauteur * s; _v1.z += Math.cos(a.yaw) * 0.16 * pr.hauteur * s; _v2.set(Math.cos(a.yaw), 0, -Math.sin(a.yaw)); _v3.copy(_v1).addScaledVector(_v2, -0.02 * pr.hauteur * s + f); _v4.copy(_v1).addScaledVector(_v2, 0.02 * pr.hauteur * s + f); ikBras(os.brasD, os.avantD, os.mainD, _v3, k); ikBras(os.brasG, os.avantG, os.mainG, _v4, k); }
     }
     // la sueur pendant le coup de feu, la lanterne à la main droite
     if (os.sueur) { const on = !!o.rush; if ((os.sueur.scale.x > 0) !== on) os.sueur.scale.setScalar(on ? 1 : 0); }
@@ -1421,7 +1473,7 @@ const EQUIPE3D = (() => {
       posM(os.mainD, _v1); _v1.y -= 0.025 * Hs; _q1.setFromAxisAngle(AXE_Y, a.yaw + Math.sin(t * 2.2) * 0.15); tenir(os.lanterne, _v1, _q1, ctx.K * (ctx.echelle || 1) * kB * 0.85);
     } else tenir(os.lanterne, null);
     ressorts(a, dt, t); U_LUEUR.value = clignote(t);
-    if (a.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1), uu = pr.hauteur / 73; a.aura.material.opacity = 0.44 + 0.1 * k + 0.04 * k2; a.aura.position.set(0, 36 * uu, -8 * uu); a.aura.scale.set((68 + 3 * k) * uu, (90 + 4 * k + 2 * k2) * uu, 1); }
+    if (a.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1), uu = pr.hauteur / 73; a.aura.material.opacity = 0.44 + 0.1 * k + 0.04 * k2; a.aura.position.set(0, 36 * uu, 0); a.aura.scale.set((68 + 3 * k) * uu, (90 + 4 * k + 2 * k2) * uu, 1); }
   }
 
   const memo = (k, f) => { k = 'e3|' + k; let g = M.GEOS.get(k); if (!g) { g = f(); g.userData.cache = true; M.GEOS.set(k, g); } return g; };
@@ -1584,6 +1636,7 @@ const EQUIPE3D = (() => {
   function imageVue(dt) { // une image de la vue (la boucle, ou les tests qui la pilotent)
     if (!V3) return; V3.t += dt; V3.images++;
     if (!API.pret) { HDM.charger('boutique'); demander(); preparer(); if (API.pret) habillerVue(false); }
+    else { const st = V3.ctx.st; prevoir(st, GAME.rangTitre(st), GAME.nomBoutique ? GAME.nomBoutique(st) : ''); cuireAvance(2); } // (la boutique attend sous la vue : la cuisson d'avance continue ici, une pièce gagnée juste avant est prête à être mise)
     const a = V3.a;
     if (a) {
       // l'élan du doigt, puis le retour doux face à soi (un léger balancement) deux secondes après
@@ -1593,7 +1646,6 @@ const EQUIPE3D = (() => {
       poserBoulanger(a, { t: V3.t, hop: 0, rush: false, vue: true }, dt, { K, x: 0, y: 0, z: 0, yaw: V3.yaw });
       if (VUE.liaison) { a.S.skeleton.pose(); a.g.position.y = -a.pr.m.piedsY0; } // (mise au point : la pose de liaison, en T)
       a.yaw = V3.yaw; a.g.rotation.y = V3.yaw;
-      if (a.aura) { const u = a.pr.hauteur / 73; a.aura.position.set(Math.sin(-V3.yaw) * -8 * u, 36 * u, Math.cos(-V3.yaw) * -8 * u); } // (l'aura reste derrière lui, face à la caméra, quand il tourne)
       a.g.updateMatrixWorld(true);
     }
     V3.renderer.render(V3.scene, V3.camera);
@@ -1602,7 +1654,7 @@ const EQUIPE3D = (() => {
   function fermerVue() {
     if (!V3) return; const v = V3; V3 = null; VUE.ouvert = false;
     if (v.raf) cancelAnimationFrame(v.raf); if (v.ro) v.ro.disconnect();
-    if (v.a) { const a = v.a; a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); if (a.aura) a.aura.material.dispose(); }
+    if (v.a) { const a = v.a; a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.S.skeleton.dispose(); a.S.geometry.dispose(); if (a.aura) { a.aura.geometry.dispose(); a.aura.material.dispose(); } }
     v.estrade.geometry.dispose(); v.estrade.material.dispose(); v.scene.traverse((o) => { if (o.isMesh && o !== v.estrade && o.geometry && !(v.a && o === v.a.S)) { o.geometry.dispose(); if (o.material && o.material !== v.mat) o.material.dispose(); } }); v.mat.dispose();
     try { v.renderer.dispose(); v.renderer.forceContextLoss(); } catch (e) { /* rien */ }
     v.el.remove();
@@ -1622,7 +1674,7 @@ const EQUIPE3D = (() => {
   Object.defineProperty(VUE, 'etat', { enumerable: true, get() { return V3 ? { piece: V3.piece, yaw: +V3.yaw.toFixed(3), tenue: V3.a ? V3.a.cleHabit : '', tris: V3.a ? V3.a.habit.tris : 0, kits: V3.a ? V3.a.habit.kits.map((k) => k.cle) : [], ms: V3.a ? V3.a.habit.ms : 0, aura: !!(V3.a && V3.a.aura), formes: V3.a ? { tete: V3.a.h.tete, haut: V3.a.h.haut, pieds: V3.a.h.pieds, acc: V3.a.h.acc, lunettes: V3.a.h.lunettes, foulard: V3.a.h.foulardTitre, col: V3.a.h.colTri } : null, joie: !!(V3.a && V3.a.joieT > 0), images: V3.images, appels: V3.renderer.info.render.calls, triangles: V3.renderer.info.render.triangles } : null; } }); // (un accesseur : Object.assign le figerait)
 
   Object.assign(API, { actif: true, HAUT, HAUT_BOULANGER: HAUT * ECHELLE_BOULANGER, permis, demander, preparer, boulanger, rhabiller, poserBoulanger, apprenti, poserApprenti, rendre, liberer, chauffer, rentrer, echantillon, tete, mesure, PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, toit, contour, initiales, sommetsMonde, U_LUEUR, vue: VUE }); // (PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, initiales, sommetsMonde, U_LUEUR : pour les tests et la mise au point)
-  Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0) }, etat) });
+  Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0), aCuire: AVANCE.length + (cuisson ? 1 : 0) }, etat) }); // (aCuire : les kits qui attendent leur cuisson d'avance)
   return API;
 })();
 if (typeof module !== 'undefined') module.exports = EQUIPE3D;

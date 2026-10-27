@@ -10,9 +10,12 @@
 //   (×4, face aux mêmes en chibis) ; les revenus des fournées inchangés (GAME.revenuFournee de la page, avec et sans le paramètre : les mêmes
 //   que src/game.js seul, dans Node, sur le même état) ;
 // · les tenues : chacune des 42 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
-//   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces (toutes les pièces seules, les ensembles, 30
-//   mélanges tirés au sort et 10 qui se frôlent, à trois poses) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans
-//   rien cuire, ≤ 25 ms chacun) ; la mémoire (géométries et tas JS) stable sur 20 changements de plus ;
+//   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces, ni des mains dans une pièce (toutes les
+//   pièces seules, les ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
+//   mains frottées de la boutique, la joie) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans rien cuire, ≤ 25 ms
+//   chacun) ; la mémoire (géométries et tas JS) stable sur 20 changements de plus ; l'aura dans la boutique (rendue avec et sans elle au même
+//   instant : elle ne teint pas le boulanger, son halo se voit autour) ; une collection gagnée en jouant, cuite d'avance à petits pas (la
+//   porter, ou passer au titre suivant, ne cuit rien sur place) ;
 // · la vue « Mon boulanger » : ouverte depuis la garde-robe (onglet Boulanger), tournée au doigt, une pièce mise depuis la vue (portée
 //   aussitôt, sa joie), fermée (la boutique reprend) ; trois fois : la mémoire de la boutique ne monte pas ;
 // · la HD coupée dans les Réglages : les chibis à l'image suivante, la mémoire rendue après 10 s, le retour des personnages 3D ;
@@ -42,8 +45,10 @@ const FICHIERS = ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'];
 const G0 = require('../src/game.js'); // les règles seules (sans page) : les revenus des fournées, sur le même état
 // (évaluée dans la page) les traversées entre les pièces d'un acteur, à sa pose : pour chaque paire de kits (les pièces et les marques du titre),
 // les triangles de l'un dont un côté perce un triangle de l'autre (Möller–Trumbore, strictement dans le segment) ; une grille des boîtes pour
-// aller vite ; les triangles nuls (les pièces rangées à l'échelle nulle) ignorés. Rend { paires: [{ a, b, n, ou }], tris, ms }
-function traversees(a) {
+// aller vite ; les triangles nuls (les pièces rangées à l'échelle nulle) ignorés. o.mains : les mains aussi (les triangles du corps dont les
+// trois sommets suivent surtout un os du poing, Fist) contre chaque kit, la lanterne exceptée (elle est tenue) ; la paire { a: 'mains', b: kit }.
+// Rend { paires: [{ a, b, n, ou }], tris, ms }
+function traversees(a, o) {
   const t0 = performance.now(), S = a.S, g = S.geometry, idx = g.index.array, n = g.attributes.position.count, P = new Float32Array(n * 3);
   a.g.updateMatrixWorld(true); EQUIPE3D.sommetsMonde(S, n, (i, x, y, z) => { P[i * 3] = x; P[i * 3 + 1] = y; P[i * 3 + 2] = z; });
   const kits = a.habit.kits, H = a.pr.hauteur * a.g.scale.x, eps = 1e-9, minA = H * H * 1e-9, c = H * 0.02, grilles = new Map(), A9 = new Float32Array(9), B9 = new Float32Array(9);
@@ -69,7 +74,53 @@ function traversees(a) {
     }
     if (nb) paires.push({ a: ka.cle, b: kb.cle, n: nb, ou });
   }
+  if (o && o.mains) {
+    const si = g.attributes.skinIndex.array, sw = g.attributes.skinWeight.array, bones = S.skeleton.bones;
+    const poing = (v) => { let b = 0, w = -1; for (let j = 0; j < 4; j++) if (sw[v * 4 + j] > w) { w = sw[v * 4 + j]; b = si[v * 4 + j]; } return /^Fist/.test(bones[b].name); };
+    const Gm = new Map(); let nm = 0;
+    for (let t = 0; t < a.habit.trisCorps; t++) { if (!poing(idx[t * 3]) || !poing(idx[t * 3 + 1]) || !poing(idx[t * 3 + 2])) continue; tri(t, A9); if (aire(A9) < minA) continue; nm++; cases(boite(A9), (q) => { let L = Gm.get(q); if (!L) Gm.set(q, (L = [])); L.push(t); }); }
+    for (const k of kits) {
+      if (/lanterne/.test(k.cle)) continue; const ou = []; let nb = 0;
+      for (let t = k.t0; t < k.t1; t++) {
+        tri(t, A9); if (aire(A9) < minA) continue; const b = boite(A9), cand = new Set(); cases(b, (q) => { const L = Gm.get(q); if (L) for (const u of L) cand.add(u); });
+        for (const u of cand) { tri(u, B9); const bb = boite(B9); if (bb[0] > b[3] || bb[3] < b[0] || bb[1] > b[4] || bb[4] < b[1] || bb[2] > b[5] || bb[5] < b[2]) continue; if (coupe(A9, B9)) { nb++; if (ou.length < 2) ou.push([(A9[0] + A9[3] + A9[6]) / 3 / H, (A9[1] + A9[4] + A9[7]) / 3 / H, (A9[2] + A9[5] + A9[8]) / 3 / H].map((v) => v.toFixed(3)).join(',')); break; } }
+      }
+      if (nb) paires.push({ a: 'mains', b: k.cle, n: nb, ou });
+    }
+    if (!nm) paires.push({ a: 'mains', b: '(aucun triangle de main trouvé)', n: 1, ou: [] });
+  }
   return { paires, tris: a.habit.tris, ms: Math.round(performance.now() - t0) };
+}
+
+// (évaluée dans la page) l'aura du boulanger dans la boutique : quatre rendus au même instant (dt = 0) : avec l'aura (A), sans (B), lui seul
+// d'une couleur plate (C : sa silhouette, son ombre inchangée), de nouveau avec l'aura (A2 : le bruit). Dans sa silhouette (moins deux pixels de
+// bord) : l'écart entre A et B (moyenne, 98e centile, maximum) ; le pantalon (le haut des cuisses, au quart de la hanche au genou, projeté à
+// l'écran) : sa couleur dans A et dans B ; autour de lui (la boîte de sa silhouette agrandie de 15 % de sa hauteur, hors d'elle) : l'écart
+// moyen entre A et B (le halo) ; dans cette boîte, l'écart entre A et A2 (le bruit). Rend null sans boulanger 3D ni aura
+function mesurerAura() {
+  const F = window.__fournil, S = F.SCENE, st = F.st, gl = document.querySelector('#scene').getContext('webgl2'), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, cam = S.trois.camera;
+  let g = null; S.trois.scene.traverse((o) => { if (o.userData && o.userData.e3d && o.userData.e3d.boul && o.visible && o.parent) g = o; }); const a = g && g.userData.e3d; if (!a || !a.aura) return null;
+  const rendu = () => { S.frame(0, st, Date.now(), 33, false); const b = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; };
+  const A = rendu(); a.aura.visible = false; const B = rendu();
+  const m0 = a.S.material, plat = new THREE.MeshBasicMaterial({ color: 0xff00ff }); a.S.material = plat; const C = rendu(); a.S.material = m0; plat.dispose();
+  a.aura.visible = true; const A2 = rendu();
+  const ec = (X, Y, i) => Math.max(Math.abs(X[i] - Y[i]), Math.abs(X[i + 1] - Y[i + 1]), Math.abs(X[i + 2] - Y[i + 2]));
+  const sil = new Uint8Array(W * H); let x0 = W, x1 = -1, y0 = H, y1 = -1;
+  for (let p = 0; p < W * H; p++) if (ec(B, C, p * 4) > 24) { sil[p] = 1; const x = p % W, y = (p / W) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return { sil: 0 };
+  const dedans = (x, y) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H || !sil[yy * W + xx]) return false; } return true; };
+  const e = []; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (sil[y * W + x] && dedans(x, y)) e.push(ec(A, B, (y * W + x) * 4));
+  e.sort((u, v) => u - v); const moy = e.reduce((s, x) => s + x, 0) / Math.max(1, e.length);
+  const R = Math.round((y1 - y0) * 0.15); let nh = 0, sh = 0, bruit = 0;
+  for (let y = Math.max(0, y0 - R); y <= Math.min(H - 1, y1 + R); y++) for (let x = Math.max(0, x0 - R); x <= Math.min(W - 1, x1 + R); x++) { const p = y * W + x; bruit = Math.max(bruit, ec(A, A2, p * 4)); if (sil[p]) continue; nh++; sh += ec(A, B, p * 4); }
+  const os = (n) => a.S.skeleton.bones.find((b) => b.name === n), v = new THREE.Vector3(), w = new THREE.Vector3(), cuisses = [];
+  for (const c of ['L', 'R']) {
+    const h = os('UpperLeg' + c), k = os('LowerLeg' + c); if (!h || !k) continue; h.getWorldPosition(v); k.getWorldPosition(w); v.lerp(w, 0.25).project(cam);
+    const px = Math.round((v.x + 1) / 2 * W), py = Math.round((v.y + 1) / 2 * H), s0 = [0, 0, 0], s1 = [0, 0, 0]; let n = 0;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const x = px + dx, y = py + dy; if (x < 0 || y < 0 || x >= W || y >= H || !sil[y * W + x] || !dedans(x, y)) continue; const i = (y * W + x) * 4; for (let j = 0; j < 3; j++) { s0[j] += A[i + j]; s1[j] += B[i + j]; } n++; }
+    if (n) cuisses.push({ n, avec: s0.map((x) => Math.round(x / n)), sans: s1.map((x) => Math.round(x / n)) });
+  }
+  return { sil: e.length, moy: +moy.toFixed(2), p98: e[Math.floor(e.length * 0.98)], max: e[e.length - 1], halo: +(sh / Math.max(1, nh)).toFixed(2), bruit, cuisses, W, H };
 }
 
 (async () => {
@@ -209,6 +260,24 @@ function traversees(a) {
     await ev(() => window.__pas(10, true)); const m1 = await memoire(ev);
     check(m1.g <= m0.g + 2 && m1.t <= m0.t + 1 && m1.acteurs === m0.acteurs, `la mémoire ne bouge pas (géométries ${m0.g} → ${m1.g}, textures ${m0.t} → ${m1.t}, acteurs ${m0.acteurs} → ${m1.acteurs})`);
   }
+  // une pièce gagnée pendant la partie : cuite d'avance, à petits pas, dans les images qui suivent ; la porter ne cuit rien sur place (aucun kit à
+  // l'image du changement). De même la toque du titre suivant : changer de titre ne cuit rien
+  {
+    const r = await ev(() => {
+      const F = window.__fournil, G = F.G, st = F.st, E = EQUIPE3D, une = () => window.__pas(1, false), vider = (n, ms) => { let i = 0; for (; i < n && E.etat.aCuire > 0; i++) { une(); if (ms) ms.push(E.etat.msAvance); } return i; };
+      vider(2000); une();
+      const a0 = E.etat.avance, i0 = E.etat.imagesAvance; G.donnerCollection(st, 'bronze'); une(); const enAttente = E.etat.aCuire, ms = [], images = vider(2000, ms), cuits = E.etat.avance - a0, imagesAvance = E.etat.imagesAvance - i0;
+      const s0 = E.etat.surPlace; for (const [p, id] of [['tete', 'bronze-toque'], ['haut', 'bronze-tablier'], ['pieds', 'bronze-chaussures'], ['accessoire', 'bronze-foulard']]) G.equiper(st, p, id);
+      window.__pas(1, true); const s1 = E.etat.surPlace, msChangement = E.etat.msRhabillage, tenue = F.SCENE.equipe3d.boulanger && F.SCENE.equipe3d.boulanger.tenue, cle = G.tenueBoulanger(st).cle;
+      vider(2000); const r0 = G.rangTitre(st), s2 = E.etat.surPlace; if (r0 < 5) { let x = 0; for (let n = 1; n < G.TITRES[r0 + 1][0]; n++) x += G.XP_NIVEAU(n); F.xp(Math.max(0, x - (st.xp || 0))); } // (juste assez de savoir-faire pour le titre suivant)
+      window.__pas(1, true); const s3 = E.etat.surPlace, r1 = G.rangTitre(st), tenue2 = F.SCENE.equipe3d.boulanger && F.SCENE.equipe3d.boulanger.tenue;
+      vider(2000); if (window.gc) window.gc(); // (la cuisson d'avance du titre d'après finie, ses restes ramassés : rien ne pèse sur la mesure du temps processeur)
+      const tri = ms.filter((v) => v > 0).sort((u, v) => u - v);
+      return { enAttente, images, cuits, imagesAvance, msMed: tri.length ? tri[Math.floor(tri.length / 2)] : 0, msMax: tri.length ? tri[tri.length - 1] : 0, s0, s1, msChangement, tenue, cle, r0, r1, s2, s3, tenue2 };
+    });
+    check(r.enAttente >= 4 && r.cuits >= 4 && r.imagesAvance >= 8 && r.msMed <= 8 && r.s1 === r.s0 && r.tenue && r.tenue.endsWith('|' + r.cle) && r.msChangement <= 25, `une collection gagnée (le podium de bronze) : ses ${r.cuits} kits cuits d'avance à petits pas, en ${r.imagesAvance} images (${r.msMed} ms par image en médiane, ${r.msMax} ms au plus) ; puis portée : aucun kit cuit à l'image du changement (${r.s0} → ${r.s1} cuits sur place), ${r.msChangement} ms (${r.tenue})`);
+    check(r.r0 === 5 || (r.r1 === r.r0 + 1 && r.s3 === r.s2 && r.tenue2 && r.tenue2.startsWith(r.r1 + '|')), `le titre suivant (${r.r0} → ${r.r1}) : sa toque était déjà cuite, rien n'est cuit sur place (${r.s2} → ${r.s3})`);
+  }
   // les revenus des fournées : la maquette ne montre que l'apparence (les mêmes que src/game.js seul, sur le même état)
   {
     const r = await revenus(ev);
@@ -273,17 +342,20 @@ function traversees(a) {
       const out = [], t0 = performance.now();
       for (const t of liste) {
         const a = EQUIPE3D.boulanger(t[4], { cle: t.slice(0, 4).join('|') }, 'Au Fournil du Village'), ctx = { K: a.pr.hauteur / EQUIPE3D.HAUT, x: 0, y: 0, z: 0, yaw: 0 }, vus = new Map();
-        for (const [tt, joie] of [[0.3, false], [2.1, false], [0, true]]) {
-          if (joie) { a.joieT = 1.4; a.joieAttente = 0; }
-          for (let k = 0; k < (joie ? 18 : 3); k++) EQUIPE3D.poserBoulanger(a, { t: tt + k / 30, hop: 0, rush: false, vue: true }, 1 / 30, ctx);
-          for (const p of window.__traversees(a, {}).paires) vus.set(`${p.a}×${p.b}`, (vus.get(`${p.a}×${p.b}`) || 0) + p.n);
+        // cinq poses : le repos et plus tard (vue : sans geste) ; la main au front et les mains frottées, ses gestes de la boutique (vue: false), à
+        // leur plus fort (w = 0,035 et 0,54 de son cycle de 11 s) ; la joie. Les traversées entre les pièces, et celles des mains dans les pièces
+        const geste = (w) => ((((w - a.graine) % 1) + 1) % 1) / 0.09;
+        for (const [tt, joie, vue, d0] of [[0.3, false, true, 0], [2.1, false, true, 0], [geste(0.035), false, false, -2], [geste(0.54), false, false, -2], [0, true, true, 0]]) {
+          a.joieT = joie ? 1.4 : 0; a.joieAttente = joie ? 0 : 99; a.hopP = 0;
+          for (let k = 0; k < (joie ? 18 : 3); k++) EQUIPE3D.poserBoulanger(a, { t: tt + (k + d0) / 30, hop: 0, rush: false, vue }, 1 / 30, ctx);
+          for (const p of window.__traversees(a, { mains: true }).paires) vus.set(`${p.a}×${p.b}`, (vus.get(`${p.a}×${p.b}`) || 0) + p.n);
         }
         a.joieT = 0; let n = 0; a.g.traverse((o) => { if (o.isMesh && o.visible) n++; }); out.push({ t: t.join('|'), tris: a.habit.tris, mailles: n, paires: [...vus].map(([k, n]) => `${k}:${n}`) });
       }
       return { out, ms: Math.round(performance.now() - t0) };
     }, liste);
-    const touches = T.out.filter((x) => x.paires.length), trisMax = Math.max(...T.out.map((x) => x.tris)), trisMin = Math.min(...T.out.map((x) => x.tris));
-    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à trois poses (${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
+    const touches = T.out.filter((x) => x.paires.length), trisMax = Math.max(...T.out.map((x) => x.tris)), trisMin = Math.min(...T.out.map((x) => x.tris)), mains = T.out.filter((x) => x.paires.some((p) => p.startsWith('mains×')));
+    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à cinq poses (le repos, plus tard, la main au front et les mains frottées de la boutique, la joie) : ni d'une pièce dans une autre, ni des mains dans une pièce (${mains.length} tenues où une main traverse ; ${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
     check(T.out.every((x) => x.mailles === 1) && trisMax <= 10500, `le budget : un seul maillage par tenue (un appel de dessin), ${trisMin} à ${trisMax} triangles (≤ 10 500) ; le corps seul : ${await ev(() => window.__fournil.SCENE.equipe3d.info.corps.map((c) => c.tris).join(' / '))}`);
     // le cache : toutes les pièces déjà cuites, 20 changements de tenue ne font que recoller (pas d'à-coup) ; la mémoire ne monte pas
     const M = await ev((liste) => {
@@ -297,6 +369,16 @@ function traversees(a) {
     await ev(() => window.__pas(3, true)); // (la scène le rhabille de sa vraie tenue)
     const b = await ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return { tenue: e.boulanger && e.boulanger.tenue, cle: F.G.tenueBoulanger(F.st).cle }; });
     check(b.tenue && b.tenue.endsWith('|' + b.cle), `ensuite, la boutique le rhabille de sa tenue (${b.tenue})`);
+  }
+  // l'aura dans la boutique, sous sa caméra plongeante : elle luit autour de lui sans le teindre (mesurerAura : des rendus au même instant, avec
+  // et sans elle) ; dans sa silhouette, l'écart reste minime, et le pantalon (le haut des cuisses) garde sa couleur ; autour de lui, le halo se voit
+  {
+    await ev(() => { const F = window.__fournil, G = F.G, st = F.st; [['tete', 'quartier-casquette'], ['haut', 'quartier-sweat'], ['pieds', 'quartier-baskets'], ['accessoire', null]].forEach(([p, id]) => G.equiper(st, p, id)); G.porterAura(st, 'lueur'); window.__pas(4, true); });
+    const r = await ev(mesurerAura);
+    const pant = r && r.cuisses && r.cuisses.length ? r.cuisses.map((c) => `rgb(${c.avec}) avec, rgb(${c.sans}) sans (${c.n} px)`).join(' ; ') : 'caché';
+    const pantOk = !!r && !!r.cuisses && r.cuisses.every((c) => Math.max(...c.avec.map((x, j) => Math.abs(x - c.sans[j]))) <= 3);
+    check(!!r && r.sil > 300 && r.bruit <= 2 && r.moy <= 1 && r.p98 <= 6 && pantOk && r.halo >= 1, `l'aura dans la boutique ne teint pas le boulanger : dans sa silhouette (${r && r.sil} px), écart avec et sans l'aura ${r && r.moy} en moyenne, ${r && r.p98} au 98e centile (le pantalon : ${pant}) ; autour de lui, le halo se voit (écart moyen ${r && r.halo}) ; deux rendus pareils au même instant (écart ${r && r.bruit})`);
+    await ev(() => { const F = window.__fournil; F.G.porterAura(F.st, null); window.__pas(2, true); });
   }
   // le pâton : entre les mains de l'apprenti qui pétrit au four, rangé dès qu'il le quitte
   {

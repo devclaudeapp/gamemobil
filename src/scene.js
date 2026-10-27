@@ -827,7 +827,7 @@ const SCENE = (() => {
       if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       if (C3 && HDM.pret('boutique') && C3.permis(renderer)) { C3.demander(); C3.preparer(); } // les clients 3D : leur lot après celui de la boutique, cuit dès qu'il est là (demander ne redemande pas)
-      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); E3.preparer(); } // (la maquette : l'équipe 3D, son lot après celui des clients)
+      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); E3.preparer(E.st, E.rang, G.nomBoutique(E.st)); } // (la maquette : l'équipe 3D, son lot après celui des clients ; prête, elle cuit d'avance la garde-robe de cette partie)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
