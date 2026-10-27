@@ -20,6 +20,9 @@ const GARDEROBE_UI = (() => {
   const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger' };
   const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.' };
   let pieceOuverte = 'tete';
+  // la maquette du boulanger en 3D (src/equipe3d.js, seulement avec ?boulanger3d=1) : la vue « Mon boulanger », depuis la carte et la feuille
+  const E3V = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D.vue : null;
+  const BOUTON_3D = (attr) => (E3V ? `<button type="button" class="btn large lavande" ${attr} style="margin-bottom:10px"><b>Voir mon boulanger en 3D</b></button>` : '');
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
   const icone = (v) => ICONS.vetement(v.forme, v.collection === 'base' ? 'base' : v.collection);
@@ -40,7 +43,7 @@ const GARDEROBE_UI = (() => {
     return `<div class="card gr-carte" data-garderobe><div class="c-tete"><span class="pic peche">${ICONS.UI.garderobe}</span><h3>Garde-robe</h3><span class="compte ${ens ? 'or' : ''}">${ens ? esc(GR.ensembles[ens].nom) : n ? `${n} pièce${n > 1 ? 's' : ''}` : 'tenue de toujours'}</span></div>
       <div class="gr-cases">${cases}</div>
       <p class="gr-bonus">${bonus.length ? bonus.join(' · ') : 'Pas encore de bonus : les tenues des podiums, des événements et du parcours du boulanger en donnent.'}</p>
-      <button type="button" class="btn large clair" data-gr-ouvrir="tete"><b>Ouvrir la garde-robe</b></button></div>`;
+      ${BOUTON_3D('data-gr-3d')}<button type="button" class="btn large clair" data-gr-ouvrir="tete"><b>Ouvrir la garde-robe</b></button></div>`;
   }
   // ─── la feuille : la pièce choisie en segments, ce qu'on possède, porter, améliorer, puis les ensembles ───
   // le compagnon de la boutique (GAME.COMPAGNONS) : l'animal montré, et la feuille « Les compagnons » pour en changer (le chat noir gagné à la
@@ -77,7 +80,7 @@ const GARDEROBE_UI = (() => {
     }).join('');
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
-      ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
+      ${BOUTON_3D('data-gr-3d-feuille')}${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
       ${blocAura(st)}<h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
@@ -108,8 +111,9 @@ const GARDEROBE_UI = (() => {
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
+    ctx.on('[data-gr-3d-feuille]', () => { if (!E3V) return; ctx.son.tap(); ctx.closeSheet(); E3V.ouvrir(Object.assign({}, ctx, { ferme: () => ouvrir(ctx, pieceOuverte) }), pieceOuverte); }); // (la vue fermée, la feuille revient)
     ctx.on('[data-gr-compagnons]', () => { if (!ctx.compagnon) return; ctx.son.tap(); ctx.compagnon.ouvrir(() => ouvrir(ctx, pieceOuverte)); }); // « Retour » revient ici
   }
-  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); }
+  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); if (E3V) sec.querySelectorAll('[data-gr-3d]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); E3V.ouvrir(ctx); })); }
   return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; } };
 })();

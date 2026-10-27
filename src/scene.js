@@ -11,12 +11,16 @@
    friandises (ce que porte chaque station : vitrine et plateaux), cadre: { haut, bas } (la fenêtre de l'écran qui montre la scène, en px
    du canvas : la scène y descend de haut, et ne se rend que jusqu'à bas) }. En qualité haute, quand le lot HD « hantee3 » est là
    (src/boutiquehantee.js, BOUTIQUE_HANTEE.HD), la boutique hantée change tout : son décor cuit d'un bloc, sa nuit (brouillard, ACES, huit
-   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural. */
+   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural.
+   MAQUETTE (?boulanger3d=1 seulement : E3, src/equipe3d.js) : le boulanger et les apprentis en personnages 3D, comme les clients, quand leur lot
+   est prêt (hors de la boutique hantée, la HD permise) ; sans le paramètre, E3 est nul et rien ne change. */
 const SCENE = (() => {
   'use strict';
   const G = GAME, V = VIE, M = MODELES;
   // les clients en personnages 3D animés (src/clients3d.js) : en qualité haute et moyenne, la HD permise, dès que leur lot est prêt ; sinon les chibis
   const C3 = typeof CLIENTS3D !== 'undefined' && CLIENTS3D && CLIENTS3D.actif ? CLIENTS3D : null;
+  // la maquette du boulanger et des apprentis en 3D (src/equipe3d.js) : seulement avec ?boulanger3d=1 dans l'adresse, sinon nul
+  const E3 = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D : null;
   const TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), L = '#4A3328';
   let cv, cvUi, ctx2, renderer, scene, camera, hemi, dir, W = 1, H = 1, DPR = 1, DPRui = 1, LAY = null, visH = 1e9, amenager = false, webgl = false, perdu = 0, nFrame = 0, dernier = null;
   const wz = (ys) => (ys - LAY.murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
@@ -270,7 +274,7 @@ const SCENE = (() => {
   const cles = {}, groupes = {}, animes = [], lampes = []; let salle = null, boulangerG = null, ctxC = null, Qc = null, zonesCache = null, pool = new Map(); const acteurs = new Map();
   function toutRebatir() { for (const k of Object.keys(cles)) delete cles[k]; Qc = null; zonesCache = null; if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout le décor sera reconstruit à la frame suivante ; les personnages ne dépendent pas de la taille
   function remplacer(id, g) { // pose (ou retire) un groupe nommé, en libérant l'ancien
-    const vieux = groupes[id]; if (vieux) { scene.remove(vieux); M.dispose(vieux); }
+    const vieux = groupes[id]; if (vieux) { scene.remove(vieux); if (E3 && vieux.userData.e3d) E3.rendre(vieux.userData.e3d); else M.dispose(vieux); } // (le boulanger 3D : rendu à src/equipe3d.js, qui le garde)
     groupes[id] = g || null; if (g) { habiller(g); scene.add(g); } zonesCache = null; RICHE.aoSale = true; recenserAnimes();
   }
   function recenserAnimes() { animes.length = 0; scene.traverse((o) => { if (o.userData && typeof o.userData.anime === 'function') animes.push(o); }); }
@@ -400,7 +404,13 @@ const SCENE = (() => {
       remplacer('produits', g);
     }
     const garde = EVV && EVV.garde ? EVV.garde : G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (la boutique hantée : la tenue de l'événement) (REC.tenue, l'ancienne tenue du podium, ne décide plus)
-    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
+    const b3 = e3Pret() && !EVV, kb3 = b3 ? 'e3d|' + kb : kb; // (la maquette : le boulanger 3D, prêt et permis, hors de la boutique hantée)
+    if (cles.boulanger !== kb3 && b3) { // le boulanger 3D : rhabillé sur place (même acteur, sa géométrie refaite) ; sa zone de touche : sa taille, toque comprise
+      cles.boulanger = kb3; const a = E3.boulanger(E.rang, garde);
+      if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); }
+      else cles.boulanger = null;
+    }
+    if (cles.boulanger !== kb3 && !b3) { cles.boulanger = kb3; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
   // ─── la boutique hantée en qualité haute (modeHD) : le décor cuit d'un bloc (BOUTIQUE_HANTEE.HD.decor), la nuit, les monstres animés ───
@@ -614,7 +624,7 @@ const SCENE = (() => {
   const angleCourt = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}|${c.deg || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
-  function rendreAuPool(g) { if (g.userData.c3d) { C3.rendre(g.userData.c3d); return; } if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
+  function rendreAuPool(g) { if (g.userData.c3d) { C3.rendre(g.userData.c3d); return; } if (E3 && g.userData.e3d) { E3.rendre(g.userData.e3d); return; } if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; le boulanger et les apprentis restent des chibis (les
   //     clients ont leur lot à eux, plus bas : CLIENTS3D) ───
   let hdDecor = null, hdCle = '', hdDemande = false;
@@ -645,12 +655,31 @@ const SCENE = (() => {
     habiller(g);
     try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); } // (extensions.has se tait, extensions.get avertit)
   }
+  // la maquette du boulanger et des apprentis en 3D (E3) : le même parcours que les clients 3D (compilés hors de l'image, chauffés, la mémoire rendue
+  // après 10 s d'interdiction) ; le boulanger posé derrière le comptoir (sa zone de touche : sa taille, toque comprise)
+  const ctxE3 = { wz, K: 1, rush: false, t: 0, LAY: null, habiller: (o) => habiller(o) }, ctxB3 = { K: 1, x: 0, y: 0, z: 0 }, oB3 = { t: 0, hop: 0, rush: false }; let e3Chauffe = null, e3Interdit = 0, e3Compile = 0;
+  const e3Pret = () => !!E3 && E3.pret && E3.permis(renderer) && e3Compile === 2;
+  function compilerE3() {
+    e3Compile = 1; const g = E3.echantillon(), fini = () => { e3Compile = 2; }; if (!g) { fini(); return; }
+    habiller(g);
+    try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); }
+  }
+  function poserBoulanger3D(E, dt) {
+    const a = boulangerG && boulangerG.userData.e3d; if (!a || !LAY) return;
+    const cp = groupes.comptoir, dessus = cp && cp.userData.dessusY != null ? cp.userData.dessusY : wy(LAY.comptoir.hFace); // une estrade invisible derrière le comptoir : à la taille des clients (HAUT), il n'en dépasserait que la tête ; le comptoir lui arrive à la taille, comme au chibi
+    ctxB3.K = V.K; ctxB3.x = LAY.boulanger.x; ctxB3.y = Math.max(0, dessus - 0.56 * E3.HAUT * V.K); ctxB3.z = wz(LAY.boulanger.y); oB3.t = E.t; oB3.hop = E.hop; oB3.rush = E.rush;
+    E3.poserBoulanger(a, oB3, dt, ctxB3);
+  }
+  function zoneBoulanger3D(a) { const h = E3.HAUT * V.K, p = a.g.position, z = wz(LAY.boulanger.y), y0 = ctxB3.y; return new THREE.Box3(new THREE.Vector3(p.x - h * 0.3, y0, z - h * 0.15), new THREE.Vector3(p.x + h * 0.3, y0 + h * (a.h && a.h.tete === 'toque' ? 1.08 + a.h.hc * 0.012 : 1.12), z + h * 0.15)); } // (sa taille, toque comprise, sur son estrade)
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)
+    if (e3Chauffe) { E3.rentrer(e3Chauffe); e3Chauffe = null; }
     if (modeHD) { synchroniserHD(E, dt); return; }
     vus.clear();
     const c3p = C3 && C3.pret && C3.permis(renderer); if (c3p && !c3Compile) compilerC3();
     const c3 = c3p && c3Compile === 2 ? C3 : null; ctxC3.K = V.K;
+    if (E3) { const e3p = E3.pret && E3.permis(renderer); if (e3p && !e3Compile) compilerE3(); if (e3p && e3Compile === 2) { e3Interdit = 0; e3Chauffe = E3.chauffer(); if (e3Chauffe) for (const g of e3Chauffe) { habiller(g); scene.add(g); } } else if (E3.pret && !e3p && (e3Interdit += dt) > 10) E3.liberer(); }
+    const e3 = e3Pret() && !EVV ? E3 : null; ctxE3.K = V.K; ctxE3.rush = !!E.rush; ctxE3.t = E.t; ctxE3.LAY = LAY; // (la boutique hantée garde son équipe : chibis déguisés ou monstres HD)
     if (c3) { c3Interdit = 0; c3Chauffe = c3.chauffer(); if (c3Chauffe) for (const g of c3Chauffe) { habiller(g); scene.add(g); } }
     else if (C3 && C3.pret && !c3p && (c3Interdit += dt) > 10) C3.liberer(); // (sans effet si la réserve est déjà rendue, ou si un acteur est encore en service)
     for (const c of V.clients) {
@@ -662,14 +691,17 @@ const SCENE = (() => {
     }
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
-      if (g && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue
+      if (E3 && g && !!g.userData.e3d !== !!e3) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (la maquette : chibi ↔ 3D)
+      if (g && !g.userData.e3d && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue (l'apprenti 3D change seulement ses couleurs et ses os)
+      if (!g && e3) { const ac = e3.apprenti(a); if (ac) { g = ac.g; habiller(g); scene.add(g); acteurs.set(id, g); } }
       if (!g && EVV) g = prendre(`ht|${a.i}`, () => PERSOS.creer({ deguisement: (EVV.equipe || [])[a.i] || 'fantome2', plateau: true, produit: (EVV.friandises || [])[a.i] || 0, cle: true })); // la boutique hantée : le monstre de la station, sa friandise sur le plateau
       if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); }
       if (!g.parent) { g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; habiller(g); scene.add(g); acteurs.set(id, g); }
-      vus.add(id); poserApprenti(g, a, E, dt);
+      vus.add(id); if (g.userData.e3d) e3.poserApprenti(g.userData.e3d, a, E, dt, ctxE3); else poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
-    if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
+    if (boulangerG && boulangerG.userData.e3d) poserBoulanger3D(E, dt);
+    else if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
     poserChat(E, dt);
   }
   // le compagnon : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
@@ -748,6 +780,7 @@ const SCENE = (() => {
       if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       if (C3 && HDM.pret('boutique') && C3.permis(renderer)) { C3.demander(); C3.preparer(); } // les clients 3D : leur lot après celui de la boutique, cuit dès qu'il est là (demander ne redemande pas)
+      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); E3.preparer(); } // (la maquette : l'équipe 3D, son lot après celui des clients)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -971,6 +1004,12 @@ const SCENE = (() => {
           assise: +(g.position.y + a.pr.assise * g.scale.y).toFixed(2), assisK: +(a.kA || 0).toFixed(2), // (le dessous du pantalon, assis : sur le siège ; assisK : 1 une fois assis)
           x: g.position.x, y: g.position.y, z: g.position.z, echelle: g.scale.x, tete: t ? { x: t.x, y: t.y, z: t.z, ecran: projeterY(t.y, t.z) } : null }); }
       return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), compile: c3Compile, erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
+    },
+    get equipe3d() { // la maquette du boulanger et des apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
+      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le grade, l'étoile)
+      if (!E3) return null; const b = boulangerG && boulangerG.userData.e3d, mailles = (g) => { let n = 0; g.traverse((o) => { if ((o.isMesh || o.isSprite) && o.visible) n++; }); return n; };
+      const app = []; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g) continue; const x = g.userData.e3d; app.push(x ? { i: a.i, etat: a.etat, corps: x.pr.nom, clip: x.joue, repare: !!(x.actions.__repare && x.actions.__repare.isRunning()), plateau: !!x.plateau, cle: x.os.cle.scale.x > 0, grade: x.grade, etoile: x.os.etoile.scale.x > 0, mailles: mailles(g), echelle: +g.scale.x.toFixed(4), yaw: +x.yaw.toFixed(2), x: g.position.x, y: g.position.y, z: g.position.z } : { i: a.i, etat: a.etat, chibi: true }); }
+      return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, etat: E3.etat, info: E3.info };
     },
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
