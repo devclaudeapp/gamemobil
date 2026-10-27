@@ -577,7 +577,7 @@ const EVENEMENTS = (() => {
     let tTiroir = 0;
     const bouge = () => !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const tiroir = (() => {
-      let t = null, poignee = null, tete = null, bx = null, barre = null, fin = 0, sansClic = 0, doigt = null, court = false, cle = '';
+      let t = null, poignee = null, tete = null, bx = null, barre = null, fin = 0, sansClic = 0, doigt = null, court = false, cle = '', colH = 0;
       const T = TIROIR.creer({ ordre: ['haut', 'mi', 'ferme'], Y: { haut: 0, mi: 300, ferme: 600 }, depart: 'mi', reduit: () => !bouge(),
         poser(p, y, anime) {
           t.style.setProperty('--pq-tiroir-y', y + 'px'); el.dataset.tiroir = p; poignee.setAttribute('aria-expanded', String(p !== 'ferme'));
@@ -608,7 +608,7 @@ const EVENEMENTS = (() => {
         const r = el.getBoundingClientRect(); if (!(r.height > 0)) return null;
         const bas = r.height - (parseFloat(getComputedStyle(el).paddingBottom) || 0), haut = Math.floor(so.getBoundingClientRect().bottom - r.top) - 1;
         const ferme = Math.round(bas - poignee.offsetHeight - barre.offsetHeight), corpsH = bas - haut;
-        let col = haut; const a = el.querySelector('.pq-act'); if (a) { const serre = sc.classList.contains('pq-serre'); if (serre) sc.classList.remove('pq-serre'); const ra = a.getBoundingClientRect(); if (ra.height > 0) col = ra.bottom - r.top; if (serre) sc.classList.add('pq-serre'); } // (la colonne en grand)
+        let col = haut; const a = el.querySelector('.pq-act'); if (a) { if (!sc.classList.contains('pq-serre')) { const ra = a.getBoundingClientRect(); if (ra.height > 0) colH = ra.bottom - r.top; } if (colH) col = colH; } // (la colonne en grand : sa hauteur notée quand elle n'est pas resserrée)
         const miH = haut + Math.min(corpsH - 360, Math.round(corpsH * 0.55));
         return { haut, mi: Math.round(Math.max(haut + 60, col + 8, Math.min(miH, ferme - 120))), ferme };
       }
@@ -666,7 +666,7 @@ const EVENEMENTS = (() => {
         }, { passive: true });
       }
       function ranger() { if (!t || T.glisse) return; suivre2(T.pos === 'haut' || (T.pos === 'mi' && court)); }
-      const redim = () => { if (!t) return; cle = ''; verifier(); }; // une rotation, une autre hauteur de scène : les crans suivent
+      const redim = () => { if (!t) return; cle = ''; colH = 0; verifier(); }; // une rotation, une autre hauteur de scène : les crans suivent
       return { construire, poser, redim, ranger, verifier, get bandeaux() { return bx; }, couvre: () => !!t && T.pos === 'haut' && !T.glisse && !fin && ecran === F.ecran, get pos() { return T.pos; } };
     })();
 
