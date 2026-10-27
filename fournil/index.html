@@ -2353,7 +2353,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'd1ac7ab3639e';</script>
+<script>window.FOURNIL_VERSION = 'c91e30a2182d';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -5672,11 +5672,12 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   const periodeDe = (p) => (PERIODES.includes(p) ? p : 'semaine');
   // les onglets d'événement du classement, pour l'interface : regles = [{ periode: 'quartier', nom: 'Événement', regles: QUARTIER, masque },
   // { periode: 'hantee', nom: 'Halloween', regles: HANTEE, masque }] ; un onglet se montre pendant son événement et deux semaines après
-  // (regles.fenetre(maintenant).classement : le podium final), sauf si l'événement est masqué. Rend [[periode, nom], …], dans l'ordre donné.
+  // (regles.fenetre(maintenant).classement : le podium final), sauf si l'événement est masqué ou écarté (regles.ECARTE : le Quartier, depuis
+  // le 27 oct. ; la période 'quartier' reste connue du moteur pour son retour, mais l'interface ne la montre ni n'envoie plus de billets). Rend [[periode, nom], …], dans l'ordre donné.
   function ongletsEvenements(liste, maintenant) {
     const o = [];
     for (const x of Array.isArray(liste) ? liste : []) {
-      if (!x || !PERIODES.includes(x.periode) || x.masque) continue;
+      if (!x || !PERIODES.includes(x.periode) || x.masque || (x.regles && x.regles.ECARTE)) continue; // un événement écarté (le Quartier, QUARTIER.ECARTE) : plus d'onglet
       let f = null; try { f = x.regles && typeof x.regles.fenetre === 'function' ? x.regles.fenetre(maintenant) : null; } catch (e) { f = null; }
       if (f && f.classement) o.push([x.periode, String(x.nom || x.periode)]);
     }
@@ -12605,6 +12606,9 @@ const GARDEROBE_UI = (() => {
   }
   const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger' };
   const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.' };
+  // une collection d'un événement écarté (le Quartier, QUARTIER.ECARTE, depuis le 27 oct. ; réintroduction plus tard) : ses pièces gagnées
+  // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
+  const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
   let pieceOuverte = 'tete';
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
@@ -12657,7 +12661,7 @@ const GARDEROBE_UI = (() => {
         ${base ? '' : max ? '<span class="gr-max">Niveau max ✓</span>' : `<button type="button" class="btn ${ok ? 'beurre' : 'non'} gr-ameliorer" data-gr-ameliorer="${v.id}" aria-label="Améliorer ${esc(v.nom)} : ${cout} étoile${cout > 1 ? 's' : ''}"><small>Améliorer</small><b>${cout} ★</b></button>`}</div>`;
     }).join('');
     const indice = liste.length <= 1 && p !== 'accessoire' ? `<p class="note centre">Une seule pièce ici pour l’instant. Les podiums du classement, les événements et le parcours du boulanger en offrent d’autres.</p>` : '';
-    const ensembles = Object.keys(GR.ensembles).map((c) => {
+    const ensembles = Object.keys(GR.ensembles).filter((c) => !ecartee(c) || Object.values(GR.objets).some((v) => v.collection === c && g.objets[v.id])).map((c) => {
       const pieces = Object.values(GR.objets).filter((v) => v.collection === c), eues = pieces.filter((v) => g.objets[v.id]).length, portees = pieces.filter((v) => g.equipe[v.piece] === v.id).length, complet = ens === c;
       return `<div class="gr-ensemble ${c} ${complet ? 'complet' : ''} ${eues ? '' : 'absent'}"><span class="gr-minis" aria-hidden="true">${pieces.map((v) => `<i class="${g.objets[v.id] ? '' : 'manque'}">${icone(v)}</i>`).join('')}</span><span class="gr-txt"><b>${esc(GR.ensembles[c].nom)}</b><small>${complet ? 'Ensemble complet porté : ' + G.texteBonus(GR.ensembles[c].bonus).join(' · ') : eues ? `${eues === 4 ? `${portees}/4 portée${portees > 1 ? 's' : ''}` : `${eues}/4 pièce${eues > 1 ? 's' : ''}`} · au complet : ${G.texteBonus(GR.ensembles[c].bonus).join(' · ').toLowerCase()}` : esc(QUELLE[c] || '')}</small></span>${eues === 4 && !complet ? `<button type="button" class="btn clair gr-tout" data-gr-ensemble="${c}"><b>Tout porter</b></button>` : complet ? '<span class="gr-ok">✓</span>' : ''}</div>`;
     }).join('');
@@ -13234,6 +13238,12 @@ const GARDEROBE_UI = (() => {
     const f = fenetre(now);
     return f.ouvert && Number.isFinite(sure) && sure > 0 && sure < DEBUT ? fenetre(sure) : f;
   }
+  // ─── ÉCARTÉ depuis la fin, le 27 octobre 2026 à midi : le Quartier ne s'ouvre plus (ni icône, ni écran, ni annonce, ni onglet au
+  //     classement, ni billets envoyés au serveur) ; tout ce qui y a été gagné reste dans la boulangerie, et ce qui restait dû (les paliers,
+  //     le bilan) est versé une fois dans une feuille simple (src/evenement.js, solderEcarte). Réintroduction plus tard : passer ECARTE à
+  //     false (et nouvelles dates dans DEBUT / FIN), remettre test/fournil-quartier.cjs dans .github/workflows/pages.yml. Les règles, elles,
+  //     ne lisent jamais ce drapeau : c'est l'interface (src/evenement.js, src/ui.js, src/garderobe.js, src/classement.js) qui l'écoute. ───
+  const ECARTE = true;
   const GRACE = 3600e3; // le serveur compte encore les billets une heure après la fin (ceux d'avant la fin, plafonnés à l'enveloppe de la fin)
   const envoiBillets = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
 
@@ -13680,7 +13690,7 @@ const GARDEROBE_UI = (() => {
   const phraseCombine = (a) => R2.phraseLot(R2.lotCombine(a)); // « + 16 h de gains à la boulangerie, +2 ★ » ('' : une combine d'avant le boss)
   const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
 
-  return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+  return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, ECARTE, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
     PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
@@ -15735,6 +15745,8 @@ const HANTEE_ACTIVITES = (() => {
 /* LE FOURNIL — les événements à l'écran : un MOTEUR paramétré par une fiche, qui sert deux boutiques à part en plein écran par-dessus la
    boulangerie (comme l'Atelier) :
    · « Le Quartier » (13 → 27 oct. 2026, midi) : la Planque, derrière une porte « 18 ans et + », règles dans src/quartier.js (QUARTIER) ;
+     ÉCARTÉ depuis sa fin (QUARTIER.ECARTE → F.ecarte, réintroduction plus tard) : ni icône, ni annonce, ni écran ; ce qui restait dû est
+     versé une fois dans une feuille simple (solderEcarte), tout ce qui a été gagné reste ;
    · « La Maison hantée » (27 oct. midi → 2 nov. 2026, 20 h) : le Manoir, tous âges, mignon-effrayant, règles dans src/hantee.js (HANTEE).
    Les règles sont pures (testées dans Node) ; ici : l'écran, les cartes des produits (six, puis huit après le boss), les coups de pouce, le décor 3D (Three.js, bâti
    à l'ouverture et libéré à la fermeture : rien ne reste en mémoire quand on est dans la boulangerie), les paliers et leurs récompenses
@@ -15811,7 +15823,7 @@ const EVENEMENTS = (() => {
     }
     const ouvert = () => !!el && !el.hidden;
     // ce que l'icône du coin et l'annonce décident : l'événement est-il visible ? (fenêtre ouverte, pas masqué dans les Réglages)
-    function visible() { if (!Q || !d || !st() || coupe()) return false; const qq = st()[F.cle]; return fen().ouvert && !(qq && qq.masque); }
+    function visible() { if (F.ecarte || !Q || !d || !st() || coupe()) return false; const qq = st()[F.cle]; return fen().ouvert && !(qq && qq.masque); }
     function masquer(on) { const qq = q(); qq.masque = !!on; d.save(); if (qq.masque && ouvert()) fermer(); }
     function majeur() { if (!d) return false; return !F.porte || !!(st() && st()[F.cle] && st()[F.cle].majeur); }
     function bilanEnAttente() { // fini, joué, bilan pas encore vu (et pas masqué) : il passe avant toute autre annonce
@@ -15897,6 +15909,7 @@ const EVENEMENTS = (() => {
     function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
       if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
       if (revueEnAttente && !ouvert() && !sheetOuverte && $('#feuille').hidden) { montrerRevue(); return true; } // les récompenses revues (une vieille sauvegarde) : avant tout le reste, même après la fin
+      if (F.ecarte) return solderEcarte(); // écarté (le Quartier) : ni annonce ni écran ; le bilan dû devient une feuille simple, une fois
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
       // des paliers dus hors de la Planque (une mise à jour qui en ajoute : les paliers bonus d'une sauvegarde déjà au-delà du 12e) : donnés une fois, annoncés dans la boutique
@@ -15927,7 +15940,7 @@ const EVENEMENTS = (() => {
       return true;
     }
     function ouvrir() {
-      if (!Q || !el) return false;
+      if (F.ecarte || !Q || !el) return false; // écarté : l'écran ne s'ouvre plus (ni l'icône, ni un lien, ni l'annonce)
       const f = fen(), qq = q();
       if (!f.ouvert && !f.fini) return false;
       if (qq.masque && !f.fini) return false;
@@ -16265,12 +16278,23 @@ const EVENEMENTS = (() => {
       if (act) act.fermer();
       liberer3(); tiroir.poser('bas', false);
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
-      // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
-      if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
-      if (avecAct() && qq.operation) Q.ramasserOperation(qq, Math.min(now(), Q.FIN)); // une opération en cours à la fermeture : finie avant elle (on ne lance rien qui la dépasse), comptée
-      if (miniOuvert()) fermerMini(); // une partie de mini-jeu en cours à la fermeture : arrêtée, elle ne paie rien après la fin
-      rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
+      solderFin(qq);
       entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
+      const { dons, rang, nb } = donsBilan(qq);
+      const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
+      montrerBilanEcran(qq, stats, dons, rang, nb);
+    }
+    // ce que la fermeture doit encore : parti avant la fermeture, revenu après, les apprentis ont travaillé jusqu'à elle (une fois, au ralenti,
+    // plafonné comme toute absence) ; une opération en cours, finie avant elle (on ne lance rien qui la dépasse) ; un palier dû pas encore
+    // donné (les paliers bonus d'une vieille sauvegarde) : donné, compté dans le bilan, sans sa feuille
+    function solderFin(qq) {
+      if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
+      if (avecAct() && qq.operation) Q.ramasserOperation(qq, Math.min(now(), Q.FIN));
+      if (miniOuvert()) fermerMini(); // une partie de mini-jeu en cours à la fermeture : arrêtée, elle ne paie rien après la fin
+      rattraper(); fileSheets = [];
+    }
+    // « Ce qui reste à vie » : les récompenses gardées de l'événement, ligne par ligne, et sa place au classement final
+    function donsBilan(qq) {
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;
       const dons = [];
       if (qq.etoiles) dons.push(`${qq.etoiles} étoile${qq.etoiles > 1 ? 's' : ''}`);
@@ -16285,7 +16309,28 @@ const EVENEMENTS = (() => {
       const rf = rang > 3 && F.recompenseFinale ? F.recompenseFinale(rang) : null;
       if (rang && rang <= 3) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
       else if (rf) dons.push(`${rang}e du classement final : ${rf.etoiles} étoile${rf.etoiles > 1 ? 's' : ''} et un boost ×${rf.mult} de ${G.fmtDuree(rf.secs)}`);
-      const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
+      return { dons, rang, nb };
+    }
+    // ─── le bilan dû d'un événement ÉCARTÉ (F.ecarte : le Quartier, depuis le 27 oct.) : l'écran ne rouvre pas ; ce qui restait dû (l'absence
+    //     jusqu'à la fermeture, une opération en cours, les paliers pas encore donnés) est versé une fois, et une feuille simple le dit.
+    //     Seulement pour qui y a joué (st[cle] et un total), sans l'avoir masqué ; q.bilan fait foi (une fois, même rechargé) ───
+    function solderEcarte() {
+      if (!Q || !d || !el) return false; const s = st(); if (!s || coupe()) return false;
+      const q0 = s[F.cle]; if (!q0 || typeof q0 !== 'object' || q0.bilan || q0.masque || !(q0.total > 0) || !Q.fenetre(now()).fini) return false;
+      if (ouvert() || sheetOuverte || !$('#feuille').hidden) return false;
+      const qq = q(), avant = qq.paliers.length;
+      solderFin(qq); qq.bilan = true; d.save(); if (d.apres) d.apres();
+      const { dons, rang, nb } = donsBilan(qq), neufs = qq.paliers.length - avant;
+      sheetOuverte = true; d.son.deblocage(); d.buzz([10, 30, 10]);
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-bilan="${esc(F.cle)}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.bilan}</span><div><h2>${esc(F.t.bilanTitre)}</h2><p class="sous">${esc(`${fmt(qq.total)} ${F.t.bilanSous} · ${nb}/${nbPaliers(qq)} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement` : ''}`)}</p></div></div>
+        ${neufs > 0 ? `<p class="encadre">${esc(`${neufs} palier${neufs > 1 ? 's' : ''} qui restai${neufs > 1 ? 'ent' : 't'} ${neufs > 1 ? 'dus' : 'dû'} : versé${neufs > 1 ? 's' : ''} maintenant.`)}</p>` : ''}
+        ${dons.length ? `<p class="sous"><b>Ce qui reste à toi, pour toujours :</b></p><ul class="pq-dons">${dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="encadre">${esc(F.t.bilanVide)}</p>`}
+        <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
+      d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); calmeJusqua = performance.now() + 20e3; } }, 300);
+      return true;
+    }
+    function montrerBilanEcran(qq, stats, dons, rang, nb) {
       id('corps').innerHTML = `<div class="at-carte pq-bilan ${F.classe}"><span class="pq-pic grand">${F.ico.bilan}</span>
         <h2>${esc(F.t.bilanH2)}</h2>
         <p class="pq-grand">${prix(qq.total)}</p><p class="sous">${esc(F.t.bilanSous)} · ${nb}/${nbPaliers(qq)} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement de l’événement` : ''}</p>
@@ -17244,6 +17289,7 @@ const EVENEMENTS = (() => {
   const QR = typeof QUARTIER !== 'undefined' ? QUARTIER : null;
   const ficheQuartier = () => ({
     cle: 'quartier', p: 'pq', racine: '#planque', ecran: 'planque', classe: '', R: QR, nom: 'Le Quartier', lieu: 'La Planque', porte: true, lot: 'planque',
+    ecarte: !!QR.ECARTE, // écarté depuis le 27 oct. (QUARTIER.ECARTE, src/quartier.js) : réintroduction plus tard
     fmt: (n) => QR.fmtEur(n), prix: (n) => QR.fmtEur(n), fmtPhrase: (n) => QR.fmtEur(n), solde: (n) => QR.fmtEur(n),
     ico: { devise: ICONS.QUARTIER.billets, palier: ICONS.QUARTIER.palier, bilan: ICONS.QUARTIER.billets, produit: (p) => ICONS.QUARTIER[p.id], coup: (type) => ICONS.QUARTIER[type] || '' },
     decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosQuartier) SCENE.decosQuartier(l); },
@@ -19605,11 +19651,11 @@ const UI = (() => {
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : info(ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`))
-          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · ${G.COMPAGNONS.length} animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
+          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · ${compagnonsVus().length} animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le compagnon de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
-        ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) ) : ''}
+        ${QA && QA.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) ) : ''}
         ${HTE && HTE.fenetre() && HTE.fenetre().ouvert ? groupe('Halloween', ligne('hantee', ICONS.UI.hantee, 'Masquer la Maison hantée', 'L’icône citrouille et le manoir disparaissent ; le reste du jeu ne change pas', sw(!!(st[HTE.cle] && st[HTE.cle].masque)))) : ''}
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
@@ -20096,6 +20142,9 @@ const UI = (() => {
   const CLM = typeof CLASSEMENT !== 'undefined' ? CLASSEMENT : null;
   const EVS = typeof EVENEMENTS !== 'undefined' ? EVENEMENTS : null; // les écrans des événements (src/evenement.js)
   const EVT = EVS && EVS.quartier.R ? EVS.quartier : null, QT = EVT ? EVT.R : null; // l'événement « Le Quartier » (src/evenement.js, src/quartier.js)
+  // le Quartier écarté (QUARTIER.ECARTE, depuis le 27 oct. ; réintroduction plus tard) : EVT reste pour verser ce qui a été gagné (la garde-robe,
+  // les décos, le bilan dû en feuille simple), mais QA est nul : ni réglage, ni onglet au classement, ni billets envoyés, ni visite de Planque
+  const QA = QT && !QT.ECARTE ? QT : null;
   const HTE = EVS && EVS.hantee && EVS.hantee.R ? EVS.hantee : null, HT = HTE ? HTE.R : null; // l'événement « La Maison hantée » (src/evenement.js, src/hantee.js)
   // ce que le classement envoie de la Maison hantée : ses bonbons (p_evt = 'hantee'), pendant la fenêtre et l'heure de grâce ; deux noms
   // proposés au moteur (src/classement.js, v5) : hantee() → nombre, evenement() → { id, valeur } ; un moteur v4 les ignore
@@ -20120,11 +20169,13 @@ const UI = (() => {
     if (!zf(n, { vol: 0.3 })) { const f = { wouf: 220, woufgrave: 130, cotcot: 560, coincoin: 340, couic: 1250, couac: 280 }[n] || 440; beep(f, 0.09, n === 'couic' ? 'sine' : 'square', 0.035); beep(f * 0.9, 0.09, n === 'couic' ? 'sine' : 'square', 0.03, 0.13); }
     return CRIS[n] || 'Rrrr…';
   }
+  // les animaux de la feuille : le chien du quartier seulement à qui l'a gagné, le Quartier écarté (QUARTIER.ECARTE) : plus de carte verrouillée « Au palier 11 du Quartier »
+  const compagnonsVus = () => G.COMPAGNONS.filter((c) => !(c.id === 'chien-quartier' && QT && QT.ECARTE && !G.aCompagnon(st, c.id)));
   // la feuille « Les compagnons » : la grille des animaux, leur phrase, et Choisir / Acheter (tout de suite) ; retour : la feuille d'où l'on vient
   function sheetCompagnons(retour) {
     const html = () => {
       const actif = st.chat ? G.compagnonActif(st) : null, vu = modeleVu(), force = chatNoirForce() && actif && G.estChat(actif);
-      const cartes = G.COMPAGNONS.map((c) => {
+      const cartes = compagnonsVus().map((c) => {
         const a = G.aCompagnon(st, c.id), choisi = actif === c.id, prix = G.prixCompagnon(st, c.id), assez = prix != null && st.coins >= prix;
         const statut = c.prix == null ? (c.condition ? c.gagne : 'Gratuit') : a ? 'À toi' : G.fmtEur(prix);
         const bouton = choisi ? '<span class="cp-ok">Avec toi ✓</span>'
@@ -20160,7 +20211,7 @@ const UI = (() => {
   // si le moteur du classement (src/classement.js, v5) connaît la période 'hantee'
   const ongletHantee = () => !!(HTE && CLM && CLM.PERIODES && CLM.PERIODES.includes(HTE.cle) && !(st && st[HTE.cle] && st[HTE.cle].masque) && fenetreClassementHantee());
   function fenetreClassementHantee() { const t = HORLOGE.maintenant(), f = HT.fenetre(t); if (typeof f.classement === 'boolean') return f.classement; return t >= HT.DEBUT && t < (HT.CLASSEMENT_JUSQUA || HT.FIN + 14 * 864e5); }
-  const periodes = () => { let p = QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
+  const periodes = () => { let p = QA && QA.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   // ses points de boulanger de la semaine, tels qu'ils partent au classement
@@ -20290,7 +20341,7 @@ const UI = (() => {
     const semaine = ongletCl === 'semaine';
     const enPoints = d.version >= 3; // un serveur encore en version 2 classe à l'argent : on l'affiche comme avant
     const hantee = !!HTE && ongletCl === HTE.cle, fh = hantee ? HT.fenetre(HORLOGE.maintenant()) : null;
-    const quartier = ongletCl === 'quartier' || hantee, fq = hantee ? fh : QT ? QT.fenetre(HORLOGE.maintenant()) : null;
+    const quartier = ongletCl === 'quartier' || hantee, fq = hantee ? fh : QA ? QA.fenetre(HORLOGE.maintenant()) : null;
     const info = hantee ? (fh.fini ? 'La Maison hantée est finie : le podium final est figé' : 'Les bonbons gagnés au manoir · podium final le 2 nov. à 20 h') : quartier ? (fq && fq.fini ? 'Le Quartier est fini : le podium final est figé' : `Les billets gagnés dans la Planque · podium final le 27 oct. à midi`) : semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
     const val = (l) => (hantee ? `<b class="cl-val">${HT.fmt(l.valeur)}<small>bonbons</small></b>` : quartier ? `<b class="cl-val">${G.fmtEur(l.valeur)}<small>billets</small></b>` : enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
     const enLigne = d.enLigneN > 0 ? `<span class="cl-n-ligne"><i class="cl-en-ligne"></i>${d.enLigneN} en ligne</span>` : ''; // ceux qui ont le jeu ouvert en ce moment (vus depuis moins de 4 min ; serveur v5)
@@ -20634,7 +20685,7 @@ const UI = (() => {
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
   const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
-  const evDe = (id) => (id === 'quartier' && EVT ? EVT : HTE && id === HTE.cle ? HTE : null); // l'écran d'un événement d'après l'onglet du classement
+  const evDe = (id) => (id === 'quartier' && EVT && QA ? EVT : HTE && id === HTE.cle ? HTE : null); // l'écran d'un événement d'après l'onglet du classement
   function lieuDe(E) { // « La Planque » → { le: 'la Planque', sa: 'sa Planque' } ; « Le Manoir » → { le: 'le Manoir', sa: 'son Manoir' }
     const L = E && E.F && E.F.lieu ? E.F.lieu : 'La Planque', m = /^(La|Le|L’|L')\s*(.*)$/.exec(L), nom = m ? m[2] : L, fem = !m || m[1] !== 'Le';
     return { Le: L, le: L[0].toLowerCase() + L.slice(1), sa: `${fem ? 'sa' : 'son'} ${nom}`, Sa: `${fem ? 'Sa' : 'Son'} ${nom}` };
@@ -21161,10 +21212,10 @@ const UI = (() => {
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
     // + ses statistiques (x) et l'événement EN COURS (e) : seulement pendant sa fenêtre, s'il y est entré (la porte passée, ouvertLe) et ne l'a pas masqué
-    const evPhoto = () => { for (const E of [EVT, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; };
+    const evPhoto = () => { for (const E of [QA ? EVT : null, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; }; // (le Quartier écarté : jamais sa Planque dans la photo)
     const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QA && QA.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
     if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });

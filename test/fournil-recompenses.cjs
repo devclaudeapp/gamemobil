@@ -11,6 +11,8 @@
 // boost ×3 de 30 min, une seule fois), « Mes événements » dans « Mes récompenses » ; un 2e : la tenue d'Halloween en or en plus ; un
 // serveur d'avant la 6.6 (podium à trois, sans le nombre de joueurs) reste servi ; la feuille du lundi refermée sans « Récupérer » laisse passer
 // celle de l'événement. Captures acharnes-*.png dans SHOTS_ACHARNES s'il est donné.
+// Le Quartier écarté (depuis le 27 oct.) : une partie qui a joué la Planque garde tout, ce qui restait dû est versé une fois (feuille simple),
+// son podium final donne la tenue en or une fois ; pas d'icône, d'écran ni d'onglet ; un joueur arrivé après n'en voit aucune trace.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-recompenses.cjs   (captures dans test/shots/recompenses/ ; PORT_RECOMPENSES pour changer de port)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -38,7 +40,7 @@ const lundi = () => CL.lundiParis(Date.now()), semaineAvant = (k) => CL.decalerS
 const faux = { joueurs: new Map(), palmares: [], appels: [], places: [], evenements: null }; // evenements (version 6.6) : { hantee: { rang, joueurs, podium } } rendu par fournil_recompenses // palmares : [{ semaine, rang, id, pseudo, valeur }] ; places (version 6.5) : [{ semaine, rang, joueurs, id }]
 const MOI = { id: crypto.randomUUID(), jeton: crypto.randomBytes(32).toString('hex'), pseudo: 'Paulo' };
 function semer() {
-  faux.joueurs.clear(); faux.palmares = []; faux.places = []; faux.evenements = null; faux.appels.length = 0;
+  faux.joueurs.clear(); faux.palmares = []; faux.places = []; faux.evenements = null; faux.quartier = null; faux.appels.length = 0;
   const noms = ['Mamie Jo', 'Tonton Brioche', 'Petit Levain', 'Chef Fougasse', 'Super Éclair'];
   noms.forEach((pseudo, i) => { const id = crypto.randomUUID(); faux.joueurs.set(id, { jeton: sha('x' + i), pseudo, sommet: 1e12, total: 9e9 / (i + 1), gain: 3e8 / (i + 1), semaine: lundi(), maj: 0 }); if (i === 0) faux.palmares.push({ semaine: semaineAvant(1), rang: 1, id, pseudo, valeur: 4e8 }); if (i === 1) faux.palmares.push({ semaine: semaineAvant(1), rang: 3, id, pseudo, valeur: 1e8 }); });
   faux.joueurs.set(MOI.id, { jeton: sha(MOI.jeton), pseudo: MOI.pseudo, sommet: 1e6, total: 2e9, gain: 1e8, semaine: lundi(), maj: 0 });
@@ -68,6 +70,7 @@ const RPC = {
     const podium = faux.palmares.filter((p) => p.semaine === semaineAvant(1)).sort((a, b) => a.rang - b.rang).map((p) => ({ rang: p.rang, pseudo: p.pseudo, valeur: p.valeur }));
     return { ok: true, erreur: null, podiums: j ? faux.palmares.filter((p) => p.id === c.p_id).sort((a, b) => (a.semaine < b.semaine ? -1 : 1)).map((p) => ({ semaine: p.semaine, rang: p.rang })) : [], derniere: podium.length ? { semaine: semaineAvant(1), podium } : null,
       ...(faux.places.length ? { places: faux.places.filter((p) => p.id === c.p_id).map(({ semaine, rang, joueurs }) => ({ semaine, rang, joueurs })) } : {}), // version 6.5
+      ...(faux.quartier ? { quartier: faux.quartier, quartier_podium: [{ rang: 1, pseudo: 'Mamie Jo', valeur: 9e15 }, { rang: faux.quartier, pseudo: MOI.pseudo, valeur: 4e15 }] } : {}), // version 4 : le podium final du Quartier
       ...(faux.evenements ? { evenements: faux.evenements } : {}) }; // version 6.6 : le classement final de la Maison hantée, jusqu'au 15e
   },
   fournil_heure: () => ({ ms: Date.now() }),
@@ -336,6 +339,67 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await p.evaluate(() => window.__fournil.feuilleClassement('semaine')); await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste')));
   check(!(await p.evaluate(() => !!document.querySelector('[data-cl="annonce"], [data-a="cl-recompenses"]'))) && JSON.stringify(await vues(p)) === JSON.stringify({ tenue: null, coupe: null, coupes: 0 }), 'sans podium : pas d’annonce, pas d’entrée « Mes récompenses », la boutique comme avant');
   await ctx.close();
+
+  // ─── 11. le Quartier écarté (QUARTIER.ECARTE, depuis le 27 oct. à midi) : une partie qui a joué la Planque recharge et garde tout ; ce qui
+  // restait dû (deux paliers, le bilan) est versé une fois dans une feuille simple, sans rouvrir l'écran ; son podium final (2e, lu dans
+  // fournil_recompenses) donne la tenue du quartier en or, une fois ; ni icône, ni écran, ni onglet. Un joueur arrivé après : aucune trace.
+  // (le vrai « maintenant » : ce test tourne après la fermeture du Quartier ; __sansQuartier est levé pour ce parcours) ───
+  if (Date.now() >= require('../src/quartier.js').FIN) {
+    semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id);
+    ({ ctx, p } = await nouveau()); await ctx.addInitScript(() => { window.__sansQuartier = false; });
+    await preparer(p, etatInscrit());
+    await guetterToasts(p).catch(() => null);
+    await p.goto(BASE + '/fournil/'); await attendre(() => p.evaluate(() => !!(window.__fournil && window.__fournil.st)));
+    // la sauvegarde : cinq paliers réclamés (leurs étoiles déjà dans la boulangerie), 11 000 Md de billets (les paliers 6 et 7 dus), le bilan pas vu
+    await p.evaluate(() => { window.__sansQuartier = true; // (ce premier chargement ne solde rien : la feuille attend le rechargement)
+      const F = window.__fournil, st = F.st, Q = F.Q, q = Q.etat(st, Q.FIN - 3600e3); q.majeur = true; q.annonce = true; q.ouvertLe = Q.DEBUT + 864e5; q.lastSeen = Q.FIN - 3600e3; q.now = q.lastSeen;
+      Q.gagner(q, Q.PALIERS[6].total); for (const n of [1, 2, 3, 4, 5]) Q.marquerPalier(q, n); q.bilan = false; st.etoiles = 3; st.tuto = 99; F.save(); });
+    const avant = await p.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, paliers: window.__fournil.st.quartier.paliers.slice() }));
+    faux.quartier = 2; // le podium final du Quartier : 2e (rendu par fournil_recompenses à partir de maintenant)
+    await p.reload(); await guetterToasts(p).catch(() => null);
+    const bilanOuvert = () => p.evaluate(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille-contenu [data-bilan="quartier"]'));
+    check(await attendre(bilanOuvert, 9000), 'une partie qui a joué la Planque, rechargée : la feuille simple « La Planque a fermé » s’ouvre (pas l’écran)');
+    await sleep(500);
+    const b = await p.evaluate(() => { const F = window.__fournil, q = F.st.quartier, f = document.querySelector('#feuille-contenu'); return { txt: f.innerText, tete: `${f.querySelector('h2').textContent} · ${f.querySelector('.sous').textContent}`, planque: !document.querySelector('#planque').hidden, icone: !document.querySelector('#b-quartier').hidden,
+      paliers: q.paliers.slice(), bilan: q.bilan, etoiles: F.st.etoiles, garde: Object.keys(F.G.garderobe(F.st).objets).filter((id) => /^quartier-/.test(id)).sort(), decos: F.SCENE.decosVues.slice().sort(), reserve: F.boosts().reserve.map((x) => x.mult) }; });
+    check(/La Planque a fermé/.test(b.txt) && /2 paliers qui restaient dus : versés maintenant/.test(b.txt) && /Ce qui reste à toi/.test(b.txt) && !b.planque && !b.icone, `la feuille : « ${b.tete} » ; l’écran de la Planque fermé, pas d’icône`);
+    check(JSON.stringify(b.paliers) === '[1,2,3,4,5,6,7]' && b.bilan === true && b.etoiles === avant.etoiles + 1 && b.reserve.includes(5), `les paliers 6 et 7 versés une fois : ${JSON.stringify(avant.paliers)} → ${JSON.stringify(b.paliers)}, +1 étoile (${avant.etoiles} → ${b.etoiles}), le boost ×5 en réserve`);
+    check(b.garde.includes('quartier-casquette') && b.garde.includes('quartier-sweat') && b.decos.includes('graffiti') && b.decos.includes('neon'), `gardé : la casquette et le sweat du quartier dans la garde-robe, les décos posées (${b.decos.join(', ')})`);
+    await p.screenshot({ path: out + '/11-quartier-ecarte-bilan.png' });
+    await p.tap('#feuille [data-a="pq-ok"]'); await sleep(500);
+    // le podium final (2e) : la tenue du quartier en or, une fois
+    check(await attendre(() => p.evaluate(() => Object.keys(window.__fournil.G.garderobe(window.__fournil.st).objets).filter((id) => /^quartier-or-/.test(id)).length === 4), 9000), 'le podium final du Quartier (2e, fournil_recompenses) : les quatre pièces de la tenue du quartier en or dans la garde-robe');
+    const t1 = await attendreToast(p, /Podium final du Quartier/);
+    check(t1.filter((x) => /Podium final du Quartier/.test(x)).length === 1, 'un seul message « Podium final du Quartier »');
+    // ni icône, ni écran, ni onglet
+    const ouvre = await p.evaluate(() => [EVENEMENTS.quartier.ouvrir(), window.__fournil.quartier()]);
+    check(ouvre.every((x) => x === false) && await p.evaluate(() => document.querySelector('#planque').hidden && document.querySelector('#b-quartier').hidden), 'l’écran ne s’ouvre plus, même demandé ; l’icône reste cachée');
+    await p.evaluate(() => window.__fournil.feuilleClassement('quartier')); await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste, #feuille .cl-squelette'))); await sleep(300);
+    const tabs = await p.evaluate(() => [...document.querySelectorAll('#feuille [data-tab]')].map((x) => x.dataset.tab));
+    check(tabs.length >= 2 && !tabs.includes('quartier'), `la feuille du classement : pas d’onglet Quartier (${tabs.join(', ')})`);
+    await p.evaluate(() => window.__fournil.feuilleClassement('semaine')); await sleep(200);
+    check(!faux.appels.some((a) => a.nom === 'fournil_publier' && a.corps && 'p_quartier' in a.corps), 'aucun billet du Quartier envoyé au serveur (p_quartier)');
+    // rechargée encore : tout reste, rien n'est versé deux fois
+    const e1 = await p.evaluate(() => window.__fournil.st.etoiles);
+    await p.reload(); await guetterToasts(p).catch(() => null); await attendre(() => p.evaluate(() => !!(window.__fournil && window.__fournil.st))); await sleep(3500);
+    const r2 = await p.evaluate(() => { const F = window.__fournil; return { bilan: !!document.querySelector('#feuille-contenu [data-bilan]'), etoiles: F.st.etoiles, paliers: F.st.quartier.paliers.length, or: Object.keys(F.G.garderobe(F.st).objets).filter((id) => /^quartier-or-/.test(id)).length, toasts: (window.__toastsVus || []).filter((x) => /Podium final du Quartier/.test(x)).length }; });
+    check(!r2.bilan && r2.etoiles === e1 && r2.paliers === 7 && r2.or === 4 && r2.toasts === 0, `rechargée : ni feuille ni message de nouveau, rien de versé deux fois (${JSON.stringify(r2)})`);
+    await p.evaluate(() => window.__fournil.garderobe('tete')); await sleep(300);
+    const ens = await p.evaluate(() => [...document.querySelectorAll('.gr-ensemble')].map((e) => e.className.split(' ')[1]));
+    check(ens.includes('quartier') && ens.includes('quartier-or'), `la garde-robe montre ses ensembles du quartier (${ens.join(', ')})`);
+    await ctx.close();
+    // un joueur arrivé après : aucune trace (ni feuille, ni état, ni ensemble verrouillé, ni chien du quartier à gagner)
+    semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id);
+    ({ ctx, p } = await nouveau()); await ctx.addInitScript(() => { window.__sansQuartier = false; });
+    await p.goto(BASE + '/fournil/'); await attendre(() => p.evaluate(() => !!(window.__fournil && window.__fournil.st))); await sleep(2500);
+    const n = await p.evaluate(() => { const F = window.__fournil; F.st.tuto = 99; return { etat: F.st.quartier === undefined, bilan: !!document.querySelector('[data-bilan]'), icone: !document.querySelector('#b-quartier').hidden }; });
+    await p.evaluate(() => window.__fournil.garderobe('tete')); await sleep(300);
+    const ensN = await p.evaluate(() => [...document.querySelectorAll('.gr-ensemble')].map((e) => e.className.split(' ')[1]).concat([document.querySelector('#feuille-contenu').innerText.includes('Quartier') ? 'TEXTE' : '']));
+    await p.evaluate(() => window.__fournil.compagnons()); await sleep(300);
+    const chien = await p.evaluate(() => ({ carte: !!document.querySelector('[data-cp="chien-quartier"]'), txt: /Quartier/.test(document.querySelector('#feuille-contenu').innerText) }));
+    check(n.etat && !n.bilan && !n.icone && !ensN.some((c) => /^quartier|TEXTE/.test(c)) && !chien.carte && !chien.txt, `un joueur arrivé après : pas d’état du Quartier, ni feuille, ni icône, ni ensemble du quartier (${ensN.filter(Boolean).join(', ')}), ni chien du quartier`);
+    await ctx.close();
+  } else console.log('  --   le Quartier n’est pas encore fini (horloge de la machine) : parcours « écarté » sauté');
   const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const p4 = await c3.newPage(); suivre(p4); const n2 = faux.appels.length;
   await p4.goto(BASE + '/dist/artifact.html'); await sleep(1500);
