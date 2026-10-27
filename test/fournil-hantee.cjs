@@ -72,7 +72,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
 
   // une partie qui a joué au Quartier (son bilan n'est pas encore vu) et adopté le chat, chargée avant le lancement
   await page.goto(URL_JEU + '?qualite=haute&boutique=0'); await pret();
-  await ev(() => { const F = window.__fournil, st = F.st; F.G.adopterChat(st, 'Réglisse'); const q = F.Q.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.total = 3e11; q.billets = 1e9; delete st[F.evHantee.cle]; F.save(); }); // (ce premier lancement a pu annoncer la Maison hantée : on l'oublie)
+  await ev(() => { window.__sansQuartier = true; /* (ce premier chargement ne solde rien : sur une machine chargée, son annonce différée passait après cette préparation et soldait le bilan avant le lancement guetté) */ const F = window.__fournil, st = F.st; F.G.adopterChat(st, 'Réglisse'); const q = F.Q.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.total = 3e11; q.billets = 1e9; delete st[F.evHantee.cle]; F.save(); }); // (ce premier lancement a pu annoncer la Maison hantée : on l'oublie)
   await sleep(300);
 
   console.log('── le 27 octobre à 13 h : le bilan du Quartier d’abord (une feuille simple : le Quartier est écarté), puis l’annonce de la Maison hantée ──');

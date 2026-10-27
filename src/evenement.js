@@ -1667,7 +1667,7 @@ const EVENEMENTS = (() => {
     const COMMENT_JOUER = [
       ['taper', 'Sers les monstres.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les apparitions et livre les commandes de la nuit.'],
       ['mult', 'Le ×6 s’endort.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
-      ['bestiaire', 'Le bestiaire.', 'Sers dix monstres de chaque sorte : des étoiles, une étagère de bocaux, et Myrtille la chauve-souris. Puis l’argent et l’or : encore des étoiles, et deux étagères.'],
+      ['bestiaire', 'Le bestiaire.', 'Dix monstres de chaque sorte : des étoiles, une étagère et Myrtille la chauve-souris. Puis l’argent et l’or : des étoiles et deux étagères.'],
       ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’Halloween, la tenue de sorcière, le chat noir ; au 20e, le titre « Légende du Manoir ».'],
       ['classement', 'Le classement.', 'Les 15 premiers de l’événement sont récompensés.'],
       ['date', 'Jusqu’au lundi 2\u00a0novembre, 20\u00a0h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
