@@ -47,10 +47,15 @@ const EVENEMENTS = (() => {
     const boss = () => Q.PALIERS_BOSS || Q.PALIERS.length; // le 12e : le dernier palier « normal » ; au-delà, les paliers bonus (après le boss)
     const nbPaliers = (qq) => (qq && Q.paliersAtteints(qq).length >= boss() ? Q.PALIERS.length : boss()); // « 4/12 » jusqu'au boss, puis « 14/20 »
     const ouverte = (qq, a) => (Q.combineOuverte ? Q.combineOuverte(qq, a) : !a.apres); // une combine « après le boss » se montre une fois le palier franchi
+    // ce que la feuille des améliorations montre, et ce qu'elle rend achetable tout de suite (pas déjà prise, assez de monnaie) : la pastille
+    // du bouton (combien) suit la même règle
+    const montrees = (qq) => Q.AMELIORATIONS.filter((a) => !a.apres || ouverte(qq, a));
+    const achetable = (qq, a) => !qq.ameliorations[a.id] && qq.billets >= a.cout;
+    const nbAchetables = (qq) => montrees(qq).filter((a) => achetable(qq, a)).length;
 
     function init(deps) {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
-      cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
+      cartesEl = id('cartes'); evEl = id('ev'); tiroir.construire(); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
       if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places de ses activités)
       if (F.activites) act = F.activites.creer({ el, Q, F, d, q, now, scene: () => scene3, carte: (i) => (i === -1 ? carteRj : cartes[i]), fmt, prix, ico: (i) => F.ico.produit(Q.PRODUITS[i], i),
@@ -60,11 +65,12 @@ const EVENEMENTS = (() => {
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
       el.querySelector('[data-pq="paliers"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetPaliers(); });
       el.querySelector('[data-pq="ameliorations"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetAmeliorations(); });
+      { const am = el.querySelector('[data-pq="ameliorations"]'); am.dataset.nom = am.textContent.trim(); am.insertAdjacentHTML('beforeend', '<i class="pq-pastille pq-am-n" aria-hidden="true" hidden></i>'); } // combien d'améliorations sont achetables (hud)
       el.querySelectorAll('.pq-modes button').forEach((b) => b.addEventListener('click', () => { d.audio(); const qq = q(); qq.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; el.querySelectorAll('.pq-modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCartes(true); }));
       cartesEl.addEventListener('click', onCarte);
       evEl.addEventListener('click', (e) => { if (e.target.closest('button')) return; evEl.classList.toggle('etendu'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouvert() && $('#feuille').hidden) { if (miniOuvert()) fermerMini(); else fermer(); } });
-      window.addEventListener('resize', () => { if (scene3) scene3.redim(); });
+      window.addEventListener('resize', () => { if (scene3) scene3.redim(); tiroir.redim(); placerAct(); });
       if (F.cle === 'hantee' || F.p === 'ht') st0 = () => d.st();
       synchroniserRecompenses();
       return true;
@@ -224,7 +230,8 @@ const EVENEMENTS = (() => {
       id('corps').innerHTML = ''; // la porte ou le bilan s'effacent ; la scène, les cartes et la bannière sont des éléments fixes de l'écran
       entete(F.lieu, `Jour ${fen().jour} sur ${fen().jours}`);
       el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
-      construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv();
+      tiroir.poser('bas', false); // le tiroir revient à sa place à chaque ouverture
+      construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv(); placerAct();
       if (!scene3) { essais3 = 0; creer3(false); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
@@ -240,7 +247,7 @@ const EVENEMENTS = (() => {
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
       if (act) act.fermer();
-      liberer3();
+      liberer3(); tiroir.poser('bas', false);
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
       if (d.ferme) d.ferme();
@@ -284,7 +291,9 @@ const EVENEMENTS = (() => {
       if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); const ecart = Math.max(0, t - (qq.now || t)); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup && ecart <= TROU_EV) Q.pauseCoup(qq, ecart); }
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
-      if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
+      if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); if (!miniOuvert()) placerAct(); }
+      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée)
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
@@ -292,16 +301,21 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) { montrerSheetsEnAttente(); hud(); renderCartes(); renderEv(); } // sous un mini-jeu : un palier franchi attend la fin de la partie pour sa feuille, et l'écran caché n'est pas redessiné
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
-      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq, msImage, espacee); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
-      if (act && !miniOuvert()) act.image(); // les bulles suivent les têtes des monstres
+      // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre) ; de même quand le tiroir monté couvre toute la scène (au repos en
+      // haut : il la redécouvre dès qu'on le tire)
+      const cachee = miniOuvert() || tiroir.couvre();
+      if (scene3 && !scene3.perdu && !cachee) scene3.frame(dt, qq, msImage, espacee);
+      if (act && !cachee) act.image(); // les bulles suivent les têtes des monstres
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }
     function hud() {
       const qq = q(), taux = Q.tauxParSeconde(qq), f = fen(), nb = Q.paliersAtteints(qq).length;
       const cl = d.rang ? d.rang() : null; // le classement de l'événement : null s'il n'existe pas (pas de serveur), sinon son rang (0 : pas encore classé)
       const pres = Q.presence ? presTxt(Q.presence(qq, now()).mult) : Q.PRESENCE; // la Maison hantée : le ×6 qui s'endort sans toucher (×1 endormi)
-      const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}|${pres}`;
+      const nAm = nbAchetables(qq), cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}|${pres}|${nAm}`;
       if (cle === lastHud) return; lastHud = cle;
+      const am = el.querySelector('[data-pq="ameliorations"]'), pa = am && am.querySelector('.pq-am-n');
+      if (pa && pa.textContent !== (nAm ? String(nAm) : '')) { pa.textContent = nAm ? String(nAm) : ''; pa.hidden = !nAm; am.setAttribute('aria-label', nAm ? `${am.dataset.nom} : ${nAm} à acheter` : am.dataset.nom); }
       id('billets').innerHTML = F.solde(qq.billets);
       id('taux').innerHTML = taux > 0 ? F.t.taux(prix(taux), pres) : F.t.tauxVide(pres);
       id('reste').textContent = `${F.t.reste} ${Q.fmtReste(f.reste)}`;
@@ -319,8 +333,10 @@ const EVENEMENTS = (() => {
     const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
     // la première vente d'un produit pas encore débloqué : le vrai gain au niveau 1, à la main (présence, réputation, améliorations comprises)
     const premiereVente = (qq, i) => Q.revenuFournee(Object.assign({}, qq, { postes: qq.postes.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
+    let tetes = null; // les cartes de tête de la liste (.pq-tete : le bestiaire du Manoir), posées par F.habiller : juste après la recette du jour, elles défilent avec les autres
     function construireCartes() {
-      cartesEl.innerHTML = ''; cartes = []; construireRecette();
+      if (!tetes) tetes = [...el.querySelectorAll('.pq-tete')];
+      cartesEl.innerHTML = ''; cartes = []; construireRecette(); cartesEl.append(...tetes);
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
       renderCartes(true);
     }
@@ -452,7 +468,7 @@ const EVENEMENTS = (() => {
     const multEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].mult) || 2;
     function renderEv() {
       const qq = q(), ev = qq.ev;
-      if (!ev) { if (lastEv) { lastEv = ''; evEl.hidden = true; evEl.innerHTML = ''; } return; }
+      if (!ev) { if (lastEv) { lastEv = ''; evEl.hidden = true; evEl.innerHTML = ''; placerAct(); } return; }
       const g = genre(ev), c = coup(ev), reste = Math.max(0, (ev.fin - qq.now) / 1000), pct = Math.min(100, reste / dureeEv(ev) * 100), prete = g === 'livrer' && ev.fait >= ev.n, key = ev.type + ev.debut + (prete ? 'p' : '');
       if (lastEv !== key) {
         lastEv = key; evEl.hidden = false; evEl.dataset.type = ev.type;
@@ -470,6 +486,7 @@ const EVENEMENTS = (() => {
         if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('livrer')(q()); if (r && r.ok) { if (typeof G.marquerPresence === 'function') G.marquerPresence(st(), 'commande'); reussite(c.reussite(fmt(r.prime))); } });
         const attraper = evEl.querySelector('[data-a="attraper"]');
         if (attraper) attraper.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('attraper')(q()); if (r && r.ok) reussite(c.reussite(fmt(r.prime))); });
+        placerAct();
       }
       const prog = evEl.querySelector('.ev-prog'); if (prog && g === 'livrer') prog.textContent = prete ? c.attend : `${Q.fmt(ev.fait)} / ${Q.fmt(ev.n)}${qq.postes[ev.i].staff ? '' : ' · touche pour vendre !'}`;
       const ch = evEl.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
@@ -481,8 +498,8 @@ const EVENEMENTS = (() => {
     function sheetAmeliorations() {
       const qq = q();
       const paie = (a) => (a.apres && Q.phraseCombine ? Q.phraseCombine(a) : ''); // après le boss : ce qu'elle paie à la boulangerie (« + 16 h de gains à la boulangerie, +2 ★ »)
-      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout, p = paie(a); return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p>${p ? `<p class="am-paie">${esc(p)}${a.prime && G.primeHeures ? ` <small>(≈ ${G.fmtEur(G.primeHeures(st(), a.prime))})</small>` : ''}</p>` : ''}</div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
-      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
+      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = achetable(qq, a), p = paie(a); return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p>${p ? `<p class="am-paie">${esc(p)}${a.prime && G.primeHeures ? ` <small>(≈ ${G.fmtEur(G.primeHeures(st(), a.prime))})</small>` : ''}</p>` : ''}</div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
+      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a)); // (montrees : les mêmes, celles qu'on voit)
       const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
         + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
         + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, Math.min(...bonus.filter((a) => !ouverte(qq, a)).map((a) => a.apres || boss()))))}</p>` : '');
@@ -512,7 +529,7 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
       if (act) act.fermer();
-      liberer3();
+      liberer3(); tiroir.poser('bas', false);
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
       if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
@@ -545,9 +562,100 @@ const EVENEMENTS = (() => {
     }
 
 
+    // ═══ le tiroir : le bas de l'écran (la barre ×1 ×10 ×100 Max, la commande et le bestiaire du Manoir, les cartes) monte au doigt par-dessus
+    // la scène jusque sous le solde, comme celui de la boutique (src/ui.js, tiroir) ; deux crans : 'bas' (sa place sous la scène) et 'haut'.
+    // Au repos, sa marge du haut (--pq-tiroir-m) le pose : en haut, la liste des cartes a toute la hauteur. Pendant la course, une translation
+    // seule (rien à remettre en page à chaque image ; son dessous, ::after, comble le bas de l'écran), puis la marge est reprise d'un coup, au
+    // même endroit. On le tire par sa poignée ou par la barre (un toucher sur ×10 ou Sortilèges reste un toucher : il faut 6 px pour glisser) ;
+    // tiroir en bas et liste tout en haut, un glisser vers le haut sur la liste monte d'abord le tiroir (en haut, liste tout en haut, un
+    // glisser vers le bas le redescend) ; une simple touche sur la poignée (ou Entrée) bascule. Lâché, il va au cran le plus proche, l'élan
+    // compris (le geste projeté 160 ms plus loin ; une pichenette change toujours de cran). Il revient en bas à chaque ouverture de l'écran.
+    const bouge = () => !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const tiroir = (() => {
+      let t = null, poignee = null, tete = null, bx = null, pos = 'bas', y = 0, m = 0, drag = null, fin = 0, sansClic = 0, doigt = null;
+      // ce qui suit le tiroir (.pq-suit : la commande de la nuit du Manoir) : un bandeau juste au-dessus de lui, sur la scène ; tiroir en haut,
+      // dans sa tête (sous la poignée), pour rester sous les yeux ; de même sur une scène basse (moins de 240 px visibles : un petit
+      // téléphone), où le bandeau cacherait la file des monstres
+      let court = false;
+      const suivre2 = (haut) => { if (!t) return; for (const e of el.querySelectorAll('.pq-suit')) { const dest = haut ? tete : bx; if (e.parentElement !== dest) dest.append(e); } };
+      const sceneEl = () => el.querySelector('.pq-scene');
+      const basTop = () => { const sc = sceneEl(); return sc ? sc.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(sc).marginBottom) || 0) : 0; }; // le haut du tiroir à sa place (sous la scène)
+      const course = () => { const so = el.querySelector('.pq-solde'); return so ? Math.max(0, Math.ceil(basTop() - so.getBoundingClientRect().bottom) + 1) : 0; }; // jusque sous le solde (1 px dessous : pas de jour)
+      const appliquer = () => { t.style.setProperty('--pq-tiroir-m', m + 'px'); t.style.transform = Math.abs(y - m) > 0.5 ? `translateY(${(y - m).toFixed(1)}px)` : ''; };
+      function poser(p, anime) { // p : 'bas' | 'haut' ; anime : la course jusqu'au cran (sinon d'un coup)
+        if (!t) return; clearTimeout(fin); fin = 0; drag = null; doigt = null; pos = p === 'haut' ? 'haut' : 'bas';
+        const cible = pos === 'haut' ? -course() : 0; poignee.setAttribute('aria-expanded', String(pos === 'haut'));
+        const reprendre = () => { fin = 0; t.classList.add('glisse'); court = course() < 240; suivre2(pos === 'haut' || court); m = cible; y = cible; appliquer(); el.dataset.tiroir = pos; void t.offsetHeight; t.classList.remove('glisse'); placerAct(); };
+        if (anime && bouge() && Math.abs(y - cible) > 1) { el.dataset.tiroir = 'glisse'; t.classList.remove('glisse'); y = cible; appliquer(); fin = setTimeout(reprendre, 300); } else reprendre();
+      }
+      function prendre(y0, depuis, id) { drag = { id, y0, depuis, depart: 0, D: 0, pts: [[performance.now(), y0]], bouge: false }; }
+      function suivre(cy) { // le doigt bouge : au-delà de 6 px, le tiroir le suit (élastique au-delà de ses crans)
+        const dy = cy - drag.y0;
+        if (!drag.bouge) {
+          if (Math.abs(dy) <= 6) return false;
+          drag.bouge = true; clearTimeout(fin); fin = 0; t.classList.add('glisse'); el.dataset.tiroir = 'glisse'; suivre2(court);
+          drag.D = course(); drag.depart = Math.round(t.getBoundingClientRect().top - basTop()); // d'où il est vraiment (une course pas finie comprise)
+        }
+        let v = drag.depart + dy; const D = drag.D;
+        if (v < -D) v = -D - (-D - v) * 0.25; if (v > 0) v *= 0.25;
+        y = v; appliquer(); drag.pts.push([performance.now(), cy]); if (drag.pts.length > 6) drag.pts.shift();
+        return true;
+      }
+      function lacher() {
+        const d0 = drag; drag = null; if (!d0) return;
+        if (!d0.bouge) { if (d0.depuis === 'poignee') { d.audio(); d.son.tap(); poser(pos === 'haut' ? 'bas' : 'haut', true); } return; } // une simple touche sur la poignée : il bascule
+        sansClic = performance.now() + 400; // un glisser n'est pas un toucher : pas de clic sur le bouton où il a commencé
+        const [t0, p0] = d0.pts[0], [t1, p1] = d0.pts[d0.pts.length - 1], vit = t1 > t0 ? (p1 - p0) / (t1 - t0) : 0; // px/ms
+        const proj = y + vit * 160; let cible = Math.abs(proj + d0.D) < Math.abs(proj) ? 'haut' : 'bas';
+        if (Math.abs(vit) > 0.5) cible = vit < 0 ? 'haut' : 'bas'; // une pichenette va toujours où elle part
+        poser(cible, true);
+      }
+      function construire() {
+        const sc = sceneEl(), barre = el.querySelector('.pq-barre'); if (!sc || !barre || t) return;
+        t = document.createElement('div'); t.className = 'pq-tiroir';
+        t.innerHTML = '<div class="pq-poignee" role="button" tabindex="0" aria-label="Monter ou descendre les cartes" aria-expanded="false"><i></i></div><div class="pq-tiroir-tete"></div>';
+        poignee = t.firstChild; tete = t.lastChild; const corps = id('corps'); if (corps) sc.after(corps); (corps || sc).after(t);
+        t.append(barre, cartesEl); el.dataset.tiroir = 'bas';
+        // les bandeaux de la scène (comme ceux de la boutique) : juste au-dessus du tiroir, le coup de pouce, puis ce qui suit le tiroir
+        bx = document.createElement('div'); bx.className = 'pq-bandeaux'; sc.appendChild(bx); bx.append(evEl);
+        // la page derrière ne bouge jamais : seuls la liste des cartes (et le mini-jeu) défilent ; un geste ailleurs sur l'écran ne fait ni
+        // défiler ni rebondir la page (l'élan d'iOS montrait la boulangerie derrière la scène)
+        el.addEventListener('touchmove', (e) => { if (e.cancelable && !cartesEl.contains(e.target) && !e.target.closest('.pq-mini')) e.preventDefault(); }, { passive: false });
+        // la poignée et la barre : au doigt et à la souris (événements de pointeur ; touch-action: none, rien d'autre ne les fait défiler)
+        const appui = (depuis) => (e) => { if (drag || el.dataset.ecran !== F.ecran || (e.pointerType === 'mouse' && e.button !== 0)) return; if (depuis === 'poignee') e.preventDefault(); prendre(e.clientY, depuis, e.pointerId); };
+        poignee.addEventListener('pointerdown', appui('poignee')); barre.addEventListener('pointerdown', appui('barre'));
+        window.addEventListener('pointermove', (e) => { if (drag && e.pointerId === drag.id) suivre(e.clientY); });
+        const fini = (e) => { if (drag && e.pointerId === drag.id) lacher(); };
+        window.addEventListener('pointerup', fini); window.addEventListener('pointercancel', fini);
+        poignee.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poser(pos === 'haut' ? 'bas' : 'haut', true); } });
+        el.addEventListener('click', (e) => { if (performance.now() < sansClic) { e.preventDefault(); e.stopPropagation(); } }, true);
+        // la liste (et la commande, le bestiaire) : elle défile d'elle-même ; seul le geste qui doit bouger le tiroir est pris (le premier pas de
+        // plus de 6 px décide, son touchmove annulé : le défilement ne part pas). Des événements tactiles : ceux de pointeur ne peuvent pas l'empêcher
+        t.addEventListener('touchstart', (e) => {
+          doigt = null; if (drag || e.touches.length !== 1 || el.dataset.ecran !== F.ecran || e.target.closest('.pq-poignee, .pq-barre')) return;
+          doigt = { y0: e.touches[0].clientY, enHaut: !cartesEl.contains(e.target) || cartesEl.scrollTop <= 0, pris: false, laisse: false };
+        }, { passive: true });
+        t.addEventListener('touchmove', (e) => {
+          if (!doigt || doigt.laisse) return; const cy = e.touches[0].clientY, dy = cy - doigt.y0;
+          if (!doigt.pris) {
+            if (Math.abs(dy) <= 6) return;
+            if (!doigt.enHaut || !((pos === 'bas' && dy < 0) || (pos === 'haut' && dy > 0))) { doigt.laisse = true; return; } // la liste défile
+            doigt.pris = true; prendre(doigt.y0, 'liste', 'liste');
+          }
+          if (e.cancelable) e.preventDefault(); if (drag && drag.id === 'liste') suivre(cy);
+        }, { passive: false });
+        const leve = () => { if (doigt && doigt.pris && drag && drag.id === 'liste') lacher(); doigt = null; };
+        t.addEventListener('touchend', leve); t.addEventListener('touchcancel', leve);
+      }
+      const redim = () => { if (t && pos === 'haut' && !drag && !fin) poser('haut', false); }; // une rotation, une autre hauteur de scène : le cran du haut suit
+      const ranger = () => { if (!t || drag || fin) return; court = course() < 240; suivre2(pos === 'haut' || court); };
+      return { construire, poser, redim, ranger, get bandeaux() { return bx; }, couvre: () => !!t && pos === 'haut' && !drag && !fin && ecran === F.ecran, get pos() { return pos; } };
+    })();
+
     // ═══ les activités (src/activites.js : le moteur commun à tous les événements ; l'habillage vient de la fiche de l'événement) ═══
-    // Une barre de trois boutons sous la scène : Mini-jeux, Contrats (la pastille : combien sont à réclamer), Opération (son chrono quand
-    // elle tourne). Les mini-jeux s'ouvrent en plein écran par-dessus la boutique, avec la mécanique de l'Atelier (src/atelier.js) : le
+    // Une colonne de trois boutons en haut à droite de la scène, par-dessus la 3D et sous le solde (de haut en bas : Mini-jeux, Contrats et
+    // sa pastille, combien sont à réclamer, Opération et son chrono quand elle tourne) ; si le coup de pouce de la scène la toucherait (une
+    // scène basse), elle se resserre en icônes et la bannière lui laisse sa place (placerAct). Les mini-jeux s'ouvrent en plein écran par-dessus la boutique, avec la mécanique de l'Atelier (src/atelier.js) : le
     // temps de la partie est celui de performance.now(), avancé par pas de 1/60 s ; un trou de plus d'une seconde (l'arrière-plan) est une
     // pause ; une touche fait d'abord avancer la partie jusqu'à son instant ; aucune heure du téléphone : seule la fin de partie lit
     // HORLOGE (d.maintenant). Pendant la partie, la boutique continue de tourner (frame ne s'arrête pas) ; un coup de pouce à toucher
@@ -566,8 +674,12 @@ const EVENEMENTS = (() => {
       const t = TA();
       barreAct = document.createElement('div'); barreAct.className = 'pq-act'; barreAct.setAttribute('role', 'group'); barreAct.setAttribute('aria-label', 'Les activités');
       barreAct.innerHTML = [['mini', t.mini], ['contrats', t.contrats], ['operation', t.operation]].map(([k, nom]) => `<button type="button" class="pq-act-btn" data-act="${k}"><span class="pq-act-ico">${icoAct(k)}</span><span class="pq-act-txt"><b>${esc(nom)}</b><small></small></span>${k === 'contrats' ? '<i class="pq-pastille" hidden></i>' : ''}</button>`).join('');
-      el.querySelector('.pq-scene').after(barreAct);
-      barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
+      el.querySelector('.pq-scene').appendChild(barreAct);
+      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée) ; et seul un toucher commencé
+      // sur la colonne l'ouvre (une apparition attrapée à travers elle, .pq-traverse, ne déclenche pas le bouton revenu dessous au lâcher)
+      let appuiAct = -1e9;
+      barreAct.addEventListener('pointerdown', (e) => { e.stopPropagation(); appuiAct = performance.now(); });
+      barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (e.detail !== 0 && performance.now() - appuiAct > 1500) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
       mv = document.createElement('div'); mv.className = 'pq-mini'; mv.hidden = true; mv.setAttribute('role', 'dialog'); mv.setAttribute('aria-modal', 'true');
       mv.innerHTML = `<div class="at-haut"><button type="button" class="at-fermer" data-mini="fermer" aria-label="Quitter le mini-jeu"><i class="ico">${(ICONS.UI && ICONS.UI.fermer) || '×'}</i></button><div class="at-titre"><b data-mini="titre"></b><small data-mini="sous"></small></div><b class="at-chrono" data-mini="chrono" hidden></b></div>
         <div class="at-bandeau" data-mini="bandeau" hidden></div><p class="pq-mini-consigne" data-mini="consigne"></p><div class="pq-mini-zone" data-mini="zone"></div>`;
@@ -575,7 +687,20 @@ const EVENEMENTS = (() => {
       mid('fermer').addEventListener('click', () => { d.audio(); d.son.tap(); fermerMini(); });
       window.addEventListener('resize', () => { if (partie && partie.T) partie.T.redim(); });
     }
-    // les trois petites lignes de la barre : les parties payées qui attendent, les contrats faits, le chrono de l'opération
+    // la colonne et la bannière du coup de pouce ne se chevauchent jamais : si le bas de la colonne descend jusqu'à la bannière (une scène
+    // basse, une bannière sur deux lignes), la colonne passe en icônes (l'état reste : la pastille, les couleurs) et la bannière s'arrête à sa gauche
+    // Les bandeaux (le coup de pouce, la commande du Manoir) s'empilent au-dessus du tiroir ; s'ils prendraient plus de 40 % de la scène
+    // visible (une scène basse), le coup de pouce passe seul devant, la commande revient après lui (.pq-un)
+    function placerAct() {
+      const sc = el.querySelector('.pq-scene'), bx = tiroir.bandeaux; if (!sc || !bx) return;
+      sc.classList.remove('pq-serre'); bx.classList.remove('pq-un'); if (ecran !== F.ecran) return; tiroir.ranger();
+      let b = bx.getBoundingClientRect(); if (!(b.height > 0)) return;
+      const so = el.querySelector('.pq-solde'), ti = el.querySelector('.pq-tiroir'), vue = so && ti ? ti.getBoundingClientRect().top - so.getBoundingClientRect().bottom : 0;
+      if (!evEl.hidden && [...bx.children].filter((x) => !x.hidden).length > 1 && vue > 0 && b.height > 0.4 * vue) { bx.classList.add('pq-un'); b = bx.getBoundingClientRect(); }
+      const a = barreAct ? barreAct.getBoundingClientRect() : null;
+      if (a && a.height > 0 && b.height > 0 && a.bottom + 6 > b.top) sc.classList.add('pq-serre');
+    }
+    // les trois petites lignes de la colonne : les parties payées qui attendent, les contrats faits, le chrono de l'opération
     function majActivites(force) {
       if (!barreAct || ecran !== F.ecran) return;
       const qq = q(), t = now(), ouv = Q.activitesOuvertes(t), j = Q.jetonsMini(qq, t), n = Q.aReclamer(qq, t), op = Q.etatOperation(qq, t), l = Q.etatContrats(qq, t);
@@ -849,7 +974,7 @@ const EVENEMENTS = (() => {
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
     return { init, ouvrir, fermer, annoncer, revoir, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
-      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
+      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites, tiroir: (p) => { if (p) tiroir.poser(p, false); return tiroir.pos; },
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
 
@@ -1518,16 +1643,19 @@ const EVENEMENTS = (() => {
       // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
       // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
       // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
-      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande), la carte du bestiaire juste dessous
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en bandeau au-dessus du tiroir (#ht-commande), la carte du bestiaire en tête de la liste
       // (#ht-bestiaire). F.gabarits donne leur HTML ;
       // src/hanteeactivites.js (F.activites) les remplit
       habiller: (el) => {
         if (el.querySelector('.mh-deco')) return;
         el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
-        const tiroir = el.querySelector('.pq-scene + *'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
+        const tiroir = el.querySelector('.pq-tiroir'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
         const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
         const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
-        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div><div id="ht-bestiaire" class="mh-bestiaire-place" hidden></div>');
+        // la commande de la nuit : un bandeau sur la scène, juste au-dessus du tiroir (avec le coup de pouce), qui suit le tiroir monté (.pq-suit) ;
+        // le bestiaire : la carte de tête de la liste (.pq-tete), qui défile avec les autres
+        const bx = el.querySelector('.pq-bandeaux'); if (bx) bx.insertAdjacentHTML('beforeend', '<div id="ht-commande" class="mh-commande-place pq-suit" hidden></div>');
+        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('afterbegin', '<div id="ht-bestiaire" class="mh-bestiaire-place pq-tete" hidden></div>');
       },
       gabarits,
       bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []).concat(qq.chauvesouris ? ['Myrtille la chauve-souris, gagnée au bestiaire : un compagnon de la boutique, à vie'] : []),

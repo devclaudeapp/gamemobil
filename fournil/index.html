@@ -790,7 +790,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ticket.boosts .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
 .ticket.boosts.actif .tk-pill { background: var(--menthe); color: #fff; font-variant-numeric: tabular-nums; }
 .ticket.boosts.actif > .ico { background: #E3F7EE; }
-:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
+:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
 :is(#planque, #hantee) .at-haut { padding-bottom: 2px; }
 :is(#planque, #hantee) .at-fermer { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
 :is(#planque, #hantee) .at-fermer svg { stroke: #fff; }
@@ -802,7 +802,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-cl-btn svg { stroke: #FFF7EC; }
 .pq-paliers-btn.pret { background: var(--beurre); color: var(--texte); box-shadow: 0 3px 0 var(--beurre-sombre); animation: pulse 1.2s ease-in-out infinite; }
 .pq-paliers-btn:active { transform: translateY(3px); box-shadow: none; }
-.pq-solde { display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; }
+.pq-solde { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; } /* au-dessus du tiroir monté */
 .pq-solde .pq-ico { width: 36px; height: 36px; flex: 0 0 auto; }
 .pq-solde .pq-ico svg { width: 36px; height: 36px; }
 .pq-solde > div { min-width: 0; flex: 1 1 auto; }
@@ -810,9 +810,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-solde small { display: block; margin-top: 2px; font-size: 12px; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pq-solde small b { display: inline; font: 800 12px/1 var(--texte-font); color: #8FE3C2; }
 .pq-reste { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #3F3A50; font: 700 12px/1.2 var(--titre); color: #FFC84A; white-space: nowrap; }
-.pq-scene { position: relative; flex: 0 0 auto; height: clamp(150px, 26vh, 230px); margin: 0 10px; border-radius: 22px; overflow: hidden; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.pq-scene { position: relative; isolation: isolate; flex: 0 0 auto; height: clamp(150px, 26vh, 230px); margin: 0 10px; border-radius: 22px; overflow: hidden; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* (isolée : ce qui flotte sur la scène reste sous le tiroir quand il monte) */
 :is(#pq-canvas, #ht-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-:is(#pq-ev, #ht-ev) { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; }
+/* les bandeaux de la scène (src/evenement.js, tiroir) : juste au-dessus du tiroir, comme ceux de la boutique ; le coup de pouce, puis ce qui
+   suit le tiroir (la commande du Manoir), empilés ; .pq-un : le coup de pouce passe seul devant (une scène basse) */
+.pq-bandeaux { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.pq-bandeaux > * { pointer-events: auto; }
+.pq-bandeaux.pq-un > .pq-suit { display: none; }
+:is(#pq-ev, #ht-ev) { position: relative; }
 :is(#pq-ev, #ht-ev) .ev { min-height: 52px; }
 @media (max-width: 379px) { /* 360 px : la bannière des coups de pouce passe sur deux lignes au lieu d'être coupée, le bouton se resserre */
   :is(#pq-ev, #ht-ev) .ev { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; padding: 8px 8px 10px 8px; }
@@ -836,6 +841,22 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 :is(#planque, #hantee)[data-ecran="porte"] .pq-solde, :is(#planque, #hantee)[data-ecran="porte"] .pq-scene, :is(#planque, #hantee)[data-ecran="porte"] .pq-barre, :is(#planque, #hantee)[data-ecran="porte"] .pq-paliers-btn,
 :is(#planque, #hantee)[data-ecran="bilan"] .pq-solde, :is(#planque, #hantee)[data-ecran="bilan"] .pq-scene, :is(#planque, #hantee)[data-ecran="bilan"] .pq-barre { display: none; }
 :is(#planque, #hantee)[data-ecran="porte"] :is(#pq-cartes, #ht-cartes), :is(#planque, #hantee)[data-ecran="bilan"] :is(#pq-cartes, #ht-cartes) { display: none; }
+/* le tiroir (src/evenement.js, tiroir) : le bas de l'écran (la barre, les cartes) monte au doigt par-dessus la scène jusque sous le solde. Sa
+   marge du haut (--pq-tiroir-m) le pose au repos ; pendant la course, une translation, et son dessous (::after) comble le bas de l'écran */
+.pq-tiroir { position: relative; z-index: 1; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; margin-top: var(--pq-tiroir-m, 0px); background: #2E2B3A; border-radius: 22px 22px 0 0;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), border-radius .2s ease-out; will-change: transform; }
+.pq-tiroir.glisse { transition: none; }
+.pq-tiroir::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 100vh; background: inherit; pointer-events: none; }
+:is(#planque, #hantee)[data-tiroir="haut"] > .pq-tiroir { border-radius: 0; } /* en haut : une page sous le solde */
+:is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) > .pq-tiroir { display: none; }
+.pq-poignee { position: relative; flex: 0 0 auto; height: 24px; touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent; }
+.pq-poignee > i { position: absolute; top: 9px; left: 50%; width: 56px; height: 5px; margin-left: -28px; border-radius: 3px; background: #56516B; }
+.pq-poignee:focus-visible { outline: 2px solid #FFC84A; outline-offset: -4px; border-radius: 12px; }
+.pq-tiroir-tete { flex: 0 0 auto; padding: 0 12px 8px; }
+.pq-tiroir-tete:empty, .pq-tiroir-tete:not(:has(> :not([hidden]))) { display: none; }
+.pq-tiroir > .pq-barre { flex: 0 0 auto; padding-top: 0; touch-action: none; } /* la barre se tire aussi (un toucher sur ses boutons reste un toucher) */
+.pq-tiroir > :is(#pq-cartes, #ht-cartes) { flex: 1 1 0; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .pq-tiroir { transition: none; } }
 :is(#pq-cartes, #ht-cartes) { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px 16px; }
 .carte.pq { background: #3F3A50; color: #FFF7EC; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
 .carte.pq .icone { background: #56516B; }
@@ -955,19 +976,22 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 @media (prefers-reduced-motion: reduce) { .mh-cs { animation: none; } }
 /* la scène en pleine largeur, comme la boutique ; le tiroir passe par-dessus son bas (la boutique hantée, ?boutique=1, a déjà ce cadre) */
 #hantee:not(.ht-boutique) > .pq-scene { margin: 0 0 -20px; height: clamp(180px, 28vh, 260px); border-radius: 0; background: #2A2140; box-shadow: none; } /* à peu près les pixels de l'ancien cadre (la 3D coûte cher aux petits téléphones) */
-#hantee:not(.ht-boutique) > .pq-scene > .pq-ev { bottom: 28px; }
+#hantee:not(.ht-boutique) > .pq-scene > .pq-bandeaux { bottom: 28px; }
 #hantee:not(.ht-boutique) > .pq-scene ~ * { background: var(--mh-creme); }
-#hantee > .pq-scene + * { position: relative; z-index: 1; border-radius: 24px 24px 0 0; padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
-body #hantee.ht-boutique > .pq-scene + * { padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+#hantee > .pq-tiroir { border-radius: 24px 24px 0 0; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+body #hantee.ht-boutique > .pq-tiroir { box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
 body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .12); }
-/* la poignée du tiroir, et sa petite citrouille */
-#hantee > .pq-scene + *::before { content: ''; position: absolute; top: 9px; left: 50%; width: 56px; height: 5px; margin-left: -28px; border-radius: 3px; background: var(--mh-ombre); }
-#hantee > .pq-scene + *::after { content: ''; position: absolute; top: 2px; left: calc(50% + 34px); width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7c-1.3-1-3-1.4-4.7-1.1C4.6 6.4 3 9 3 12.6s2.2 6.6 5.6 7c1.2.1 2.4-.2 3.4-.8 1 .6 2.2.9 3.4.8 3.4-.4 5.6-3.4 5.6-7s-1.6-6.2-4.3-6.7C15 5.6 13.3 6 12 7z' fill='%23FF8A1F' stroke='%233D2748' stroke-width='1.5'/%3E%3Cpath d='M9 7.5c-1 3-1 8 0 11.6M15 7.5c1 3 1 8 0 11.6' stroke='%23D9660A' stroke-width='1.2' fill='none'/%3E%3Cpath d='M12 7V4.4l2.2-1.2' stroke='%235B8C3A' stroke-width='1.7' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
-/* la barre des activités et la barre ×1 ×10 ×100 Max · Sortilèges : les pastilles blanches de la boulangerie */
-#hantee .pq-act-btn { background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 var(--mh-ombre); }
-#hantee .pq-act-btn:active { box-shadow: 0 1px 0 var(--mh-ombre); }
+#hantee[data-tiroir="haut"] > .pq-tiroir { border-radius: 0; }
+/* la poignée du tiroir (on la tire, ou on la touche : src/evenement.js, tiroir), et sa petite citrouille */
+#hantee .pq-poignee > i { background: var(--mh-ombre); }
+#hantee .pq-poignee:focus-visible { outline-color: var(--mh-violet); }
+#hantee .pq-poignee::after { content: ''; position: absolute; top: 2px; left: calc(50% + 34px); width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7c-1.3-1-3-1.4-4.7-1.1C4.6 6.4 3 9 3 12.6s2.2 6.6 5.6 7c1.2.1 2.4-.2 3.4-.8 1 .6 2.2.9 3.4.8 3.4-.4 5.6-3.4 5.6-7s-1.6-6.2-4.3-6.7C15 5.6 13.3 6 12 7z' fill='%23FF8A1F' stroke='%233D2748' stroke-width='1.5'/%3E%3Cpath d='M9 7.5c-1 3-1 8 0 11.6M15 7.5c1 3 1 8 0 11.6' stroke='%23D9660A' stroke-width='1.2' fill='none'/%3E%3Cpath d='M12 7V4.4l2.2-1.2' stroke='%235B8C3A' stroke-width='1.7' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* la colonne des activités (sur la scène : un blanc à peine transparent) et la barre ×1 ×10 ×100 Max · Sortilèges : les pastilles blanches de la boulangerie */
+#hantee .pq-act-btn { background: rgba(255, 255, 255, .9); color: var(--mh-texte); box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18); }
+#hantee .pq-act-btn:active { box-shadow: 0 1px 0 rgba(61, 39, 72, .28); }
 #hantee .pq-act-txt small { color: var(--mh-texte2); }
-#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 var(--mh-ombre), inset 0 0 0 2px var(--menthe); }
+#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18), inset 0 0 0 2px var(--menthe); }
+#hantee .pq-act-btn.actif { box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18), inset 0 0 0 2px var(--mh-orange); }
 #hantee .pq-act-btn.pret small { color: var(--menthe-sombre); }
 #hantee .pq-act-btn.actif small { color: var(--mh-orange-texte); }
 #hantee .pq-pastille { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 2px 0 var(--mh-orange-sombre); }
@@ -1075,6 +1099,20 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-commande-temps { display: block; height: 5px; margin-top: 5px; border-radius: 999px; background: var(--mh-creme2); overflow: hidden; }
 .mh-commande-temps b { display: block; height: 100%; border-radius: inherit; background: var(--mh-violet); transition: width .5s linear; }
 .mh-commande .btn { min-width: 0; }
+/* en bandeau sur la scène (et dans la tête du tiroir monté) : compacte, comme les coups de pouce */
+:is(.pq-bandeaux, .pq-tiroir-tete) > .mh-commande-place { padding: 0; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; min-height: 52px; padding: 6px 8px 6px 6px; border-radius: 18px; box-shadow: 0 0 0 2px var(--mh-violet) inset, 0 6px 16px rgba(21, 17, 31, .3); }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande.prete { box-shadow: 0 0 0 3px var(--menthe) inset, 0 6px 16px rgba(21, 17, 31, .3); }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-pic { width: 36px; height: 36px; border-radius: 12px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-pic svg { width: 28px; height: 28px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-corps { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 6px; row-gap: 1px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-tag { grid-column: 1 / -1; font-size: 10px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-corps > b { font-size: 14px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-lignes { margin: 0; flex-wrap: nowrap; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-temps { grid-column: 1 / -1; margin-top: 2px; height: 4px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn { min-height: 40px; padding: 4px 10px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn small { font-size: 11px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn b { font-size: 15px; }
 /* les activités de la Maison hantée en jeu (src/hanteeactivites.js) : une couche sur la scène (les bulles des clients-monstres au-dessus
    de leur tête, les apparitions du repli en images, la file du repli en bas), la fenêtre « parfait » sur les barres de cuisson, ce qui
    vole jusqu'au solde et les mots qui flottent */
@@ -1152,6 +1190,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 /* le bestiaire (src/hanteeactivites.js, gabarits de src/evenement.js) : la carte en tête du tiroir, le petit mot sur la scène, la feuille, la fête.
    Un monstre jamais servi : une silhouette sombre ; en cours : pâli, sa jauge dessous ; complété : en couleur, son étoile */
 .mh-bestiaire-place { flex: 0 0 auto; padding: 2px 12px 8px; }
+.pq-cartes-liste > .mh-bestiaire-place { padding: 0; } /* (en tête de la liste : il défile avec les cartes) */
 .mh-bestiaire-place[hidden] { display: none; }
 .mh-bestiaire { display: grid; grid-template-columns: 44px minmax(0, 1fr) 16px; gap: 10px; align-items: center; width: 100%; min-height: 64px; padding: 8px 10px; border: 0; border-radius: var(--r-carte); background: #fff; color: var(--mh-texte); text-align: left;
   box-shadow: 0 0 0 2px #FFD2AE inset, var(--mh-ombre-carte); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -1635,24 +1674,37 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .card.arriere-carte .chev svg { width: 20px; height: 20px; }
 .card.arriere-carte:active { transform: translateY(2px); }
 
-/* ─── les activités des événements (src/activites.js, src/evenement.js) : la barre de trois boutons sous la scène, les mini-jeux en plein
-   écran par-dessus la boutique de l'événement, les feuilles des contrats et de l'opération. Les mêmes pour tous les événements ; la Maison
-   hantée les teinte (--ht-*). ─── */
-.pq-act { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 0; }
-.pq-act-btn { position: relative; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 48px; padding: 6px 6px 6px 5px; border-radius: 16px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; text-align: left; }
+/* ─── les activités des événements (src/activites.js, src/evenement.js) : la colonne de trois boutons en haut à droite de la scène, les
+   mini-jeux en plein écran par-dessus la boutique de l'événement, les feuilles des contrats et de l'opération. Les mêmes pour tous les
+   événements ; la Maison hantée les teinte (--ht-*). ─── */
+/* la colonne : par-dessus la 3D, sous le solde (--pq-scene-haut : ce que le solde cache du haut de la scène), de haut en bas Mini-jeux,
+   Contrats, Opération : des tuiles de 76 px de large (l'icône, le nom, la petite ligne d'état), assez étroites pour laisser la file du
+   comptoir et ses bulles (qui passent à sa gauche si une tête est dessous : src/hanteeactivites.js). Une scène basse : sans la petite
+   ligne (l'état : la pastille et les couleurs) ; si le coup de pouce la toucherait (.pq-serre, placerAct), la bannière s'arrête à sa gauche */
+.pq-act { position: absolute; z-index: 3; top: calc(var(--pq-scene-haut, 0px) + 8px); right: 8px; display: grid; grid-auto-rows: minmax(48px, auto); gap: 5px; width: 76px; }
+.pq-act-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; min-height: 48px; padding: 5px 3px; border-radius: 15px; background: rgba(63, 58, 80, .9); box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; text-align: center; -webkit-tap-highlight-color: transparent; }
 .pq-act-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1E1B26; }
-.pq-act-ico { flex: 0 0 auto; display: grid; place-items: center; width: 24px; height: 24px; }
-.pq-act-ico svg { width: 24px; height: 24px; }
-.pq-act-txt { min-width: 0; flex: 1 1 auto; }
-.pq-act-txt b { display: block; font: 700 13.5px/1.1 var(--titre); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pq-act-txt small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.1; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.pq-act-ico { flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; }
+.pq-act-ico svg { width: 22px; height: 22px; }
+.pq-act-txt { display: block; width: 100%; min-width: 0; }
+.pq-act-txt b { display: block; font: 700 12px/1.1 var(--titre); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pq-act-txt small { display: block; margin-top: 1px; font: 800 9.5px/1.15 var(--texte-font); color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .pq-act-btn.pret { box-shadow: 0 3px 0 #1E1B26, inset 0 0 0 2px var(--menthe); }
 .pq-act-btn.pret small { color: #8FE3C2; }
-.pq-act-btn.actif small { color: var(--beurre); font-weight: 800; }
+.pq-act-btn.actif { box-shadow: 0 3px 0 #1E1B26, inset 0 0 0 2px var(--beurre); }
+.pq-act-btn.actif small { color: var(--beurre); }
+.pq-scene.pq-serre .pq-act-txt small { display: none; }
+.pq-scene.pq-serre > .pq-bandeaux { right: 90px; }
+.pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt b { white-space: nowrap; } /* (la bannière plus étroite : son titre sur une ligne, son détail sur deux) */
+.pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt > span { -webkit-line-clamp: 2; }
+#hantee.ht-boutique { --pq-scene-haut: 20px; } /* la boutique hantée : le haut de la scène passe sous le solde */
+.pq-act { transition: opacity .15s ease-out; }
+.pq-act.pq-traverse { opacity: .3; pointer-events: none; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, on l'attrape à travers */
 .pq-pastille { position: absolute; top: -7px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 13px/22px var(--titre); font-style: normal; text-align: center; box-shadow: 0 2px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
 :is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) .pq-act { display: none; }
-@media (max-width: 359px) { .pq-act { gap: 4px; padding-inline: 8px; } .pq-act-btn { padding: 6px 4px; gap: 3px; } .pq-act-ico, .pq-act-ico svg { width: 18px; height: 18px; } .pq-act-txt b { font-size: 12px; } }
-@media (max-height: 700px) { .pq-act-btn { min-height: 44px; } }
+@media (max-height: 760px) { .pq-act { grid-auto-rows: minmax(44px, auto); gap: 4px; } .pq-act-btn { min-height: 44px; padding-block: 3px; } .pq-act-txt small { display: none; } } /* (une scène basse : l'état par la couleur et la pastille) */
+/* le petit mot « Zzz… » du Manoir endormi : centré sur ce que la colonne laisse libre */
+.pq-act ~ .mh-couche .mh-dodo { left: calc(50% - 42px); box-sizing: border-box; max-width: calc(100% - 104px); white-space: normal; text-align: center; }
 /* le mini-jeu, par-dessus la boutique (qui continue de tourner dessous) */
 .pq-mini { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; background: #2E2B3A; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .2s ease-out; }
 .pq-mini[hidden] { display: none; }
@@ -2299,7 +2351,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '99acd3150e8a';</script>
+<script>window.FOURNIL_VERSION = '8a5772e6cbb7';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -14568,8 +14620,10 @@ const GARDEROBE_UI = (() => {
      la visite d'un copain), dont les stations sont les postes du Manoir (niveaux, fournées actives, monstres embauchés) ; le mobilier
      est celui de la boutique, complété par ce que l'événement a gagné (des tables de plus à chaque monstre…). SCENE.setEvenement(vue)
      bascule la scène (la vie de la boutique attend de côté) ; detruire() appelle SCENE.setEvenement(null) : tout revient.
-   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes ; la
-     boutique, ses boutons et son tiroir sont masqués dessous. Une feuille de style ajoutée une fois porte ces règles (classes
+   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes (qui monte
+     par-dessus au doigt : src/evenement.js, tiroir ; la fenêtre, elle, ne bouge pas) ; la
+     boutique, ses boutons, son tiroir, sa barre du haut et ses onglets sont masqués dessous (seul son canvas se voit), et la page ne défile
+     ni ne rebondit (src/evenement.js : seule la liste des cartes défile). Une feuille de style ajoutée une fois porte ces règles (classes
      .ht-boutique sur #hantee et sur body).
    · L'API des activités (les monstres à servir, les apparitions à attraper, la lumière qui baisse quand le ×6 s'endort) : acteurs, client,
      entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance (voir plus bas) ; l'écran les relie aux
@@ -15038,16 +15092,17 @@ const BOUTIQUE_HANTEE = (() => {
   let style = null;
   function feuille() {
     if (style || typeof document === 'undefined') return; style = document.createElement('style'); style.id = 'ht-boutique-style';
-    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice { visibility: hidden; }
+    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice, body.ht-boutique #haut, body.ht-boutique #onglets, body.ht-boutique #corps > :not(#scene-wrap) { visibility: hidden; }
+html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-behavior: none; }
 #hantee.ht-boutique { background: transparent; }
 #hantee.ht-boutique > .at-haut { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 1; }
+#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 2; transition: border-radius .2s ease-out; }
+#hantee.ht-boutique[data-tiroir="haut"] > .pq-solde { border-radius: 0; }
 #hantee.ht-boutique > .pq-scene { flex: 0 0 auto; height: clamp(220px, 38vh, 340px); margin: -20px 0 -22px; border-radius: 0; background: transparent; box-shadow: none; }
 #hantee.ht-boutique > .pq-scene > canvas { visibility: hidden; }
-#hantee.ht-boutique > .pq-scene > .pq-ev { z-index: 2; bottom: 30px; }
+#hantee.ht-boutique > .pq-scene > .pq-bandeaux { bottom: 30px; }
 #hantee.ht-boutique > .pq-scene ~ * { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-scene + * { position: relative; border-radius: 22px 22px 0 0; padding-top: 12px; box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }
-#hantee.ht-boutique > .pq-cartes-liste { flex: 1 1 0; min-height: 190px; }`;
+#hantee.ht-boutique > .pq-tiroir { box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }`;
     document.head.appendChild(style);
   }
 
@@ -15261,6 +15316,7 @@ const HANTEE_ACTIVITES = (() => {
       for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
       if (btEl) { btEl.remove(); btEl = null; }
       lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) ca.classList.remove('pq-traverse');
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -15567,10 +15623,15 @@ const HANTEE_ACTIVITES = (() => {
       d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
     }
 
-    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ───
+    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ; la colonne des activités (en haut à droite de la
+    //     scène, src/evenement.js) : les bulles passent à sa gauche, et une apparition qui passe dessous la rend transparente au doigt et à
+    //     l'œil (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; on l'attrape à travers ───
+    let tTraverse = -1e9;
     function image() {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null;
+      const dessous = (x, y, rr) => !!rc && rc.width > 0 && x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom;
       if (mode === 'scene' && B()) {
         const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
@@ -15580,17 +15641,29 @@ const HANTEE_ACTIVITES = (() => {
           vis.push({ b, o, x: a.x - r.left, hy: a.y - r.top, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
         }
         // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
-        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
-        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
+        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe). La colonne
+        // des activités (en haut à droite de la scène, src/evenement.js) : une bulle à sa hauteur passe à sa gauche, jamais dessous
+        const col = rc && rc.width ? { g: rc.left - r.left - 6, haut: rc.top - r.top - 6, bas: rc.bottom - r.top + 6 } : null;
+        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = col && v.y > col.haut && v.y - v.h < col.bas ? Math.min(v.x, col.g - v.w / 2) : v.x;
         for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        // puis de droite à gauche : chacune sous sa borne droite (le bord, ou la colonne à sa hauteur), sa voisine de gauche poussée d'autant
+        for (let i = vis.length - 1; i >= 0; i--) {
+          const v = vis[i], n = vis[i + 1]; v.cx = Math.min(v.cx, (col && v.y > col.haut && v.y - v.h < col.bas ? col.g : r.width - 4) - v.w / 2);
+          if (n && Math.abs(v.y - n.y) < (v.h + n.h) / 2) v.cx = Math.min(v.cx, n.cx - (v.w + n.w) / 2 - 6);
+        }
         // La pointe part du bas de la bulle (sa base, bornée à ±(largeur/2 − 14) px) et montre la tête de SON monstre : une bulle écartée de
         // sa tête monte d'autant (la moitié de l'écart qui dépasse, 26 px au plus) et sa pointe s'allonge en biais jusqu'à la tête
         // (--mh-queue : sa longueur, --mh-biais : son angle). Borne haute : une bulle ne passe jamais sous l'en-tête du Manoir (le haut de
         // la fenêtre de la scène) : un client qui entre par la porte du fond garde la sienne entière ; tout près du bord, sa pointe se cache.
         for (const v of vis) {
-          v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
-          const base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)), reste = v.x - v.cx - base;
-          v.y = Math.max(v.h + 4, v.y - Math.min(26, Math.abs(reste) * 0.5));
+          const y0 = v.y, sous = (y) => !!col && y > col.haut && y - v.h < col.bas; // (à la hauteur de la colonne)
+          let base = 0, reste = 0;
+          for (let k = 0; k < 2; k++) { // (une bulle écartée monte : à sa nouvelle hauteur, elle peut passer à côté de la colonne, une fois de plus)
+            v.cx = Math.max(v.w / 2 + 4, Math.min((sous(v.y) ? col.g : r.width - 4) - v.w / 2, v.cx));
+            base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)); reste = v.x - v.cx - base;
+            v.y = Math.max(v.h + 4, y0 - Math.min(26, Math.abs(reste) * 0.5));
+            if (!sous(v.y) || v.cx + v.w / 2 <= col.g + 0.5) break;
+          }
           const dy = v.hy - v.y, lg = dy > 3 ? Math.hypot(reste, dy) + 2 : 0, biais = lg ? -Math.atan2(reste, dy) * 180 / Math.PI : 0;
           v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
           const pointe = base.toFixed(0) + 'px', queue = lg.toFixed(0) + 'px', angle = biais.toFixed(1) + 'deg';
@@ -15607,8 +15680,10 @@ const HANTEE_ACTIVITES = (() => {
           if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
           if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
           o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
+          if (dessous(p.x, p.y, p.r)) tTraverse = performance.now();
         }
-      } else for (const o of apps.values()) placerApp(o, q.now);
+      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2)) tTraverse = performance.now(); } }
+      const sous = performance.now() - tTraverse < 400; if (ca && ca.classList.contains('pq-traverse') !== sous) ca.classList.toggle('pq-traverse', sous);
     }
 
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───
@@ -15690,10 +15765,15 @@ const EVENEMENTS = (() => {
     const boss = () => Q.PALIERS_BOSS || Q.PALIERS.length; // le 12e : le dernier palier « normal » ; au-delà, les paliers bonus (après le boss)
     const nbPaliers = (qq) => (qq && Q.paliersAtteints(qq).length >= boss() ? Q.PALIERS.length : boss()); // « 4/12 » jusqu'au boss, puis « 14/20 »
     const ouverte = (qq, a) => (Q.combineOuverte ? Q.combineOuverte(qq, a) : !a.apres); // une combine « après le boss » se montre une fois le palier franchi
+    // ce que la feuille des améliorations montre, et ce qu'elle rend achetable tout de suite (pas déjà prise, assez de monnaie) : la pastille
+    // du bouton (combien) suit la même règle
+    const montrees = (qq) => Q.AMELIORATIONS.filter((a) => !a.apres || ouverte(qq, a));
+    const achetable = (qq, a) => !qq.ameliorations[a.id] && qq.billets >= a.cout;
+    const nbAchetables = (qq) => montrees(qq).filter((a) => achetable(qq, a)).length;
 
     function init(deps) {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
-      cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
+      cartesEl = id('cartes'); evEl = id('ev'); tiroir.construire(); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
       if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places de ses activités)
       if (F.activites) act = F.activites.creer({ el, Q, F, d, q, now, scene: () => scene3, carte: (i) => (i === -1 ? carteRj : cartes[i]), fmt, prix, ico: (i) => F.ico.produit(Q.PRODUITS[i], i),
@@ -15703,11 +15783,12 @@ const EVENEMENTS = (() => {
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
       el.querySelector('[data-pq="paliers"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetPaliers(); });
       el.querySelector('[data-pq="ameliorations"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetAmeliorations(); });
+      { const am = el.querySelector('[data-pq="ameliorations"]'); am.dataset.nom = am.textContent.trim(); am.insertAdjacentHTML('beforeend', '<i class="pq-pastille pq-am-n" aria-hidden="true" hidden></i>'); } // combien d'améliorations sont achetables (hud)
       el.querySelectorAll('.pq-modes button').forEach((b) => b.addEventListener('click', () => { d.audio(); const qq = q(); qq.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; el.querySelectorAll('.pq-modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCartes(true); }));
       cartesEl.addEventListener('click', onCarte);
       evEl.addEventListener('click', (e) => { if (e.target.closest('button')) return; evEl.classList.toggle('etendu'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouvert() && $('#feuille').hidden) { if (miniOuvert()) fermerMini(); else fermer(); } });
-      window.addEventListener('resize', () => { if (scene3) scene3.redim(); });
+      window.addEventListener('resize', () => { if (scene3) scene3.redim(); tiroir.redim(); placerAct(); });
       if (F.cle === 'hantee' || F.p === 'ht') st0 = () => d.st();
       synchroniserRecompenses();
       return true;
@@ -15867,7 +15948,8 @@ const EVENEMENTS = (() => {
       id('corps').innerHTML = ''; // la porte ou le bilan s'effacent ; la scène, les cartes et la bannière sont des éléments fixes de l'écran
       entete(F.lieu, `Jour ${fen().jour} sur ${fen().jours}`);
       el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
-      construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv();
+      tiroir.poser('bas', false); // le tiroir revient à sa place à chaque ouverture
+      construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv(); placerAct();
       if (!scene3) { essais3 = 0; creer3(false); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
@@ -15883,7 +15965,7 @@ const EVENEMENTS = (() => {
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
       if (act) act.fermer();
-      liberer3();
+      liberer3(); tiroir.poser('bas', false);
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
       if (d.ferme) d.ferme();
@@ -15927,7 +16009,9 @@ const EVENEMENTS = (() => {
       if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); const ecart = Math.max(0, t - (qq.now || t)); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup && ecart <= TROU_EV) Q.pauseCoup(qq, ecart); }
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
-      if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
+      if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); if (!miniOuvert()) placerAct(); }
+      { const b = document.body, c = document.getElementById('corps'); // (la page derrière l'écran ne garde aucun défilement : la scène de la boutique hantée y est accrochée)
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0); if (b.scrollTop || b.scrollLeft) { b.scrollTop = 0; b.scrollLeft = 0; } if (c && (c.scrollTop || c.scrollLeft)) { c.scrollTop = 0; c.scrollLeft = 0; } }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
@@ -15935,16 +16019,21 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) { montrerSheetsEnAttente(); hud(); renderCartes(); renderEv(); } // sous un mini-jeu : un palier franchi attend la fin de la partie pour sa feuille, et l'écran caché n'est pas redessiné
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
-      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq, msImage, espacee); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
-      if (act && !miniOuvert()) act.image(); // les bulles suivent les têtes des monstres
+      // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre) ; de même quand le tiroir monté couvre toute la scène (au repos en
+      // haut : il la redécouvre dès qu'on le tire)
+      const cachee = miniOuvert() || tiroir.couvre();
+      if (scene3 && !scene3.perdu && !cachee) scene3.frame(dt, qq, msImage, espacee);
+      if (act && !cachee) act.image(); // les bulles suivent les têtes des monstres
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }
     function hud() {
       const qq = q(), taux = Q.tauxParSeconde(qq), f = fen(), nb = Q.paliersAtteints(qq).length;
       const cl = d.rang ? d.rang() : null; // le classement de l'événement : null s'il n'existe pas (pas de serveur), sinon son rang (0 : pas encore classé)
       const pres = Q.presence ? presTxt(Q.presence(qq, now()).mult) : Q.PRESENCE; // la Maison hantée : le ×6 qui s'endort sans toucher (×1 endormi)
-      const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}|${pres}`;
+      const nAm = nbAchetables(qq), cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}|${pres}|${nAm}`;
       if (cle === lastHud) return; lastHud = cle;
+      const am = el.querySelector('[data-pq="ameliorations"]'), pa = am && am.querySelector('.pq-am-n');
+      if (pa && pa.textContent !== (nAm ? String(nAm) : '')) { pa.textContent = nAm ? String(nAm) : ''; pa.hidden = !nAm; am.setAttribute('aria-label', nAm ? `${am.dataset.nom} : ${nAm} à acheter` : am.dataset.nom); }
       id('billets').innerHTML = F.solde(qq.billets);
       id('taux').innerHTML = taux > 0 ? F.t.taux(prix(taux), pres) : F.t.tauxVide(pres);
       id('reste').textContent = `${F.t.reste} ${Q.fmtReste(f.reste)}`;
@@ -15962,8 +16051,10 @@ const EVENEMENTS = (() => {
     const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
     // la première vente d'un produit pas encore débloqué : le vrai gain au niveau 1, à la main (présence, réputation, améliorations comprises)
     const premiereVente = (qq, i) => Q.revenuFournee(Object.assign({}, qq, { postes: qq.postes.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
+    let tetes = null; // les cartes de tête de la liste (.pq-tete : le bestiaire du Manoir), posées par F.habiller : juste après la recette du jour, elles défilent avec les autres
     function construireCartes() {
-      cartesEl.innerHTML = ''; cartes = []; construireRecette();
+      if (!tetes) tetes = [...el.querySelectorAll('.pq-tete')];
+      cartesEl.innerHTML = ''; cartes = []; construireRecette(); cartesEl.append(...tetes);
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
       renderCartes(true);
     }
@@ -16095,7 +16186,7 @@ const EVENEMENTS = (() => {
     const multEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].mult) || 2;
     function renderEv() {
       const qq = q(), ev = qq.ev;
-      if (!ev) { if (lastEv) { lastEv = ''; evEl.hidden = true; evEl.innerHTML = ''; } return; }
+      if (!ev) { if (lastEv) { lastEv = ''; evEl.hidden = true; evEl.innerHTML = ''; placerAct(); } return; }
       const g = genre(ev), c = coup(ev), reste = Math.max(0, (ev.fin - qq.now) / 1000), pct = Math.min(100, reste / dureeEv(ev) * 100), prete = g === 'livrer' && ev.fait >= ev.n, key = ev.type + ev.debut + (prete ? 'p' : '');
       if (lastEv !== key) {
         lastEv = key; evEl.hidden = false; evEl.dataset.type = ev.type;
@@ -16113,6 +16204,7 @@ const EVENEMENTS = (() => {
         if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('livrer')(q()); if (r && r.ok) { if (typeof G.marquerPresence === 'function') G.marquerPresence(st(), 'commande'); reussite(c.reussite(fmt(r.prime))); } });
         const attraper = evEl.querySelector('[data-a="attraper"]');
         if (attraper) attraper.addEventListener('click', (e) => { e.stopPropagation(); d.audio(); const r = action('attraper')(q()); if (r && r.ok) reussite(c.reussite(fmt(r.prime))); });
+        placerAct();
       }
       const prog = evEl.querySelector('.ev-prog'); if (prog && g === 'livrer') prog.textContent = prete ? c.attend : `${Q.fmt(ev.fait)} / ${Q.fmt(ev.n)}${qq.postes[ev.i].staff ? '' : ' · touche pour vendre !'}`;
       const ch = evEl.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
@@ -16124,8 +16216,8 @@ const EVENEMENTS = (() => {
     function sheetAmeliorations() {
       const qq = q();
       const paie = (a) => (a.apres && Q.phraseCombine ? Q.phraseCombine(a) : ''); // après le boss : ce qu'elle paie à la boulangerie (« + 16 h de gains à la boulangerie, +2 ★ »)
-      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout, p = paie(a); return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p>${p ? `<p class="am-paie">${esc(p)}${a.prime && G.primeHeures ? ` <small>(≈ ${G.fmtEur(G.primeHeures(st(), a.prime))})</small>` : ''}</p>` : ''}</div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
-      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
+      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = achetable(qq, a), p = paie(a); return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p>${p ? `<p class="am-paie">${esc(p)}${a.prime && G.primeHeures ? ` <small>(≈ ${G.fmtEur(G.primeHeures(st(), a.prime))})</small>` : ''}</p>` : ''}</div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
+      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a)); // (montrees : les mêmes, celles qu'on voit)
       const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
         + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
         + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, Math.min(...bonus.filter((a) => !ouverte(qq, a)).map((a) => a.apres || boss()))))}</p>` : '');
@@ -16155,7 +16247,7 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
       if (act) act.fermer();
-      liberer3();
+      liberer3(); tiroir.poser('bas', false);
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
       if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
@@ -16188,9 +16280,100 @@ const EVENEMENTS = (() => {
     }
 
 
+    // ═══ le tiroir : le bas de l'écran (la barre ×1 ×10 ×100 Max, la commande et le bestiaire du Manoir, les cartes) monte au doigt par-dessus
+    // la scène jusque sous le solde, comme celui de la boutique (src/ui.js, tiroir) ; deux crans : 'bas' (sa place sous la scène) et 'haut'.
+    // Au repos, sa marge du haut (--pq-tiroir-m) le pose : en haut, la liste des cartes a toute la hauteur. Pendant la course, une translation
+    // seule (rien à remettre en page à chaque image ; son dessous, ::after, comble le bas de l'écran), puis la marge est reprise d'un coup, au
+    // même endroit. On le tire par sa poignée ou par la barre (un toucher sur ×10 ou Sortilèges reste un toucher : il faut 6 px pour glisser) ;
+    // tiroir en bas et liste tout en haut, un glisser vers le haut sur la liste monte d'abord le tiroir (en haut, liste tout en haut, un
+    // glisser vers le bas le redescend) ; une simple touche sur la poignée (ou Entrée) bascule. Lâché, il va au cran le plus proche, l'élan
+    // compris (le geste projeté 160 ms plus loin ; une pichenette change toujours de cran). Il revient en bas à chaque ouverture de l'écran.
+    const bouge = () => !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const tiroir = (() => {
+      let t = null, poignee = null, tete = null, bx = null, pos = 'bas', y = 0, m = 0, drag = null, fin = 0, sansClic = 0, doigt = null;
+      // ce qui suit le tiroir (.pq-suit : la commande de la nuit du Manoir) : un bandeau juste au-dessus de lui, sur la scène ; tiroir en haut,
+      // dans sa tête (sous la poignée), pour rester sous les yeux ; de même sur une scène basse (moins de 240 px visibles : un petit
+      // téléphone), où le bandeau cacherait la file des monstres
+      let court = false;
+      const suivre2 = (haut) => { if (!t) return; for (const e of el.querySelectorAll('.pq-suit')) { const dest = haut ? tete : bx; if (e.parentElement !== dest) dest.append(e); } };
+      const sceneEl = () => el.querySelector('.pq-scene');
+      const basTop = () => { const sc = sceneEl(); return sc ? sc.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(sc).marginBottom) || 0) : 0; }; // le haut du tiroir à sa place (sous la scène)
+      const course = () => { const so = el.querySelector('.pq-solde'); return so ? Math.max(0, Math.ceil(basTop() - so.getBoundingClientRect().bottom) + 1) : 0; }; // jusque sous le solde (1 px dessous : pas de jour)
+      const appliquer = () => { t.style.setProperty('--pq-tiroir-m', m + 'px'); t.style.transform = Math.abs(y - m) > 0.5 ? `translateY(${(y - m).toFixed(1)}px)` : ''; };
+      function poser(p, anime) { // p : 'bas' | 'haut' ; anime : la course jusqu'au cran (sinon d'un coup)
+        if (!t) return; clearTimeout(fin); fin = 0; drag = null; doigt = null; pos = p === 'haut' ? 'haut' : 'bas';
+        const cible = pos === 'haut' ? -course() : 0; poignee.setAttribute('aria-expanded', String(pos === 'haut'));
+        const reprendre = () => { fin = 0; t.classList.add('glisse'); court = course() < 240; suivre2(pos === 'haut' || court); m = cible; y = cible; appliquer(); el.dataset.tiroir = pos; void t.offsetHeight; t.classList.remove('glisse'); placerAct(); };
+        if (anime && bouge() && Math.abs(y - cible) > 1) { el.dataset.tiroir = 'glisse'; t.classList.remove('glisse'); y = cible; appliquer(); fin = setTimeout(reprendre, 300); } else reprendre();
+      }
+      function prendre(y0, depuis, id) { drag = { id, y0, depuis, depart: 0, D: 0, pts: [[performance.now(), y0]], bouge: false }; }
+      function suivre(cy) { // le doigt bouge : au-delà de 6 px, le tiroir le suit (élastique au-delà de ses crans)
+        const dy = cy - drag.y0;
+        if (!drag.bouge) {
+          if (Math.abs(dy) <= 6) return false;
+          drag.bouge = true; clearTimeout(fin); fin = 0; t.classList.add('glisse'); el.dataset.tiroir = 'glisse'; suivre2(court);
+          drag.D = course(); drag.depart = Math.round(t.getBoundingClientRect().top - basTop()); // d'où il est vraiment (une course pas finie comprise)
+        }
+        let v = drag.depart + dy; const D = drag.D;
+        if (v < -D) v = -D - (-D - v) * 0.25; if (v > 0) v *= 0.25;
+        y = v; appliquer(); drag.pts.push([performance.now(), cy]); if (drag.pts.length > 6) drag.pts.shift();
+        return true;
+      }
+      function lacher() {
+        const d0 = drag; drag = null; if (!d0) return;
+        if (!d0.bouge) { if (d0.depuis === 'poignee') { d.audio(); d.son.tap(); poser(pos === 'haut' ? 'bas' : 'haut', true); } return; } // une simple touche sur la poignée : il bascule
+        sansClic = performance.now() + 400; // un glisser n'est pas un toucher : pas de clic sur le bouton où il a commencé
+        const [t0, p0] = d0.pts[0], [t1, p1] = d0.pts[d0.pts.length - 1], vit = t1 > t0 ? (p1 - p0) / (t1 - t0) : 0; // px/ms
+        const proj = y + vit * 160; let cible = Math.abs(proj + d0.D) < Math.abs(proj) ? 'haut' : 'bas';
+        if (Math.abs(vit) > 0.5) cible = vit < 0 ? 'haut' : 'bas'; // une pichenette va toujours où elle part
+        poser(cible, true);
+      }
+      function construire() {
+        const sc = sceneEl(), barre = el.querySelector('.pq-barre'); if (!sc || !barre || t) return;
+        t = document.createElement('div'); t.className = 'pq-tiroir';
+        t.innerHTML = '<div class="pq-poignee" role="button" tabindex="0" aria-label="Monter ou descendre les cartes" aria-expanded="false"><i></i></div><div class="pq-tiroir-tete"></div>';
+        poignee = t.firstChild; tete = t.lastChild; const corps = id('corps'); if (corps) sc.after(corps); (corps || sc).after(t);
+        t.append(barre, cartesEl); el.dataset.tiroir = 'bas';
+        // les bandeaux de la scène (comme ceux de la boutique) : juste au-dessus du tiroir, le coup de pouce, puis ce qui suit le tiroir
+        bx = document.createElement('div'); bx.className = 'pq-bandeaux'; sc.appendChild(bx); bx.append(evEl);
+        // la page derrière ne bouge jamais : seuls la liste des cartes (et le mini-jeu) défilent ; un geste ailleurs sur l'écran ne fait ni
+        // défiler ni rebondir la page (l'élan d'iOS montrait la boulangerie derrière la scène)
+        el.addEventListener('touchmove', (e) => { if (e.cancelable && !cartesEl.contains(e.target) && !e.target.closest('.pq-mini')) e.preventDefault(); }, { passive: false });
+        // la poignée et la barre : au doigt et à la souris (événements de pointeur ; touch-action: none, rien d'autre ne les fait défiler)
+        const appui = (depuis) => (e) => { if (drag || el.dataset.ecran !== F.ecran || (e.pointerType === 'mouse' && e.button !== 0)) return; if (depuis === 'poignee') e.preventDefault(); prendre(e.clientY, depuis, e.pointerId); };
+        poignee.addEventListener('pointerdown', appui('poignee')); barre.addEventListener('pointerdown', appui('barre'));
+        window.addEventListener('pointermove', (e) => { if (drag && e.pointerId === drag.id) suivre(e.clientY); });
+        const fini = (e) => { if (drag && e.pointerId === drag.id) lacher(); };
+        window.addEventListener('pointerup', fini); window.addEventListener('pointercancel', fini);
+        poignee.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poser(pos === 'haut' ? 'bas' : 'haut', true); } });
+        el.addEventListener('click', (e) => { if (performance.now() < sansClic) { e.preventDefault(); e.stopPropagation(); } }, true);
+        // la liste (et la commande, le bestiaire) : elle défile d'elle-même ; seul le geste qui doit bouger le tiroir est pris (le premier pas de
+        // plus de 6 px décide, son touchmove annulé : le défilement ne part pas). Des événements tactiles : ceux de pointeur ne peuvent pas l'empêcher
+        t.addEventListener('touchstart', (e) => {
+          doigt = null; if (drag || e.touches.length !== 1 || el.dataset.ecran !== F.ecran || e.target.closest('.pq-poignee, .pq-barre')) return;
+          doigt = { y0: e.touches[0].clientY, enHaut: !cartesEl.contains(e.target) || cartesEl.scrollTop <= 0, pris: false, laisse: false };
+        }, { passive: true });
+        t.addEventListener('touchmove', (e) => {
+          if (!doigt || doigt.laisse) return; const cy = e.touches[0].clientY, dy = cy - doigt.y0;
+          if (!doigt.pris) {
+            if (Math.abs(dy) <= 6) return;
+            if (!doigt.enHaut || !((pos === 'bas' && dy < 0) || (pos === 'haut' && dy > 0))) { doigt.laisse = true; return; } // la liste défile
+            doigt.pris = true; prendre(doigt.y0, 'liste', 'liste');
+          }
+          if (e.cancelable) e.preventDefault(); if (drag && drag.id === 'liste') suivre(cy);
+        }, { passive: false });
+        const leve = () => { if (doigt && doigt.pris && drag && drag.id === 'liste') lacher(); doigt = null; };
+        t.addEventListener('touchend', leve); t.addEventListener('touchcancel', leve);
+      }
+      const redim = () => { if (t && pos === 'haut' && !drag && !fin) poser('haut', false); }; // une rotation, une autre hauteur de scène : le cran du haut suit
+      const ranger = () => { if (!t || drag || fin) return; court = course() < 240; suivre2(pos === 'haut' || court); };
+      return { construire, poser, redim, ranger, get bandeaux() { return bx; }, couvre: () => !!t && pos === 'haut' && !drag && !fin && ecran === F.ecran, get pos() { return pos; } };
+    })();
+
     // ═══ les activités (src/activites.js : le moteur commun à tous les événements ; l'habillage vient de la fiche de l'événement) ═══
-    // Une barre de trois boutons sous la scène : Mini-jeux, Contrats (la pastille : combien sont à réclamer), Opération (son chrono quand
-    // elle tourne). Les mini-jeux s'ouvrent en plein écran par-dessus la boutique, avec la mécanique de l'Atelier (src/atelier.js) : le
+    // Une colonne de trois boutons en haut à droite de la scène, par-dessus la 3D et sous le solde (de haut en bas : Mini-jeux, Contrats et
+    // sa pastille, combien sont à réclamer, Opération et son chrono quand elle tourne) ; si le coup de pouce de la scène la toucherait (une
+    // scène basse), elle se resserre en icônes et la bannière lui laisse sa place (placerAct). Les mini-jeux s'ouvrent en plein écran par-dessus la boutique, avec la mécanique de l'Atelier (src/atelier.js) : le
     // temps de la partie est celui de performance.now(), avancé par pas de 1/60 s ; un trou de plus d'une seconde (l'arrière-plan) est une
     // pause ; une touche fait d'abord avancer la partie jusqu'à son instant ; aucune heure du téléphone : seule la fin de partie lit
     // HORLOGE (d.maintenant). Pendant la partie, la boutique continue de tourner (frame ne s'arrête pas) ; un coup de pouce à toucher
@@ -16209,8 +16392,12 @@ const EVENEMENTS = (() => {
       const t = TA();
       barreAct = document.createElement('div'); barreAct.className = 'pq-act'; barreAct.setAttribute('role', 'group'); barreAct.setAttribute('aria-label', 'Les activités');
       barreAct.innerHTML = [['mini', t.mini], ['contrats', t.contrats], ['operation', t.operation]].map(([k, nom]) => `<button type="button" class="pq-act-btn" data-act="${k}"><span class="pq-act-ico">${icoAct(k)}</span><span class="pq-act-txt"><b>${esc(nom)}</b><small></small></span>${k === 'contrats' ? '<i class="pq-pastille" hidden></i>' : ''}</button>`).join('');
-      el.querySelector('.pq-scene').after(barreAct);
-      barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
+      el.querySelector('.pq-scene').appendChild(barreAct);
+      // un toucher sur la colonne n'est pas un toucher sur la scène (ni client choisi, ni apparition attrapée) ; et seul un toucher commencé
+      // sur la colonne l'ouvre (une apparition attrapée à travers elle, .pq-traverse, ne déclenche pas le bouton revenu dessous au lâcher)
+      let appuiAct = -1e9;
+      barreAct.addEventListener('pointerdown', (e) => { e.stopPropagation(); appuiAct = performance.now(); });
+      barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (e.detail !== 0 && performance.now() - appuiAct > 1500) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
       mv = document.createElement('div'); mv.className = 'pq-mini'; mv.hidden = true; mv.setAttribute('role', 'dialog'); mv.setAttribute('aria-modal', 'true');
       mv.innerHTML = `<div class="at-haut"><button type="button" class="at-fermer" data-mini="fermer" aria-label="Quitter le mini-jeu"><i class="ico">${(ICONS.UI && ICONS.UI.fermer) || '×'}</i></button><div class="at-titre"><b data-mini="titre"></b><small data-mini="sous"></small></div><b class="at-chrono" data-mini="chrono" hidden></b></div>
         <div class="at-bandeau" data-mini="bandeau" hidden></div><p class="pq-mini-consigne" data-mini="consigne"></p><div class="pq-mini-zone" data-mini="zone"></div>`;
@@ -16218,7 +16405,20 @@ const EVENEMENTS = (() => {
       mid('fermer').addEventListener('click', () => { d.audio(); d.son.tap(); fermerMini(); });
       window.addEventListener('resize', () => { if (partie && partie.T) partie.T.redim(); });
     }
-    // les trois petites lignes de la barre : les parties payées qui attendent, les contrats faits, le chrono de l'opération
+    // la colonne et la bannière du coup de pouce ne se chevauchent jamais : si le bas de la colonne descend jusqu'à la bannière (une scène
+    // basse, une bannière sur deux lignes), la colonne passe en icônes (l'état reste : la pastille, les couleurs) et la bannière s'arrête à sa gauche
+    // Les bandeaux (le coup de pouce, la commande du Manoir) s'empilent au-dessus du tiroir ; s'ils prendraient plus de 40 % de la scène
+    // visible (une scène basse), le coup de pouce passe seul devant, la commande revient après lui (.pq-un)
+    function placerAct() {
+      const sc = el.querySelector('.pq-scene'), bx = tiroir.bandeaux; if (!sc || !bx) return;
+      sc.classList.remove('pq-serre'); bx.classList.remove('pq-un'); if (ecran !== F.ecran) return; tiroir.ranger();
+      let b = bx.getBoundingClientRect(); if (!(b.height > 0)) return;
+      const so = el.querySelector('.pq-solde'), ti = el.querySelector('.pq-tiroir'), vue = so && ti ? ti.getBoundingClientRect().top - so.getBoundingClientRect().bottom : 0;
+      if (!evEl.hidden && [...bx.children].filter((x) => !x.hidden).length > 1 && vue > 0 && b.height > 0.4 * vue) { bx.classList.add('pq-un'); b = bx.getBoundingClientRect(); }
+      const a = barreAct ? barreAct.getBoundingClientRect() : null;
+      if (a && a.height > 0 && b.height > 0 && a.bottom + 6 > b.top) sc.classList.add('pq-serre');
+    }
+    // les trois petites lignes de la colonne : les parties payées qui attendent, les contrats faits, le chrono de l'opération
     function majActivites(force) {
       if (!barreAct || ecran !== F.ecran) return;
       const qq = q(), t = now(), ouv = Q.activitesOuvertes(t), j = Q.jetonsMini(qq, t), n = Q.aReclamer(qq, t), op = Q.etatOperation(qq, t), l = Q.etatContrats(qq, t);
@@ -16492,7 +16692,7 @@ const EVENEMENTS = (() => {
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
     return { init, ouvrir, fermer, annoncer, revoir, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
-      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
+      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites, tiroir: (p) => { if (p) tiroir.poser(p, false); return tiroir.pos; },
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
 
@@ -17161,16 +17361,19 @@ const EVENEMENTS = (() => {
       // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
       // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
       // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
-      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande), la carte du bestiaire juste dessous
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en bandeau au-dessus du tiroir (#ht-commande), la carte du bestiaire en tête de la liste
       // (#ht-bestiaire). F.gabarits donne leur HTML ;
       // src/hanteeactivites.js (F.activites) les remplit
       habiller: (el) => {
         if (el.querySelector('.mh-deco')) return;
         el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
-        const tiroir = el.querySelector('.pq-scene + *'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
+        const tiroir = el.querySelector('.pq-tiroir'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
         const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
         const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
-        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div><div id="ht-bestiaire" class="mh-bestiaire-place" hidden></div>');
+        // la commande de la nuit : un bandeau sur la scène, juste au-dessus du tiroir (avec le coup de pouce), qui suit le tiroir monté (.pq-suit) ;
+        // le bestiaire : la carte de tête de la liste (.pq-tete), qui défile avec les autres
+        const bx = el.querySelector('.pq-bandeaux'); if (bx) bx.insertAdjacentHTML('beforeend', '<div id="ht-commande" class="mh-commande-place pq-suit" hidden></div>');
+        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('afterbegin', '<div id="ht-bestiaire" class="mh-bestiaire-place pq-tete" hidden></div>');
       },
       gabarits,
       bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []).concat(qq.chauvesouris ? ['Myrtille la chauve-souris, gagnée au bestiaire : un compagnon de la boutique, à vie'] : []),
@@ -18509,6 +18712,7 @@ const RETOURS = (() => {
       points: [
         'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',
         'Une courte vidéo te montre tout à l’ouverture. Tu peux la revoir quand tu veux : les paliers du Manoir › « Comment ça marche ? ».',
+        'Dans le Manoir, les cartes se montent au doigt par leur poignée, et Mini-jeux, Contrats et Opération t’attendent en haut à droite de la scène.',
       ],
     },
     {

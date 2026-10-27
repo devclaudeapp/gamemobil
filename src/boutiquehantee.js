@@ -15,8 +15,10 @@
      la visite d'un copain), dont les stations sont les postes du Manoir (niveaux, fournées actives, monstres embauchés) ; le mobilier
      est celui de la boutique, complété par ce que l'événement a gagné (des tables de plus à chaque monstre…). SCENE.setEvenement(vue)
      bascule la scène (la vie de la boutique attend de côté) ; detruire() appelle SCENE.setEvenement(null) : tout revient.
-   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes ; la
-     boutique, ses boutons et son tiroir sont masqués dessous. Une feuille de style ajoutée une fois porte ces règles (classes
+   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes (qui monte
+     par-dessus au doigt : src/evenement.js, tiroir ; la fenêtre, elle, ne bouge pas) ; la
+     boutique, ses boutons, son tiroir, sa barre du haut et ses onglets sont masqués dessous (seul son canvas se voit), et la page ne défile
+     ni ne rebondit (src/evenement.js : seule la liste des cartes défile). Une feuille de style ajoutée une fois porte ces règles (classes
      .ht-boutique sur #hantee et sur body).
    · L'API des activités (les monstres à servir, les apparitions à attraper, la lumière qui baisse quand le ×6 s'endort) : acteurs, client,
      entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance (voir plus bas) ; l'écran les relie aux
@@ -485,16 +487,17 @@ const BOUTIQUE_HANTEE = (() => {
   let style = null;
   function feuille() {
     if (style || typeof document === 'undefined') return; style = document.createElement('style'); style.id = 'ht-boutique-style';
-    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice { visibility: hidden; }
+    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice, body.ht-boutique #haut, body.ht-boutique #onglets, body.ht-boutique #corps > :not(#scene-wrap) { visibility: hidden; }
+html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-behavior: none; }
 #hantee.ht-boutique { background: transparent; }
 #hantee.ht-boutique > .at-haut { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 1; }
+#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 2; transition: border-radius .2s ease-out; }
+#hantee.ht-boutique[data-tiroir="haut"] > .pq-solde { border-radius: 0; }
 #hantee.ht-boutique > .pq-scene { flex: 0 0 auto; height: clamp(220px, 38vh, 340px); margin: -20px 0 -22px; border-radius: 0; background: transparent; box-shadow: none; }
 #hantee.ht-boutique > .pq-scene > canvas { visibility: hidden; }
-#hantee.ht-boutique > .pq-scene > .pq-ev { z-index: 2; bottom: 30px; }
+#hantee.ht-boutique > .pq-scene > .pq-bandeaux { bottom: 30px; }
 #hantee.ht-boutique > .pq-scene ~ * { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-scene + * { position: relative; border-radius: 22px 22px 0 0; padding-top: 12px; box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }
-#hantee.ht-boutique > .pq-cartes-liste { flex: 1 1 0; min-height: 190px; }`;
+#hantee.ht-boutique > .pq-tiroir { box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }`;
     document.head.appendChild(style);
   }
 

@@ -64,6 +64,7 @@ const HANTEE_ACTIVITES = (() => {
       for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
       if (btEl) { btEl.remove(); btEl = null; }
       lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) ca.classList.remove('pq-traverse');
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -370,10 +371,15 @@ const HANTEE_ACTIVITES = (() => {
       d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
     }
 
-    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ───
+    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ; la colonne des activités (en haut à droite de la
+    //     scène, src/evenement.js) : les bulles passent à sa gauche, et une apparition qui passe dessous la rend transparente au doigt et à
+    //     l'œil (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; on l'attrape à travers ───
+    let tTraverse = -1e9;
     function image() {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null;
+      const dessous = (x, y, rr) => !!rc && rc.width > 0 && x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom;
       if (mode === 'scene' && B()) {
         const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
@@ -383,17 +389,29 @@ const HANTEE_ACTIVITES = (() => {
           vis.push({ b, o, x: a.x - r.left, hy: a.y - r.top, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
         }
         // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
-        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
-        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
+        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe). La colonne
+        // des activités (en haut à droite de la scène, src/evenement.js) : une bulle à sa hauteur passe à sa gauche, jamais dessous
+        const col = rc && rc.width ? { g: rc.left - r.left - 6, haut: rc.top - r.top - 6, bas: rc.bottom - r.top + 6 } : null;
+        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = col && v.y > col.haut && v.y - v.h < col.bas ? Math.min(v.x, col.g - v.w / 2) : v.x;
         for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        // puis de droite à gauche : chacune sous sa borne droite (le bord, ou la colonne à sa hauteur), sa voisine de gauche poussée d'autant
+        for (let i = vis.length - 1; i >= 0; i--) {
+          const v = vis[i], n = vis[i + 1]; v.cx = Math.min(v.cx, (col && v.y > col.haut && v.y - v.h < col.bas ? col.g : r.width - 4) - v.w / 2);
+          if (n && Math.abs(v.y - n.y) < (v.h + n.h) / 2) v.cx = Math.min(v.cx, n.cx - (v.w + n.w) / 2 - 6);
+        }
         // La pointe part du bas de la bulle (sa base, bornée à ±(largeur/2 − 14) px) et montre la tête de SON monstre : une bulle écartée de
         // sa tête monte d'autant (la moitié de l'écart qui dépasse, 26 px au plus) et sa pointe s'allonge en biais jusqu'à la tête
         // (--mh-queue : sa longueur, --mh-biais : son angle). Borne haute : une bulle ne passe jamais sous l'en-tête du Manoir (le haut de
         // la fenêtre de la scène) : un client qui entre par la porte du fond garde la sienne entière ; tout près du bord, sa pointe se cache.
         for (const v of vis) {
-          v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
-          const base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)), reste = v.x - v.cx - base;
-          v.y = Math.max(v.h + 4, v.y - Math.min(26, Math.abs(reste) * 0.5));
+          const y0 = v.y, sous = (y) => !!col && y > col.haut && y - v.h < col.bas; // (à la hauteur de la colonne)
+          let base = 0, reste = 0;
+          for (let k = 0; k < 2; k++) { // (une bulle écartée monte : à sa nouvelle hauteur, elle peut passer à côté de la colonne, une fois de plus)
+            v.cx = Math.max(v.w / 2 + 4, Math.min((sous(v.y) ? col.g : r.width - 4) - v.w / 2, v.cx));
+            base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)); reste = v.x - v.cx - base;
+            v.y = Math.max(v.h + 4, y0 - Math.min(26, Math.abs(reste) * 0.5));
+            if (!sous(v.y) || v.cx + v.w / 2 <= col.g + 0.5) break;
+          }
           const dy = v.hy - v.y, lg = dy > 3 ? Math.hypot(reste, dy) + 2 : 0, biais = lg ? -Math.atan2(reste, dy) * 180 / Math.PI : 0;
           v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
           const pointe = base.toFixed(0) + 'px', queue = lg.toFixed(0) + 'px', angle = biais.toFixed(1) + 'deg';
@@ -410,8 +428,10 @@ const HANTEE_ACTIVITES = (() => {
           if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
           if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
           o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
+          if (dessous(p.x, p.y, p.r)) tTraverse = performance.now();
         }
-      } else for (const o of apps.values()) placerApp(o, q.now);
+      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2)) tTraverse = performance.now(); } }
+      const sous = performance.now() - tTraverse < 400; if (ca && ca.classList.contains('pq-traverse') !== sous) ca.classList.toggle('pq-traverse', sous);
     }
 
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───

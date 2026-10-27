@@ -20,6 +20,7 @@
       points: [
         'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',
         'Une courte vidéo te montre tout à l’ouverture. Tu peux la revoir quand tu veux : les paliers du Manoir › « Comment ça marche ? ».',
+        'Dans le Manoir, les cartes se montent au doigt par leur poignée, et Mini-jeux, Contrats et Opération t’attendent en haut à droite de la scène.',
       ],
     },
     {
