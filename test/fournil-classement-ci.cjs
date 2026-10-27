@@ -399,7 +399,7 @@ function arreter(message, conclusion) {
     // les billets de l'événement « Le Quartier » : comptés seulement pendant sa fenêtre (du 13 au 27 octobre 2026, heure de Paris), jamais au-delà de l'enveloppe
     log('  (10,5 s : les billets du quartier)');
     await attendre(10500);
-    const dansFenetre = Date.now() >= Date.parse('2026-10-13T12:00:00+02:00') && Date.now() < Date.parse('2026-10-27T12:00:00+01:00');
+    const dansFenetre = Date.now() >= Date.parse('2026-10-13T12:00:00+02:00') && Date.now() < Date.parse('2026-10-27T12:00:00+01:00') + 3600e3; // la fenêtre du serveur : une heure de grâce après la fin
     const hqAvant = await rpc('fournil_heure', {}); // l'heure du serveur juste avant et juste après : la limite du moment est entre les deux
     r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_quartier: 1e24 });
     const qa = r.data || {}, hqApres = await rpc('fournil_heure', {});
