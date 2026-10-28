@@ -207,9 +207,10 @@ function vieilleSauvegarde() {
   await page.evaluate(() => document.querySelector('#feuille [data-a="close"]').click()); await sleep(200);
   await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; if (!st.chat) G.adopterChat(st, 'Brioche'); if (st.specialite == null) G.choisirSpecialite(st, 0); f.page('reglages'); f.tiroir('ouvert'); f.rafraichir(); }); await sleep(400);
   const rg = await page.evaluate(() => { const f = window.__fournil, sec = document.querySelector('#page-reglages'), lignes = [...sec.querySelectorAll('.reglage')], spe = lignes.find((x) => /^Spécialité/.test(x.querySelector('b') ? x.querySelector('b').textContent : '')), comp = sec.querySelector('[data-a="compagnons"]');
-    return { spe: spe ? { tag: spe.tagName, cls: spe.className, a: spe.getAttribute('data-a'), chev: !!spe.querySelector('.chev'), txt: spe.textContent } : null, comp: comp ? comp.textContent : '', n: f.G.COMPAGNONS.length, okAvant: !!sec.querySelector('[data-a="specialite-ok"]') }; });
+    return { spe: spe ? { tag: spe.tagName, cls: spe.className, a: spe.getAttribute('data-a'), chev: !!spe.querySelector('.chev'), txt: spe.textContent } : null, comp: comp ? comp.textContent : '', n: f.G.COMPAGNONS.length, chien: f.G.aCompagnon(f.st, 'chien-quartier'), okAvant: !!sec.querySelector('[data-a="specialite-ok"]') }; });
   check(rg.spe && rg.spe.tag === 'DIV' && /\binfo\b/.test(rg.spe.cls) && !rg.spe.a && !rg.spe.chev && !rg.okAvant, `la ligne Spécialité des Réglages : une ligne d'information (${rg.spe && rg.spe.tag}.${rg.spe && rg.spe.cls}), plus un bouton sans action`);
-  check(rg.comp.includes(`${rg.n} animaux au choix`) && !/treize/.test(rg.comp), `le compagnon : « ${rg.n} animaux au choix » (GAME.COMPAGNONS), plus « treize »`);
+  if (require('../src/quartier.js').ECARTE && !rg.chien) rg.n -= 1; // le chien du quartier n'est montré qu'à qui l'a gagné tant que la Planque est écartée
+  check(rg.comp.includes(`${rg.n} animaux au choix`) && !/treize/.test(rg.comp), `le compagnon : « ${rg.n} animaux au choix » (GAME.COMPAGNONS, sans le chien du quartier non gagné tant que la Planque est écartée), plus « treize »`);
   await page.evaluate(() => { const l = [...document.querySelectorAll('#page-reglages .reglage')].find((x) => /^Spécialité/.test(x.querySelector('b') ? x.querySelector('b').textContent : '')); l.scrollIntoView({ block: 'center' }); }); await sleep(200);
   await page.screenshot({ path: `${out}/15-reglages-specialite.png` });
 
