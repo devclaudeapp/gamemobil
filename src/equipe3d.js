@@ -77,6 +77,13 @@ const EQUIPE3D = (() => {
 
   // un générateur mené pas à pas, chaque pas nommé quoi (la préparation garde le nom de son plus long pas) ; rend sa valeur finale
   function* nomme(gen, quoi) { for (;;) { const x = gen.next(); if (x.done) return x.value; yield quoi; } }
+  // la fin du pas en cours (performance.now()), posée par ceux qui mènent la préparation pas à pas (preparer, cuireAvance, remplir) : les
+  // longues boucles des générateurs y jettent un œil de temps en temps (souffle()) et rendent la main l'heure passée. Un pas dure ainsi à peu
+  // près PAS_MS quel que soit le téléphone (le processeur ralenti ×4, le code encore froid, interprété), là où un compte fixe de sommets ou de
+  // triangles en prenait parfois 5 à 8 (20 à 33 ms ×4). Infinity hors de ces pas : un générateur mené d'un trait (facade(), geometrie(),
+  // rhabiller()) ne s'arrête pas
+  let finPas = Infinity; const PAS_MS = 1.5;
+  const souffle = () => finPas !== Infinity && performance.now() > finPas;
   // ═══ la cuisson d'un corps (à petits pas) : ses parties sur le squelette de la première, les normales de face des parties en facettes, un rôle par
   //     sommet ; ses mesures au repos de liaison (la pose en T : le crâne, le visage, le buste, le cou, le bas des jambes) ; le gabarit (os ajoutés) ═══
   function* cuire(nom, gltf) {
@@ -96,15 +103,15 @@ const EQUIPE3D = (() => {
       for (let i = 0; i < pos.count; i++) {
         let jd = 0, wd = -1; for (let q = 0; q < 4; q++) { const ww = sw.getComponent(i, q), jj = si.getComponent(i, q); SIi[i * 4 + q] = remap[jj]; SWi[i * 4 + q] = ww; if (ww > wd) { wd = ww; jd = jj; } }
         dom[i] = jd; v.fromBufferAttribute(pos, i).applyMatrix4(Mj[jd]); PP[i * 3] = v.x; PP[i * 3 + 1] = v.y; PP[i * 3 + 2] = v.z;
-        if (i % 1200 === 1199) yield o.material.name;
+        if (i % 1200 === 1199 || ((i & 63) === 63 && souffle())) yield o.material.name;
       }
       yield o.material.name;
       const nb = ix ? ix.count : pos.count, at = (k) => (ix ? ix.getX(k) : k);
-      if (nor) { const base = P.length / 3; for (let i = 0; i < pos.count; i++) { n3.fromBufferAttribute(nor, i).applyMatrix3(Nj[dom[i]]).normalize(); emettre(PP[i * 3], PP[i * 3 + 1], PP[i * 3 + 2], n3.x, n3.y, n3.z, col, role, SIi, SWi, i * 4); if (i % 1200 === 1199) yield o.material.name; } for (let k = 0; k < nb; k++) I.push(base + at(k)); }
+      if (nor) { const base = P.length / 3; for (let i = 0; i < pos.count; i++) { n3.fromBufferAttribute(nor, i).applyMatrix3(Nj[dom[i]]).normalize(); emettre(PP[i * 3], PP[i * 3 + 1], PP[i * 3 + 2], n3.x, n3.y, n3.z, col, role, SIi, SWi, i * 4); if (i % 1200 === 1199 || ((i & 63) === 63 && souffle())) yield o.material.name; } for (let k = 0; k < nb; k++) { I.push(base + at(k)); if ((k & 1023) === 1023 && souffle()) yield o.material.name; } }
       else { // en facettes : la normale de chaque triangle ; les sommets d'une même facette plane partagés
         const vus = new Map();
         for (let k = 0; k < nb; k += 3) {
-          if (k % 2400 === 2397) yield o.material.name;
+          if (k % 2400 === 2397 || (k % 96 === 93 && souffle())) yield o.material.name;
           const i0 = at(k), i1 = at(k + 1), i2 = at(k + 2);
           a.fromArray(PP, i0 * 3); b.fromArray(PP, i1 * 3); c.fromArray(PP, i2 * 3); n3.subVectors(c, b).cross(_v1.subVectors(a, b)).normalize();
           const cle = ((Math.round(n3.x * 500) + 500) * 1001 + Math.round(n3.y * 500) + 500) * 1001 + Math.round(n3.z * 500) + 500;
@@ -113,12 +120,19 @@ const EQUIPE3D = (() => {
       }
       yield o.material.name;
     }
-    const n = P.length / 3, pr = { nom, n, P: new Float32Array(P), N: new Float32Array(N), C0: new Float32Array(C0), R: new Uint8Array(R), SI: new Uint16Array(SI), SW: new Float32Array(SW), I: new Uint32Array(I), bindMatrix: S0.bindMatrix.clone(), iB, osIdx: new Map(idx), nbOs: bones.length, kits: new Map() };
+    // (les tableaux typés, deux par pas : des dizaines de milliers de nombres chacun)
+    const n = P.length / 3, pr = { nom, n, P: new Float32Array(P), N: new Float32Array(N), bindMatrix: S0.bindMatrix.clone(), iB, osIdx: new Map(idx), nbOs: bones.length, kits: new Map() };
     yield 'positions';
-    pr.dom = new Uint16Array(n); for (let k = 0; k < n; k++) { let jd = pr.SI[k * 4], wd = pr.SW[k * 4]; for (let q = 1; q < 4; q++) if (pr.SW[k * 4 + q] > wd) { wd = pr.SW[k * 4 + q]; jd = pr.SI[k * 4 + q]; } pr.dom[k] = jd; }
+    pr.C0 = new Float32Array(C0); pr.R = new Uint8Array(R);
+    yield 'positions';
+    pr.SI = new Uint16Array(SI); pr.SW = new Float32Array(SW);
+    yield 'positions';
+    pr.I = new Uint32Array(I);
+    yield 'positions';
+    pr.dom = new Uint16Array(n); for (let k = 0; k < n; k++) { let jd = pr.SI[k * 4], wd = pr.SW[k * 4]; for (let q = 1; q < 4; q++) if (pr.SW[k * 4 + q] > wd) { wd = pr.SW[k * 4 + q]; jd = pr.SI[k * 4 + q]; } pr.dom[k] = jd; if ((k & 511) === 511 && souffle()) yield 'positions'; }
     yield 'positions';
     pr.osW = {}; bones.forEach((bo, i) => { pr.osW[bo.name] = new T.Vector3().setFromMatrixPosition(BI0[i]); }); // les os au repos de liaison (le monde)
-    pr.W = new Float32Array(n * 3); for (let k = 0; k < n; k++) { v.fromArray(pr.P, k * 3).applyMatrix4(pr.bindMatrix); v.toArray(pr.W, k * 3); } // les positions au repos de liaison, dans le monde
+    pr.W = new Float32Array(n * 3); for (let k = 0; k < n; k++) { v.fromArray(pr.P, k * 3).applyMatrix4(pr.bindMatrix); v.toArray(pr.W, k * 3); if ((k & 511) === 511 && souffle()) yield 'positions'; } // les positions au repos de liaison, dans le monde
     yield 'positions';
     yield* nomme(mesuresGen(pr, bones), 'mesures');
     yield* nomme(facadeGen(pr, 1), 'façade');
@@ -149,13 +163,16 @@ const EQUIPE3D = (() => {
   }
 
   // les mesures au repos de liaison (en T, le visage vers +z, le haut +y, la gauche du personnage vers +x), en unités du modèle
-  function* mesuresGen(pr, bones) { // (à petits pas : quelques boîtes à la fois)
-    const nomDe = (j) => bones[j] ? bones[j].name : '', W = pr.W, R = pr.R, n = pr.n, bx = (f) => { const b = new T.Box3(); for (let k = 0; k < n; k++) if (f(k)) b.expandByPoint(_v1.fromArray(W, k * 3)); return b; };
-    const noms = new Array(n); for (let k = 0; k < n; k++) noms[k] = nomDe(pr.dom[k]); const os = (k) => noms[k];
+  function* mesuresGen(pr, bones) { // (à petits pas : une boîte, puis la suivante ; chacune rend la main l'heure passée)
+    const nomDe = (j) => bones[j] ? bones[j].name : '', W = pr.W, R = pr.R, n = pr.n;
+    function* bx(f) { const b = new T.Box3(); for (let k = 0; k < n; k++) { if (f(k)) b.expandByPoint(_v1.fromArray(W, k * 3)); if ((k & 1023) === 1023 && souffle()) yield; } return b; }
+    const noms = new Array(n); for (let k = 0; k < n; k++) { noms[k] = nomDe(pr.dom[k]); if ((k & 1023) === 1023 && souffle()) yield; } const os = (k) => noms[k];
     yield;
-    const crane = bx((k) => R[k] === RI.peau && os(k) === OS.tete), visage = bx((k) => R[k] === RI.yeux), cheveux = bx((k) => R[k] === RI.cheveux);
+    const crane = yield* bx((k) => R[k] === RI.peau && os(k) === OS.tete), visage = yield* bx((k) => R[k] === RI.yeux), cheveux = yield* bx((k) => R[k] === RI.cheveux);
     yield;
-    const buste = bx((k) => R[k] === RI.veste && (os(k) === OS.torse || os(k) === OS.ventre)), foulard = bx((k) => R[k] === RI.foulard), pantalon = bx((k) => R[k] === RI.pantalon), cou = bx((k) => R[k] === RI.peau && os(k) === OS.cou);
+    const buste = yield* bx((k) => R[k] === RI.veste && (os(k) === OS.torse || os(k) === OS.ventre)), foulard = yield* bx((k) => R[k] === RI.foulard);
+    yield;
+    const pantalon = yield* bx((k) => R[k] === RI.pantalon), cou = yield* bx((k) => R[k] === RI.peau && os(k) === OS.cou);
     yield;
     const t = { cx: (crane.min.x + crane.max.x) / 2, cy: (crane.min.y + crane.max.y) / 2, cz: (crane.min.z + crane.max.z) / 2, rx: (crane.max.x - crane.min.x) / 2, ry: (crane.max.y - crane.min.y) / 2, rz: (crane.max.z - crane.min.z) / 2, sommet: crane.max.y };
     // les yeux : le bas de la partie « Face » de chaque côté (le haut, ce sont les sourcils)
@@ -164,10 +181,10 @@ const EQUIPE3D = (() => {
     yield;
     // les pieds : la peau sous le pantalon (les tibias et les pieds de l'UACP), de chaque côté (0 : la gauche, +x ; 1 : la droite)
     const jambe = new Uint8Array(n); for (let k = 0; k < n; k++) jambe[k] = R[k] === RI.peau && /Foot|LowerLeg/.test(os(k)) ? 1 : 0;
-    const piedsY0 = bx((k) => jambe[k] === 1).min.y;
-    const pieds = [1, -1].map((cote) => bx((k) => jambe[k] === 1 && W[k * 3] * cote > 0));
+    const piedsY0 = (yield* bx((k) => jambe[k] === 1)).min.y;
+    const pieds = []; for (const cote of [1, -1]) pieds.push(yield* bx((k) => jambe[k] === 1 && W[k * 3] * cote > 0));
     yield;
-    const epaules = bx((k) => R[k] === RI.veste && /^Shoulder/.test(os(k))), veste = bx((k) => R[k] === RI.veste && !/^(UpperArm|LowerArm|Fist)/.test(os(k)));
+    const epaules = yield* bx((k) => R[k] === RI.veste && /^Shoulder/.test(os(k))), veste = yield* bx((k) => R[k] === RI.veste && !/^(UpperArm|LowerArm|Fist)/.test(os(k)));
     pr.m = { tete: t, yeux, cheveux, buste, foulard, pantalon, cou, piedsY0, pieds, epaules, veste, chevilleY: pantalon.min.y, H: Math.max(cheveux.max.y, crane.max.y) - piedsY0,
       // l'échelle des chibis (src/persos.js) : un crâne de rayon 10, un buste de rayon 11 haut de 34 (y de 19 à 53) ; les pièces y sont dessinées
       kt: [t.rx / 10, t.ry / 10, t.rz / 10], kb: [Math.max(Math.abs(buste.min.x - t.cx), Math.abs(buste.max.x - t.cx)) / 11, (buste.max.y - pantalon.max.y) / 34, (buste.max.z - buste.min.z) / 22] };
@@ -175,15 +192,23 @@ const EQUIPE3D = (() => {
     pr.m.busteZ = (buste.min.z + buste.max.z) / 2;
     pr.m.u = pr.m.H / 1.97; // l'unité des cotes des kits : bâties sur Chef_Male (1,97 de haut), elles suivent un autre corps
     pr.nomOs = nomDe;
+    yield;
+    // les sommets de la peau de la tête (rayonCrane : les couvre-chefs s'y ajustent, dans les pas de leurs kits), une fois par corps
+    const vc = []; for (let k = 0; k < n; k++) { if (R[k] === RI.peau && noms[k] === OS.tete) vc.push(k); if ((k & 1023) === 1023 && souffle()) yield; }
+    pr.vCrane = new Int32Array(vc);
   }
   // le rayon du crâne seul (la peau de la tête) autour de son axe, entre deux hauteurs : un couvre-chef s'y ajuste (les cheveux sont resserrés dessous)
-  function rayonCrane(pr, y0, y1) { const t = pr.m.tete, W = pr.W, R = pr.R; let r = 0; for (let k = 0; k < pr.n; k++) { if (R[k] !== RI.peau || pr.nomOs(pr.dom[k]) !== OS.tete) continue; const y = W[k * 3 + 1]; if (y < y0 || y > y1) continue; r = Math.max(r, Math.hypot(W[k * 3] - t.cx, W[k * 3 + 2] - t.cz)); } return r || t.rx; }
+  function rayonCrane(pr, y0, y1) {
+    const t = pr.m.tete, W = pr.W;
+    if (!pr.vCrane) { const l = []; for (let k = 0; k < pr.n; k++) if (pr.R[k] === RI.peau && pr.nomOs(pr.dom[k]) === OS.tete) l.push(k); pr.vCrane = new Int32Array(l); } // (mesuresGen les a d'habitude déjà relevés)
+    let r = 0; for (const k of pr.vCrane) { const y = W[k * 3 + 1]; if (y < y0 || y > y1) continue; r = Math.max(r, Math.hypot(W[k * 3] - t.cx, W[k * 3 + 2] - t.cz)); } return r || t.rx;
+  }
 
   // les positions monde des n premiers sommets d'un maillage skinné, à sa pose (comme src/clients3d.js)
-  function sommetsMonde(S, n, fn) {
+  function sommetsMonde(S, n, fn, i0) { // (i0 : à partir de ce sommet, pour une tranche)
     S.skeleton.update(); const bm = S.skeleton.boneMatrices, g = S.geometry, p = g.attributes.position.array, si = g.attributes.skinIndex.array, sw = g.attributes.skinWeight.array;
     _m1.multiplyMatrices(S.matrixWorld, S.bindMatrixInverse); const Wm = _m1.elements, B = S.bindMatrix.elements;
-    for (let i = 0; i < n; i++) {
+    for (let i = i0 || 0; i < n; i++) {
       const x0 = p[i * 3], y0 = p[i * 3 + 1], z0 = p[i * 3 + 2], x = B[0] * x0 + B[4] * y0 + B[8] * z0 + B[12], y = B[1] * x0 + B[5] * y0 + B[9] * z0 + B[13], z = B[2] * x0 + B[6] * y0 + B[10] * z0 + B[14];
       let sx = 0, sy = 0, sz = 0;
       for (let q = 0; q < 4; q++) { const w = sw[i * 4 + q]; if (w === 0) continue; const o = si[i * 4 + q] * 16; sx += w * (bm[o] * x + bm[o + 4] * y + bm[o + 8] * z + bm[o + 12]); sy += w * (bm[o + 1] * x + bm[o + 5] * y + bm[o + 9] * z + bm[o + 13]); sz += w * (bm[o + 2] * x + bm[o + 6] * y + bm[o + 10] * z + bm[o + 14]); }
@@ -193,10 +218,12 @@ const EQUIPE3D = (() => {
   function* mesurer(pr) { // sur un clone, le corps seul : la hauteur debout (Idle), le sol, le dessus de la tête ; la vitesse du pas (Walk, Walk_Carry)
     const g = X.SkeletonUtils.clone(pr.tpl); let S = null; g.traverse((o) => { if (o.isSkinnedMesh) S = o; });
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pr.P, 3)); geo.setAttribute('skinIndex', new T.BufferAttribute(pr.SI, 4)); geo.setAttribute('skinWeight', new T.BufferAttribute(pr.SW, 4)); S.geometry = geo;
+    yield 'debout'; // (le clone, puis son mélangeur, puis les sommets à la pose par tranches : trois pas au lieu d'un)
     const mx = new T.AnimationMixer(g), tete = g.getObjectByName(OS.tete), pied = g.getObjectByName(OS.pieds[0]);
     const id = mx.clipAction(CL.Idle); id.play(); mx.setTime(0.01); g.updateMatrixWorld(true);
     yield 'debout';
-    let ymax = -1e9, ymin = 1e9; sommetsMonde(S, pr.n, (i, x, y) => { if (y > ymax) ymax = y; if (y < ymin) ymin = y; });
+    let ymax = -1e9, ymin = 1e9; const haut = (i, x, y) => { if (y > ymax) ymax = y; if (y < ymin) ymin = y; };
+    for (let i0 = 0; i0 < pr.n; i0 += 2048) { sommetsMonde(S, Math.min(pr.n, i0 + 2048), haut, i0); if (i0 + 2048 < pr.n && souffle()) yield 'debout'; }
     pr.hauteur = ymax - Math.min(0, ymin); pr.sol = ymin; tete.getWorldPosition(_v1); pr.dessus = ymax - _v1.y; id.stop();
     yield 'debout';
     for (const nom of ['Walk', 'Walk_Carry']) {
@@ -214,10 +241,11 @@ const EQUIPE3D = (() => {
   function* prochesGen(pr) { // (à petits pas : la grille, puis le nom de l'os de chaque sommet)
     if (pr.proches) return pr.proches;
     const W = pr.W, n = pr.n, c = 0.04 * pr.m.u, cel = new Map(), cle = (i, j, k) => ((i + 512) * 1024 + (j + 512)) * 1024 + (k + 512);
-    for (let v = 0; v < n; v++) { const q = cle(Math.floor(W[v * 3] / c), Math.floor(W[v * 3 + 1] / c), Math.floor(W[v * 3 + 2] / c)); let l = cel.get(q); if (!l) cel.set(q, (l = [])); l.push(v); if (v % 2000 === 1999) yield; }
+    for (let v = 0; v < n; v++) { const q = cle(Math.floor(W[v * 3] / c), Math.floor(W[v * 3 + 1] / c), Math.floor(W[v * 3 + 2] / c)); let l = cel.get(q); if (!l) cel.set(q, (l = [])); l.push(v); if (v % 2000 === 1999 || ((v & 255) === 255 && souffle())) yield; }
     yield;
-    const nomOs = new Array(n); for (let v = 0; v < n; v++) nomOs[v] = pr.nomOs(pr.dom[v]);
-    const passe = new Map(), filtreDe = (f) => { if (!f) return null; let a = passe.get(f.source); if (!a) { a = new Uint8Array(n); for (let v = 0; v < n; v++) a[v] = f.test(nomOs[v]) ? 1 : 0; passe.set(f.source, a); } return a; };
+    // (le filtre d'un sommet : celui de son os, l'expression régulière passée une fois par os et non par sommet — le premier point posé avec
+    //  un filtre neuf ne coûte plus un tour de tous les sommets)
+    const passe = new Map(), filtreDe = (f) => { if (!f) return null; let a = passe.get(f.source); if (!a) { const po = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) po[j] = f.test(pr.nomOs(j)) ? 1 : 0; a = new Uint8Array(n); for (let v = 0; v < n; v++) a[v] = po[pr.dom[v]]; passe.set(f.source, a); } return a; };
     function chercher(x, y, z, filtre, kmax) { // les kmax plus proches : [[sommet, distance²], …], du plus proche au plus loin
       const i0 = Math.floor(x / c), j0 = Math.floor(y / c), k0 = Math.floor(z / c), out = [], ok = filtreDe(filtre);
       for (let r = 0; r < 12 && out.length < kmax; r++) {
@@ -249,8 +277,9 @@ const EQUIPE3D = (() => {
   function contour(pr, filtre, cleF) {
     pr.contours = pr.contours || {}; if (pr.contours[cleF]) return pr.contours[cleF];
     const W = pr.W, n = pr.n, cx = pr.m.tete.cx, cz = pr.m.busteZ, pasY = 0.02 * pr.m.u, NA = 48, y0 = pr.m.piedsY0, NY = Math.ceil(pr.m.H / pasY) + 2, Rm = new Float32Array(NY * NA);
+    const passe = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) passe[j] = !filtre || filtre.test(pr.nomOs(j)) ? 1 : 0; // (le filtre par os, une fois : pas d'expression régulière par sommet)
     for (let v = 0; v < n; v++) {
-      if (filtre && !filtre.test(pr.nomOs(pr.dom[v]))) continue; if (pr.R[v] === RI.cheveux || pr.R[v] === RI.yeux) continue;
+      if (!passe[pr.dom[v]]) continue; if (pr.R[v] === RI.cheveux || pr.R[v] === RI.yeux) continue;
       const x = W[v * 3] - cx, z = W[v * 3 + 2] - cz, j = Math.round((W[v * 3 + 1] - y0) / pasY); if (j < 0 || j >= NY) continue;
       const a = ((Math.atan2(x, z) / TAU) % 1 + 1) % 1, i = Math.round(a * NA) % NA, r = Math.hypot(x, z); if (r > Rm[j * NA + i]) Rm[j * NA + i] = r;
     }
@@ -267,38 +296,41 @@ const EQUIPE3D = (() => {
   // qui est dessous : il se déforme avec lui (les épaules qui tombent, les cuisses qui marchent), sans que la veste ni le pantalon le percent. En
   // cache par corps et par sens
   // (facade() la rend d'un trait, en cache ; facadeGen() la bâtit à petits pas — la préparation, src/scene.js à chaque image —, rendant la
-  //  main tous les 192 triangles et entre ses passes)
+  //  main tous les 96 triangles, entre ses passes, et dès que l'heure du pas est passée : souffle())
   function facade(pr, sens) { const k0 = (sens || 1) > 0 ? 'facade' : 'facadeDos'; if (pr[k0]) return pr[k0]; const g = facadeGen(pr, sens); let x; do x = g.next(); while (!x.done); return x.value; }
   function* facadeGen(pr, sens) {
     sens = sens || 1; const k0 = sens > 0 ? 'facade' : 'facadeDos'; if (pr[k0]) return pr[k0];
     const W = pr.W, R = pr.R, I = pr.I, m = pr.m, pas = 0.006 * m.u, x0 = m.tete.cx - 0.4 * m.u, y0 = m.piedsY0, y1 = m.buste.max.y + 0.03 * m.u, nx = Math.round(0.8 * m.u / pas) + 1, ny = Math.round((y1 - y0) / pas) + 1, nc = nx * ny;
     const Z = new Float32Array(nc).fill(-1e9), TR = new Int32Array(nc).fill(-1), BA = new Float32Array(nc * 2), GA = new Int32Array(nc * 2).fill(-1), GF = new Float32Array(nc);
     const torse = new Uint8Array(pr.nbOs), bras = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) { const os = pr.nomOs(j); torse[j] = /Torso|Abdomen/.test(os) ? 1 : 0; bras[j] = /^(UpperArm|LowerArm|Fist)/.test(os) ? 1 : 0; } // (par os, une fois : pas d'expression régulière par sommet)
-    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) { const j = pr.dom[k]; garde[k] = (R[k] === RI.veste || R[k] === RI.pantalon || R[k] === RI.foulard || (R[k] === RI.peau && torse[j])) && !bras[j] ? 1 : 0; } // (le haut de la poitrine est sur les os des épaules : gardé)
+    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) { const j = pr.dom[k]; garde[k] = (R[k] === RI.veste || R[k] === RI.pantalon || R[k] === RI.foulard || (R[k] === RI.peau && torse[j])) && !bras[j] ? 1 : 0; if ((k & 1023) === 1023 && souffle()) yield; } // (le haut de la poitrine est sur les os des épaules : gardé)
     const ok = (k) => garde[k] === 1;
     yield;
-    let travail = 0; // (les cases parcourues depuis le dernier pas : un grand triangle en couvre des centaines ; on rend la main toutes les 6 000)
+    let travail = 0; // (les cases parcourues depuis le dernier pas : un grand triangle en couvre des centaines ; on rend la main toutes les 6 000, ou l'heure passée)
     for (let t = 0; t < I.length; t += 3) {
-      if (travail > 6000 || t % 288 === 285) { travail = 0; yield; }
+      if (travail > 6000 || t % 288 === 285 || (t % 24 === 21 && souffle())) { travail = 0; yield; }
       const a = I[t], b = I[t + 1], c = I[t + 2]; if (!ok(a) || !ok(b) || !ok(c)) continue;
       const ax = W[a * 3], ay = W[a * 3 + 1], az = sens * W[a * 3 + 2], bx = W[b * 3], by = W[b * 3 + 1], bz = sens * W[b * 3 + 2], cx = W[c * 3], cy = W[c * 3 + 1], cz = sens * W[c * 3 + 2];
       const det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy); if (Math.abs(det) < 1e-12) continue;
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / pas)), i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / pas)), j0 = Math.max(0, Math.floor((Math.min(ay, by, cy) - y0) / pas)), j1 = Math.min(ny - 1, Math.ceil((Math.max(ay, by, cy) - y0) / pas));
       travail += (i1 - i0 + 1) * (j1 - j0 + 1);
-      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        const px = x0 + i * pas, py = y0 + j * pas, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / det, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / det, l3 = 1 - l1 - l2;
-        if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const z = l1 * az + l2 * bz + l3 * cz, q = j * nx + i;
-        if (z > Z[q]) { Z[q] = z; TR[q] = t; BA[q * 2] = l1; BA[q * 2 + 1] = l2; }
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          const px = x0 + i * pas, py = y0 + j * pas, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / det, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / det, l3 = 1 - l1 - l2;
+          if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const z = l1 * az + l2 * bz + l3 * cz, q = j * nx + i;
+          if (z > Z[q]) { Z[q] = z; TR[q] = t; BA[q * 2] = l1; BA[q * 2 + 1] = l2; }
+        }
+        if ((j & 3) === 3 && souffle()) { travail = 0; yield; } // (un grand triangle : il rend la main entre deux rangées)
       }
     }
     yield;
-    for (let j = 0; j < ny; j++) { let prev = -1; for (let i = 0; i < nx; i++) { const q = j * nx + i; if (Z[q] > -1e8 && TR[q] >= 0) { if (prev >= 0 && i - prev > 1) for (let r = prev + 1; r < i; r++) { const f = (r - prev) / (i - prev), qq = j * nx + r; Z[qq] = Z[j * nx + prev] + (Z[q] - Z[j * nx + prev]) * f; GA[qq * 2] = j * nx + prev; GA[qq * 2 + 1] = q; GF[qq] = f; } prev = i; } } }
+    for (let j = 0; j < ny; j++) { let prev = -1; for (let i = 0; i < nx; i++) { const q = j * nx + i; if (Z[q] > -1e8 && TR[q] >= 0) { if (prev >= 0 && i - prev > 1) for (let r = prev + 1; r < i; r++) { const f = (r - prev) / (i - prev), qq = j * nx + r; Z[qq] = Z[j * nx + prev] + (Z[q] - Z[j * nx + prev]) * f; GA[qq * 2] = j * nx + prev; GA[qq * 2 + 1] = q; GF[qq] = f; } prev = i; } } if ((j & 7) === 7 && souffle()) yield; }
     yield;
     // la façade drapée : le plus en avant à 0,024 près autour de chaque point (un tissu posé passe par-dessus les marches : l'ourlet de la veste, l'entrejambe)
     const ZD = new Float32Array(nc).fill(-1e9), ZH = new Float32Array(nc), rd = 4; // (le maximum sur le carré : sur la ligne, puis sur la colonne)
-    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { let z = -1e9; for (let ii = Math.max(0, i - rd), i1 = Math.min(nx - 1, i + rd); ii <= i1; ii++) { const v = Z[j * nx + ii]; if (v > z) z = v; } ZH[j * nx + i] = z; } if (j % 40 === 39) yield; }
+    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { let z = -1e9; for (let ii = Math.max(0, i - rd), i1 = Math.min(nx - 1, i + rd); ii <= i1; ii++) { const v = Z[j * nx + ii]; if (v > z) z = v; } ZH[j * nx + i] = z; } if (j % 40 === 39 || ((j & 3) === 3 && souffle())) yield; }
     yield;
-    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { if (!(Z[j * nx + i] > -1e8)) continue; let z = -1e9; for (let jj = Math.max(0, j - rd), j1 = Math.min(ny - 1, j + rd); jj <= j1; jj++) { const v = ZH[jj * nx + i]; if (v > z) z = v; } ZD[j * nx + i] = z; } if (j % 40 === 39) yield; }
+    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { if (!(Z[j * nx + i] > -1e8)) continue; let z = -1e9; for (let jj = Math.max(0, j - rd), j1 = Math.min(ny - 1, j + rd); jj <= j1; jj++) { const v = ZH[jj * nx + i]; if (v > z) z = v; } ZD[j * nx + i] = z; } if (j % 40 === 39 || ((j & 3) === 3 && souffle())) yield; }
     const cellule = (i, j) => { i = Math.max(0, Math.min(nx - 1, i)); j = Math.max(0, Math.min(ny - 1, j)); let q = j * nx + i; for (let d = 1; Z[q] < -1e8 && d < nx; d++) { const g = j * nx + Math.max(0, i - d), dr = j * nx + Math.min(nx - 1, i + d); q = Z[g] > -1e8 ? g : dr; } return q; };
     const zA = (x, y) => { const fi = (x - x0) / pas, fj = (y - y0) / pas, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j; return sens * ((ZD[cellule(i, j)] * (1 - u) + ZD[cellule(i + 1, j)] * u) * (1 - v) + (ZD[cellule(i, j + 1)] * (1 - u) + ZD[cellule(i + 1, j + 1)] * u) * v); };
     const ajouterSommet = (k, w, acc) => { for (let q = 0; q < 4; q++) { const ww = pr.SW[k * 4 + q] * w; if (ww > 0) acc.set(pr.SI[k * 4 + q], (acc.get(pr.SI[k * 4 + q]) || 0) + ww); } };
@@ -316,17 +348,20 @@ const EQUIPE3D = (() => {
   function* toitGen(pr) { // (à petits pas, comme facadeGen)
     if (pr.toit) return pr.toit; const W = pr.W, R = pr.R, I = pr.I, m = pr.m, u = m.u, pas = 0.008 * u, x0 = m.tete.cx - 0.36 * u, z0 = m.busteZ - 0.3 * u, nx = Math.ceil(0.72 * u / pas) + 1, nz = Math.ceil(0.6 * u / pas) + 1, Y = new Float32Array(nx * nz).fill(-1e9);
     const haut = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) haut[j] = /^(Torso|Neck|Shoulder|UpperArm)/.test(pr.nomOs(j)) ? 1 : 0;
-    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) garde[k] = (R[k] === RI.veste || R[k] === RI.foulard || R[k] === RI.peau) && haut[pr.dom[k]] ? 1 : 0;
+    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) { garde[k] = (R[k] === RI.veste || R[k] === RI.foulard || R[k] === RI.peau) && haut[pr.dom[k]] ? 1 : 0; if ((k & 1023) === 1023 && souffle()) yield; }
     const ok = (k) => garde[k] === 1;
     yield;
     let travail = 0;
     for (let t = 0; t < I.length; t += 3) {
-      if (travail > 6000 || t % 768 === 765) { travail = 0; yield; }
+      if (travail > 6000 || t % 768 === 765 || (t % 24 === 21 && souffle())) { travail = 0; yield; }
       const a = I[t], b = I[t + 1], c = I[t + 2]; if (!ok(a) || !ok(b) || !ok(c)) continue;
       const ax = W[a * 3], ay = W[a * 3 + 1], az = W[a * 3 + 2], bx = W[b * 3], by = W[b * 3 + 1], bz = W[b * 3 + 2], cx = W[c * 3], cy = W[c * 3 + 1], cz = W[c * 3 + 2], det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(det) < 1e-12) continue;
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / pas)), i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / pas)), j0 = Math.max(0, Math.floor((Math.min(az, bz, cz) - z0) / pas)), j1 = Math.min(nz - 1, Math.ceil((Math.max(az, bz, cz) - z0) / pas));
       travail += (i1 - i0 + 1) * (j1 - j0 + 1);
-      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const px = x0 + i * pas, pz = z0 + j * pas, l1 = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / det, l2 = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det, l3 = 1 - l1 - l2; if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const y = l1 * ay + l2 * by + l3 * cy, q = j * nx + i; if (y > Y[q]) Y[q] = y; }
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) { const px = x0 + i * pas, pz = z0 + j * pas, l1 = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / det, l2 = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det, l3 = 1 - l1 - l2; if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const y = l1 * ay + l2 * by + l3 * cy, q = j * nx + i; if (y > Y[q]) Y[q] = y; }
+        if ((j & 3) === 3 && souffle()) { travail = 0; yield; }
+      }
     }
     return (pr.toit = (x, z) => { const i = Math.round((x - x0) / pas), j = Math.round((z - z0) / pas); return i < 0 || j < 0 || i >= nx || j >= nz ? -1e9 : Y[j * nx + i]; });
   }
@@ -429,7 +464,7 @@ const EQUIPE3D = (() => {
           for (let i = 0; i < 4; i++) { SI.push(ww[i] ? ww[i][0] : 0); SW.push(ww[i] ? ww[i][1] / s : 0); }
         }
         I.push(k);
-        if ((j & 63) === 63) yield;
+        if ((j & 63) === 63 || ((j & 7) === 7 && souffle())) yield; // (les poids d'une part posée près du corps, sommet par sommet, coûtent : l'heure du pas aussi)
       }
       g.dispose(); if (!p.garder && !(p.geo.userData && p.geo.userData.cache)) p.geo.dispose();
       yield;
@@ -584,12 +619,16 @@ const EQUIPE3D = (() => {
     const sens = o.sens || 1, f = facade(pr, sens), cx0 = o.cx != null ? o.cx : pr.m.tete.cx, centre = o.centre || (() => cx0), nc = o.colonnes, rangees = [];
     for (let y = o.yH; y > o.yB - 1e-6; y -= o.pas) rangees.push(y); if (rangees[rangees.length - 1] > o.yB + 1e-4) rangees.push(o.yB);
     const nr = rangees.length, V = [], PW = [];
-    for (let j = 0; j < nr; j++) { for (let i = 0; i <= nc; i++) { const y = rangees[j], x = centre(y) + (i / nc * 2 - 1) * o.largeur(y), z = f.zA(x, y) + sens * o.e; V.push([x, y, z]); PW.push(f.poidsA(x, y)); } if (j % 3 === 2) yield; }
+    for (let j = 0; j < nr; j++) { for (let i = 0; i <= nc; i++) { const y = rangees[j], x = centre(y) + (i / nc * 2 - 1) * o.largeur(y), z = f.zA(x, y) + sens * o.e; V.push([x, y, z]); PW.push(f.poidsA(x, y)); } if (j % 3 === 2 || souffle()) yield; }
+    yield;
     const P = [], roles = [], poidsS = [];
-    for (let j = 0; j < nr - 1; j++) for (let i = 0; i < nc; i++) {
-      const k = (jj, ii) => jj * (nc + 1) + ii, quad = sens > 0 ? [k(j, i), k(j + 1, i), k(j, i + 1), k(j, i + 1), k(j + 1, i), k(j + 1, i + 1)] : [k(j, i), k(j, i + 1), k(j + 1, i), k(j, i + 1), k(j + 1, i + 1), k(j + 1, i)];
-      const role = o.role ? o.role((i + 0.5) / nc * 2 - 1, (j + 0.5) / (nr - 1)) : 'tissu';
-      for (const q of quad) { P.push(...V[q]); roles.push(role); poidsS.push(PW[q]); }
+    for (let j = 0; j < nr - 1; j++) {
+      for (let i = 0; i < nc; i++) {
+        const k = (jj, ii) => jj * (nc + 1) + ii, quad = sens > 0 ? [k(j, i), k(j + 1, i), k(j, i + 1), k(j, i + 1), k(j + 1, i), k(j + 1, i + 1)] : [k(j, i), k(j, i + 1), k(j + 1, i), k(j, i + 1), k(j + 1, i + 1), k(j + 1, i)];
+        const role = o.role ? o.role((i + 0.5) / nc * 2 - 1, (j + 0.5) / (nr - 1)) : 'tissu';
+        for (const q of quad) { P.push(...V[q]); roles.push(role); poidsS.push(PW[q]); }
+      }
+      if ((j & 3) === 3 && souffle()) yield;
     }
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(P, 3));
     return { geo, m: null, roles, poidsS };
@@ -620,6 +659,7 @@ const EQUIPE3D = (() => {
       const x0 = cx + s * lH * 0.92, x1 = cx + s * 0.104 * u, y1 = yH + 0.034 * u;
       parts.push(pc(tube([new T.Vector3(x0, yH - 0.01 * u, f.zA(x0, yH - 0.01 * u) + e), new T.Vector3(x0 + s * 0.004 * u, yH + 0.012 * u, f.zA(x0, yH + 0.012 * u) + e * 0.8), new T.Vector3(x1, y1, f.zA(x1, y1) + 0.003 * u), new T.Vector3(cx + s * 0.13 * u, m.foulard.max.y - 0.045 * u, m.busteZ + 0.015 * u)], 0.0058 * u, 4, 9), 'tissu', null, wH));
     }
+    yield;
     // les cordons, de la taille au dos, et leur boucle
     const C = contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'), yL = yT + 0.014 * u, wB = poidsCorps(pr, /^(Torso|Abdomen|Hips|Body)/), cz = C.cz, rL = (th) => C.r(th, yL) + e * 1.15 + 0.004 * u;
     const a0 = Math.atan2(lT * 0.96, f.zA(cx + lT, yL) - cz);
@@ -632,15 +672,15 @@ const EQUIPE3D = (() => {
     parts.push(pc(new T.SphereGeometry(0.013 * u, 8, 5), 'tissu', { x: cx, y: yL, z: zb - 0.006 * u, sz: 0.7 }, wB));
     yield;
     // une pièce rapportée, drapée : de (xc, yc), largeur w, hauteur h, au-dessus du tablier
-    const piece = (xc, yc, w, h, role, de, cols) => drape(pr, { yH: yc + h / 2, yB: yc - h / 2, pas: h / 2, colonnes: cols || 4, e: e + de, cx: xc, largeur: () => w / 2, role: () => role });
-    if (v === 'base' || v === 'apprenti') { const yc = yT - 0.16 * u; parts.push(piece(cx, yc, 0.13 * u, 0.1 * u, 'poche', 0.003 * u), piece(cx, yc + 0.05 * u - 0.007 * u, 0.13 * u, 0.014 * u, 'bord', 0.005 * u)); }
+    const piece = (xc, yc, w, h, role, de, cols) => drapeGen(pr, { yH: yc + h / 2, yB: yc - h / 2, pas: h / 2, colonnes: cols || 4, e: e + de, cx: xc, largeur: () => w / 2, role: () => role }); // (un générateur : yield*)
+    if (v === 'base' || v === 'apprenti') { const yc = yT - 0.16 * u; parts.push(yield* piece(cx, yc, 0.13 * u, 0.1 * u, 'poche', 0.003 * u), yield* piece(cx, yc + 0.05 * u - 0.007 * u, 0.13 * u, 0.014 * u, 'bord', 0.005 * u)); }
     if (v === 'parcours') { // une poche par quartier : quatre, leur rabat cuivré, deux rivets
       const yc = yT - 0.15 * u;
-      for (const k of [-1.5, -0.5, 0.5, 1.5]) { const xc = cx + k * 0.104 * u; parts.push(piece(xc, yc, 0.086 * u, 0.085 * u, 'poche', 0.003 * u), piece(xc, yc + 0.0425 * u - 0.008 * u, 0.086 * u, 0.016 * u, 'fonce', 0.005 * u)); for (const s of [-1, 1]) { const [p] = surFacade(pr, xc + s * 0.034 * u, yc + 0.034 * u, e + 0.008 * u); parts.push(pc(new T.SphereGeometry(0.0055 * u, 6, 4), 'bijou', { x: p.x, y: p.y, z: p.z, sz: 0.6 }, wF)); } yield; }
+      for (const k of [-1.5, -0.5, 0.5, 1.5]) { const xc = cx + k * 0.104 * u; parts.push(yield* piece(xc, yc, 0.086 * u, 0.085 * u, 'poche', 0.003 * u), yield* piece(xc, yc + 0.0425 * u - 0.008 * u, 0.086 * u, 0.016 * u, 'fonce', 0.005 * u)); for (const s of [-1, 1]) { const [p] = surFacade(pr, xc + s * 0.034 * u, yc + 0.034 * u, e + 0.008 * u); parts.push(pc(new T.SphereGeometry(0.0055 * u, 6, 4), 'bijou', { x: p.x, y: p.y, z: p.z, sz: 0.6 }, wF)); } yield; }
     }
     if (podium) { // le cartouche brodé : son cadre, son fond, les initiales de la boutique
       const yc = yT + 0.105 * u, a = 0.064 * u, bb = 0.046 * u, ell = (k) => (y) => a * k * Math.sqrt(Math.max(0.04, 1 - Math.pow((y - yc) / (bb * k), 2)));
-      parts.push(drape(pr, { yH: yc + bb, yB: yc - bb, pas: bb / 3, colonnes: 12, e: e + 0.003 * u, largeur: ell(1), role: () => 'fonce' }), drape(pr, { yH: yc + bb * 0.8, yB: yc - bb * 0.8, pas: bb * 0.8 / 3, colonnes: 12, e: e + 0.0045 * u, largeur: ell(0.8), role: () => 'clair' }));
+      parts.push(yield* drapeGen(pr, { yH: yc + bb, yB: yc - bb, pas: bb / 3, colonnes: 12, e: e + 0.003 * u, largeur: ell(1), role: () => 'fonce' }), yield* drapeGen(pr, { yH: yc + bb * 0.8, yB: yc - bb * 0.8, pas: bb * 0.8 / 3, colonnes: 12, e: e + 0.0045 * u, largeur: ell(0.8), role: () => 'clair' }));
       yield;
       const txt = o.mono || 'B', h = 0.036 * u, w = largeurTexte(txt, h);
       for (const g of tracer(txt, h, 0.0064 * u, 0.0035 * u, (uu, vv) => surFacade(pr, cx - w / 2 + uu, yc - h / 2 + vv, e + 0.0052 * u))) parts.push(pc(g, 'broderie', null, (x, y) => wF(x, y)));
@@ -702,7 +742,7 @@ const EQUIPE3D = (() => {
     // la poche kangourou : le même tissu, un peu plus clair ; ses rebords piqués, ses deux entrées sur les côtés
     const yb = m.pantalon.max.y + 0.035 * u, yh = yb + (m.buste.max.y - yb) * 0.24, lk = Math.max(Math.abs(m.buste.min.x - cx), Math.abs(m.buste.max.x - cx)) * 0.5;
     yield;
-    parts.push(drape(pr, { yH: yh, yB: yb, pas: (yh - yb) / 4, colonnes: 8, e: 0.013 * u, largeur: (y) => lk * (0.86 + 0.14 * (y - yb) / (yh - yb)), role: (uu, vv) => (vv < 0.2 || Math.abs(uu) > 0.78 && vv < 0.75 ? 'bord' : 'poche') }));
+    parts.push(yield* drapeGen(pr, { yH: yh, yB: yb, pas: (yh - yb) / 4, colonnes: 8, e: 0.013 * u, largeur: (y) => lk * (0.86 + 0.14 * (y - yb) / (yh - yb)), role: (uu, vv) => (vv < 0.2 || Math.abs(uu) > 0.78 && vv < 0.75 ? 'bord' : 'poche') }));
     yield;
     // l'étoile, sur la poitrine gauche
     const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), or ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y)));
@@ -1109,7 +1149,9 @@ const EQUIPE3D = (() => {
   // les masques du corps, une fois par corps (le pas « masques » de la préparation) : le rôle de chaque sommet sous les pièces — les pieds
   // chaussés (le dessus, la semelle), les boutons du Chef —, puis ceux qui changent selon la tenue : le pantalon rentré dans la botte, le col
   // tricolore (le blanc, le bleu, le rouge selon l'angle autour du cou)
-  function masques(pr) {
+  // (masques() d'un trait, en cache ; masquesGen() à petits pas : le pas « masques » de la préparation)
+  function masques(pr) { if (pr.masques) return pr.masques; const g = masquesGen(pr); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* masquesGen(pr) {
     if (pr.masques) return pr.masques;
     const m = pr.m, u = m.u, W = pr.W, n0 = pr.n, rb = pr.R.slice(), pied0 = m.piedsY0, ch = m.chevilleY, hp = ch - pied0, yBotte = ch + (m.pantalon.max.y - ch) * 0.3, yCol = m.foulard.min.y - 0.01 * u, cxT = m.tete.cx, botte = [], col = [];
     const cl = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) { const os = pr.nomOs(j); cl[j] = /LowerLeg/.test(os) ? 3 : /Foot/.test(os) ? 1 : /Torso|Abdomen/.test(os) ? 2 : 0; } // (par os : 1 le pied, 3 le tibia, 2 le torse)
@@ -1119,7 +1161,9 @@ const EQUIPE3D = (() => {
       else if (r === RI.peau && c === 2 && y < yCol && W[k * 3 + 2] > m.busteZ + 0.07 * u) rb[k] = RI.boutons;
       else if (r === RI.pantalon && y < yBotte && c === 3) botte.push(k);
       else if (r === RI.foulard) { const a = Math.atan2(W[k * 3] - cxT, W[k * 3 + 2] - m.busteZ); col.push(k, Math.abs(a) > 2.3 || Math.abs(a) < 0.42 ? RI['X.blanc'] : a < 0 ? RI['X.bleu'] : RI['X.rouge']); }
+      if ((k & 1023) === 1023 && souffle()) yield;
     }
+    if (pr.masques) return pr.masques; // (bâtis d'un trait entre-temps, par une tenue portée plus tôt : ceux-là restent)
     return (pr.masques = { rb, botte: new Int32Array(botte), col: new Int32Array(col) });
   }
   // (geometrie() la bâtit d'un trait ; geometrieGen() à petits pas : les kits — cuits à petits pas s'il le faut —, le corps, puis l'assemblage)
@@ -1140,14 +1184,20 @@ const EQUIPE3D = (() => {
     let Pc = pr.P;
     if (info && info.rayon) {
       Pc = pr.P.slice(); const t = m.tete, rc = info.rayon, d = 0.1 * u;
-      for (let k = 0; k < n0; k++) { if (Rb[k] !== RI.cheveux) continue; const y = W[k * 3 + 1]; if (y < bord - d) continue; const dx = W[k * 3] - t.cx, dz = W[k * 3 + 2] - t.cz, r = Math.hypot(dx, dz); if (r <= rc) continue;
-        const uu = Math.min(1, (y - (bord - d)) / d), f = (rc + (r - rc) * (1 - uu * uu * (3 - 2 * uu))) / r; _v1.set(t.cx + dx * f, y, t.cz + dz * f).applyMatrix4(pr.iB); _v1.toArray(Pc, k * 3); }
+      for (let k = 0; k < n0; k++) {
+        if ((k & 1023) === 1023 && souffle()) { ms += performance.now() - tPas; yield; tPas = performance.now(); }
+        if (Rb[k] !== RI.cheveux) continue; const y = W[k * 3 + 1]; if (y < bord - d) continue; const dx = W[k * 3] - t.cx, dz = W[k * 3 + 2] - t.cz, r = Math.hypot(dx, dz); if (r <= rc) continue;
+        const uu = Math.min(1, (y - (bord - d)) / d), f = (rc + (r - rc) * (1 - uu * uu * (3 - 2 * uu))) / r; _v1.set(t.cx + dx * f, y, t.cz + dz * f).applyMatrix4(pr.iB); _v1.toArray(Pc, k * 3);
+      }
     }
     // les boutons du Chef, sous le sweat et la veste de patron (elle a les siens) : chacun ramené à son centre (des triangles nuls, rien ne dépasse)
     if (h.haut === 'sweat' || h.haut === 'veste') { if (Pc === pr.P) Pc = pr.P.slice(); for (const [k, c] of boutonsDe(pr)) Pc.set(c, k * 3); }
-    ms += performance.now() - tPas; yield; tPas = performance.now(); // (à petits pas : les masques, puis les triangles, puis l'assemblage)
+    ms += performance.now() - tPas; yield; tPas = performance.now(); // (à petits pas : les masques, puis les triangles, puis l'assemblage ; chacun rend aussi la main l'heure passée)
     const I = [];
-    for (let k = 0; k < pr.I.length; k += 3) { const a = pr.I[k], b = pr.I[k + 1], c = pr.I[k + 2]; if (Rb[a] === RI.cheveux && W[a * 3 + 1] > bord && W[b * 3 + 1] > bord && W[c * 3 + 1] > bord) continue; I.push(a, b, c); }
+    for (let k = 0; k < pr.I.length; k += 3) {
+      const a = pr.I[k], b = pr.I[k + 1], c = pr.I[k + 2]; if (!(Rb[a] === RI.cheveux && W[a * 3 + 1] > bord && W[b * 3 + 1] > bord && W[c * 3 + 1] > bord)) I.push(a, b, c);
+      if (k % 3072 === 3069 && souffle()) { ms += performance.now() - tPas; yield; tPas = performance.now(); }
+    }
     const nCorpsTris = I.length / 3;
     ms += performance.now() - tPas; yield; tPas = performance.now();
     // les kits, recollés à la suite du corps
@@ -1158,12 +1208,15 @@ const EQUIPE3D = (() => {
     for (const k of kits) {
       P.set(k.P, o * 3); N.set(k.N, o * 3); C0.set(k.C, o * 3); R.set(k.R, o); MU.set(k.MU, o); SI.set(k.SI, o * 4); SW.set(k.SW, o * 4);
       const tA = I.length / 3; for (let i = 0; i < k.I.length; i++) I.push(o + k.I[i]); places.push({ cle: k.emp + '|' + k.cle, emp: k.emp, v0: o, v1: o + k.n, t0: tA, t1: I.length / 3 }); o += k.n;
+      if (souffle()) { ms += performance.now() - tPas; yield; tPas = performance.now(); }
     }
     ms += performance.now() - tPas; yield; tPas = performance.now();
     const geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.BufferAttribute(P, 3)); geo.setAttribute('normal', new T.BufferAttribute(N, 3)); geo.setAttribute('skinIndex', new T.BufferAttribute(SI, 4)); geo.setAttribute('skinWeight', new T.BufferAttribute(SW, 4));
     geo.setAttribute('color', new T.BufferAttribute(new Uint16Array(n * 3), 3, true)); geo.setAttribute('lueur', new T.BufferAttribute(new Uint8Array(n * 4), 4, true));
-    geo.setIndex(new T.BufferAttribute(n > 65535 ? new Uint32Array(I) : new Uint16Array(I), 1)); geo.computeBoundingSphere();
+    geo.setIndex(new T.BufferAttribute(n > 65535 ? new Uint32Array(I) : new Uint16Array(I), 1));
+    if (souffle()) { ms += performance.now() - tPas; yield; tPas = performance.now(); } // (la sphère englobante : un tour de plus sur tous les sommets)
+    geo.computeBoundingSphere();
     ms = Math.round((ms + performance.now() - tPas) * 10) / 10;
     etat.msRhabillage = ms; etat.msAssemblage = ms; etat.msRhabillageMax = Math.max(etat.msRhabillageMax || 0, ms); // (le temps de l'assemblage, sans les kits cuits ici ni les attentes entre deux images)
     const sommet = Math.max(m.tete.sommet, m.cheveux.max.y, ...kits.filter((k) => k.emp === 'T').map((k) => k.yMax)); // (le cadre de la vue : la tenue entière, chapeau pointu compris)
@@ -1289,14 +1342,15 @@ const EQUIPE3D = (() => {
   function preparer(st, rang, nom) {
     if (st) { partie.st = st; partie.rang = Math.max(0, Math.min(5, rang || 0)); partie.nom = nom || ''; }
     if (API.pret) {
-      if (aRemplir) remplir();
+      if (aRemplir) { finPas = performance.now() + PAS_MS; try { remplir(); } finally { finPas = Infinity; } }
       else { if (st) prevoir(st, rang, nom); cuireAvance(3); }
       return true;
     }
     if (echec || !HDM.pret('equipe')) return false;
     const t0 = performance.now();
-    try { do { const t1 = performance.now(), quoi = etape(), d = performance.now() - t1; if (d > (etat.pasMax || 0)) { etat.pasMax = Math.round(d * 10) / 10; etat.pasLent = quoi; } noterPas(d, quoi); } while (!API.pret && performance.now() - t0 < BUDGET); }
+    try { do { const t1 = performance.now(); finPas = t1 + PAS_MS; const quoi = etape(), d = performance.now() - t1; if (d > (etat.pasMax || 0)) { etat.pasMax = Math.round(d * 10) / 10; etat.pasLent = quoi; } noterPas(d, quoi); } while (!API.pret && performance.now() - t0 < BUDGET); }
     catch (e) { echec = true; API.erreur = String((e && e.message) || e); console.warn('Équipe 3D : pas préparée, les chibis restent', API.erreur); }
+    finally { finPas = Infinity; }
     const ms = performance.now() - t0; etat.msCuisson = Math.round(etat.msCuisson + ms); etat.msImageMax = Math.max(etat.msImageMax || 0, Math.round(ms)); etat.images = (etat.images || 0) + 1;
     return API.pret;
   }
@@ -1309,7 +1363,7 @@ const EQUIPE3D = (() => {
     const noms = Object.keys(PROTOS);
     if (!avance) { // ce que les pièces lisent du corps, un morceau par pas ; puis les kits des apprentis, chacun à petits pas (un générateur)
       avance = [];
-      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facadeGen(pr, 1)], ['dos ' + nom, () => facadeGen(pr, -1)], ['proches ' + nom, () => prochesGen(pr)], ['contour taille ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille')], ['contour haut ' + nom, () => contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut')], ['contour cape ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape')], ['épaules ' + nom, () => toitGen(pr)], ['boutons ' + nom, () => boutonsGen(pr)], ['masques ' + nom, () => masques(pr)]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => (pr.kits.has(emp + '|' + cle) ? null : cuireKit(pr, cle, emp, faire))]); }
+      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facadeGen(pr, 1)], ['dos ' + nom, () => facadeGen(pr, -1)], ['proches ' + nom, () => prochesGen(pr)], ['contour taille ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille')], ['contour haut ' + nom, () => contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut')], ['contour cape ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape')], ['épaules ' + nom, () => toitGen(pr)], ['boutons ' + nom, () => boutonsGen(pr)], ['masques ' + nom, () => masquesGen(pr)]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => (pr.kits.has(emp + '|' + cle) ? null : cuireKit(pr, cle, emp, faire))]); }
     }
     if (pasKit) { if (pasKit.gen.next().done) pasKit = null; return pasKit ? pasKit.quoi : 'pas fini'; }
     const lancer = (l) => { const [quoi, f] = l.shift(), gen = f(); if (gen && typeof gen.next === 'function') pasKit = { quoi, gen }; return quoi; }; // (un générateur : mené aux pas suivants)
@@ -1349,10 +1403,13 @@ const EQUIPE3D = (() => {
   function cuireAvance(budget) {
     if (!cuisson && !AVANCE.length) { etat.msAvance = 0; return; }
     const t0 = performance.now();
-    do {
-      if (!cuisson) { const [pr, cle, emp, faire] = AVANCE.shift(); if (pr.kits.has(emp + '|' + cle)) continue; cuisson = { pr, k0: emp + '|' + cle, gen: cuireKit(pr, cle, emp, faire) }; }
-      if (cuisson.gen.next().done) { cuisson = null; etat.avance++; }
-    } while ((cuisson || AVANCE.length) && performance.now() - t0 < budget);
+    try {
+      do {
+        if (!cuisson) { const [pr, cle, emp, faire] = AVANCE.shift(); if (pr.kits.has(emp + '|' + cle)) continue; cuisson = { pr, k0: emp + '|' + cle, gen: cuireKit(pr, cle, emp, faire) }; }
+        finPas = performance.now() + PAS_MS; // (le pas rend la main l'heure passée, comme ceux de la préparation)
+        if (cuisson.gen.next().done) { cuisson = null; etat.avance++; }
+      } while ((cuisson || AVANCE.length) && performance.now() - t0 < budget);
+    } finally { finPas = Infinity; }
     const ms = Math.round((performance.now() - t0) * 10) / 10; etat.msAvance = ms; etat.imagesAvance++; if (ms > etat.msAvanceMax) etat.msAvanceMax = ms;
   }
 
