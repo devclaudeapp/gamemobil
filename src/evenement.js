@@ -222,7 +222,7 @@ const EVENEMENTS = (() => {
     //     d'un canvas neuf. Si le téléphone refuse le contexte, on réessaie (5 fois, une par seconde) ; s'il le reprend en route, on recrée.
     let essais3 = 0, tEssai3 = 0;
     function canvasNeuf() { const v = id('canvas'); if (!v) return null; const n = v.cloneNode(false); v.replaceWith(n); return n; }
-    function creer3(neuf) { const cv = neuf ? canvasNeuf() : id('canvas'); scene3 = cv ? F.scene(cv, { q }) : null; if (scene3) essais3 = 0; else { essais3++; tEssai3 = performance.now(); } }
+    function creer3(neuf) { const cv = neuf ? canvasNeuf() : id('canvas'); scene3 = cv ? F.scene(cv, { q }) : null; if (scene3) { essais3 = 0; tiroir.redim(); } else { essais3++; tEssai3 = performance.now(); } } // (une scène neuve, la boutique hantée, change les marges de la fenêtre : les crans du tiroir la suivent)
     function liberer3() { if (scene3) { scene3.detruire(); scene3 = null; canvasNeuf(); } }
     function entete(t, s) { id('titre').textContent = t; id('sous').textContent = s || ''; }
     function entrer() {
@@ -236,12 +236,12 @@ const EVENEMENTS = (() => {
       tiroir.poser('mi', false); // le tiroir revient au cran mi à chaque ouverture
       construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv(); placerAct();
       if (!scene3) { essais3 = 0; creer3(false); }
-      tiroir.redim(); // (la scène de la boutique hantée change les marges de la fenêtre : les crans la suivent)
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
       lastAct = ''; ramasser(true); majActivites(true); // une opération finie pendant l'absence : ramassée à l'ouverture, avec sa feuille
       if (act) act.ouvrir(); // la Maison hantée : la jauge du ×6, la file des clients-monstres, les apparitions, la commande de la nuit
+      tiroir.redim(); // l'écran rempli (le solde et sa jauge, la scène) : ses crans mesurés sur ce qui se voit, la scène jusqu'au tiroir
       dernierSave = performance.now();
     }
     function fermer() {
@@ -629,9 +629,10 @@ const EVENEMENTS = (() => {
       const suivre2 = (haut) => { if (!t) return; for (const e of el.querySelectorAll('.pq-suit')) { const dest = haut ? tete : bx; if (e.parentElement !== dest) dest.append(e); } };
       const sceneEl = () => el.querySelector('.pq-scene');
       function tailleScene(grandir) { // la scène va jusqu'au haut du tiroir posé (sa marge du bas comprise) : au cran mi, au cran fermé (en haut : celle du cran mi, couverte)
-        const sc = sceneEl(); if (!sc || el.hidden || ecran !== F.ecran) return; const r = el.getBoundingClientRect(), rs = sc.getBoundingClientRect(); if (!(r.height > 0) || !(rs.width > 0)) return; const mb = parseFloat(getComputedStyle(sc).marginBottom) || 0;
-        const h = Math.max(60, Math.round(T.Y[T.pos === 'ferme' ? 'ferme' : 'mi'] - mb - (rs.top - r.top)));
-        if (Math.abs(h - rs.height) < 0.5 || (grandir && h < rs.height)) return;
+        // (des mesures de mise en page, offsetTop / offsetHeight : l'entrée de l'écran glisse, une translation, qui ne doit rien fausser)
+        const sc = sceneEl(); if (!sc || el.hidden || ecran !== F.ecran || !(el.clientHeight > 0) || !(sc.offsetWidth > 0)) return; const mb = parseFloat(getComputedStyle(sc).marginBottom) || 0, hs = sc.offsetHeight;
+        const h = Math.max(60, Math.round(T.Y[T.pos === 'ferme' ? 'ferme' : 'mi'] - mb - sc.offsetTop));
+        if (Math.abs(h - hs) < 0.5 || (grandir && h < hs)) return;
         sc.style.height = h + 'px'; if (scene3 && scene3.redim) scene3.redim();
       }
       // les crans, en px depuis le haut de l'écran, ceux de la boutique (src/ui.js, layout) : haut, toute la page sous le solde (1 px dessous :
@@ -640,10 +641,11 @@ const EVENEMENTS = (() => {
       // l'enseigne de la boutique) ; à 60 px au moins du haut, à 120 px au moins du fermé. La scène va jusqu'au tiroir (tailleScene).
       function mesurer() {
         const sc = sceneEl(), so = el.querySelector('.pq-solde'); if (!t || !sc || !so || el.hidden || ecran !== F.ecran) return null;
-        const r = el.getBoundingClientRect(); if (!(r.height > 0)) return null;
-        const bas = r.height - (parseFloat(getComputedStyle(el).paddingBottom) || 0), haut = Math.floor(so.getBoundingClientRect().bottom - r.top) - 1;
+        // (des mesures de mise en page, offsetTop / offsetHeight, prises dans l'écran : l'entrée de l'écran, une translation, ne les fausse pas)
+        const H = el.clientHeight; if (!(H > 0)) return null;
+        const bas = H - (parseFloat(getComputedStyle(el).paddingBottom) || 0), haut = so.offsetTop + so.offsetHeight - 1;
         const ferme = Math.round(bas - poignee.offsetHeight - barre.offsetHeight), corpsH = bas - haut;
-        let col = haut; const a = el.querySelector('.pq-act'); if (a) { if (!sc.classList.contains('pq-serre')) { const ra = a.getBoundingClientRect(); if (ra.height > 0) colH = ra.bottom - r.top; } if (colH) col = colH; } // (la colonne en grand : sa hauteur notée quand elle n'est pas resserrée)
+        let col = haut; const a = el.querySelector('.pq-act'); if (a) { if (!sc.classList.contains('pq-serre') && a.offsetHeight > 0) colH = sc.offsetTop + a.offsetTop + a.offsetHeight; if (colH) col = colH; } // (la colonne en grand : sa hauteur notée quand elle n'est pas resserrée)
         const miH = haut + Math.min(corpsH - 360, Math.round(corpsH * 0.55));
         return { haut, mi: Math.round(Math.max(haut + 60, col + 8, Math.min(miH, ferme - 120))), ferme };
       }
@@ -669,7 +671,7 @@ const EVENEMENTS = (() => {
         // la poignée : celle de la boutique (au doigt et à la souris, capturée ; une touche bascule)
         T.poignee(poignee);
         // le solde ou l'écran changent de taille (une ligne de plus, une rotation) : les crans suivent, sans attendre la boucle
-        if (window.ResizeObserver) { let rq = 0; const ro = new ResizeObserver(() => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; verifier(); }); }); ro.observe(el); const so = el.querySelector('.pq-solde'); if (so) ro.observe(so); }
+        if (window.ResizeObserver) { const ro = new ResizeObserver(() => verifier()); ro.observe(el); const so = el.querySelector('.pq-solde'); if (so) ro.observe(so); }
         // un nouveau doigt posé ailleurs, un glisser pas fini (son lâcher perdu) : il est lâché, le tiroir va à un cran
         window.addEventListener('pointerdown', (e) => { if (T.glisse && T.doigt !== e.pointerId) T.lacher(false); }, true);
         // la barre : 6 px avant de glisser (au doigt et à la souris ; touch-action: none, rien d'autre ne la fait défiler)
@@ -702,7 +704,7 @@ const EVENEMENTS = (() => {
       }
       function ranger() { if (!t || T.glisse) return; suivre2(T.pos === 'haut' || (T.pos === 'mi' && court)); }
       const redim = () => { if (!t) return; cle = ''; colH = 0; verifier(); }; // une rotation, une autre hauteur de scène : les crans suivent
-      return { construire, poser, redim, ranger, verifier, get bandeaux() { return bx; }, couvre: () => !!t && T.pos === 'haut' && !T.glisse && !fin && ecran === F.ecran, get pos() { return T.pos; } };
+      return { construire, poser, redim, ranger, verifier, etat: () => { const sc = sceneEl(); return { pos: T.pos, y: T.y, Y: Object.assign({}, T.Y), glisse: T.glisse, doigt: T.doigt, fin: !!fin, cle, colH, haut: sc && sc.offsetTop, h: sc && sc.offsetHeight, mb: sc && getComputedStyle(sc).marginBottom }; }, get bandeaux() { return bx; }, couvre: () => !!t && T.pos === 'haut' && !T.glisse && !fin && ecran === F.ecran, get pos() { return T.pos; } };
     })();
 
     // ═══ les activités (src/activites.js : le moteur commun à tous les événements ; l'habillage vient de la fiche de l'événement) ═══
@@ -1028,7 +1030,7 @@ const EVENEMENTS = (() => {
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
     return { init, ouvrir, fermer, annoncer, revoir, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
-      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites, tiroir: (p) => { if (p) tiroir.poser(p, false); return tiroir.pos; },
+      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites, tiroir: (p) => { if (p) tiroir.poser(p, false); return tiroir.pos; }, tiroirEtat: () => tiroir.etat(),
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
 

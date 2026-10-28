@@ -342,7 +342,7 @@ function faux(d) {
         const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="loup"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
         check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Myrtille/.test(f9 || ''), `la 9e sorte (le loup-garou) : +2 étoiles, la chauve-souris ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
         if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
-        check(await ev(() => window.__fournil.st.compagnon === 'chauve-souris' && window.__fournil.G.aCompagnon(window.__fournil.st, 'chauve-souris')), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
+        check(await attendre(() => ev(() => window.__fournil.st.compagnon === 'chauve-souris' && window.__fournil.G.aCompagnon(window.__fournil.st, 'chauve-souris')), 4000), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
         await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
@@ -554,8 +554,9 @@ function faux(d) {
     await ev(() => window.__fournil.evHantee.tiroir('haut')); await sleep(300);
     await ev(() => window.__fournil.fermerHantee()); await sleep(900);
     await ev(() => document.querySelector('#b-hantee').click()); await attendre(() => ev(() => window.__fournil.evHantee.ecran === window.__fournil.evHantee.F.ecran), 10000); await sleep(1500);
-    const gr = await geo();
-    check(gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b - 22)) < 2, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px)`);
+    await pose(); const gr = await geo(), gs = await ev(() => { const el = document.querySelector('#hantee'), sc = el.querySelector('.pq-scene'), t = el.querySelector('.pq-tiroir'); return { mb: parseFloat(getComputedStyle(sc).marginBottom) || 0, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: el.getBoundingClientRect().top, cls: el.className, h: sc.style.height, s3: window.__fournil.evHantee.scene ? (window.__fournil.evHantee.scene.vue ? 'boutique' : 'manoir') : 'aucune', T: window.__fournil.evHantee.tiroirEtat ? JSON.stringify(window.__fournil.evHantee.tiroirEtat()) : '' }; });
+    // (sous la scène : son bas, sa marge négative comprise, -22 px pour la boutique hantée, -20 px pour le Manoir d'avant ; et au cran mi de cet écran)
+    check(gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b + gs.mb)) < 1 && Math.abs(gr.tiroir.h - gs.haut - gs.y) < 1 && Math.abs(gs.y - g0.tiroir.h) < 1, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px ; cran ${gs.y}, mi du début ${Math.round(g0.tiroir.h)} ; scène ${Math.round(gr.scene.h)}–${Math.round(gr.scene.b)}, marge ${gs.mb}, hauteur ${gs.h} ; ${gs.cls}, scène ${gs.s3} ; tiroir ${gs.T})`);
     { const t0 = await ev(() => window.__fournil.st.hantee.now); await sleep(1500); const t1 = await ev(() => window.__fournil.st.hantee.now); console.log(`   (rouvert : le temps des règles avance de ${t1 - t0} ms en 1,5 s)`); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();

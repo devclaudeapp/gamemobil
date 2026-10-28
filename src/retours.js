@@ -56,7 +56,7 @@ const RETOURS = (() => {
   let d = null, el, corps, fichier, zoom, bandeau, bouton;
   let onglet = 'ecrire', vue = 'accueil', adminVue = 'retours', filtre = 'nouveau';
   let etat = '', votes = [], finis = [], lusA = 0, lecture = null; // etat : '' (rien lu), 'ok', 'pas-ouvert', ou un état du réseau
-  let admin = false, adminVu = '', retours = [], adminEtat = '', plusAnciens = false, nouveaux = 0, adminLecture = null;
+  let admin = false, adminVu = '', retours = [], adminEtat = '', plusAnciens = false, nouveaux = 0, adminLecture = null, adminLectureCle = '';
   let envoiEnCours = false, dernierType = 'idee', noteTxt = '', noteMinuteur = 0, confirmer = 0;
   let minuteur = 0, minuteurAdmin = 0, horloge = 0;
   const pas = { votes: R.votes, admin: R.admin };
@@ -149,9 +149,13 @@ const RETOURS = (() => {
   }
   function lireRetours(plus) {
     const m = moteur(); if (!m || !admin) return Promise.resolve({ etat: 'absent' });
-    if (adminLecture) return adminLecture;
-    const avant = plus && retours.length ? retours[retours.length - 1].n : null, f = filtre;
+    // une lecture déjà en route : la même (le même filtre, la même page) est partagée ; une autre (le filtre vient de changer, « Tous » touché
+    // pendant la relecture des nouveaux) part juste après elle : sinon « Tous » montrait les nouveaux, et rien d'autre ne partait
+    const avant = plus && retours.length ? retours[retours.length - 1].n : null, f = filtre, cle = `${f}|${avant}`;
+    if (adminLecture) return adminLectureCle === cle ? adminLecture : adminLecture.then(() => lireRetours(plus));
+    adminLectureCle = cle;
     adminLecture = m.adminRetours(f, avant).then((r) => {
+      if (f !== filtre) return r; // (le filtre a changé en route : cette réponse ne vaut plus pour la liste)
       if (r.etat === 'ok') {
         adminEtat = 'ok';
         retours = avant ? retours.concat(r.retours.filter((x) => !retours.some((y) => y.n === x.n))) : r.retours;
