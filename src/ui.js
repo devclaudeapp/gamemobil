@@ -2167,7 +2167,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert); // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // (la maquette ?boulanger3d=1 : la vue « Mon boulanger » couvre la boutique) // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
     const atelier = couvert || !!chaineVue; // pendant l'Atelier, la Planque, une visite ou dans une boutique de la chaîne : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte

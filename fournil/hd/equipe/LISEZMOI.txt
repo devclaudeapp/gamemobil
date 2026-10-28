@@ -1,0 +1,10 @@
+Le boulanger et les apprentis de la boutique (src/equipe3d.js, maquette derrière ?boulanger3d=1), en qualité haute et moyenne.
+· Chef_Male.glb, Chef_Female.glb : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ; LICENCE.txt ; source : le dépôt GitHub
+  dancerphil/games), le même pack et le même rig de 23 os que les clients (fournil/hd/clients/). Meshopt, sans clips, les facettes sans normales
+  et soudées, les cheveux simplifiés.
+· anims-equipe.glb : Walk_Carry et Defeat de ce pack ; Working_A, Hammering et Cheering de KayKit Character Animations 1.1 (Kay Lousberg, CC0 ;
+  LICENCE-kaykit-animations.txt ; source : le miroir GitHub GeorgeQLe/assets-kaykit-3d-characters, commit af08a62, dossier
+  character-animations-1.1), reciblés sur le rig UACP. Les autres clips (Idle, Walk, Victory…) sont ceux des clients (fournil/hd/clients/anims.glb).
+· p-lanterne.glb : la citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; sa texture cuite
+  en couleurs de sommets. Les autres pièces des tenues (dont le chapeau pointu) sont bâties par le module, sans fichier.
+Refaits par outils/equipe3d/faire-equipe.mjs.
