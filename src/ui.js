@@ -338,8 +338,8 @@ const UI = (() => {
     $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
     $('#b-etoiles').classList.toggle('pret', pret);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
-    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
-    $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
+    // (la cloche d'à côté du cadeau a laissé sa place au classement : « Les nouvelles » s'ouvrent depuis l'onglet Journal et Réglages › Aide ;
+    // l'événement en cours se déplie en touchant sa bannière)
     $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
     $('#b-nouveautes').setAttribute('aria-label', nv ? `Nouveautés : ${nv} mise${nv > 1 ? 's' : ''} à jour à découvrir` : 'Les nouveautés du Fournil');
     badge($('#onglets [data-page="defis"]'), primes);
@@ -600,6 +600,22 @@ const UI = (() => {
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
   const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
   const RT = typeof RETOURS !== 'undefined' ? RETOURS : null; // les idées, les bugs et les votes (src/retours.js)
+  // leurs pastilles, depuis qu'ils ont quitté le coin : les messages non lus du chat (sur l'onglet « Chat » du classement et le bouton du
+  // classement), les votes à voter (l'admin : ses retours nouveaux) sur Réglages › Aide › « Idées & bugs » et l'onglet Réglages
+  let nonLusChat = 0, pastilleIdees = { n: 0, admin: false };
+  const texteNonLus = (n) => (n > 9 ? '9+' : n ? String(n) : '');
+  function majPastilleChat(n) {
+    nonLusChat = Math.max(0, n | 0);
+    document.querySelectorAll('#b-classement .tc-nonlus, [data-tab="chat"] .tc-nonlus').forEach((p) => { p.hidden = !nonLusChat; p.textContent = texteNonLus(nonLusChat); });
+    document.querySelectorAll('[data-tab="chat"]').forEach((b) => b.setAttribute('aria-label', nonLusChat ? `Chat : ${nonLusChat > 9 ? 'plus de 9' : nonLusChat} message${nonLusChat > 1 ? 's' : ''} non lu${nonLusChat > 1 ? 's' : ''}` : 'Chat'));
+    labelClassement();
+  }
+  const sousIdees = () => { const n = pastilleIdees.n; return !n ? 'Proposer une idée, signaler un bug, voter' : pastilleIdees.admin ? `${n > 9 ? 'Plus de 9' : n} nouveau${n > 1 ? 'x' : ''} retour${n > 1 ? 's' : ''} à lire · idées, bugs et votes` : `${n > 1 ? `${n} votes t’attendent` : 'Un vote t’attend'} · idées, bugs et votes`; };
+  function majPastilleIdees(n, admin) {
+    pastilleIdees = { n: Math.max(0, n | 0), admin: !!admin };
+    document.querySelectorAll('[data-a="idees"] .rt-pastille').forEach((p) => { p.hidden = !pastilleIdees.n; p.textContent = texteNonLus(pastilleIdees.n); p.classList.toggle('admin', pastilleIdees.admin); });
+    const o = $('#onglets [data-page="reglages"]'); if (o) badge(o, pastilleIdees.n, pastilleIdees.admin ? '' : 'beurre');
+  }
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -651,7 +667,7 @@ const UI = (() => {
   }
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}|${nonLues()}|${pastilleIdees.n}${pastilleIdees.admin}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -678,7 +694,9 @@ const UI = (() => {
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
-        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
+        ${groupe('Aide', ligne('journal', ICONS.UI.cloche, 'Les nouvelles', nonLues() ? `Le journal de la boutique · ${nonLues()} nouvelle${nonLues() > 1 ? 's' : ''}` : 'Le journal de la boutique : trophées, grades, commandes, cadeaux des habitués', nonLues() ? `<span class="rg-droite"><i class="rg-compte">${nonLues() > 99 ? '99+' : nonLues()}</i>${chev}</span>` : chev)
+          + (RT && classement ? ligne('idees', ICONS.UI.ampoule, 'Idées & bugs', sousIdees(), `<span class="rg-droite"><i class="rg-compte rt-pastille${pastilleIdees.admin ? ' admin' : ''}"${pastilleIdees.n ? '' : ' hidden'}>${pastilleIdees.n > 9 ? '9+' : pastilleIdees.n || ''}</i>${chev}</span>`) : '')
+          + ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
           + ligne('credits', ICO_CREDITS, 'Crédits', 'Les modèles 3D, les sons et la musique du jeu, et leurs auteurs', chev))}
         <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
@@ -705,6 +723,8 @@ const UI = (() => {
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
+      onIn(sec, '[data-a="journal"]', () => { son.tap(); showPage('journal'); }); // « Les nouvelles » (l'ancienne cloche) : la page du Journal
+      onIn(sec, '[data-a="idees"]', () => { son.tap(); if (RT) RT.ouvrir(pastilleIdees.admin && pastilleIdees.n ? 'admin' : 'ecrire'); }); // la même feuille que l'ancienne ampoule (l'admin : ses retours nouveaux)
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
       onIn(sec, '[data-a="notifs"]', () => basculerNotifs()); // la permission est demandée tout de suite, dans le geste (Safari l'exige)
       for (const [k] of CAS_NOTIFS) onIn(sec, `[data-a="notif-${k}"]`, () => { const p = classement.notifs().prefs; p[k] = !p[k]; basculerNotifs(p); });
@@ -1289,7 +1309,7 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
-  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué
+  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); majMinuteurs(); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
   function majCoin() {
     majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
@@ -1300,7 +1320,24 @@ const UI = (() => {
     const p = b.querySelector('.rang-pastille');
     p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
     majCoinQuartier();
-    b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
+    labelRang = rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers'; labelClassement();
+  }
+  // le bouton du classement (en haut, à côté du cadeau) dit sa place de la semaine, et les messages du chat pas encore lus
+  let labelRang = 'Classement des boulangers';
+  function labelClassement() { const b = $('#b-classement'); if (b) b.setAttribute('aria-label', labelRang + (nonLusChat ? ` · chat : ${nonLusChat > 9 ? 'plus de 9' : nonLusChat} message${nonLusChat > 1 ? 's' : ''} non lu${nonLusChat > 1 ? 's' : ''}` : '')); }
+  // le minuteur sous l'icône de chaque événement en cours, dans le coin : « 5 j 12 h », puis « 2 h 15 » le dernier jour (« 40 min » la dernière heure)
+  function resteCourt(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60e3)), j = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mn = m % 60;
+    return j ? `${j}\u00a0j\u00a0${h}\u00a0h` : h ? `${h}\u00a0h\u00a0${String(mn).padStart(2, '0')}` : `${mn}\u00a0min`;
+  }
+  function majMinuteurs() {
+    for (const [sel, E, nom] of [['#b-quartier', EVT, 'Le Quartier'], ['#b-hantee', HTE, 'La Maison hantée']]) {
+      const b = $(sel), x = b && b.querySelector('.ev-reste'); if (!x) continue;
+      let f = null; try { f = !b.hidden && E ? E.fenetre() : null; } catch (e) { f = null; }
+      const t = f && f.ouvert && f.reste > 0 ? resteCourt(f.reste) : '';
+      if (x.textContent !== t) x.textContent = t; x.hidden = !t; b.classList.toggle('minute', !!t);
+      const l = `L’événement : ${nom}${t ? ` · encore ${t.replace(/\u00a0/g, ' ')}` : ''}`; if (b.getAttribute('aria-label') !== l) b.setAttribute('aria-label', l);
+    }
   }
   // le coin trop haut pour la place au-dessus du tiroir (un petit téléphone, 360 × 640 ; l'événement de la boutique affiché au-dessus du
   // tiroir) : deux colonnes. La première (à droite) garde l'ordre de haut en bas ; ce qui n'y tient pas passe dans la seconde, à gauche,
@@ -1393,7 +1430,7 @@ const UI = (() => {
   }
   function htmlClassement() {
     const r = classement.resume(), c = classement.cache(ongletCl), charge = classement.enChargement(ongletCl);
-    const seg = `<div class="segments" role="tablist" aria-label="Période du classement">${periodes().map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletCl === id}" class="${ongletCl === id ? 'actif' : ''}">${t}</button>`).join('')}</div>`;
+    const seg = ongletsClassement(ongletCl);
     const corps = c && c.etat === 'ok' ? listeClassement(c.data, r) : c && !charge ? etatClassement(c.etat)
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
@@ -1430,8 +1467,26 @@ const UI = (() => {
     }[e] || [ICONS.UI.horsLigne, 'Le classement ne répond pas', 'Un petit souci de fournée. Réessaie dans un moment.', true];
     return `<div class="cl-etat ${e}" role="status"><span class="pic">${t[0]}</span><b>${t[1]}</b><span>${t[2]}</span>${t[3] ? '<button type="button" class="btn clair" data-a="cl-reessayer"><b>Réessayer</b></button>' : ''}</div>`;
   }
+  // les onglets du classement : ses périodes (et ses événements), puis « Chat » (le chat des boulangers, src/chat.js, avec sa pastille des
+  // non lus) ; le même rang d'onglets en tête du chat, « Chat » choisi : on passe de l'un à l'autre comme d'un onglet à l'autre
+  const chatOnglet = () => !!(TC && classement);
+  function ongletsClassement(actif) {
+    const p = periodes(), avecChat = chatOnglet(), court = avecChat && p.length === 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous' }[id] || t]) : p; // (quatre onglets : des noms courts, comme pendant deux événements)
+    const tab = (id, t, extra) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${actif === id}" class="${actif === id ? 'actif' : ''}"${extra || ''}>${t}</button>`;
+    const n = actif === 'chat' ? 0 : nonLusChat;
+    return `<div class="segments${avecChat ? ' avec-chat' : ''}" role="tablist" aria-label="Le classement et le chat">${court.map(([id, t]) => tab(id, t)).join('')}${avecChat ? tab('chat', `<i class="ico">${ICONS.UI.bulle}</i>Chat<i class="rang-pastille tc-nonlus" aria-hidden="true"${n ? '' : ' hidden'}>${texteNonLus(n)}</i>`, ` aria-label="${n ? `Chat : ${n > 9 ? 'plus de 9' : n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Chat'}"`) : ''}</div>`;
+  }
+  function ouvrirChatOnglet() { if (!TC) return false; son.tap(); return TC.ouvrir(); }
+  // le chat ouvert (par son onglet, ou d'ailleurs) : le rang d'onglets du classement en tête, « Chat » choisi ; une période : retour au classement
+  function ongletsDuChat() {
+    const box = $('#tc-onglets'); if (!box) return;
+    if (!chatOnglet()) { box.hidden = true; box.innerHTML = ''; return; }
+    if (!periodes().some(([id]) => id === ongletCl)) ongletCl = 'semaine';
+    box.innerHTML = ongletsClassement('chat'); box.hidden = false;
+  }
   function lierClassement() {
     on('[data-tab]', (b) => {
+      if (b.dataset.tab === 'chat') { ouvrirChatOnglet(); return; }
       if (b.dataset.tab === ongletCl) return;
       son.tap(); ongletCl = b.dataset.tab; rafraichirClassement(true);
       const c = classement.cache(ongletCl); if (!c || c.etat !== 'ok' || HORLOGE.maintenant() - c.quand > 30e3) classement.charger(ongletCl); // c.quand est daté par l'horloge de confiance
@@ -1797,13 +1852,13 @@ const UI = (() => {
     else { SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []); }
     if (SCENE.decos && CE) { try { SCENE.decos(chaineVue ? CH.posesDe(chaineVue.v.b) : CE.posesDe(0)); } catch (e) { /* rien */ } }
   }
-  // l'icône ronde de la planète, en tête du coin de la boutique : dès que la chaîne a une boutique ; sa pastille, les jetons à prendre
+  // l'icône ronde de la planète, en tête du coin de la boutique (en haut à droite), toujours là ; sa pastille, les jetons à prendre
   let cleCoinChaine = '';
   function majCoinChaine() {
     const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
     const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
-    b.hidden = !r.boutiques; const p = b.querySelector('.rang-pastille'); p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
-    b.setAttribute('aria-label', `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}`);
+    b.hidden = false; const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    b.setAttribute('aria-label', r.boutiques ? `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}` : 'Ma chaîne : elle commence à ta 2e boutique');
   }
   function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
     if (chaineVue) { CE.cartes.rendre(true); CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } else renderCards(true);
@@ -2337,7 +2392,6 @@ const UI = (() => {
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
-    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else { son.tap(); showPage('journal'); } }); // la cloche : l'événement en cours, sinon le fil des nouvelles
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
     document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page !== pageActive) { son.tap(); showPage(b.dataset.page); } else if (tiroir.pos === 'ferme') tiroir.aller('mi'); else $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); }));
@@ -2386,6 +2440,7 @@ const UI = (() => {
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
+    setInterval(majMinuteurs, 15e3); // le minuteur des événements du coin : sa minute change sans attendre le reste
     if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
@@ -2396,8 +2451,11 @@ const UI = (() => {
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QA && QA.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
-    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
-    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
+    // le chat des boulangers : un onglet de la feuille du classement (ses non-lus sur l'onglet et sur le bouton du classement, en haut)
+    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); ongletsDuChat(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), pastille: majPastilleChat });
+    { const box = $('#tc-onglets'); if (box) box.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b || b.dataset.tab === 'chat') return; audio(); son.tap(); TC.fermer(); sheetClassement(b.dataset.tab); }); }
+    // les idées, les bugs et les votes : Réglages › Aide › « Idées & bugs » (sa pastille là, et sur l'onglet Réglages) ; le bandeau du vote reste dans la boutique
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees });
     try { // le coin se resserre au besoin (serrerCoin)
       const mo = new MutationObserver(serrerCoinBientot);
       mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });

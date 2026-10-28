@@ -3,12 +3,14 @@
 // les fonctions du contrat (supabase/fournil-chat.sql) en mémoire, avec leurs refus (trop-vite, banni, pas-ouvert). GIPHY aussi : l'API
 // (recherche, tendances) et les images de media.giphy.com. La clé GIPHY de ce test est fausse : config.js est servi avec elle, comme
 // test/fournil-notifs.cjs le fait pour la clé VAPID (le vrai fichier n'est pas touché).
-// Parcours : le bouton rond sous les icônes du coin, rien au lancement tant qu'on n'a pas rejoint ; la feuille (les bulles, le pseudo, l'heure,
+// Parcours : l'onglet « Chat » de la feuille du classement (le chat a quitté le coin : sa pastille des non-lus est sur l'onglet et sur le
+// bouton du classement, en haut à côté du cadeau ; le rang d'onglets du classement en tête du chat, une période y ramène au classement),
+// rien au lancement tant qu'on n'a pas rejoint ; la feuille (les bulles, le pseudo, l'heure,
 // la photo chargée paresseusement puis agrandie, le GIF, un message piégé affiché en texte), « Rejoins le classement pour écrire » ; la pastille
 // des non-lus ; envoyer un texte ; trop vite (le téléphone, puis le serveur) ; une photo de 3000 × 2000 compressée sous 350 Ko ; un GIF de la
 // galerie (léger : il part ; lourd : refusé) ; la recherche GIPHY (tendances, puis recherche : rating g, lang fr) ; l'appui long (Signaler,
 // masqué au 3e ; Effacer le sien) ; banni ; la page cachée qui arrête les lectures ; « bientôt » (le SQL pas collé, puis sans clé GIPHY) ;
-// sans configuration, pas de bouton ; le service worker qui ne met jamais GIPHY en cache ; aucune erreur dans la console.
+// sans configuration, ni bouton du classement ni onglet ; le service worker qui ne met jamais GIPHY en cache ; aucune erreur dans la console.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-chat.cjs   (captures dans test/shots/chat/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto'), vm = require('vm');
@@ -154,17 +156,26 @@ let gifPng = []; // des images (PNG, servies comme GIF : le navigateur lit le co
   const ctx = await nouveau();
   const page = await ctx.newPage(); suivre(page);
   await page.goto(BASE + '/fournil/'); await sleep(1500);
+  // le chat : un onglet de la feuille du classement (le bouton du classement en haut, puis l'onglet « Chat »)
+  const ouvrirChat = async (p) => { await p.tap('#b-classement'); await p.waitForSelector('#feuille-contenu [data-tab="chat"]', { timeout: 8000 }); await sleep(250); await p.tap('#feuille-contenu [data-tab="chat"]'); await sleep(300); };
 
-  // ─── le bouton : sous les icônes du coin, rien au réseau tant qu'on n'a pas rejoint le classement ───
-  const bouton = await page.evaluate(() => { const b = document.querySelector('#b-tchat'), r = b.getBoundingClientRect(), dessus = [...document.querySelectorAll('#coin .rond')].filter((x) => !x.hidden && x !== b && x.id !== 'b-idees'); return { vu: !b.hidden && r.width >= 40, droite: innerWidth - r.right, dessous: dessus.every((x) => x.getBoundingClientRect().bottom <= r.top), dernier: document.querySelector('#coin').lastElementChild === b || b.nextElementSibling.id === 'b-idees', label: b.getAttribute('aria-label'), pastille: !b.querySelector('.tc-nonlus').hidden, svg: !!b.querySelector('svg') }; });
-  check(bouton.vu && bouton.dessous && bouton.dernier && bouton.svg && bouton.droite <= 14 && !bouton.pastille && bouton.label === 'Le chat des boulangers', `le bouton rond « Chat » est dans le coin, sous les autres icônes (dont celles des événements ; seule l’ampoule des idées vient dessous), sans pastille ${JSON.stringify(bouton)}`);
+  // ─── l'onglet : dans la feuille du classement, après les périodes ; plus de bouton du chat dans le coin ; rien au réseau tant qu'on n'a pas rejoint ───
+  const bouton = await page.evaluate(() => { const b = document.querySelector('#b-classement'), r = b.getBoundingClientRect(), n = document.querySelector('#b-nouveautes').getBoundingClientRect(), h = document.querySelector('#haut').getBoundingClientRect(); return { vu: !b.hidden && r.width >= 40, enHaut: r.top >= h.top && r.bottom <= h.bottom + 1, avantCadeau: r.right <= n.left, coin: !!document.querySelector('#b-tchat, #coin [data-ico="bulle"]'), pastille: !b.querySelector('.tc-nonlus').hidden, label: b.getAttribute('aria-label') }; });
+  check(bouton.vu && bouton.enHaut && bouton.avantCadeau && !bouton.coin && !bouton.pastille && bouton.label === 'Classement des boulangers', `le bouton du classement est en haut, à côté du cadeau ; plus de bouton du chat dans le coin ; pas de pastille ${JSON.stringify(bouton)}`);
+  await page.tap('#b-classement'); await page.waitForSelector('#feuille-contenu [data-tab="chat"]', { timeout: 8000 }); await sleep(300);
+  const onglet = await page.evaluate(() => { const l = [...document.querySelectorAll('#feuille-contenu .segments [data-tab]')], c = document.querySelector('#feuille-contenu [data-tab="chat"]'), r = c.getBoundingClientRect(); return { tabs: l.map((b) => b.dataset.tab), dernier: l[l.length - 1] === c, txt: c.textContent.trim(), svg: !!c.querySelector('svg'), pastille: !c.querySelector('.tc-nonlus').hidden, h: r.height, dans: r.right <= innerWidth && r.left >= 0 }; });
+  check(onglet.dernier && onglet.tabs[0] === 'semaine' && onglet.tabs.includes('total') && onglet.txt === 'Chat' && onglet.svg && !onglet.pastille && onglet.h >= 44 && onglet.dans, `la feuille du classement : l’onglet « Chat » après les périodes (${onglet.tabs.join(', ')}), 44 px, sans pastille`);
+  await page.screenshot({ path: out + '/00-onglet-classement.png' });
+  await page.evaluate(() => document.querySelector('#feuille-contenu [data-a="close"]').click()); await sleep(300);
   check(await page.evaluate(() => window.__fournil.tchat.R.ouvert === 4000 && window.__fournil.tchat.R.ferme === 60000), 'les lectures : toutes les 4 s feuille ouverte, toutes les 60 s sinon (le test les rapproche)');
   await sleep(3500);
   check(appels('fournil_chat_lire').length === 0, 'pas encore rejoint : aucune lecture du chat en arrière-plan (rien ne part avant d’avoir rejoint)');
 
   // ─── la feuille, sans pseudo : on lit, on n'écrit pas ───
-  await page.tap('#b-tchat');
-  check(await attendre(() => page.evaluate(() => document.querySelectorAll('#tc-fil .tc-msg').length === 6)), 'toucher le bouton : la feuille plein écran, les 6 messages');
+  await ouvrirChat(page);
+  check(await attendre(() => page.evaluate(() => document.querySelectorAll('#tc-fil .tc-msg').length === 6)), 'toucher l’onglet « Chat » : le chat plein écran, les 6 messages');
+  const tete = await page.evaluate(() => { const o = document.querySelector('#tc-onglets'), l = [...o.querySelectorAll('[data-tab]')]; return { vu: !o.hidden, tabs: l.map((b) => b.dataset.tab), actif: (o.querySelector('[data-tab].actif') || {}).dataset, feuille: document.querySelector('#feuille').hidden, haut: o.getBoundingClientRect().bottom <= document.querySelector('#tc-fil').getBoundingClientRect().top + 1 }; });
+  check(tete.vu && tete.tabs[tete.tabs.length - 1] === 'chat' && tete.actif && tete.actif.tab === 'chat' && tete.feuille && tete.haut, `en tête du chat, le rang d’onglets du classement, « Chat » choisi (${tete.tabs.join(', ')}) ; la feuille du classement s’est fermée`);
   const l0 = appels('fournil_chat_lire')[0];
   check(l0 && l0.corps.p_apres === 0 && l0.corps.p_limite === 50 && Object.keys(l0.corps).length === 2, `fournil_chat_lire(p_apres 0, p_limite 50) à l’ouverture ${JSON.stringify(l0 && l0.corps)}`);
   let b = await bulles(page);
@@ -202,16 +213,20 @@ let gifPng = []; // des images (PNG, servies comme GIF : le navigateur lit le co
   const vu0 = (await etat(page)).vu;
   check(vu0 === faux.chat[faux.chat.length - 1].n, `la feuille fermée en bas : tout est lu (st.chatVu = ${vu0})`);
   ecrire(mamie, { texte: 'Lucas, bienvenue !' });
-  check(await attendre(() => page.evaluate(() => document.querySelector('#b-tchat .tc-nonlus').textContent === '1' && !document.querySelector('#b-tchat .tc-nonlus').hidden), 6000), 'un message arrive : la pastille dit « 1 » (lecture en arrière-plan, maintenant qu’on a rejoint)');
+  check(await attendre(() => page.evaluate(() => document.querySelector('#b-classement .tc-nonlus').textContent === '1' && !document.querySelector('#b-classement .tc-nonlus').hidden), 6000), 'un message arrive : la pastille du bouton du classement dit « 1 » (lecture en arrière-plan, maintenant qu’on a rejoint)');
   ecrire(petit, { texte: 'Salut Lucas' }); ecrire(tonton, { texte: '👋' });
-  check(await attendre(() => page.evaluate(() => document.querySelector('#b-tchat .tc-nonlus').textContent === '3'), 6000) && /3 messages non lus/.test(await page.evaluate(() => document.querySelector('#b-tchat').getAttribute('aria-label'))), 'deux de plus : « 3 », et le bouton le dit (« 3 messages non lus »)');
+  check(await attendre(() => page.evaluate(() => document.querySelector('#b-classement .tc-nonlus').textContent === '3'), 6000) && /chat : 3 messages non lus/.test(await page.evaluate(() => document.querySelector('#b-classement').getAttribute('aria-label'))), 'deux de plus : « 3 », et le bouton du classement le dit (« chat : 3 messages non lus »)');
   check(appels('fournil_chat_lire').slice(-1)[0].corps.p_apres > 0, 'en arrière-plan : seulement les messages après le dernier connu');
   await page.screenshot({ path: out + '/01-bouton-boutique.png' });
-  await page.screenshot({ path: out + '/01b-bouton-zoom.png', clip: { x: 230, y: 40, width: 160, height: 330 } });
+  await page.screenshot({ path: out + '/01b-bouton-zoom.png', clip: { x: 150, y: 0, width: 240, height: 120 } });
+  await page.tap('#b-classement'); await page.waitForSelector('#feuille-contenu [data-tab="chat"]', { timeout: 8000 }); await sleep(300);
+  const pOnglet = await page.evaluate(() => { const c = document.querySelector('#feuille-contenu [data-tab="chat"]'), p = c.querySelector('.tc-nonlus'); return { txt: p.hidden ? '' : p.textContent, label: c.getAttribute('aria-label') }; });
+  check(pOnglet.txt === '3' && /3 messages non lus/.test(pOnglet.label), `la feuille du classement : l’onglet « Chat » porte la même pastille (« ${pOnglet.txt} »)`);
+  await page.screenshot({ path: out + '/01c-onglet-pastille.png' });
 
   // ─── écrire ───
-  await page.tap('#b-tchat'); await sleep(500);
-  check(await page.evaluate(() => document.querySelector('#b-tchat .tc-nonlus').hidden) && (await etat(page)).vu === faux.chat[faux.chat.length - 1].n, 'la feuille ouverte : la pastille s’efface, st.chatVu suit le dernier message');
+  await page.tap('#feuille-contenu [data-tab="chat"]'); await sleep(500);
+  check(await page.evaluate(() => document.querySelector('#b-classement .tc-nonlus').hidden && document.querySelector('#tc-onglets [data-tab="chat"] .tc-nonlus').hidden) && (await etat(page)).vu === faux.chat[faux.chat.length - 1].n, 'le chat ouvert : les pastilles s’effacent (bouton, onglet), st.chatVu suit le dernier message');
   check(await page.evaluate(() => !document.querySelector('#tc-saisie').hidden && document.querySelector('#tc-rejoindre').hidden), 'avec un pseudo : la barre de saisie (📷, GIF, le texte, Envoyer)');
   const id = await page.evaluate(() => window.__fournil.classement().etat().id);
   await page.fill('#tc-texte', '  Bonjour les boulangers 🥖  ');
@@ -353,23 +368,26 @@ let gifPng = []; // des images (PNG, servies comme GIF : le navigateur lit le co
   faux.mode = 'normal';
   await page.tap('[data-tc="fermer"]'); await sleep(300);
 
-  // ─── pas encore ouvert (supabase/fournil-chat.sql pas collé) : le bouton reste, la feuille dit « bientôt » ───
+  // ─── pas encore ouvert (supabase/fournil-chat.sql pas collé) : l'onglet reste, le chat dit « bientôt » ───
   faux.mode = 'pas-ouvert';
-  await page.tap('#b-tchat');
+  await ouvrirChat(page);
   check(await attendre(() => page.evaluate(() => /Le chat ouvre bientôt/.test(document.querySelector('#tc-fil').innerText) && document.querySelector('#tc-bas').hidden && !document.querySelectorAll('.tc-msg').length)), 'fonctions absentes (404, PGRST202) : « Le chat ouvre bientôt », pas de barre de saisie');
   check((await page.evaluate(() => window.__fournil.classement().chatEnvoyer({ texte: 'a' }))).etat === 'pas-ouvert' && !(await page.evaluate(() => document.querySelector('#b-classement').hidden)), 'chatEnvoyer : « pas-ouvert » ; le classement, lui, reste là');
   await page.screenshot({ path: out + '/06-bientot.png' });
   const nP = appels('fournil_chat_lire').length; await sleep(2000);
   check(appels('fournil_chat_lire').length === nP, 'pas encore de chat : plus de lecture tant que la feuille reste ouverte');
-  await page.tap('[data-tc="fermer"]'); await sleep(2500);
-  check(appels('fournil_chat_lire').length === nP && !(await page.evaluate(() => document.querySelector('#b-tchat').hidden)), 'ni en arrière-plan ; le bouton reste');
+  // une période du rang d'onglets du chat : retour à la feuille du classement, sur cette période
+  await page.tap('#tc-onglets [data-tab="semaine"]'); await sleep(500);
+  check(await page.evaluate(() => document.querySelector('#tchat').hidden && !document.querySelector('#feuille').hidden && (document.querySelector('#feuille-contenu [data-tab].actif') || {}).dataset.tab === 'semaine'), 'l’onglet « Semaine » en tête du chat : retour à la feuille du classement, sur la semaine');
+  await page.evaluate(() => document.querySelector('#feuille-contenu [data-a="close"]').click()); await sleep(2500);
+  check(appels('fournil_chat_lire').length === nP && !(await page.evaluate(() => document.querySelector('#b-classement').hidden)), 'ni en arrière-plan ; le bouton du classement (et son onglet « Chat ») reste');
   faux.mode = 'normal';
 
   // ─── sans clé GIPHY : le bouton GIF dit « bientôt » ───
   config = 'sans';
   const p2 = await ctx.newPage(); suivre(p2);
   await p2.goto(BASE + '/fournil/'); await sleep(1200);
-  await p2.tap('#b-tchat'); await sleep(500);
+  await ouvrirChat(p2); await sleep(200);
   check(await p2.evaluate(() => document.querySelector('[data-tc="gif"]').classList.contains('bientot') && document.querySelector('[data-tc="gif"]').getAttribute('aria-label') === 'Les GIF : bientôt'), 'sans clé GIPHY dans config.js : le bouton GIF est grisé, « bientôt »');
   const nG2 = giphy.appels.length;
   await p2.tap('[data-tc="gif"]');
@@ -380,7 +398,7 @@ let gifPng = []; // des images (PNG, servies comme GIF : le navigateur lit le co
   config = 'aucune';
   const p3 = await ctx.newPage(); suivre(p3);
   await p3.goto(BASE + '/fournil/'); await sleep(1200);
-  check(await p3.evaluate(() => document.querySelector('#b-tchat').hidden && !window.__fournil.tchat.ouvrir()), 'sans configuration : pas de bouton, la feuille ne s’ouvre pas');
+  check(await p3.evaluate(() => document.querySelector('#b-classement').hidden && !document.querySelector('[data-tab="chat"]') && !window.__fournil.tchat.ouvrir()), 'sans configuration : ni bouton du classement ni onglet, le chat ne s’ouvre pas');
   await p3.close();
   config = 'giphy';
 

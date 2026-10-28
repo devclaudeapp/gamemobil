@@ -1,5 +1,5 @@
-/* LE FOURNIL — les idées, les bugs et les votes : un bouton rond dans le coin (une ampoule, sous la bulle du chat), avec sa pastille (pour un
-   joueur : les votes en cours pas encore votés ; pour l'admin : les retours « nouveau »), et une feuille plein écran à onglets :
+/* LE FOURNIL — les idées, les bugs et les votes : une entrée de Réglages › Aide (« Idées & bugs », src/ui.js), avec sa pastille, reportée
+   sur l'onglet Réglages (pour un joueur : les votes en cours pas encore votés ; pour l'admin : les retours « nouveau »), et une feuille plein écran à onglets :
    - « Écrire » : deux grandes cartes, « 💡 Proposer une idée » et « 🐞 Signaler un bug », puis le texte (1000 caractères) et une capture
      (allégée par le téléphone, src/photo.js, comme les photos du chat) ; un bug part avec ses infos, jointes toutes seules (la version du
      jeu, l'appareil en bref, l'écran, le quartier, les 3 dernières entrées du journal des retours), montrées avant l'envoi ; puis le merci ;
@@ -53,7 +53,7 @@ const RETOURS = (() => {
   };
   const message = (r) => MSG[r.etat === 'refus' ? r.erreur : r.etat] || 'Ça n’est pas passé. Réessaie dans un moment.';
 
-  let d = null, el, corps, fichier, zoom, bandeau, bouton;
+  let d = null, el, corps, fichier, zoom, bandeau;
   let onglet = 'ecrire', vue = 'accueil', adminVue = 'retours', filtre = 'nouveau';
   let etat = '', votes = [], finis = [], lusA = 0, lecture = null; // etat : '' (rien lu), 'ok', 'pas-ouvert', ou un état du réseau
   let admin = false, adminVu = '', retours = [], adminEtat = '', plusAnciens = false, nouveaux = 0, adminLecture = null, adminLectureCle = '';
@@ -200,14 +200,11 @@ const RETOURS = (() => {
     }, 30e3);
   }
 
-  // ─── le bouton rond du coin, sa pastille, et le bandeau du vote dans la boutique ───
+  // ─── la pastille (Réglages › Aide, d.pastille), et le bandeau du vote dans la boutique ───
   function majBouton() {
-    if (!bouton) return;
-    const m = moteur(); bouton.hidden = !m; if (!m) { majBandeau(); return; }
-    const n = admin ? nouveaux : rejoint() ? aVoter().length : 0, p = bouton.querySelector('.rt-pastille');
-    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
-    p.classList.toggle('admin', admin);
-    bouton.setAttribute('aria-label', !n ? 'Idées et bugs' : admin ? `Idées et bugs : ${n > 9 ? 'plus de 9' : n} nouveau${n > 1 ? 'x' : ''} retour${n > 1 ? 's' : ''}` : `Idées et bugs : ${n > 1 ? `${n} votes t’attendent` : 'un vote t’attend'}`);
+    const m = moteur(); if (!m) { if (d && d.pastille) d.pastille(0, false); majBandeau(); return; }
+    const n = admin ? nouveaux : rejoint() ? aVoter().length : 0;
+    if (d && d.pastille) d.pastille(n, admin); // Réglages › Aide › « Idées & bugs » et l'onglet Réglages (src/ui.js)
     const pv = el && el.querySelector('[data-rt-onglet="votes"] .rt-point'), pa = el && el.querySelector('[data-rt-onglet="admin"] .rt-point');
     if (pv) pv.hidden = !aVoter().length; if (pa) pa.hidden = !nouveaux;
     majBandeau(); battre();
@@ -450,12 +447,12 @@ const RETOURS = (() => {
 
   // ─── le branchement ───
   // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
-  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), quartier() (le nom du quartier de la boutique) }
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), quartier() (le nom du quartier de la boutique),
+  //          pastille(n, admin) (les votes à voter, ou les retours nouveaux de l'admin, à montrer) }
   function init(deps) {
-    d = deps; el = $('#idees'); bouton = $('#b-idees'); bandeau = $('#vote-bandeau'); if (!el) return;
+    d = deps; el = $('#idees'); bandeau = $('#vote-bandeau'); if (!el) return;
     corps = $('#rt-corps'); fichier = $('#rt-fichier'); zoom = $('#rt-zoom');
     if (window.__retoursPas) Object.assign(pas, window.__retoursPas); // les tests : des lectures plus rapprochées
-    if (bouton) bouton.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir(admin && nouveaux ? 'admin' : 'ecrire'); }); // l'ampoule : « Écrire » (l'admin : ses retours nouveaux)
     if (bandeau) bandeau.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir('votes'); });
     el.addEventListener('click', (e) => {
       const o = e.target.closest('[data-rt-onglet]'); if (o && el.contains(o)) { son('tap'); choisirOnglet(o.dataset.rtOnglet); return; }

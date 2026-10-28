@@ -2,13 +2,14 @@
 // adminRetours, adminRetourImage, adminRetourEtat, adminVoteCreer, adminVoteFermer), dans la vraie page (fournil/ servie en local), sur un
 // téléphone en portrait (390 × 844). Supabase est SIMULÉ (page.route, comme test/fournil-chat.cjs) : les fonctions du contrat
 // (supabase/fournil-retours.sql) en mémoire, avec leurs refus (trop-vite, quota, pas-admin, fini…) ; le classement juste ce qu'il faut.
-// Parcours : le bouton rond (l'ampoule) sous la bulle du chat, rien au réseau avant d'avoir rejoint ; sa pastille (un vote pas encore
-// voté) ; le bandeau du vote sous l'enseigne (caché pendant une feuille) ; la feuille sans pseudo (« Rejoins le classement pour écrire », les résultats sans les boutons) ; une idée ;
+// Parcours : l'entrée « Idées & bugs » de Réglages › Aide (l'ampoule a quitté le coin), rien au réseau avant d'avoir rejoint ; sa pastille
+// (un vote pas encore voté), là et sur l'onglet Réglages ; le bandeau du vote sous l'enseigne (caché pendant une feuille) ; la feuille sans pseudo (« Rejoins le classement pour écrire », les résultats sans les boutons) ; une idée ;
 // un bug avec une capture de 3000 × 2000 compressée sous 350 Ko et ses infos (version, appareil, écran, quartier, les 3 dernières entrées
 // du journal) ; trop vite, le quota ; voter, les résultats en barres, changer son vote, le compte à rebours, les votes finis ; un joueur
 // qui n'est pas admin ne voit pas l'onglet ; l'admin : la liste, un texte piégé affiché en texte, l'image, les infos, Vu / Fait / Refusé
 // avec une note, Nouveaux / Tous, créer un vote (il apparaît ensuite en bandeau), fermer un vote ; le SQL absent (« bientôt ») ; sans
-// configuration, pas de bouton ; aucune erreur dans la console.
+// configuration, pas d'entrée ; la colonne du coin (Ma chaîne, l'Atelier, les événements et leur minuteur) qui tient au-dessus du tiroir
+// à 360 × 640 et 390 × 844 ; aucune erreur dans la console.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-retours.cjs   (captures dans test/shots/retours/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -139,7 +140,11 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   const etat = (p) => p.evaluate(() => window.__fournil.retours.etat());
   const note = (p) => p.evaluate(() => { const n = document.querySelector('#rt-corps .rt-note'); return n && !n.hidden ? n.textContent : ''; });
   const bandeau = (p) => p.evaluate(() => { const b = document.querySelector('#vote-bandeau'); return b.hidden ? '' : b.textContent.replace(/\s+/g, ' ').trim(); });
-  const pastille = (p) => p.evaluate(() => { const x = document.querySelector('#b-idees .rt-pastille'); return x.hidden ? '' : x.textContent; });
+  // la pastille : sur l'onglet Réglages (toujours là), et la même sur la ligne « Idées & bugs » de Réglages › Aide quand la page est ouverte
+  const pastille = (p) => p.evaluate(() => { const b = document.querySelector('#onglets [data-page="reglages"] .badge'), x = document.querySelector('#page-reglages [data-a="idees"] .rt-pastille'), t = b.hidden ? '' : b.textContent; return x && (x.hidden ? '' : x.textContent) !== t ? `désaccord ${t}/${x.textContent}` : t; });
+  // Idées & bugs : Réglages › Aide
+  const ouvrirIdees = async (p) => { await p.evaluate(() => window.__fournil.page('reglages')); await sleep(350); await p.tap('#page-reglages [data-a="idees"]'); await sleep(300); };
+  const ligneIdees = (p) => p.evaluate(() => { const l = document.querySelector('#page-reglages [data-a="idees"]'); return l ? l.innerText.replace(/\s+/g, ' ') : ''; });
 
   // ─── ce qui est déjà là : un vote en cours (deux voix), un vote fini, et des retours (dont un piégé et un avec capture) ───
   const mamie = autre('Mamie Jo'), tonton = autre('Tonton Jo'), pirate = autre('Pirate');
@@ -153,16 +158,19 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   const page = await ctx.newPage(); suivre(page);
   await page.goto(BASE + '/fournil/'); await sleep(1200);
 
-  // ─── le bouton : sous la bulle du chat, seulement si le classement est configuré ; sa pastille : le vote pas encore voté ───
-  const bouton = await page.evaluate(() => { const b = document.querySelector('#b-idees'), c = document.querySelector('#b-tchat'), r = b.getBoundingClientRect(), rc = c.getBoundingClientRect(); return { vu: !b.hidden && r.width >= 40, sousChat: !c.hidden && Math.abs(r.left - rc.left) < 2 && r.top >= rc.bottom, dernier: document.querySelector('#coin').lastElementChild === b, droite: innerWidth - r.right, svg: !!b.querySelector('svg'), label: b.getAttribute('aria-label') }; });
-  check(bouton.vu && bouton.sousChat && bouton.dernier && bouton.svg && bouton.droite <= 14, `le bouton rond (l’ampoule) est dans le coin, sous la bulle du chat ${JSON.stringify(bouton)}`);
+  // ─── l'entrée : Réglages › Aide › « Idées & bugs », seulement si le classement est configuré ; plus d'ampoule dans le coin ───
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  const entree = await page.evaluate(() => { const l = document.querySelector('#page-reglages [data-a="idees"]'), aide = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Aide/.test(h.textContent)); return { vu: !!l, dansAide: !!(l && aide && aide.nextElementSibling && aide.nextElementSibling.contains(l)), txt: l ? l.innerText.replace(/\s+/g, ' ') : '', svg: !!(l && l.querySelector('.ico svg')), coin: !!document.querySelector('#b-idees, #coin [data-ico="ampoule"]'), h: l ? l.getBoundingClientRect().height : 0 }; });
+  check(entree.vu && entree.dansAide && /Idées & bugs/.test(entree.txt) && /voter/.test(entree.txt) && entree.svg && !entree.coin && entree.h >= 44, `Réglages › Aide : la ligne « Idées & bugs » (plus d’ampoule dans le coin) ${JSON.stringify(entree)}`);
+  await page.screenshot({ path: out + '/00-reglages-aide.png' });
+  await page.evaluate(() => window.__fournil.page('boutique')); await sleep(300);
   check(await page.evaluate(() => window.__fournil.retours.R.votes === 300000 && window.__fournil.retours.R.admin === 300000), 'les lectures : toutes les 5 min (le test les rapproche)');
   await sleep(5000);
   check(!appels('fournil_votes_ouverts').length && !appels('fournil_admin_moi').length && (await pastille(page)) === '' && (await bandeau(page)) === '', 'pas encore rejoint : aucune lecture en arrière-plan (rien ne part avant d’avoir rejoint), ni pastille ni bandeau');
 
   // ─── la feuille sans pseudo : on lit, on n'écrit pas ───
-  await page.tap('#b-idees');
-  check(await attendre(() => page.evaluate(() => !document.querySelector('#idees').hidden && document.querySelectorAll('.rt-carte').length === 3)), 'toucher le bouton : la feuille plein écran, les cartes « Proposer une idée », « Signaler un bug » (et le vote qui attend)');
+  await ouvrirIdees(page);
+  check(await attendre(() => page.evaluate(() => !document.querySelector('#idees').hidden && document.querySelectorAll('.rt-carte').length === 3)), 'toucher la ligne : la feuille plein écran, les cartes « Proposer une idée », « Signaler un bug » (et le vote qui attend)');
   const v0 = appels('fournil_votes_ouverts')[0];
   check(v0 && Object.keys(v0.corps).length === 0, `l’ouverture de la feuille lit les votes ; sans pseudo, sans p_id ni p_jeton ${JSON.stringify(v0 && v0.corps)}`);
   const sansPseudo = await page.evaluate(() => ({ rejoindre: (document.querySelector('#rt-corps [data-rt="rejoindre"]') || {}).innerText || '', admin: document.querySelector('[data-rt-onglet="admin"]').hidden, cartes: [...document.querySelectorAll('.rt-carte b')].map((b) => b.textContent) }));
@@ -187,15 +195,17 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   check(pa.etat === 'refus' && pa.erreur === 'pas-admin', 'adminRetours pour un joueur : refusé (« pas-admin »)');
 
   // ─── la pastille et le bandeau du vote, sous l'enseigne ───
-  check(await attendre(async () => (await pastille(page)) === '1', 7000), 'rejoint : la pastille dit « 1 » (un vote pas encore voté)');
-  check(/un vote t’attend/.test(await page.evaluate(() => document.querySelector('#b-idees').getAttribute('aria-label'))), 'le bouton le dit : « un vote t’attend »');
+  check(await attendre(async () => (await pastille(page)) === '1', 7000), 'rejoint : la pastille de l’onglet Réglages dit « 1 » (un vote pas encore voté)');
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  check(await attendre(async () => (await pastille(page)) === '1' && /Un vote t’attend/.test(await ligneIdees(page)), 3000), `la ligne « Idées & bugs » porte la même pastille et le dit : « ${await ligneIdees(page)} »`);
+  await page.screenshot({ path: out + '/00b-reglages-aide-vote.png' });
+  await page.evaluate(() => window.__fournil.page('boutique')); await sleep(300);
 
   const bd = await bandeau(page);
   check(/^🗳 Vote : Quelle recette ajouter ensuite \? encore 2 j 4 h · toucher pour voter$/.test(bd), `le bandeau dans la boutique : « ${bd} »`);
   const pos = await page.evaluate(() => { const b = document.querySelector('#vote-bandeau').getBoundingClientRect(), e = document.querySelector('#enseigne').getBoundingClientRect(), c = document.querySelector('#coin').getBoundingClientRect(); return { sous: b.top >= e.bottom, centre: Math.abs((b.left + b.right) / 2 - innerWidth / 2) < 2, libre: b.right <= c.left }; });
   check(pos.sous && pos.centre && pos.libre, `sous l’enseigne, centré, sans toucher la colonne du coin ${JSON.stringify(pos)}`);
   await page.screenshot({ path: out + '/01-bouton-bandeau.png' });
-  await page.screenshot({ path: out + '/01b-bouton-zoom.png', clip: { x: 230, y: 40, width: 160, height: 330 } });
   await page.screenshot({ path: out + '/02-bandeau-boutique.png', clip: { x: 0, y: 40, width: 390, height: 140 } });
   await page.evaluate(() => window.__fournil.nouveautes());
   check(await attendre(async () => (await bandeau(page)) === '', 2000), 'une feuille du jeu ouverte : le bandeau se cache');
@@ -204,7 +214,7 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
 
 
   // ─── une idée ───
-  await page.tap('#b-idees'); await sleep(300);
+  await ouvrirIdees(page);
   await page.screenshot({ path: out + '/03-feuille-idees.png' });
   await page.tap('.rt-carte.idee');
   check(await page.evaluate(() => !!document.querySelector('#rt-texte') && !document.querySelector('.rt-infos') && /Proposer une idée/.test(document.querySelector('.rt-h3').textContent)), 'la carte « 💡 Proposer une idée » : le texte, la capture, pas d’infos jointes');
@@ -306,8 +316,9 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   const idA = await pageA.evaluate(() => window.__fournil.classement().etat().id);
   const nouveauxN = () => faux.retours.filter((r) => r.etat === 'nouveau').length;
   check(await attendre(async () => (await etat(pageA)).admin && (await pastille(pageA)) === String(nouveauxN()), 8000), `fournil_admin_moi répond true : la pastille de l’admin dit les retours nouveaux (« ${await pastille(pageA)} »)`);
-  check(await pageA.evaluate(() => document.querySelector('#b-idees .rt-pastille').classList.contains('admin') && /nouveaux retours/.test(document.querySelector('#b-idees').getAttribute('aria-label'))), 'le bouton le dit : « … nouveaux retours »');
-  await pageA.tap('#b-idees');
+  await pageA.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  check(await pageA.evaluate(() => document.querySelector('#page-reglages [data-a="idees"] .rt-pastille').classList.contains('admin') && /nouveaux retours/.test(document.querySelector('#page-reglages [data-a="idees"]').innerText)), 'Réglages › Aide le dit : « … nouveaux retours », pastille fraise (l’accès admin reste là)');
+  await pageA.tap('#page-reglages [data-a="idees"]');
   check(await attendre(() => pageA.evaluate(() => !document.querySelector('[data-rt-onglet="admin"]').hidden)), 'la feuille : l’onglet « Admin » est là');
   await pageA.tap('[data-rt-onglet="admin"]');
   check(await attendre(() => pageA.evaluate((n) => document.querySelectorAll('.rt-ret').length === n, nouveauxN())), `la liste des retours nouveaux (${nouveauxN()})`);
@@ -388,18 +399,30 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   check(await attendre(() => page.evaluate(() => /Votes terminés/.test(document.querySelector('#rt-corps').textContent) && [...document.querySelectorAll('.rt-vote.fini .rt-q')].some((q) => q.textContent === 'Quelle recette ajouter ensuite\u00a0?'))), 'le vote fermé est passé dans « Votes terminés »');
   await page.tap('[data-rt="fermer"]'); await sleep(200);
 
-  // ─── un petit téléphone (360 × 640) : la colonne du coin tient au-dessus du tiroir, au besoin sur deux colonnes ───
+  // ─── un petit téléphone (360 × 640) : la colonne du coin tient au-dessus du tiroir, au besoin sur deux colonnes. Le coin n'a plus que
+  //     « Ma chaîne », l'Atelier et les icônes des événements (avec leur minuteur) : le classement est en haut, le chat dans sa feuille,
+  //     les idées dans Réglages ; les icônes des deux événements forcées visibles (le pire cas) ───
   const ctxP = await nouveau({ width: 360, height: 640 });
   const pp = await ctxP.newPage(); suivre(pp);
   await pp.goto(BASE + '/fournil/'); await sleep(1500);
-  const coinTient = () => pp.evaluate(() => { const t = document.querySelector('#tiroir').getBoundingClientRect().top, ev = document.querySelector('#evenement'), bas = ev.hidden ? t : ev.getBoundingClientRect().top, l = [...document.querySelectorAll('#coin > .rond')].filter((b) => !b.hidden).map((b) => b.getBoundingClientRect()), e = document.querySelector('#enseigne').getBoundingClientRect();
-    return { n: l.length, serre: document.querySelector('#coin').classList.contains('serre'), tient: l.every((r) => r.bottom <= bas - 4), libre: l.every((r, i) => l.every((q, j) => i === j || r.bottom <= q.top || q.bottom <= r.top || r.right <= q.left || q.right <= r.left)), enseigne: l.every((r) => r.left >= e.right || r.top >= e.bottom) }; });
-  await pp.evaluate(() => { document.querySelector('#b-quartier').hidden = false; }); await sleep(300); // l'icône de l'événement du Quartier, comme pendant sa fenêtre
-  let ct = await coinTient();
-  check(ct.n === 5 && ct.tient && ct.libre && ct.enseigne, `360 × 640, avec l’icône du Quartier : les ${ct.n} boutons tiennent au-dessus du tiroir${ct.serre ? ' (sur deux colonnes)' : ''} ${JSON.stringify(ct)}`);
-  await pp.evaluate(() => window.__fournil.ev('rush')); await sleep(800);
-  ct = await coinTient();
-  check(ct.serre && ct.tient && ct.libre && ct.enseigne, `et l’événement de la boutique affiché au-dessus du tiroir : deux colonnes, rien ne se chevauche, l’enseigne reste dégagée ${JSON.stringify(ct)}`);
+  // les deux icônes d'événement visibles, chacune avec son minuteur (le pire cas : le Quartier est écarté, la Maison hantée seule en a un aujourd'hui)
+  const forcerEvenements = (p) => p.evaluate(() => { for (const id of ['#b-quartier', '#b-hantee']) { const b = document.querySelector(id), x = b.querySelector('.ev-reste'); b.hidden = false; x.textContent = '5\u00a0j\u00a012\u00a0h'; x.hidden = false; b.classList.add('minute'); } });
+  const ATTENDUS = ['b-chaine', 'b-atelier', 'b-quartier', 'b-hantee'];
+  for (const [w, h] of [[360, 640], [390, 844]]) {
+    const vp = w === 360 ? pp : await (await nouveau({ width: w, height: h })).newPage();
+    if (w !== 360) { suivre(vp); await vp.goto(BASE + '/fournil/'); await sleep(1500); }
+    const coinTientV = () => vp.evaluate(() => { const t = document.querySelector('#tiroir').getBoundingClientRect().top, ev = document.querySelector('#evenement'), bas = ev.hidden ? t : ev.getBoundingClientRect().top, bs = [...document.querySelectorAll('#coin > .rond')].filter((b) => !b.hidden), l = bs.map((b) => b.getBoundingClientRect()), e = document.querySelector('#enseigne').getBoundingClientRect();
+      const et = [...document.querySelectorAll('#coin .ev-reste')].filter((x) => !x.hidden).map((x) => ({ r: x.getBoundingClientRect(), b: x.closest('.rond').getBoundingClientRect(), plein: x.scrollWidth <= x.clientWidth + 1 }));
+      return { ids: bs.map((b) => b.id), serre: document.querySelector('#coin').classList.contains('serre'), tient: l.every((r) => r.bottom <= bas - 4) && et.every((x) => x.r.bottom <= bas - 2), libre: l.every((r, i) => l.every((q, j) => i === j || r.bottom <= q.top || q.bottom <= r.top || r.right <= q.left || q.right <= r.left)),
+        enseigne: l.every((r) => r.left >= e.right || r.top >= e.bottom), etiquettes: et.length, etroites: et.every((x) => x.r.left >= x.b.left - 6 && x.r.right <= x.b.right + 6 && x.plein), sousEtiquette: et.every((x) => l.every((q) => q.top >= x.r.bottom || q.bottom <= x.b.bottom || q.right <= x.r.left || q.left >= x.r.right)), large: Math.round(Math.max(...l.map((r) => r.right)) - Math.min(...l.map((r) => r.left))) }; });
+    await forcerEvenements(vp); await sleep(300);
+    let ct = await coinTientV();
+    check(JSON.stringify(ct.ids) === JSON.stringify(ATTENDUS) && ct.tient && ct.libre && ct.enseigne && ct.etiquettes === 2 && ct.etroites && ct.sousEtiquette, `${w} × ${h}, les deux événements visibles : les ${ct.ids.length} boutons du coin (${ct.ids.join(', ')}) et leurs minuteurs tiennent au-dessus du tiroir${ct.serre ? ' (sur deux colonnes)' : ''}, sans toucher l’enseigne ${JSON.stringify(ct)}`);
+    await vp.evaluate(() => window.__fournil.ev('rush')); await sleep(800); await forcerEvenements(vp); await sleep(300);
+    ct = await coinTientV();
+    check(ct.tient && ct.libre && ct.enseigne && ct.etroites && ct.sousEtiquette, `${w} × ${h}, et l’événement de la boutique affiché au-dessus du tiroir : ${ct.serre ? 'deux colonnes, ' : ''}rien ne se chevauche, l’enseigne reste dégagée ${JSON.stringify(ct)}`);
+    if (w !== 360) { await vp.screenshot({ path: out + '/10b-coin-390.png' }); await vp.context().close(); }
+  }
   await pp.screenshot({ path: out + '/10-coin-360.png' });
   await ctxP.close();
 
@@ -407,8 +430,9 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   faux.mode = 'pas-ouvert';
   const p2 = await ctx.newPage(); suivre(p2);
   await p2.goto(BASE + '/fournil/'); await sleep(5000);
-  check(await p2.evaluate(() => !document.querySelector('#b-idees').hidden && document.querySelector('#vote-bandeau').hidden && document.querySelector('#b-idees .rt-pastille').hidden), 'fonctions absentes (404, PGRST202) : le bouton reste, ni bandeau ni pastille');
-  await p2.tap('#b-idees');
+  await p2.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  check(await p2.evaluate(() => !!document.querySelector('#page-reglages [data-a="idees"]') && document.querySelector('#vote-bandeau').hidden && document.querySelector('#page-reglages [data-a="idees"] .rt-pastille').hidden && document.querySelector('#onglets [data-page="reglages"] .badge').hidden), 'fonctions absentes (404, PGRST202) : l’entrée reste, ni bandeau ni pastille');
+  await p2.tap('#page-reglages [data-a="idees"]');
   check(await attendre(() => p2.evaluate(() => /Les idées et les bugs arrivent bientôt/.test(document.querySelector('#rt-corps').innerText) && !document.querySelector('.rt-carte'))), 'la feuille : « Les idées et les bugs arrivent bientôt »');
   await p2.tap('[data-rt-onglet="votes"]');
   check(await attendre(() => p2.evaluate(() => /arrivent bientôt/.test(document.querySelector('#rt-corps').innerText))), 'l’onglet Votes aussi');
@@ -424,7 +448,8 @@ const dernier = (nom) => { const l = appels(nom); return l.length ? l[l.length -
   config = 'aucune';
   const p3 = await ctx.newPage(); suivre(p3);
   await p3.goto(BASE + '/fournil/'); await sleep(1500);
-  check(await p3.evaluate(() => document.querySelector('#b-idees').hidden && document.querySelector('#vote-bandeau').hidden && !window.__fournil.retours.ouvrir()), 'sans configuration : pas de bouton, pas de bandeau, la feuille ne s’ouvre pas');
+  await p3.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  check(await p3.evaluate(() => !document.querySelector('#page-reglages [data-a="idees"]') && document.querySelector('#vote-bandeau').hidden && !window.__fournil.retours.ouvrir()), 'sans configuration : pas d’entrée, pas de bandeau, la feuille ne s’ouvre pas');
   await p3.close();
   config = 'normale';
 

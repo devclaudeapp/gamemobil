@@ -5,7 +5,7 @@
     <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
   <div class="haut-btns">
-    <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
+    <button id="b-classement" class="pastille classement" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
@@ -20,12 +20,9 @@
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
     <div id="coin">
       <button id="b-chaine" class="rond chaine" type="button" aria-label="Ma chaîne" hidden><i class="ico" data-ico="planete"></i><i class="rang-pastille ch-pastille" aria-hidden="true" hidden></i></button>
-      <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
-      <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
-      <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
-      <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
-      <button id="b-idees" class="rond idees" type="button" aria-label="Idées et bugs" hidden><i class="ico" data-ico="ampoule"></i><i class="rang-pastille rt-pastille" aria-hidden="true" hidden></i></button>
+      <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
+      <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
     </div>
     <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
@@ -143,6 +140,7 @@
   <div class="at-haut tc-haut">
     <button type="button" class="at-fermer" data-tc="fermer" aria-label="Fermer le chat"><i class="ico" data-ico="fermer"></i></button>
     <div class="at-titre"><b id="tc-titre">Le chat des boulangers</b><small>Appui long sur un message : le signaler</small></div>
+    <div id="tc-onglets" class="tc-onglets" hidden></div>
   </div>
   <div id="tc-fil" class="tc-fil" aria-label="Les messages"></div>
   <button type="button" id="tc-nouveaux" class="tc-nouveaux" data-tc="bas" hidden>Nouveaux messages ↓</button>

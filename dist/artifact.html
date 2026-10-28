@@ -52,6 +52,12 @@ svg { display: block; }
 .pastille.cloche .point, .pastille.nouv .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
 .pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
 @keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
+/* le classement, à la place de l'ancienne cloche (à côté du cadeau) : le podium, sa place de la semaine en pastille en haut à droite (« 2e »),
+   les messages du chat pas encore lus en pastille fraise en bas à gauche (le chat est un onglet de sa feuille) */
+.pastille.classement { padding: 0 10px; }
+.pastille.classement[hidden] { display: none; }
+.pastille.classement .rang-pastille { top: -5px; right: -6px; }
+.pastille.classement .rang-pastille.tc-nonlus { top: auto; bottom: -4px; right: auto; left: -6px; min-width: 18px; padding: 0 4px; background: var(--fraise); color: #fff; } /* en bas à gauche : jamais sur la place (« 123e »), ni sous la scène (4 px dans la marge du haut) */
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile .ico svg path { fill: #fff; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
@@ -767,6 +773,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .rond.quartier { box-shadow: 0 3px 0 var(--fraise-sombre), 0 4px 10px rgba(225, 73, 108, .25); } /* l'événement : le même rond blanc, un liseré fraise */
 .rond.hantee { box-shadow: 0 3px 0 #C9652B, 0 4px 12px rgba(255, 138, 61, .35); } /* la Maison hantée : un liseré citrouille, et la citrouille qui se balance doucement */
 .rond.hantee .ico svg { animation: htBalance 2.6s ease-in-out infinite; transform-origin: 50% 85%; }
+/* le minuteur d'un événement en cours (ui.js majMinuteurs) : une petite étiquette sous son icône, à cheval sur le bas du rond (« 5 j 12 h »,
+   « 2 h 15 » le dernier jour), qui ne déborde que de 6 px dans l'écart de 8 px avec le bouton d'en dessous (ou l'air laissé au-dessus du
+   tiroir) : la colonne ne s'élargit pas et ne descend pas (44 px de large, l'étiquette n'en dépasse que de 5 px de chaque côté au plus) */
+.rond .ev-reste { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); max-width: 54px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--texte); color: #fff;
+  font: 700 10px/15px var(--titre); font-style: normal; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
+.rond .ev-reste[hidden] { display: none; }
+.rond.minute .ico { transform: translateY(-3px); } /* l'icône remonte un peu au-dessus de l'étiquette */
+.rond.hantee .ev-reste { background: #8A3E12; }
 @keyframes htBalance { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
 @media (prefers-reduced-motion: reduce) { .rond.hantee .ico svg { animation: none; } }
 .ticket.boosts > .ico { background: #FFF3C4; }
@@ -1825,7 +1839,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .fi-podium { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13px; font-weight: 700; color: var(--texte-2); }
 .fi-carte { margin-top: 2px; }
 .fi-attente { margin: 12px 8px 0; }
-body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidden; }
+body.visite #coin, body.visite #enseigne, body.visite #b-fini, body.visite #b-classement { visibility: hidden; }
 /* la carte de l'objectif commun, en tête de la feuille du classement */
 .obj-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--lavande-clair); }
 .obj-carte.reussi { background: var(--menthe-clair); }
@@ -1869,7 +1883,12 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 @media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
 
 /* ─── le chat des boulangers (src/chat.js) : le bouton rond du coin (un liseré ciel, la pastille des non-lus en fraise), la feuille plein écran ─── */
-.rond.tchat { box-shadow: 0 3px 0 #7FB8E6, 0 4px 10px rgba(74, 51, 40, .12); }
+/* le chat, onglet de la feuille du classement : « Chat » à sa largeur à côté des périodes, sa pastille des non-lus ; le même rang d'onglets en tête du chat */
+.segments.avec-chat [data-tab="chat"] { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 12px; }
+.segments [data-tab="chat"] .ico svg { width: 18px; height: 18px; }
+.segments [data-tab="chat"] .tc-nonlus { top: -6px; right: -4px; min-width: 18px; padding: 0 4px; background: var(--fraise); color: #fff; }
+.tc-onglets { padding: 8px 12px 0; }
+.tc-onglets .segments { margin: 0; }
 .rang-pastille.tc-nonlus { background: var(--fraise); color: #fff; }
 #tchat { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
   padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
@@ -1966,7 +1985,11 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
 /* ─── les idées, les bugs et les votes (src/retours.js) : le bouton rond du coin (un liseré beurre), le bandeau du vote sous l'enseigne,
    la feuille plein écran (onglets Écrire / Votes / Admin) ─── */
-.rond.idees { box-shadow: 0 3px 0 var(--beurre-sombre), 0 4px 10px rgba(74, 51, 40, .12); }
+/* Réglages › Aide : le compte à droite d'une ligne (« Les nouvelles » pas lues, les votes à voter d'« Idées & bugs ») */
+.reglage .rg-droite { display: inline-flex; align-items: center; }
+.reglage .rg-compte { display: inline-grid; place-items: center; min-width: 22px; height: 20px; margin-right: 4px; padding: 0 6px; border-radius: 10px; background: var(--beurre); color: var(--texte); font: 700 12px/20px var(--titre); font-style: normal; vertical-align: middle; }
+.reglage .rg-compte[hidden] { display: none; }
+.reglage .rg-compte.admin { background: var(--fraise); color: #fff; }
 .rang-pastille.rt-pastille { background: var(--lavande-sombre); color: #fff; }
 .rang-pastille.rt-pastille.admin { background: var(--fraise); }
 /* un coin trop haut pour la place au-dessus du tiroir (un petit téléphone, l'événement de la boutique qui s'affiche) : ui.js (serrerCoin)
@@ -2303,7 +2326,7 @@ body.essai #chaine { top: 24px; }
 #b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
-body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
 body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
 #b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }
@@ -2369,7 +2392,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
   <div class="haut-btns">
-    <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
+    <button id="b-classement" class="pastille classement" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
@@ -2384,12 +2407,9 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
     <div id="coin">
       <button id="b-chaine" class="rond chaine" type="button" aria-label="Ma chaîne" hidden><i class="ico" data-ico="planete"></i><i class="rang-pastille ch-pastille" aria-hidden="true" hidden></i></button>
-      <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
-      <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
-      <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
-      <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
-      <button id="b-idees" class="rond idees" type="button" aria-label="Idées et bugs" hidden><i class="ico" data-ico="ampoule"></i><i class="rang-pastille rt-pastille" aria-hidden="true" hidden></i></button>
+      <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
+      <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
     </div>
     <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
@@ -2507,6 +2527,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
   <div class="at-haut tc-haut">
     <button type="button" class="at-fermer" data-tc="fermer" aria-label="Fermer le chat"><i class="ico" data-ico="fermer"></i></button>
     <div class="at-titre"><b id="tc-titre">Le chat des boulangers</b><small>Appui long sur un message : le signaler</small></div>
+    <div id="tc-onglets" class="tc-onglets" hidden></div>
   </div>
   <div id="tc-fil" class="tc-fil" aria-label="Les messages"></div>
   <button type="button" id="tc-nouveaux" class="tc-nouveaux" data-tc="bas" hidden>Nouveaux messages ↓</button>
@@ -20750,8 +20771,9 @@ const PHOTOS = (() => {
 })();
 
 /* ── chat.js ── */
-/* LE FOURNIL — le chat général des boulangers : un bouton rond dans le coin (sous les icônes des événements), avec la pastille des
-   messages non lus (st.chatVu : le dernier n° lu), et une feuille plein écran : les bulles (les siennes à droite), le pseudo, l'heure,
+/* LE FOURNIL — le chat général des boulangers : un onglet de la feuille du classement (« Chat », src/ui.js), avec la pastille des
+   messages non lus (st.chatVu : le dernier n° lu), reportée sur le bouton du classement en haut, et une feuille plein écran (le rang
+   d'onglets du classement en tête, #tc-onglets) : les bulles (les siennes à droite), le pseudo, l'heure,
    les photos en miniature (chargées seulement quand elles arrivent à l'écran, gardées dans un petit cache ; un toucher les agrandit),
    les GIF (GIPHY : on n'envoie que leur identifiant), la barre de saisie (texte de 300 caractères, 📷, GIF, Envoyer), et l'appui long sur
    une bulle : « Signaler » (ou « Effacer » si c'est la sienne). Tout le monde lit ; seuls les joueurs du classement écrivent.
@@ -20857,14 +20879,11 @@ const TCHAT = (() => {
     lire(ouvert() && tours % R.complete === 0).then(() => planifier());
   }
 
-  // ─── le bouton rond du coin et sa pastille ───
+  // ─── la pastille des non-lus : sur l'onglet « Chat » de la feuille du classement et sur le bouton du classement (src/ui.js, d.pastille) ───
   function nonLus() { const vu = vuJusqua(); return messages.filter((x) => x.n > vu && !mien(x)).length; }
   function majBouton() {
-    const b = $('#b-tchat'); if (!b) return;
-    const m = moteur(); b.hidden = !m; if (!m) return;
-    const n = ouvert() ? 0 : nonLus(), p = b.querySelector('.tc-nonlus');
-    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
-    b.setAttribute('aria-label', n ? `Le chat des boulangers : ${n > 9 ? 'plus de 9' : n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Le chat des boulangers');
+    const m = moteur(), n = m && !ouvert() ? nonLus() : 0;
+    if (d && d.pastille) d.pastille(n);
   }
   function marquerLu() {
     if (!ouvert() || !presDuBas()) return;
@@ -21095,13 +21114,11 @@ const TCHAT = (() => {
 
   // ─── le branchement ───
   // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
-  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement) }
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), pastille(n) (les non-lus, à montrer) }
   function init(deps) {
     d = deps; el = $('#tchat'); if (!el) return;
     fil = $('#tc-fil'); champ = $('#tc-texte'); note = $('#tc-note'); piecesEl = $('#tc-piece'); nouveaux = $('#tc-nouveaux'); gifs = $('#tc-gifs'); menu = $('#tc-menu'); zoom = $('#tc-zoom'); fichier = $('#tc-fichier');
     if (window.__tchatPas) Object.assign(pas, window.__tchatPas); // les tests : des lectures plus rapprochées
-    const b = $('#b-tchat');
-    if (b) b.addEventListener('click', () => { if (d.audio) d.audio(); if (d.son) d.son.tap(); ouvrir(); });
     try { observe = 'IntersectionObserver' in window ? new IntersectionObserver((l) => { for (const e of l) if (e.isIntersecting) { observe.unobserve(e.target); demander(+e.target.dataset.n); } }, { root: fil, rootMargin: '300px 0px' }) : null; } catch (e) { observe = null; }
     el.addEventListener('click', (e) => {
       const t = e.target.closest('[data-tc], .tc-photo, .tc-gifm, .tc-gif-choix'); if (!t || !el.contains(t)) return;
@@ -21153,8 +21170,8 @@ const TCHAT = (() => {
 })();
 
 /* ── retours.js ── */
-/* LE FOURNIL — les idées, les bugs et les votes : un bouton rond dans le coin (une ampoule, sous la bulle du chat), avec sa pastille (pour un
-   joueur : les votes en cours pas encore votés ; pour l'admin : les retours « nouveau »), et une feuille plein écran à onglets :
+/* LE FOURNIL — les idées, les bugs et les votes : une entrée de Réglages › Aide (« Idées & bugs », src/ui.js), avec sa pastille, reportée
+   sur l'onglet Réglages (pour un joueur : les votes en cours pas encore votés ; pour l'admin : les retours « nouveau »), et une feuille plein écran à onglets :
    - « Écrire » : deux grandes cartes, « 💡 Proposer une idée » et « 🐞 Signaler un bug », puis le texte (1000 caractères) et une capture
      (allégée par le téléphone, src/photo.js, comme les photos du chat) ; un bug part avec ses infos, jointes toutes seules (la version du
      jeu, l'appareil en bref, l'écran, le quartier, les 3 dernières entrées du journal des retours), montrées avant l'envoi ; puis le merci ;
@@ -21208,7 +21225,7 @@ const RETOURS = (() => {
   };
   const message = (r) => MSG[r.etat === 'refus' ? r.erreur : r.etat] || 'Ça n’est pas passé. Réessaie dans un moment.';
 
-  let d = null, el, corps, fichier, zoom, bandeau, bouton;
+  let d = null, el, corps, fichier, zoom, bandeau;
   let onglet = 'ecrire', vue = 'accueil', adminVue = 'retours', filtre = 'nouveau';
   let etat = '', votes = [], finis = [], lusA = 0, lecture = null; // etat : '' (rien lu), 'ok', 'pas-ouvert', ou un état du réseau
   let admin = false, adminVu = '', retours = [], adminEtat = '', plusAnciens = false, nouveaux = 0, adminLecture = null, adminLectureCle = '';
@@ -21355,14 +21372,11 @@ const RETOURS = (() => {
     }, 30e3);
   }
 
-  // ─── le bouton rond du coin, sa pastille, et le bandeau du vote dans la boutique ───
+  // ─── la pastille (Réglages › Aide, d.pastille), et le bandeau du vote dans la boutique ───
   function majBouton() {
-    if (!bouton) return;
-    const m = moteur(); bouton.hidden = !m; if (!m) { majBandeau(); return; }
-    const n = admin ? nouveaux : rejoint() ? aVoter().length : 0, p = bouton.querySelector('.rt-pastille');
-    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
-    p.classList.toggle('admin', admin);
-    bouton.setAttribute('aria-label', !n ? 'Idées et bugs' : admin ? `Idées et bugs : ${n > 9 ? 'plus de 9' : n} nouveau${n > 1 ? 'x' : ''} retour${n > 1 ? 's' : ''}` : `Idées et bugs : ${n > 1 ? `${n} votes t’attendent` : 'un vote t’attend'}`);
+    const m = moteur(); if (!m) { if (d && d.pastille) d.pastille(0, false); majBandeau(); return; }
+    const n = admin ? nouveaux : rejoint() ? aVoter().length : 0;
+    if (d && d.pastille) d.pastille(n, admin); // Réglages › Aide › « Idées & bugs » et l'onglet Réglages (src/ui.js)
     const pv = el && el.querySelector('[data-rt-onglet="votes"] .rt-point'), pa = el && el.querySelector('[data-rt-onglet="admin"] .rt-point');
     if (pv) pv.hidden = !aVoter().length; if (pa) pa.hidden = !nouveaux;
     majBandeau(); battre();
@@ -21605,12 +21619,12 @@ const RETOURS = (() => {
 
   // ─── le branchement ───
   // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
-  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), quartier() (le nom du quartier de la boutique) }
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), quartier() (le nom du quartier de la boutique),
+  //          pastille(n, admin) (les votes à voter, ou les retours nouveaux de l'admin, à montrer) }
   function init(deps) {
-    d = deps; el = $('#idees'); bouton = $('#b-idees'); bandeau = $('#vote-bandeau'); if (!el) return;
+    d = deps; el = $('#idees'); bandeau = $('#vote-bandeau'); if (!el) return;
     corps = $('#rt-corps'); fichier = $('#rt-fichier'); zoom = $('#rt-zoom');
     if (window.__retoursPas) Object.assign(pas, window.__retoursPas); // les tests : des lectures plus rapprochées
-    if (bouton) bouton.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir(admin && nouveaux ? 'admin' : 'ecrire'); }); // l'ampoule : « Écrire » (l'admin : ses retours nouveaux)
     if (bandeau) bandeau.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir('votes'); });
     el.addEventListener('click', (e) => {
       const o = e.target.closest('[data-rt-onglet]'); if (o && el.contains(o)) { son('tap'); choisirOnglet(o.dataset.rtOnglet); return; }
@@ -21682,303 +21696,6 @@ const RETOURS = (() => {
       minuteur: !!minuteur, minuteurAdmin: !!minuteurAdmin }),
   };
 })();
-
-/* ── nouveautes.js ── */
-/* LE FOURNIL — les nouveautés : le récap des mises à jour, pour le joueur (la pastille cadeau en haut, à côté de la cloche, et sa feuille).
-   À CHAQUE MISE À JOUR VISIBLE PAR LE JOUEUR, on ajoute une entrée EN TÊTE de NOUVEAUTES (la plus récente d'abord) :
-     { id: 'aaaa-mm-jj-x', date: 'aaaa-mm-jj', titre: '…', points: ['…', '…'] }
-   - id : la date (heure de Paris) et une lettre ; deux entrées le même jour : 'a' pour la première, 'b' pour la suivante, etc. Les id se
-     comparent comme des chaînes (src/ui.js : st.nouveautesVues garde l'id de la plus récente vue ; tout id plus grand est « Nouveau ») :
-     on n'en change jamais un déjà publié, et on n'en invente pas un plus ancien que le dernier.
-   - titre court, points en phrases simples, le ton du jeu, sans jargon (pas de SQL, de fichier ni de test : ce que le joueur voit et gagne).
-   - les commits « Test : … », « CI : … », « Merge … » et le travail invisible ne sont pas des nouveautés.
-   Une sauvegarde neuve voit tout comme vu, sauf la plus récente (vueNeuve). Le bandeau « Nouvelle version » recharge la page : la pastille
-   montre alors son point si une entrée est apparue. test/fournil-nouveautes.cjs vérifie la liste (id uniques, dates triées) et l'écran.
-   Aucune dépendance au DOM : tourne aussi dans Node. */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.NV = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
-  'use strict';
-  const NOUVEAUTES = [
-    {
-      id: '2026-10-27-b', date: '2026-10-27', titre: 'Le bestiaire continue : paliers d’argent et d’or',
-      points: [
-        'Le bestiaire du Manoir ne s’arrête plus à dix : chaque monstre a maintenant sa médaille de bronze (dix servis, comme avant), d’argent (30 servis) et d’or (140 servis). Tes clients déjà servis comptent.',
-        'Chaque médaille d’argent rapporte une étoile à ta boulangerie, chaque médaille d’or deux. Les neuf en argent : une étagère aux bocaux d’argent ; les neuf en or : l’étagère dorée, pour ta boutique, à vie.',
-      ],
-    },
-    {
-      id: '2026-10-27-a', date: '2026-10-27', titre: 'La Maison hantée est ouverte',
-      points: [
-        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',
-        'Une courte vidéo te montre tout à l’ouverture. Tu peux la revoir quand tu veux : les paliers du Manoir › « Comment ça marche ? ».',
-        'Dans le Manoir, les cartes se montent au doigt par leur poignée, et Mini-jeux, Contrats et Opération t’attendent en haut à droite de la scène.',
-      ],
-    },
-    {
-      id: '2026-10-23-a', date: '2026-10-23', titre: 'De vrais clients en 3D dans ta boutique',
-      points: [
-        'En qualité Haute et Moyenne, tes clients sont maintenant de vrais personnages animés : ils font la queue, saluent en entrant, sautent de joie quand tu les sers, mangent leur croissant ou boivent leur café à table, puis repartent avec leur sac.',
-        'Le client mystère brille tout en or, tes habitués gardent leur prénom au-dessus de la tête, et l’hiver venu, sortez les bonnets. Les boutiques de tes copains en profitent aussi.',
-        'En qualité Éco, ou si « Décors en HD » est coupé, les petits personnages d’avant restent là, pour ménager les téléphones plus anciens.',
-        'En refermant l’arrière-salle, la boutique reprend bien la main : une fête gagnée pendant une partie n’est plus perdue.',
-      ],
-    },
-    {
-      id: '2026-10-22-b', date: '2026-10-22', titre: 'L’arrière-salle reste fluide',
-      points: [
-        'Au BlackJack et à la roulette, le jeu ne ralentit plus jamais pour ménager la batterie : toutes les images, même en Économie et en qualité Éco, même sans toucher l’écran.',
-        'La boutique, cachée derrière, se met en pause pendant que tu joues ; elle reprend dès que tu reviens. La roue de la roulette reste nette, quelle que soit la qualité graphique.',
-      ],
-    },
-    {
-      id: '2026-10-22-a', date: '2026-10-22', titre: 'Un classement plus juste, et du nouveau au fond',
-      points: [
-        'À partir du lundi 26 octobre, jouer plus longtemps rapporte enfin plus de points : au-delà d’une heure, tes points continuent (de moins en moins vite), et réussir un pétrissage, éviter une descente, servir un client mystère, livrer une grosse commande, réclamer un objectif du jour ou franchir un palier d’événement en rapportent. L’Atelier compte chaque jour.',
-        'La série de jours de suite démarre aussi le lundi 26 : +10 points au 3e jour, +20 au 7e. Laisser l’écran allumé sans jouer ne rapporte presque rien de plus : il faut être là.',
-        'Cette semaine finit avec les règles d’avant, pour tout le monde.',
-        'Derrière la petite porte du fond, la table a des nouveautés : on peut séparer une paire, un conseil discret aide à choisir le bon coup, et une roulette attend les plus chanceux. Trophées, mini-objectifs, statistiques et habillages à débloquer : tout est dans le carnet du croupier.',
-      ],
-    },
-    {
-      id: '2026-10-21-c', date: '2026-10-21', titre: 'Un grand ménage : les chiffres disent vrai',
-      points: [
-        'Les cartes, les talents et les meubles affichent leurs vrais effets : le gain réel d’une recette, les vraies fréquences, « 8 h 30 » au lieu de « 8.5 h ». Les primes de la Décoration et du Carnet comptent dès le jour de l’achat.',
-        'Après la boutique n°30, le défi de passage est enfin affiché, avec sa progression. La pastille ★ ne clignote plus quand le défi n’est pas fait, et les points de talent ne restent plus affichés une fois tous les talents au maximum.',
-        'Les pourboires du client mystère comptent aussi pour le défi de la semaine. Le nom de la boutique de la Capitale tient en entier.',
-        'Les événements s’arrêtent proprement : un mini-jeu ou un contrat ne paie plus après la fermeture, une pause dure le vrai temps, et rien de la boutique ne s’écoule pendant que tu es dans la Planque ou le Manoir.',
-        'Dans la boutique, les couverts sont bien posés sur les tables, et le néon du Quartier ne chevauche plus l’étagère aux bocaux. Les décors HD se chargent un peu plus vite.',
-      ],
-    },
-    {
-      id: '2026-10-21-b', date: '2026-10-21', titre: 'La Maison hantée arrive le 27 à midi',
-      points: [
-        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, entièrement hantée. Murs, meubles, bougies et brume ; les clients sont des monstres, du squelette au loup-garou.',
-        'Sers les monstres qui commandent, réussis tes fournées parfaites, attrape les apparitions et livre les commandes de la nuit. Le ×6 s’endort si tu ne touches plus l’écran : un toucher le réveille.',
-        'Le bestiaire : sers dix fois chacun des neuf monstres pour des étoiles, un décor et une chauve-souris compagnon. Et la recette du jour, comme dans la Planque.',
-        '20 paliers, qui s’ouvrent au fil des jours. Les quinze premiers du classement de l’événement sont récompensés ; au 20e palier, le titre « Légende du Manoir », une aura phosphorescente et une lanterne pour ta boutique.',
-      ],
-    },
-    {
-      id: '2026-10-21-a', date: '2026-10-21', titre: 'Choisis ta qualité et tes images par seconde',
-      points: [
-        'Dans Réglages › Le jeu, « Qualité graphique » : Auto (le jeu s’adapte à ton téléphone, comme avant), Haute, Moyenne ou Éco. Un choix fixe ne bouge plus ; il vaut aussi pour la Planque et la Maison hantée. En Éco, les décors HD ne se chargent pas.',
-        '« Images par seconde » : Économie (30 en jouant, 10 au repos : la batterie dure le plus longtemps), Fluide (60, puis 20 au repos) ou Maximum (la vitesse de ton écran, jusqu’à 120 sur iPhone Pro).',
-        'Tes choix s’appliquent tout de suite et sont gardés. Tes gains ne changent pas : tes apprentis vendent exactement autant.',
-      ],
-    },
-    {
-      id: '2026-10-20-b', date: '2026-10-20', titre: 'Le jeu consomme moins de batterie',
-      points: [
-        'La boutique se dessine 30 fois par seconde au plus pendant que tu joues (au lieu de 60, voire 120 sur les iPhone récents), et 10 fois après 15 secondes sans toucher l’écran. Elle reprend aussitôt au premier toucher.',
-        'Tes gains ne changent pas : tes apprentis vendent exactement autant, quelle que soit la cadence.',
-        'Les mini-jeux de l’Atelier et des événements, et le meuble que tu fais glisser en mode Déplacer, restent bien fluides.',
-      ],
-    },
-    {
-      id: '2026-10-20-a', date: '2026-10-20', titre: 'La recette du jour, et des récompenses jusqu’au 15e',
-      points: [
-        'Dans la Planque, la « Mise en pochon du jour » : une recette qui change chaque jour, à lancer à la main. Prépare-la, améliore-la jusqu’au niveau 10 : jouée sans arrêt, elle ajoute jusqu’à 40 % à tes gains.',
-        'Conditionne 100, 250 puis 500 pochons (toutes recettes confondues) : des étoiles pour ta boulangerie, et un décor à la fin. La Maison hantée aura la sienne dès le 27.',
-        'Chaque lundi, les quinze premiers du classement de la semaine sont récompensés : des étoiles et un boost, et toujours la tenue et la coupe pour le podium. Une feuille te dit ta place.',
-        'Corrigé : une fin d’événement Planque ouverte paie bien ton absence ; un boost de la réserve fini pendant ton absence compte ; tes objectifs du jour finis sont réclamés avant une nouvelle boutique ; une main de BlackJack en cours ne suit plus dans la nouvelle boutique ; les pourboires ne se perdent plus quand le réseau coupe.',
-        'L’interrupteur « Décors en HD » est maintenant dans Réglages › Le jeu.',
-      ],
-    },
-    {
-      id: '2026-10-18-b', date: '2026-10-18', titre: 'Le Sirop violet et le Cristal bleu, encore plus forts',
-      points: [
-        'Dans la Planque, le Sirop violet rapporte ×48 par niveau (4 fois plus qu’hier), le Cristal bleu ×80 (2 fois plus qu’hier) : sans ses Gobelets, un niveau de Sirop se rembourse à peu près aussi vite qu’un niveau de Spécialité ; avec, c’est la meilleure affaire.',
-        'Tes niveaux déjà achetés restent : ils rapportent plus tout de suite. Les prix ne changent pas.',
-        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière ×72 par niveau, les Œufs de dragon en chocolat ×131.',
-      ],
-    },
-    {
-      id: '2026-10-18-a', date: '2026-10-18', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
-      points: [
-        'Ta boutique monte en gamme : toutes les cinq boutiques, ton décor devient plus beau, de la Belle boutique (n°6) jusqu’au Palais du goût (n°26). Parquet, marbre, colonnes dorées, tapis rouge, et même une statue !',
-        'Ton quartier garde ses couleurs. Les feuilles Étoiles et Parcours montrent ton standing et le prochain palier.',
-        'Aménage ta salle : dans Réglages, touche « Repeindre la boutique », puis « Déplacer ». Fais glisser du doigt tes tables, le bar, le coin salon et les tables de la terrasse.',
-        'En vert, la place est libre. En rouge, le jeu te dit pourquoi : la file d’attente, l’allée, une autre table…',
-        'Tes places sont gardées d’une boutique à l’autre, et tes copains voient ta salle quand ils te rendent visite. « Plan d’origine » remet tout comme avant.',
-      ],
-    },
-    {
-      id: '2026-10-17-h', date: '2026-10-17', titre: 'Le Sirop violet et le Cristal bleu rapportent enfin',
-      points: [
-        'Dans la Planque, le Sirop violet rapporte 12 fois plus par niveau, le Cristal bleu 40 fois plus : un niveau s’y rembourse presque aussi vite qu’un niveau de Spécialité.',
-        'Tes niveaux déjà achetés restent : ils rapportent plus tout de suite. Les prix ne changent pas.',
-        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat aussi.',
-      ],
-    },
-    {
-      id: '2026-10-17-g', date: '2026-10-17', titre: 'De nouvelles recettes à chaque boutique',
-      points: [
-        'Chaque nouvelle boutique t’apporte une recette, de la n°2 à la n°9 : le Paris-Brest, le Kouign-amann, la Tarte aux myrtilles, l’Opéra, puis le Canelé, le Saint-Honoré, le Fraisier et le Croquembouche.',
-        'Une recette gagnée l’est pour toujours, avec son apprenti et son bonus ×3. Si tu as déjà plusieurs boutiques, les recettes sont déjà là.',
-        'Le parcours du boulanger, jusqu’à la boutique n°30 : cinq nouveaux quartiers (la gare, l’île, le château, la station de ski, la capitale), une tenue, des étoiles, des boosts et des titres.',
-        'Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage, annoncé à l’avance : une carte en haut de l’onglet Défis montre ton prochain objectif.',
-      ],
-    },
-    {
-      id: '2026-10-17-f', date: '2026-10-17', titre: 'Une boutique réaménagée',
-      points: [
-        'La salle s’agrandit : jusqu’à 6 tables. Les deux dernières font encore grimper tous tes gains (×1,48 en tout).',
-        'Un bar et ses tabourets : des pourboires en plus, et des clients servis plus vite.',
-        'Un coin salon pour tes habitués : ils arrivent plus vite et leurs cadeaux grossissent.',
-        'Une terrasse devant la vitrine : plus de monde, surtout les jours de marché et d’avril à septembre.',
-        'Touche un meuble dans la boutique, ou ouvre Bonus › Mobilier, pour les installer. Ils repartent de zéro à chaque nouvelle boutique, comme les autres.',
-      ],
-    },
-    {
-      id: '2026-10-17-e', date: '2026-10-17', titre: 'Idées, bugs et votes',
-      points: [
-        'Une ampoule à droite, sous la bulle du chat : propose une idée ou signale un bug, avec une capture si tu veux.',
-        'Pour un bug, le jeu joint tout seul ce qui aide à comprendre : la version du jeu, ton téléphone, ton quartier.',
-        'Des votes pour choisir la suite du Fournil : un bandeau dans la boutique te prévient, et tu peux changer d’avis tant que le vote est ouvert.',
-        'Pour écrire et voter, il faut un pseudo au classement.',
-      ],
-    },
-    {
-      id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
-      points: [
-        'Dans la Planque (et bientôt au Manoir), des paliers de recette plus serrés : 75, 125, 150, 175… chacun donne un coup de pouce.',
-        'Après le boss, deux nouvelles recettes : le Sirop violet au palier 13, le Cristal bleu au palier 16, avec leur apprenti et leur combine ×3.',
-        'Le Grossiste, une combine d’après le boss : tous les niveaux de recettes à moitié prix.',
-        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat, et le Marché des sorcières.',
-      ],
-    },
-    {
-      id: '2026-10-17-c', date: '2026-10-17', titre: 'Le chat des boulangers',
-      points: [
-        'Une bulle à droite, sous l’événement : le chat de tous les boulangers, avec une pastille quand il y a du nouveau.',
-        'Écris un message, envoie une photo ou une capture (elle est allégée toute seule), ou cherche un GIF.',
-        'Pour écrire, il faut un pseudo au classement ; tout le monde peut lire.',
-        'Un appui long sur un message : le signaler, ou effacer le tien. Les photos s’effacent après 7 jours.',
-      ],
-    },
-    {
-      id: '2026-10-17-b', date: '2026-10-17', titre: 'Les nouveautés',
-      points: [
-        'Le petit cadeau à côté de la cloche : tout ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.',
-        'Un point rouge te prévient quand il y a du nouveau.',
-      ],
-    },
-    {
-      id: '2026-10-17-a', date: '2026-10-17', titre: 'La jauge de la prochaine étoile',
-      points: [
-        'Dans la feuille Étoiles, une jauge montre où tu en es vers ta prochaine étoile.',
-        'Elle dit ce qu’il reste à gagner dans la boutique, et en combien de temps à ton rythme actuel.',
-        'Laisse la feuille ouverte : la jauge avance sous tes yeux.',
-      ],
-    },
-    {
-      id: '2026-10-16-d', date: '2026-10-16', titre: 'Des recettes qui grimpent plus vite',
-      points: [
-        'De nouveaux paliers de recette : 75, 125, 150, 175, puis 250… Entre 100 et 200, un cran tous les 25 niveaux au lieu d’un seul.',
-        'Chaque palier fait grimper les ventes de la recette : ta boutique avance un peu plus vite qu’avant.',
-        'Quand une mise à jour sort, un bandeau « Nouvelle version du Fournil » te prévient : touche-le, ta partie est sauvée et le jeu repart à jour.',
-      ],
-    },
-    {
-      id: '2026-10-16-c', date: '2026-10-16', titre: 'Les compagnons',
-      points: [
-        'Choisis l’animal de ta boutique : chat roux, chien ou lapin offerts, puis la poule, le canard, le hérisson… jusqu’au mini-dragon.',
-        'Chaque compagnon donne un petit bonus tant qu’il est avec toi : des pourboires, des absences plus longues, des fournées plus rapides ou des gains en plus.',
-        'Le chien du quartier, gagné au palier 11 du Quartier, devient un compagnon lui aussi (+5 % de gains). Le chat noir de la Maison hantée suivra.',
-        'Tout se passe dans Réglages › Le compagnon, ou depuis la garde-robe.',
-      ],
-    },
-    {
-      id: '2026-10-16-b', date: '2026-10-16', titre: 'Des événements plus généreux',
-      points: [
-        'Les paliers des événements donnent plus d’étoiles et versent des heures de gains directement dans la caisse de ta boulangerie.',
-        'Les paliers 13 à 20, après le boss, sont bien plus riches : des étoiles en pagaille et de gros boosts.',
-        'Les combines achetées après le boss paient aussi ta boulangerie.',
-        'Déjà bien avancé ? La différence t’est donnée une fois, sans rien perdre.',
-      ],
-    },
-    {
-      id: '2026-10-16-a', date: '2026-10-16', titre: 'Encore plus de copains',
-      points: [
-        'En visite chez un copain, « Ses recettes » montre le niveau de chacune, ses apprentis et leur grade. Son compagnon est là aussi.',
-        'Dans le classement « Tous les temps », touche un copain pour voir sa fiche ; dans l’onglet de l’événement, visite sa Planque.',
-        'Un pourboire laissé à un copain te rapporte une étoile.',
-        'Les cadeaux peuvent maintenant contenir des étoiles.',
-        'Les notifications sont prêtes : active-les dans Réglages pour savoir quand ta boutique est pleine, quand un copain t’a laissé un pourboire ou quand un événement commence.',
-      ],
-    },
-    {
-      id: '2026-10-15-b', date: '2026-10-15', titre: 'Les copains',
-      points: [
-        'Touche un boulanger dans le classement pour visiter sa boutique en 3D.',
-        'Laisse-lui un pourboire (trois par jour) : il reçoit un boost ×2.',
-        'Chaque semaine, un objectif commun à remplir tous ensemble ; réussi, il offre un boost ×5 à chacun.',
-        'Le classement ouvert se met à jour tout seul, avec les boulangers en ligne.',
-      ],
-    },
-    {
-      id: '2026-10-15-a', date: '2026-10-15', titre: 'Les activités des événements',
-      points: [
-        'Dans un événement, trois boutons de plus : des mini-jeux, les contrats de la nuit et les opérations.',
-        'Les paliers bonus de 13 à 20 et quatre combines de plus attendent ceux qui ont battu le boss.',
-        'Partir quelques minutes sans le vouloir met l’événement en pause au lieu de tout perdre.',
-        'La Maison hantée ouvre ses portes le mardi 27 octobre à midi : tenue d’Halloween et chat noir à gagner.',
-      ],
-    },
-    {
-      id: '2026-10-14-a', date: '2026-10-14', titre: 'Des personnages plus vivants',
-      points: [
-        'Les clients tournent la tête, respirent, s’impatientent dans la file et sautent de joie quand on les sert.',
-        'Les apprentis pétrissent au four et saluent au comptoir ; le boulanger s’essuie le front et se frotte les mains.',
-        'Dans la Planque, l’équipe s’installe sur le canapé, travaille et fait la fête à chaque palier.',
-        'Tes gains comptent aussi quand le jeu reste ouvert en arrière-plan.',
-      ],
-    },
-    {
-      id: '2026-10-13-b', date: '2026-10-13', titre: 'De vrais sons et des confettis',
-      points: [
-        'De vrais bruitages pour les ventes, les achats et les surprises.',
-        'Des confettis aux grandes occasions : déblocages, montée de niveau, podium, nouvelle boutique.',
-        'La Planque passe en haute définition : meubles, néons et la rue de nuit par la fenêtre.',
-      ],
-    },
-    {
-      id: '2026-10-13-a', date: '2026-10-13', titre: 'Le Quartier et la garde-robe',
-      points: [
-        'L’événement « Le Quartier » est ouvert jusqu’au 27 octobre (18 ans et +) : une boutique à part, sa monnaie, douze paliers et un classement rien qu’à lui.',
-        'Ses récompenses vont à ta boulangerie : des étoiles, des boosts, des décos et une tenue.',
-        'La garde-robe du boulanger : tête, haut, chaussures et accessoire, chaque pièce avec son bonus, à améliorer avec des étoiles.',
-        'L’interface est mieux rangée, avec des icônes redessinées.',
-        'Il paraît qu’une petite porte, au fond de la boutique, cache quelque chose…',
-      ],
-    },
-    {
-      id: '2026-10-12-a', date: '2026-10-12', titre: 'L’Atelier et les points de boulanger',
-      points: [
-        'L’Atelier et ses trois mini-jeux : l’Enfournement en rythme, le Façonnage au doigt et la Mémoire du pâtissier.',
-        'Le classement compte en points de boulanger : petit ou grand, chacun a sa chance.',
-      ],
-    },
-  ];
-
-  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  // « vendredi 16 octobre » ; l'année seulement si elle n'est pas celle d'aujourd'hui (annee : l'année en cours, facultative)
-  function dateFr(date, annee) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
-    if (!m) return '';
-    const a = +m[1], mo = +m[2], j = +m[3], jour = new Date(Date.UTC(a, mo - 1, j)).getUTCDay();
-    return `${JOURS[jour]} ${j === 1 ? '1er' : j} ${MOIS[mo - 1]}${annee && annee !== a ? ` ${a}` : ''}`;
-  }
-  const derniere = () => (NOUVEAUTES.length ? NOUVEAUTES[0].id : '');
-  const vueNeuve = () => (NOUVEAUTES.length > 1 ? NOUVEAUTES[1].id : ''); // une sauvegarde neuve : tout vu, sauf la plus récente
-  const nonVue = (n, vues) => typeof vues !== 'string' || n.id > vues; // les id se comparent comme des chaînes (aaaa-mm-jj-x)
-  const nonVues = (vues) => NOUVEAUTES.filter((n) => nonVue(n, vues));
-
-  return { NOUVEAUTES, dateFr, derniere, vueNeuve, nonVue, nonVues };
-});
 
 /* ── chaine-ecran.js ── */
 /* LE FOURNIL — « Ma chaîne de boutiques » : l'écran (global CHAINE_ECRAN). Les règles sont dans src/chaine.js (CHAINE) : cet écran ne fait
@@ -22456,6 +22173,303 @@ const CHAINE_ECRAN = (() => {
   return API;
 })();
 
+/* ── nouveautes.js ── */
+/* LE FOURNIL — les nouveautés : le récap des mises à jour, pour le joueur (la pastille cadeau en haut, à côté de la cloche, et sa feuille).
+   À CHAQUE MISE À JOUR VISIBLE PAR LE JOUEUR, on ajoute une entrée EN TÊTE de NOUVEAUTES (la plus récente d'abord) :
+     { id: 'aaaa-mm-jj-x', date: 'aaaa-mm-jj', titre: '…', points: ['…', '…'] }
+   - id : la date (heure de Paris) et une lettre ; deux entrées le même jour : 'a' pour la première, 'b' pour la suivante, etc. Les id se
+     comparent comme des chaînes (src/ui.js : st.nouveautesVues garde l'id de la plus récente vue ; tout id plus grand est « Nouveau ») :
+     on n'en change jamais un déjà publié, et on n'en invente pas un plus ancien que le dernier.
+   - titre court, points en phrases simples, le ton du jeu, sans jargon (pas de SQL, de fichier ni de test : ce que le joueur voit et gagne).
+   - les commits « Test : … », « CI : … », « Merge … » et le travail invisible ne sont pas des nouveautés.
+   Une sauvegarde neuve voit tout comme vu, sauf la plus récente (vueNeuve). Le bandeau « Nouvelle version » recharge la page : la pastille
+   montre alors son point si une entrée est apparue. test/fournil-nouveautes.cjs vérifie la liste (id uniques, dates triées) et l'écran.
+   Aucune dépendance au DOM : tourne aussi dans Node. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.NV = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const NOUVEAUTES = [
+    {
+      id: '2026-10-27-b', date: '2026-10-27', titre: 'Le bestiaire continue : paliers d’argent et d’or',
+      points: [
+        'Le bestiaire du Manoir ne s’arrête plus à dix : chaque monstre a maintenant sa médaille de bronze (dix servis, comme avant), d’argent (30 servis) et d’or (140 servis). Tes clients déjà servis comptent.',
+        'Chaque médaille d’argent rapporte une étoile à ta boulangerie, chaque médaille d’or deux. Les neuf en argent : une étagère aux bocaux d’argent ; les neuf en or : l’étagère dorée, pour ta boutique, à vie.',
+      ],
+    },
+    {
+      id: '2026-10-27-a', date: '2026-10-27', titre: 'La Maison hantée est ouverte',
+      points: [
+        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, hantée. Touche la citrouille, sur le côté de la boutique, pour entrer.',
+        'Une courte vidéo te montre tout à l’ouverture. Tu peux la revoir quand tu veux : les paliers du Manoir › « Comment ça marche ? ».',
+        'Dans le Manoir, les cartes se montent au doigt par leur poignée, et Mini-jeux, Contrats et Opération t’attendent en haut à droite de la scène.',
+      ],
+    },
+    {
+      id: '2026-10-23-a', date: '2026-10-23', titre: 'De vrais clients en 3D dans ta boutique',
+      points: [
+        'En qualité Haute et Moyenne, tes clients sont maintenant de vrais personnages animés : ils font la queue, saluent en entrant, sautent de joie quand tu les sers, mangent leur croissant ou boivent leur café à table, puis repartent avec leur sac.',
+        'Le client mystère brille tout en or, tes habitués gardent leur prénom au-dessus de la tête, et l’hiver venu, sortez les bonnets. Les boutiques de tes copains en profitent aussi.',
+        'En qualité Éco, ou si « Décors en HD » est coupé, les petits personnages d’avant restent là, pour ménager les téléphones plus anciens.',
+        'En refermant l’arrière-salle, la boutique reprend bien la main : une fête gagnée pendant une partie n’est plus perdue.',
+      ],
+    },
+    {
+      id: '2026-10-22-b', date: '2026-10-22', titre: 'L’arrière-salle reste fluide',
+      points: [
+        'Au BlackJack et à la roulette, le jeu ne ralentit plus jamais pour ménager la batterie : toutes les images, même en Économie et en qualité Éco, même sans toucher l’écran.',
+        'La boutique, cachée derrière, se met en pause pendant que tu joues ; elle reprend dès que tu reviens. La roue de la roulette reste nette, quelle que soit la qualité graphique.',
+      ],
+    },
+    {
+      id: '2026-10-22-a', date: '2026-10-22', titre: 'Un classement plus juste, et du nouveau au fond',
+      points: [
+        'À partir du lundi 26 octobre, jouer plus longtemps rapporte enfin plus de points : au-delà d’une heure, tes points continuent (de moins en moins vite), et réussir un pétrissage, éviter une descente, servir un client mystère, livrer une grosse commande, réclamer un objectif du jour ou franchir un palier d’événement en rapportent. L’Atelier compte chaque jour.',
+        'La série de jours de suite démarre aussi le lundi 26 : +10 points au 3e jour, +20 au 7e. Laisser l’écran allumé sans jouer ne rapporte presque rien de plus : il faut être là.',
+        'Cette semaine finit avec les règles d’avant, pour tout le monde.',
+        'Derrière la petite porte du fond, la table a des nouveautés : on peut séparer une paire, un conseil discret aide à choisir le bon coup, et une roulette attend les plus chanceux. Trophées, mini-objectifs, statistiques et habillages à débloquer : tout est dans le carnet du croupier.',
+      ],
+    },
+    {
+      id: '2026-10-21-c', date: '2026-10-21', titre: 'Un grand ménage : les chiffres disent vrai',
+      points: [
+        'Les cartes, les talents et les meubles affichent leurs vrais effets : le gain réel d’une recette, les vraies fréquences, « 8 h 30 » au lieu de « 8.5 h ». Les primes de la Décoration et du Carnet comptent dès le jour de l’achat.',
+        'Après la boutique n°30, le défi de passage est enfin affiché, avec sa progression. La pastille ★ ne clignote plus quand le défi n’est pas fait, et les points de talent ne restent plus affichés une fois tous les talents au maximum.',
+        'Les pourboires du client mystère comptent aussi pour le défi de la semaine. Le nom de la boutique de la Capitale tient en entier.',
+        'Les événements s’arrêtent proprement : un mini-jeu ou un contrat ne paie plus après la fermeture, une pause dure le vrai temps, et rien de la boutique ne s’écoule pendant que tu es dans la Planque ou le Manoir.',
+        'Dans la boutique, les couverts sont bien posés sur les tables, et le néon du Quartier ne chevauche plus l’étagère aux bocaux. Les décors HD se chargent un peu plus vite.',
+      ],
+    },
+    {
+      id: '2026-10-21-b', date: '2026-10-21', titre: 'La Maison hantée arrive le 27 à midi',
+      points: [
+        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, entièrement hantée. Murs, meubles, bougies et brume ; les clients sont des monstres, du squelette au loup-garou.',
+        'Sers les monstres qui commandent, réussis tes fournées parfaites, attrape les apparitions et livre les commandes de la nuit. Le ×6 s’endort si tu ne touches plus l’écran : un toucher le réveille.',
+        'Le bestiaire : sers dix fois chacun des neuf monstres pour des étoiles, un décor et une chauve-souris compagnon. Et la recette du jour, comme dans la Planque.',
+        '20 paliers, qui s’ouvrent au fil des jours. Les quinze premiers du classement de l’événement sont récompensés ; au 20e palier, le titre « Légende du Manoir », une aura phosphorescente et une lanterne pour ta boutique.',
+      ],
+    },
+    {
+      id: '2026-10-21-a', date: '2026-10-21', titre: 'Choisis ta qualité et tes images par seconde',
+      points: [
+        'Dans Réglages › Le jeu, « Qualité graphique » : Auto (le jeu s’adapte à ton téléphone, comme avant), Haute, Moyenne ou Éco. Un choix fixe ne bouge plus ; il vaut aussi pour la Planque et la Maison hantée. En Éco, les décors HD ne se chargent pas.',
+        '« Images par seconde » : Économie (30 en jouant, 10 au repos : la batterie dure le plus longtemps), Fluide (60, puis 20 au repos) ou Maximum (la vitesse de ton écran, jusqu’à 120 sur iPhone Pro).',
+        'Tes choix s’appliquent tout de suite et sont gardés. Tes gains ne changent pas : tes apprentis vendent exactement autant.',
+      ],
+    },
+    {
+      id: '2026-10-20-b', date: '2026-10-20', titre: 'Le jeu consomme moins de batterie',
+      points: [
+        'La boutique se dessine 30 fois par seconde au plus pendant que tu joues (au lieu de 60, voire 120 sur les iPhone récents), et 10 fois après 15 secondes sans toucher l’écran. Elle reprend aussitôt au premier toucher.',
+        'Tes gains ne changent pas : tes apprentis vendent exactement autant, quelle que soit la cadence.',
+        'Les mini-jeux de l’Atelier et des événements, et le meuble que tu fais glisser en mode Déplacer, restent bien fluides.',
+      ],
+    },
+    {
+      id: '2026-10-20-a', date: '2026-10-20', titre: 'La recette du jour, et des récompenses jusqu’au 15e',
+      points: [
+        'Dans la Planque, la « Mise en pochon du jour » : une recette qui change chaque jour, à lancer à la main. Prépare-la, améliore-la jusqu’au niveau 10 : jouée sans arrêt, elle ajoute jusqu’à 40 % à tes gains.',
+        'Conditionne 100, 250 puis 500 pochons (toutes recettes confondues) : des étoiles pour ta boulangerie, et un décor à la fin. La Maison hantée aura la sienne dès le 27.',
+        'Chaque lundi, les quinze premiers du classement de la semaine sont récompensés : des étoiles et un boost, et toujours la tenue et la coupe pour le podium. Une feuille te dit ta place.',
+        'Corrigé : une fin d’événement Planque ouverte paie bien ton absence ; un boost de la réserve fini pendant ton absence compte ; tes objectifs du jour finis sont réclamés avant une nouvelle boutique ; une main de BlackJack en cours ne suit plus dans la nouvelle boutique ; les pourboires ne se perdent plus quand le réseau coupe.',
+        'L’interrupteur « Décors en HD » est maintenant dans Réglages › Le jeu.',
+      ],
+    },
+    {
+      id: '2026-10-18-b', date: '2026-10-18', titre: 'Le Sirop violet et le Cristal bleu, encore plus forts',
+      points: [
+        'Dans la Planque, le Sirop violet rapporte ×48 par niveau (4 fois plus qu’hier), le Cristal bleu ×80 (2 fois plus qu’hier) : sans ses Gobelets, un niveau de Sirop se rembourse à peu près aussi vite qu’un niveau de Spécialité ; avec, c’est la meilleure affaire.',
+        'Tes niveaux déjà achetés restent : ils rapportent plus tout de suite. Les prix ne changent pas.',
+        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière ×72 par niveau, les Œufs de dragon en chocolat ×131.',
+      ],
+    },
+    {
+      id: '2026-10-18-a', date: '2026-10-18', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
+      points: [
+        'Ta boutique monte en gamme : toutes les cinq boutiques, ton décor devient plus beau, de la Belle boutique (n°6) jusqu’au Palais du goût (n°26). Parquet, marbre, colonnes dorées, tapis rouge, et même une statue !',
+        'Ton quartier garde ses couleurs. Les feuilles Étoiles et Parcours montrent ton standing et le prochain palier.',
+        'Aménage ta salle : dans Réglages, touche « Repeindre la boutique », puis « Déplacer ». Fais glisser du doigt tes tables, le bar, le coin salon et les tables de la terrasse.',
+        'En vert, la place est libre. En rouge, le jeu te dit pourquoi : la file d’attente, l’allée, une autre table…',
+        'Tes places sont gardées d’une boutique à l’autre, et tes copains voient ta salle quand ils te rendent visite. « Plan d’origine » remet tout comme avant.',
+      ],
+    },
+    {
+      id: '2026-10-17-h', date: '2026-10-17', titre: 'Le Sirop violet et le Cristal bleu rapportent enfin',
+      points: [
+        'Dans la Planque, le Sirop violet rapporte 12 fois plus par niveau, le Cristal bleu 40 fois plus : un niveau s’y rembourse presque aussi vite qu’un niveau de Spécialité.',
+        'Tes niveaux déjà achetés restent : ils rapportent plus tout de suite. Les prix ne changent pas.',
+        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat aussi.',
+      ],
+    },
+    {
+      id: '2026-10-17-g', date: '2026-10-17', titre: 'De nouvelles recettes à chaque boutique',
+      points: [
+        'Chaque nouvelle boutique t’apporte une recette, de la n°2 à la n°9 : le Paris-Brest, le Kouign-amann, la Tarte aux myrtilles, l’Opéra, puis le Canelé, le Saint-Honoré, le Fraisier et le Croquembouche.',
+        'Une recette gagnée l’est pour toujours, avec son apprenti et son bonus ×3. Si tu as déjà plusieurs boutiques, les recettes sont déjà là.',
+        'Le parcours du boulanger, jusqu’à la boutique n°30 : cinq nouveaux quartiers (la gare, l’île, le château, la station de ski, la capitale), une tenue, des étoiles, des boosts et des titres.',
+        'Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage, annoncé à l’avance : une carte en haut de l’onglet Défis montre ton prochain objectif.',
+      ],
+    },
+    {
+      id: '2026-10-17-f', date: '2026-10-17', titre: 'Une boutique réaménagée',
+      points: [
+        'La salle s’agrandit : jusqu’à 6 tables. Les deux dernières font encore grimper tous tes gains (×1,48 en tout).',
+        'Un bar et ses tabourets : des pourboires en plus, et des clients servis plus vite.',
+        'Un coin salon pour tes habitués : ils arrivent plus vite et leurs cadeaux grossissent.',
+        'Une terrasse devant la vitrine : plus de monde, surtout les jours de marché et d’avril à septembre.',
+        'Touche un meuble dans la boutique, ou ouvre Bonus › Mobilier, pour les installer. Ils repartent de zéro à chaque nouvelle boutique, comme les autres.',
+      ],
+    },
+    {
+      id: '2026-10-17-e', date: '2026-10-17', titre: 'Idées, bugs et votes',
+      points: [
+        'Une ampoule à droite, sous la bulle du chat : propose une idée ou signale un bug, avec une capture si tu veux.',
+        'Pour un bug, le jeu joint tout seul ce qui aide à comprendre : la version du jeu, ton téléphone, ton quartier.',
+        'Des votes pour choisir la suite du Fournil : un bandeau dans la boutique te prévient, et tu peux changer d’avis tant que le vote est ouvert.',
+        'Pour écrire et voter, il faut un pseudo au classement.',
+      ],
+    },
+    {
+      id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
+      points: [
+        'Dans la Planque (et bientôt au Manoir), des paliers de recette plus serrés : 75, 125, 150, 175… chacun donne un coup de pouce.',
+        'Après le boss, deux nouvelles recettes : le Sirop violet au palier 13, le Cristal bleu au palier 16, avec leur apprenti et leur combine ×3.',
+        'Le Grossiste, une combine d’après le boss : tous les niveaux de recettes à moitié prix.',
+        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat, et le Marché des sorcières.',
+      ],
+    },
+    {
+      id: '2026-10-17-c', date: '2026-10-17', titre: 'Le chat des boulangers',
+      points: [
+        'Une bulle à droite, sous l’événement : le chat de tous les boulangers, avec une pastille quand il y a du nouveau.',
+        'Écris un message, envoie une photo ou une capture (elle est allégée toute seule), ou cherche un GIF.',
+        'Pour écrire, il faut un pseudo au classement ; tout le monde peut lire.',
+        'Un appui long sur un message : le signaler, ou effacer le tien. Les photos s’effacent après 7 jours.',
+      ],
+    },
+    {
+      id: '2026-10-17-b', date: '2026-10-17', titre: 'Les nouveautés',
+      points: [
+        'Le petit cadeau à côté de la cloche : tout ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.',
+        'Un point rouge te prévient quand il y a du nouveau.',
+      ],
+    },
+    {
+      id: '2026-10-17-a', date: '2026-10-17', titre: 'La jauge de la prochaine étoile',
+      points: [
+        'Dans la feuille Étoiles, une jauge montre où tu en es vers ta prochaine étoile.',
+        'Elle dit ce qu’il reste à gagner dans la boutique, et en combien de temps à ton rythme actuel.',
+        'Laisse la feuille ouverte : la jauge avance sous tes yeux.',
+      ],
+    },
+    {
+      id: '2026-10-16-d', date: '2026-10-16', titre: 'Des recettes qui grimpent plus vite',
+      points: [
+        'De nouveaux paliers de recette : 75, 125, 150, 175, puis 250… Entre 100 et 200, un cran tous les 25 niveaux au lieu d’un seul.',
+        'Chaque palier fait grimper les ventes de la recette : ta boutique avance un peu plus vite qu’avant.',
+        'Quand une mise à jour sort, un bandeau « Nouvelle version du Fournil » te prévient : touche-le, ta partie est sauvée et le jeu repart à jour.',
+      ],
+    },
+    {
+      id: '2026-10-16-c', date: '2026-10-16', titre: 'Les compagnons',
+      points: [
+        'Choisis l’animal de ta boutique : chat roux, chien ou lapin offerts, puis la poule, le canard, le hérisson… jusqu’au mini-dragon.',
+        'Chaque compagnon donne un petit bonus tant qu’il est avec toi : des pourboires, des absences plus longues, des fournées plus rapides ou des gains en plus.',
+        'Le chien du quartier, gagné au palier 11 du Quartier, devient un compagnon lui aussi (+5 % de gains). Le chat noir de la Maison hantée suivra.',
+        'Tout se passe dans Réglages › Le compagnon, ou depuis la garde-robe.',
+      ],
+    },
+    {
+      id: '2026-10-16-b', date: '2026-10-16', titre: 'Des événements plus généreux',
+      points: [
+        'Les paliers des événements donnent plus d’étoiles et versent des heures de gains directement dans la caisse de ta boulangerie.',
+        'Les paliers 13 à 20, après le boss, sont bien plus riches : des étoiles en pagaille et de gros boosts.',
+        'Les combines achetées après le boss paient aussi ta boulangerie.',
+        'Déjà bien avancé ? La différence t’est donnée une fois, sans rien perdre.',
+      ],
+    },
+    {
+      id: '2026-10-16-a', date: '2026-10-16', titre: 'Encore plus de copains',
+      points: [
+        'En visite chez un copain, « Ses recettes » montre le niveau de chacune, ses apprentis et leur grade. Son compagnon est là aussi.',
+        'Dans le classement « Tous les temps », touche un copain pour voir sa fiche ; dans l’onglet de l’événement, visite sa Planque.',
+        'Un pourboire laissé à un copain te rapporte une étoile.',
+        'Les cadeaux peuvent maintenant contenir des étoiles.',
+        'Les notifications sont prêtes : active-les dans Réglages pour savoir quand ta boutique est pleine, quand un copain t’a laissé un pourboire ou quand un événement commence.',
+      ],
+    },
+    {
+      id: '2026-10-15-b', date: '2026-10-15', titre: 'Les copains',
+      points: [
+        'Touche un boulanger dans le classement pour visiter sa boutique en 3D.',
+        'Laisse-lui un pourboire (trois par jour) : il reçoit un boost ×2.',
+        'Chaque semaine, un objectif commun à remplir tous ensemble ; réussi, il offre un boost ×5 à chacun.',
+        'Le classement ouvert se met à jour tout seul, avec les boulangers en ligne.',
+      ],
+    },
+    {
+      id: '2026-10-15-a', date: '2026-10-15', titre: 'Les activités des événements',
+      points: [
+        'Dans un événement, trois boutons de plus : des mini-jeux, les contrats de la nuit et les opérations.',
+        'Les paliers bonus de 13 à 20 et quatre combines de plus attendent ceux qui ont battu le boss.',
+        'Partir quelques minutes sans le vouloir met l’événement en pause au lieu de tout perdre.',
+        'La Maison hantée ouvre ses portes le mardi 27 octobre à midi : tenue d’Halloween et chat noir à gagner.',
+      ],
+    },
+    {
+      id: '2026-10-14-a', date: '2026-10-14', titre: 'Des personnages plus vivants',
+      points: [
+        'Les clients tournent la tête, respirent, s’impatientent dans la file et sautent de joie quand on les sert.',
+        'Les apprentis pétrissent au four et saluent au comptoir ; le boulanger s’essuie le front et se frotte les mains.',
+        'Dans la Planque, l’équipe s’installe sur le canapé, travaille et fait la fête à chaque palier.',
+        'Tes gains comptent aussi quand le jeu reste ouvert en arrière-plan.',
+      ],
+    },
+    {
+      id: '2026-10-13-b', date: '2026-10-13', titre: 'De vrais sons et des confettis',
+      points: [
+        'De vrais bruitages pour les ventes, les achats et les surprises.',
+        'Des confettis aux grandes occasions : déblocages, montée de niveau, podium, nouvelle boutique.',
+        'La Planque passe en haute définition : meubles, néons et la rue de nuit par la fenêtre.',
+      ],
+    },
+    {
+      id: '2026-10-13-a', date: '2026-10-13', titre: 'Le Quartier et la garde-robe',
+      points: [
+        'L’événement « Le Quartier » est ouvert jusqu’au 27 octobre (18 ans et +) : une boutique à part, sa monnaie, douze paliers et un classement rien qu’à lui.',
+        'Ses récompenses vont à ta boulangerie : des étoiles, des boosts, des décos et une tenue.',
+        'La garde-robe du boulanger : tête, haut, chaussures et accessoire, chaque pièce avec son bonus, à améliorer avec des étoiles.',
+        'L’interface est mieux rangée, avec des icônes redessinées.',
+        'Il paraît qu’une petite porte, au fond de la boutique, cache quelque chose…',
+      ],
+    },
+    {
+      id: '2026-10-12-a', date: '2026-10-12', titre: 'L’Atelier et les points de boulanger',
+      points: [
+        'L’Atelier et ses trois mini-jeux : l’Enfournement en rythme, le Façonnage au doigt et la Mémoire du pâtissier.',
+        'Le classement compte en points de boulanger : petit ou grand, chacun a sa chance.',
+      ],
+    },
+  ];
+
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // « vendredi 16 octobre » ; l'année seulement si elle n'est pas celle d'aujourd'hui (annee : l'année en cours, facultative)
+  function dateFr(date, annee) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    if (!m) return '';
+    const a = +m[1], mo = +m[2], j = +m[3], jour = new Date(Date.UTC(a, mo - 1, j)).getUTCDay();
+    return `${JOURS[jour]} ${j === 1 ? '1er' : j} ${MOIS[mo - 1]}${annee && annee !== a ? ` ${a}` : ''}`;
+  }
+  const derniere = () => (NOUVEAUTES.length ? NOUVEAUTES[0].id : '');
+  const vueNeuve = () => (NOUVEAUTES.length > 1 ? NOUVEAUTES[1].id : ''); // une sauvegarde neuve : tout vu, sauf la plus récente
+  const nonVue = (n, vues) => typeof vues !== 'string' || n.id > vues; // les id se comparent comme des chaînes (aaaa-mm-jj-x)
+  const nonVues = (vues) => NOUVEAUTES.filter((n) => nonVue(n, vues));
+
+  return { NOUVEAUTES, dateFr, derniere, vueNeuve, nonVue, nonVues };
+});
+
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
@@ -22797,8 +22811,8 @@ const UI = (() => {
     $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
     $('#b-etoiles').classList.toggle('pret', pret);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
-    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
-    $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
+    // (la cloche d'à côté du cadeau a laissé sa place au classement : « Les nouvelles » s'ouvrent depuis l'onglet Journal et Réglages › Aide ;
+    // l'événement en cours se déplie en touchant sa bannière)
     $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
     $('#b-nouveautes').setAttribute('aria-label', nv ? `Nouveautés : ${nv} mise${nv > 1 ? 's' : ''} à jour à découvrir` : 'Les nouveautés du Fournil');
     badge($('#onglets [data-page="defis"]'), primes);
@@ -23059,6 +23073,22 @@ const UI = (() => {
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
   const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
   const RT = typeof RETOURS !== 'undefined' ? RETOURS : null; // les idées, les bugs et les votes (src/retours.js)
+  // leurs pastilles, depuis qu'ils ont quitté le coin : les messages non lus du chat (sur l'onglet « Chat » du classement et le bouton du
+  // classement), les votes à voter (l'admin : ses retours nouveaux) sur Réglages › Aide › « Idées & bugs » et l'onglet Réglages
+  let nonLusChat = 0, pastilleIdees = { n: 0, admin: false };
+  const texteNonLus = (n) => (n > 9 ? '9+' : n ? String(n) : '');
+  function majPastilleChat(n) {
+    nonLusChat = Math.max(0, n | 0);
+    document.querySelectorAll('#b-classement .tc-nonlus, [data-tab="chat"] .tc-nonlus').forEach((p) => { p.hidden = !nonLusChat; p.textContent = texteNonLus(nonLusChat); });
+    document.querySelectorAll('[data-tab="chat"]').forEach((b) => b.setAttribute('aria-label', nonLusChat ? `Chat : ${nonLusChat > 9 ? 'plus de 9' : nonLusChat} message${nonLusChat > 1 ? 's' : ''} non lu${nonLusChat > 1 ? 's' : ''}` : 'Chat'));
+    labelClassement();
+  }
+  const sousIdees = () => { const n = pastilleIdees.n; return !n ? 'Proposer une idée, signaler un bug, voter' : pastilleIdees.admin ? `${n > 9 ? 'Plus de 9' : n} nouveau${n > 1 ? 'x' : ''} retour${n > 1 ? 's' : ''} à lire · idées, bugs et votes` : `${n > 1 ? `${n} votes t’attendent` : 'Un vote t’attend'} · idées, bugs et votes`; };
+  function majPastilleIdees(n, admin) {
+    pastilleIdees = { n: Math.max(0, n | 0), admin: !!admin };
+    document.querySelectorAll('[data-a="idees"] .rt-pastille').forEach((p) => { p.hidden = !pastilleIdees.n; p.textContent = texteNonLus(pastilleIdees.n); p.classList.toggle('admin', pastilleIdees.admin); });
+    const o = $('#onglets [data-page="reglages"]'); if (o) badge(o, pastilleIdees.n, pastilleIdees.admin ? '' : 'beurre');
+  }
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -23110,7 +23140,7 @@ const UI = (() => {
   }
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}|${nonLues()}|${pastilleIdees.n}${pastilleIdees.admin}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -23137,7 +23167,9 @@ const UI = (() => {
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
-        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
+        ${groupe('Aide', ligne('journal', ICONS.UI.cloche, 'Les nouvelles', nonLues() ? `Le journal de la boutique · ${nonLues()} nouvelle${nonLues() > 1 ? 's' : ''}` : 'Le journal de la boutique : trophées, grades, commandes, cadeaux des habitués', nonLues() ? `<span class="rg-droite"><i class="rg-compte">${nonLues() > 99 ? '99+' : nonLues()}</i>${chev}</span>` : chev)
+          + (RT && classement ? ligne('idees', ICONS.UI.ampoule, 'Idées & bugs', sousIdees(), `<span class="rg-droite"><i class="rg-compte rt-pastille${pastilleIdees.admin ? ' admin' : ''}"${pastilleIdees.n ? '' : ' hidden'}>${pastilleIdees.n > 9 ? '9+' : pastilleIdees.n || ''}</i>${chev}</span>`) : '')
+          + ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
           + ligne('credits', ICO_CREDITS, 'Crédits', 'Les modèles 3D, les sons et la musique du jeu, et leurs auteurs', chev))}
         <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
@@ -23164,6 +23196,8 @@ const UI = (() => {
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
+      onIn(sec, '[data-a="journal"]', () => { son.tap(); showPage('journal'); }); // « Les nouvelles » (l'ancienne cloche) : la page du Journal
+      onIn(sec, '[data-a="idees"]', () => { son.tap(); if (RT) RT.ouvrir(pastilleIdees.admin && pastilleIdees.n ? 'admin' : 'ecrire'); }); // la même feuille que l'ancienne ampoule (l'admin : ses retours nouveaux)
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
       onIn(sec, '[data-a="notifs"]', () => basculerNotifs()); // la permission est demandée tout de suite, dans le geste (Safari l'exige)
       for (const [k] of CAS_NOTIFS) onIn(sec, `[data-a="notif-${k}"]`, () => { const p = classement.notifs().prefs; p[k] = !p[k]; basculerNotifs(p); });
@@ -23748,7 +23782,7 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
-  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué
+  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); majMinuteurs(); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
   function majCoin() {
     majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
@@ -23759,7 +23793,24 @@ const UI = (() => {
     const p = b.querySelector('.rang-pastille');
     p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
     majCoinQuartier();
-    b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
+    labelRang = rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers'; labelClassement();
+  }
+  // le bouton du classement (en haut, à côté du cadeau) dit sa place de la semaine, et les messages du chat pas encore lus
+  let labelRang = 'Classement des boulangers';
+  function labelClassement() { const b = $('#b-classement'); if (b) b.setAttribute('aria-label', labelRang + (nonLusChat ? ` · chat : ${nonLusChat > 9 ? 'plus de 9' : nonLusChat} message${nonLusChat > 1 ? 's' : ''} non lu${nonLusChat > 1 ? 's' : ''}` : '')); }
+  // le minuteur sous l'icône de chaque événement en cours, dans le coin : « 5 j 12 h », puis « 2 h 15 » le dernier jour (« 40 min » la dernière heure)
+  function resteCourt(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60e3)), j = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mn = m % 60;
+    return j ? `${j}\u00a0j\u00a0${h}\u00a0h` : h ? `${h}\u00a0h\u00a0${String(mn).padStart(2, '0')}` : `${mn}\u00a0min`;
+  }
+  function majMinuteurs() {
+    for (const [sel, E, nom] of [['#b-quartier', EVT, 'Le Quartier'], ['#b-hantee', HTE, 'La Maison hantée']]) {
+      const b = $(sel), x = b && b.querySelector('.ev-reste'); if (!x) continue;
+      let f = null; try { f = !b.hidden && E ? E.fenetre() : null; } catch (e) { f = null; }
+      const t = f && f.ouvert && f.reste > 0 ? resteCourt(f.reste) : '';
+      if (x.textContent !== t) x.textContent = t; x.hidden = !t; b.classList.toggle('minute', !!t);
+      const l = `L’événement : ${nom}${t ? ` · encore ${t.replace(/\u00a0/g, ' ')}` : ''}`; if (b.getAttribute('aria-label') !== l) b.setAttribute('aria-label', l);
+    }
   }
   // le coin trop haut pour la place au-dessus du tiroir (un petit téléphone, 360 × 640 ; l'événement de la boutique affiché au-dessus du
   // tiroir) : deux colonnes. La première (à droite) garde l'ordre de haut en bas ; ce qui n'y tient pas passe dans la seconde, à gauche,
@@ -23852,7 +23903,7 @@ const UI = (() => {
   }
   function htmlClassement() {
     const r = classement.resume(), c = classement.cache(ongletCl), charge = classement.enChargement(ongletCl);
-    const seg = `<div class="segments" role="tablist" aria-label="Période du classement">${periodes().map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletCl === id}" class="${ongletCl === id ? 'actif' : ''}">${t}</button>`).join('')}</div>`;
+    const seg = ongletsClassement(ongletCl);
     const corps = c && c.etat === 'ok' ? listeClassement(c.data, r) : c && !charge ? etatClassement(c.etat)
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
@@ -23889,8 +23940,26 @@ const UI = (() => {
     }[e] || [ICONS.UI.horsLigne, 'Le classement ne répond pas', 'Un petit souci de fournée. Réessaie dans un moment.', true];
     return `<div class="cl-etat ${e}" role="status"><span class="pic">${t[0]}</span><b>${t[1]}</b><span>${t[2]}</span>${t[3] ? '<button type="button" class="btn clair" data-a="cl-reessayer"><b>Réessayer</b></button>' : ''}</div>`;
   }
+  // les onglets du classement : ses périodes (et ses événements), puis « Chat » (le chat des boulangers, src/chat.js, avec sa pastille des
+  // non lus) ; le même rang d'onglets en tête du chat, « Chat » choisi : on passe de l'un à l'autre comme d'un onglet à l'autre
+  const chatOnglet = () => !!(TC && classement);
+  function ongletsClassement(actif) {
+    const p = periodes(), avecChat = chatOnglet(), court = avecChat && p.length === 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous' }[id] || t]) : p; // (quatre onglets : des noms courts, comme pendant deux événements)
+    const tab = (id, t, extra) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${actif === id}" class="${actif === id ? 'actif' : ''}"${extra || ''}>${t}</button>`;
+    const n = actif === 'chat' ? 0 : nonLusChat;
+    return `<div class="segments${avecChat ? ' avec-chat' : ''}" role="tablist" aria-label="Le classement et le chat">${court.map(([id, t]) => tab(id, t)).join('')}${avecChat ? tab('chat', `<i class="ico">${ICONS.UI.bulle}</i>Chat<i class="rang-pastille tc-nonlus" aria-hidden="true"${n ? '' : ' hidden'}>${texteNonLus(n)}</i>`, ` aria-label="${n ? `Chat : ${n > 9 ? 'plus de 9' : n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Chat'}"`) : ''}</div>`;
+  }
+  function ouvrirChatOnglet() { if (!TC) return false; son.tap(); return TC.ouvrir(); }
+  // le chat ouvert (par son onglet, ou d'ailleurs) : le rang d'onglets du classement en tête, « Chat » choisi ; une période : retour au classement
+  function ongletsDuChat() {
+    const box = $('#tc-onglets'); if (!box) return;
+    if (!chatOnglet()) { box.hidden = true; box.innerHTML = ''; return; }
+    if (!periodes().some(([id]) => id === ongletCl)) ongletCl = 'semaine';
+    box.innerHTML = ongletsClassement('chat'); box.hidden = false;
+  }
   function lierClassement() {
     on('[data-tab]', (b) => {
+      if (b.dataset.tab === 'chat') { ouvrirChatOnglet(); return; }
       if (b.dataset.tab === ongletCl) return;
       son.tap(); ongletCl = b.dataset.tab; rafraichirClassement(true);
       const c = classement.cache(ongletCl); if (!c || c.etat !== 'ok' || HORLOGE.maintenant() - c.quand > 30e3) classement.charger(ongletCl); // c.quand est daté par l'horloge de confiance
@@ -24256,13 +24325,13 @@ const UI = (() => {
     else { SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []); }
     if (SCENE.decos && CE) { try { SCENE.decos(chaineVue ? CH.posesDe(chaineVue.v.b) : CE.posesDe(0)); } catch (e) { /* rien */ } }
   }
-  // l'icône ronde de la planète, en tête du coin de la boutique : dès que la chaîne a une boutique ; sa pastille, les jetons à prendre
+  // l'icône ronde de la planète, en tête du coin de la boutique (en haut à droite), toujours là ; sa pastille, les jetons à prendre
   let cleCoinChaine = '';
   function majCoinChaine() {
     const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
     const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
-    b.hidden = !r.boutiques; const p = b.querySelector('.rang-pastille'); p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
-    b.setAttribute('aria-label', `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}`);
+    b.hidden = false; const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    b.setAttribute('aria-label', r.boutiques ? `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}` : 'Ma chaîne : elle commence à ta 2e boutique');
   }
   function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
     if (chaineVue) { CE.cartes.rendre(true); CE.bandeau($('#chaine-bandeau'), chaineVue.v, true); } else renderCards(true);
@@ -24796,7 +24865,6 @@ const UI = (() => {
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
-    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else { son.tap(); showPage('journal'); } }); // la cloche : l'événement en cours, sinon le fil des nouvelles
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
     document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page !== pageActive) { son.tap(); showPage(b.dataset.page); } else if (tiroir.pos === 'ferme') tiroir.aller('mi'); else $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); }));
@@ -24845,6 +24913,7 @@ const UI = (() => {
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
+    setInterval(majMinuteurs, 15e3); // le minuteur des événements du coin : sa minute change sans attendre le reste
     if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
@@ -24855,8 +24924,11 @@ const UI = (() => {
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QA && QA.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
-    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
-    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
+    // le chat des boulangers : un onglet de la feuille du classement (ses non-lus sur l'onglet et sur le bouton du classement, en haut)
+    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); ongletsDuChat(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), pastille: majPastilleChat });
+    { const box = $('#tc-onglets'); if (box) box.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b || b.dataset.tab === 'chat') return; audio(); son.tap(); TC.fermer(); sheetClassement(b.dataset.tab); }); }
+    // les idées, les bugs et les votes : Réglages › Aide › « Idées & bugs » (sa pastille là, et sur l'onglet Réglages) ; le bandeau du vote reste dans la boutique
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees });
     try { // le coin se resserre au besoin (serrerCoin)
       const mo = new MutationObserver(serrerCoinBientot);
       mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });

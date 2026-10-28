@@ -176,12 +176,15 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.screenshot({ path: out + '/05p-defi-semaine.png' });
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   check(await page.evaluate(() => !!window.__fournil.st.trophees.premiere && !!window.__fournil.st.trophees.equipe), 'trophées gagnés en jouant : première fournée, une équipe');
-  check(await page.evaluate(() => { const b = document.querySelector('#onglets [data-page="journal"] .badge'); return !b.hidden && +b.textContent >= 2 && !document.querySelector('#b-cloche .point').hidden; }), 'badge sur l’onglet Journal (et point sur la cloche) : les nouvelles pas encore lues, trophées compris');
-  await page.tap('#b-cloche'); await sleep(400); // sans événement en cours, la cloche ouvre le Journal
+  check(await page.evaluate(() => { const b = document.querySelector('#onglets [data-page="journal"] .badge'); return !b.hidden && +b.textContent >= 2 && !document.querySelector('#b-cloche'); }), 'badge sur l’onglet Journal : les nouvelles pas encore lues, trophées compris (la cloche a laissé sa place au classement)');
+  // « Les nouvelles » (le journal que la cloche ouvrait) : Réglages › Aide, avec leur compte
+  await page.tap('#onglets [data-page="reglages"]'); await sleep(400);
+  check(await page.evaluate(() => { const l = document.querySelector('#page-reglages [data-a="journal"]'), c = l && l.querySelector('.rg-compte'); return !!l && /Les nouvelles/.test(l.innerText) && !!c && +c.textContent >= 2; }), 'Réglages › Aide : « Les nouvelles », et le compte des pas lues');
+  await page.tap('#page-reglages [data-a="journal"]', { force: true }); await sleep(400);
   const journal = await page.evaluate(() => (document.querySelector('#page-journal').hidden ? '' : document.querySelector('#page-journal').innerText));
-  check(/Les nouvelles/.test(journal) && /Trophée : Première fournée/.test(journal) && /Mme Dupuis/.test(journal) && !!(await page.$('#page-journal .carnet li.neuf')), 'la cloche ouvre le Journal : le fil des nouvelles (trophées, les non lues marquées), les habitués');
+  check(/Les nouvelles/.test(journal) && /Trophée : Première fournée/.test(journal) && /Mme Dupuis/.test(journal) && !!(await page.$('#page-journal .carnet li.neuf')), '« Les nouvelles » ouvrent le Journal : le fil des nouvelles (trophées, les non lues marquées), les habitués');
   check(!/Records/i.test(journal) && !/Classement des boulangers/.test(journal) && !(await page.$('#page-journal [data-a="partager"], #page-journal .cl-carte')), 'le Journal ne garde que les nouvelles et la vie du quartier : ni records, ni classement, ni partage (chacun sa place)');
-  check(await page.evaluate(() => document.querySelector('#onglets [data-page="journal"] .badge').hidden && document.querySelector('#b-cloche .point').hidden), 'le badge du Journal et le point de la cloche s’effacent une fois les nouvelles lues');
+  check(await page.evaluate(() => document.querySelector('#onglets [data-page="journal"] .badge').hidden), 'le badge du Journal s’efface une fois les nouvelles lues');
   check(await page.evaluate(() => { const t = document.querySelector('#page-journal').innerText; return /Recettes de saison/.test(t) && /Tarte à la citrouille/.test(t); }), 'le Journal : collection des saisons');
   check(await page.evaluate(() => [...document.querySelectorAll('#page-journal .ligne.saison')].every((l) => { const i = l.querySelector('.ev-ico').getBoundingClientRect(), t = l.querySelector('.t').getBoundingClientRect(), r = l.getBoundingClientRect(); return i.left - r.left < 4 && t.left >= i.right && t.left - i.right < 16; })), 'le Journal : chaque recette de saison, son icône à gauche et le texte à côté');
   await page.screenshot({ path: out + '/05q-journal.png' });
@@ -198,13 +201,13 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.evaluate(() => window.__fournil.rush()); await sleep(700);
   const rushTxt = await page.evaluate(() => ({ hidden: document.querySelector('#evenement').hidden, txt: document.querySelector('#evenement').innerText }));
   check(!rushTxt.hidden && /Coup de feu/.test(rushTxt.txt) && /×3/.test(rushTxt.txt), 'bannière du coup de feu : ' + rushTxt.txt.replace(/\n/g, ' / '));
-  check(await page.evaluate(() => document.querySelector('#b-cloche').classList.contains('actif') && !document.querySelector('#b-cloche .point').hidden), 'la cloche s’anime pendant l’événement');
+  check(await page.evaluate(() => { const e = document.querySelector('#evenement'); return !e.hidden && e.getBoundingClientRect().height > 0 && !document.querySelector('#b-cloche'); }), 'l’événement s’annonce par sa bannière (plus de cloche : on la touche pour la déplier)');
   await page.screenshot({ path: out + '/05d-coup-de-feu.png' });
   await page.tap('#evenement .ev-txt', { force: true }); await sleep(200);
   check(await page.evaluate(() => document.querySelector('#evenement').classList.contains('etendu')), 'toucher la bannière la déplie');
   await page.screenshot({ path: out + '/05d2-coup-de-feu-deplie.png' });
   await page.evaluate(() => { window.__fournil.st.ev.fin = Date.now() - 1; }); await sleep(500);
-  check(await page.evaluate(() => document.querySelector('#evenement').hidden && !window.__fournil.st.ev && !document.querySelector('#b-cloche').classList.contains('actif')), 'le coup de feu se termine : la bannière disparaît, la cloche se calme');
+  check(await page.evaluate(() => document.querySelector('#evenement').hidden && !window.__fournil.st.ev), 'le coup de feu se termine : la bannière disparaît');
   // commande spéciale puis livraison
   await page.evaluate(() => window.__fournil.commande()); await sleep(700);
   const cmd = await page.evaluate(() => ({ txt: document.querySelector('#evenement').innerText, n: window.__fournil.st.ev.n, livrer: !!document.querySelector('[data-a="livrer"]') }));

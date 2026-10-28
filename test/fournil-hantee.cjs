@@ -81,6 +81,11 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   check(!/Maison hantée ouvre/.test(await feuille()), 'pas d’annonce de la Maison hantée par-dessus le bilan (jamais deux annonces à la fois)');
   let c = await ev(() => window.__fournil.coin());
   check(!c.quartier && c.hantee, `l’icône du Quartier est partie, la citrouille de la Maison hantée est là (${JSON.stringify({ quartier: c.quartier, hantee: c.hantee })})`);
+  // le minuteur sous la citrouille du coin : le temps qui reste, « 6 j 7 h » le 27 à 13 h (fin le 2 novembre à 20 h), lisible, sans élargir la colonne
+  const minuteur = (f) => f(() => { const b = document.querySelector('#b-hantee'), x = b.querySelector('.ev-reste'), r = x.getBoundingClientRect(), rb = b.getBoundingClientRect(), cs = getComputedStyle(x); return { txt: x.hidden ? '' : x.textContent.replace(/\u00a0/g, ' '), label: b.getAttribute('aria-label'), dedans: r.left >= rb.left - 6 && r.right <= rb.right + 6 && r.right <= innerWidth, plein: x.scrollWidth <= x.clientWidth + 1, police: parseFloat(cs.fontSize), large: Math.round(document.querySelector('#coin').getBoundingClientRect().width) }; });
+  { let mn = null; await attendre(async () => { mn = await minuteur(ev); return !!mn.txt; }, 5000);
+    check(/^6 j [67] h$/.test(mn.txt) && /encore 6 j [67] h/.test(mn.label) && mn.dedans && mn.plein && mn.police >= 10 && mn.large <= 44, `le minuteur sous la citrouille : « ${mn.txt} » (police ${mn.police} px, la colonne reste à ${mn.large} px ; « ${mn.label} »)`);
+    await page.screenshot({ path: path.join(out, '00-minuteur-coin.png'), clip: { x: 240, y: 40, width: 150, height: 260 } }); }
   await clic('#feuille [data-a="pq-ok"]'); await sleep(600);
   check(!/Maison hantée ouvre/.test(await feuille()), 'le bilan refermé : un temps de calme, l’annonce ne surgit pas aussitôt');
   check(await ev(() => window.__fournil.annoncerEvenements(true)) === true && /La Maison hantée ouvre ses portes/.test(await feuille()), 'puis l’annonce : « La Maison hantée ouvre ses portes »');
@@ -355,6 +360,8 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     decal = HT.parisMs(2026, 11, 2, 10) - Date.now();
     await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
     await charger2();
+    { let mn = null; await attendre(async () => { mn = await minuteur(ev2); return !!mn.txt; }, 5000); // le dernier jour, à 10 h : les heures et les minutes (« 10 h 00 », fin à 20 h)
+      check(/^(10 h 00|9 h 5\d)$/.test(mn.txt) && mn.dedans && mn.plein, `le dernier jour, le minuteur passe aux heures et minutes : « ${mn.txt} »`); }
     check(await attendre(async () => /Palier 15/.test(await feuille2()), 20000), 'au-delà de 24 Bd, le dernier jour : les paliers 15 à 20 s’annoncent');
     for (let k = 0; k < 8 && !/Palier 20/.test(await feuille2()); k++) { // (une feuille après l'autre : on attend la suivante avant de toucher, pour ne pas passer le 20e)
       const vu = (/Palier (\d+)/.exec(await feuille2()) || [])[1]; await clic2('#feuille [data-a="pq-ok"]');

@@ -46,6 +46,12 @@ svg { display: block; }
 .pastille.cloche .point, .pastille.nouv .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
 .pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
 @keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
+/* le classement, à la place de l'ancienne cloche (à côté du cadeau) : le podium, sa place de la semaine en pastille en haut à droite (« 2e »),
+   les messages du chat pas encore lus en pastille fraise en bas à gauche (le chat est un onglet de sa feuille) */
+.pastille.classement { padding: 0 10px; }
+.pastille.classement[hidden] { display: none; }
+.pastille.classement .rang-pastille { top: -5px; right: -6px; }
+.pastille.classement .rang-pastille.tc-nonlus { top: auto; bottom: -4px; right: auto; left: -6px; min-width: 18px; padding: 0 4px; background: var(--fraise); color: #fff; } /* en bas à gauche : jamais sur la place (« 123e »), ni sous la scène (4 px dans la marge du haut) */
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile .ico svg path { fill: #fff; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
@@ -761,6 +767,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .rond.quartier { box-shadow: 0 3px 0 var(--fraise-sombre), 0 4px 10px rgba(225, 73, 108, .25); } /* l'événement : le même rond blanc, un liseré fraise */
 .rond.hantee { box-shadow: 0 3px 0 #C9652B, 0 4px 12px rgba(255, 138, 61, .35); } /* la Maison hantée : un liseré citrouille, et la citrouille qui se balance doucement */
 .rond.hantee .ico svg { animation: htBalance 2.6s ease-in-out infinite; transform-origin: 50% 85%; }
+/* le minuteur d'un événement en cours (ui.js majMinuteurs) : une petite étiquette sous son icône, à cheval sur le bas du rond (« 5 j 12 h »,
+   « 2 h 15 » le dernier jour), qui ne déborde que de 6 px dans l'écart de 8 px avec le bouton d'en dessous (ou l'air laissé au-dessus du
+   tiroir) : la colonne ne s'élargit pas et ne descend pas (44 px de large, l'étiquette n'en dépasse que de 5 px de chaque côté au plus) */
+.rond .ev-reste { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); max-width: 54px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--texte); color: #fff;
+  font: 700 10px/15px var(--titre); font-style: normal; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
+.rond .ev-reste[hidden] { display: none; }
+.rond.minute .ico { transform: translateY(-3px); } /* l'icône remonte un peu au-dessus de l'étiquette */
+.rond.hantee .ev-reste { background: #8A3E12; }
 @keyframes htBalance { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
 @media (prefers-reduced-motion: reduce) { .rond.hantee .ico svg { animation: none; } }
 .ticket.boosts > .ico { background: #FFF3C4; }
@@ -1819,7 +1833,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .fi-podium { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13px; font-weight: 700; color: var(--texte-2); }
 .fi-carte { margin-top: 2px; }
 .fi-attente { margin: 12px 8px 0; }
-body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidden; }
+body.visite #coin, body.visite #enseigne, body.visite #b-fini, body.visite #b-classement { visibility: hidden; }
 /* la carte de l'objectif commun, en tête de la feuille du classement */
 .obj-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--lavande-clair); }
 .obj-carte.reussi { background: var(--menthe-clair); }
@@ -1863,7 +1877,12 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 @media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
 
 /* ─── le chat des boulangers (src/chat.js) : le bouton rond du coin (un liseré ciel, la pastille des non-lus en fraise), la feuille plein écran ─── */
-.rond.tchat { box-shadow: 0 3px 0 #7FB8E6, 0 4px 10px rgba(74, 51, 40, .12); }
+/* le chat, onglet de la feuille du classement : « Chat » à sa largeur à côté des périodes, sa pastille des non-lus ; le même rang d'onglets en tête du chat */
+.segments.avec-chat [data-tab="chat"] { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 12px; }
+.segments [data-tab="chat"] .ico svg { width: 18px; height: 18px; }
+.segments [data-tab="chat"] .tc-nonlus { top: -6px; right: -4px; min-width: 18px; padding: 0 4px; background: var(--fraise); color: #fff; }
+.tc-onglets { padding: 8px 12px 0; }
+.tc-onglets .segments { margin: 0; }
 .rang-pastille.tc-nonlus { background: var(--fraise); color: #fff; }
 #tchat { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
   padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
@@ -1960,7 +1979,11 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
 /* ─── les idées, les bugs et les votes (src/retours.js) : le bouton rond du coin (un liseré beurre), le bandeau du vote sous l'enseigne,
    la feuille plein écran (onglets Écrire / Votes / Admin) ─── */
-.rond.idees { box-shadow: 0 3px 0 var(--beurre-sombre), 0 4px 10px rgba(74, 51, 40, .12); }
+/* Réglages › Aide : le compte à droite d'une ligne (« Les nouvelles » pas lues, les votes à voter d'« Idées & bugs ») */
+.reglage .rg-droite { display: inline-flex; align-items: center; }
+.reglage .rg-compte { display: inline-grid; place-items: center; min-width: 22px; height: 20px; margin-right: 4px; padding: 0 6px; border-radius: 10px; background: var(--beurre); color: var(--texte); font: 700 12px/20px var(--titre); font-style: normal; vertical-align: middle; }
+.reglage .rg-compte[hidden] { display: none; }
+.reglage .rg-compte.admin { background: var(--fraise); color: #fff; }
 .rang-pastille.rt-pastille { background: var(--lavande-sombre); color: #fff; }
 .rang-pastille.rt-pastille.admin { background: var(--fraise); }
 /* un coin trop haut pour la place au-dessus du tiroir (un petit téléphone, l'événement de la boutique qui s'affiche) : ui.js (serrerCoin)
@@ -2297,7 +2320,7 @@ body.essai #chaine { top: 24px; }
 #b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
-body.chaine-dans :is(#b-cloche, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
 body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
 #b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }

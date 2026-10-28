@@ -1,8 +1,9 @@
 // Les nouveautés du Fournil : la liste (src/nouveautes.js, vérifiée dans Node), puis la vraie page (fournil/ servie en local) sur un
-// téléphone en portrait : la pastille cadeau à côté de la cloche et son point, la feuille « Nouveautés » (la plus récente dépliée, le
+// téléphone en portrait : la pastille cadeau à côté du classement (qui a pris la place de l'ancienne cloche) et son point, la feuille « Nouveautés » (la plus récente dépliée, le
 // badge « Nouveau », la date en français, les points, Retour), le point qui s'éteint une fois la feuille ouverte, une sauvegarde dont
 // nouveautesVues est ancienne (le point, les badges sur les bonnes entrées), une mise à jour par le bandeau « Nouvelle version » qui
-// apporte une entrée (le point revient), le haut sans débordement à 360 et 390 px, aucune erreur dans la page.
+// apporte une entrée (le point revient), le haut sans débordement à 360 et 390 px (les pastilles du classement comprises), « Les nouvelles »
+// (le journal que la cloche ouvrait) dans Réglages › Aide, aucune erreur dans la page.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-nouveautes.cjs   (captures dans test/shots/nouveautes/)
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -74,15 +75,15 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
     return { titre: (f.querySelector('h2') || {}).textContent, entrees: [...f.querySelectorAll('details.nv')].map((d) => ({ id: d.dataset.nv, open: d.open, titre: d.querySelector('.nv-tete b').textContent, date: d.querySelector('.nv-tete small').textContent, nouveau: !!d.querySelector('.nv-badge'), points: [...d.querySelectorAll('.nv-points li')].map((li) => li.textContent) })), retour: !!f.querySelector('[data-a="close"]') && /Retour/.test(f.querySelector('[data-a="close"]').textContent) };
   });
 
-  // 2a. une sauvegarde neuve : la pastille à côté de la cloche, son point (la plus récente seulement)
+  // 2a. une sauvegarde neuve : la pastille à côté du classement (à la place de l'ancienne cloche), son point (la plus récente seulement)
   console.log('── la pastille ──');
   let { ctx, page } = await nouveauContexte(390, 844);
   await page.goto(BASE + '/fournil/'); await pret(page);
   await fermerFeuille(page); await page.evaluate(() => { const f = window.__fournil; f.st.tuto = 99; f.save(); });
   check(await page.evaluate(() => window.__fournil.st.nouveautesVues) === L[1].id, `une sauvegarde neuve : nouveautesVues = « ${L[1].id} » (tout vu, sauf la plus récente)`);
-  const pos = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const c = r('#b-cloche'), n = r('#b-nouveautes'), e = r('#b-etoiles'); return { c: [c.left, c.right, c.top, c.width, c.height], n: [n.left, n.right, n.top, n.width, n.height], e: [e.left, e.top], vis: getComputedStyle(document.querySelector('#b-nouveautes')).display !== 'none', ico: !!document.querySelector('#b-nouveautes svg') }; });
+  const pos = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const c = r('#b-classement'), n = r('#b-nouveautes'), e = r('#b-etoiles'); return { c: [c.left, c.right, c.top, c.width, c.height], n: [n.left, n.right, n.top, n.width, n.height], e: [e.left, e.top], vis: getComputedStyle(document.querySelector('#b-nouveautes')).display !== 'none', ico: !!document.querySelector('#b-nouveautes svg'), cloche: !!document.querySelector('#b-cloche'), cl: !document.querySelector('#b-classement').hidden }; });
   check(pos.vis && pos.ico && pos.n[3] >= 44 && pos.n[4] >= 44, `la pastille Nouveautés, ronde avec son icône (${Math.round(pos.n[3])}×${Math.round(pos.n[4])})`);
-  check(Math.abs(pos.n[2] - pos.c[2]) < 2 && pos.n[0] > pos.c[1] && pos.n[0] - pos.c[1] <= 12 && pos.e[0] > pos.n[1], 'à côté de la cloche, sur la même ligne, avant les étoiles');
+  check(pos.cl && !pos.cloche && pos.c[3] >= 44 && pos.c[4] >= 44 && Math.abs(pos.n[2] - pos.c[2]) < 2 && pos.n[0] > pos.c[1] && pos.n[0] - pos.c[1] <= 12 && pos.e[0] > pos.n[1], 'à côté du classement (plus de cloche), sur la même ligne, avant les étoiles');
   check(await point(page), 'le point : la plus récente pas encore vue');
   check(/1 mise à jour/.test(await page.getAttribute('#b-nouveautes', 'aria-label')), `aria-label : « ${await page.getAttribute('#b-nouveautes', 'aria-label')} »`);
   await page.screenshot({ path: path.join(out, 'haut-390.png'), clip: { x: 0, y: 0, width: 390, height: 140 } });
@@ -137,7 +138,21 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   await fermerFeuille(page); injecter = false;
   await ctx.close();
 
-  // 2e. le haut sans débordement, à 390 et 360 px : solde, sous-titre, cloche, nouveautés, étoiles (des valeurs longues, les deux points)
+  // 2d bis. « Les nouvelles » (le journal que la cloche ouvrait) : une entrée de Réglages › Aide, avec le compte des nouvelles pas lues
+  console.log('── Les nouvelles, dans Réglages ──');
+  ({ ctx, page } = await nouveauContexte(390, 844));
+  await page.goto(BASE + '/fournil/'); await pret(page); await fermerFeuille(page);
+  await page.evaluate(() => { const f = window.__fournil, st = f.st; st.tuto = 99; st.vu.journal = 0; st.carnetEv = (st.carnetEv || []).concat([{ t: st.now, txt: 'Une nouvelle pour le test' }, { t: st.now, txt: 'Et une autre' }]); f.save(); f.page('reglages'); });
+  await sleep(500);
+  const lj = await page.evaluate(() => { const l = document.querySelector('#page-reglages [data-a="journal"]'), aide = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Aide/.test(h.textContent)); return l && { txt: l.innerText.replace(/\s+/g, ' '), dansAide: !!(aide && aide.nextElementSibling.contains(l)), compte: (l.querySelector('.rg-compte') || {}).textContent || '', h: l.getBoundingClientRect().height }; });
+  check(lj && lj.dansAide && /Les nouvelles/.test(lj.txt) && /\d+ nouvelles/.test(lj.txt) && +lj.compte >= 2 && lj.h >= 44, `Réglages › Aide : « Les nouvelles », avec le compte des pas lues (${lj && lj.txt})`);
+  await page.screenshot({ path: path.join(out, 'reglages-nouvelles-390.png') });
+  await page.tap('#page-reglages [data-a="journal"]'); await sleep(500);
+  const pj = await page.evaluate(() => { const p = document.querySelector('#page-journal'); return { vu: !p.hidden, txt: p.innerText, actif: document.querySelector('#onglets .actif').dataset.page }; });
+  check(pj.vu && pj.actif === 'journal' && /Les nouvelles/.test(pj.txt) && /Une nouvelle pour le test/.test(pj.txt), 'la toucher : la page du Journal, « Les nouvelles » et le fil (rien n’est perdu)');
+  await ctx.close();
+
+  // 2e. le haut sans débordement, à 390 et 360 px : solde, sous-titre, classement (ses deux pastilles), nouveautés, étoiles (des valeurs longues)
   console.log('── le haut ──');
   for (const w of [390, 360]) {
     ({ ctx, page } = await nouveauContexte(w, w === 360 ? 640 : 844));
@@ -149,6 +164,8 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
         const f = window.__fournil, st = f.st; st.tuto = 99; st.coins = c; st.etoiles = e; st.lifetimeRun = Math.max(st.lifetimeRun, c * lr);
         st.stations.forEach((s, k) => { s.niv = niv ? Math.max(1, niv - k * 10) : (k ? 0 : s.niv); s.staff = niv > 0; });
         st.nouveautesVues = ''; st.vu.journal = 0; st.carnetEv = (st.carnetEv || []).concat([{ t: st.now, txt: 'Essai du haut' }]); f.rafraichir();
+        // les deux pastilles du classement, au plus large : sa place (« 123e ») et les messages du chat non lus (« 9+ ») ; il est là même sans réseau
+        const b = document.querySelector('#b-classement'), p = b.querySelectorAll('.rang-pastille'); b.hidden = false; p[0].hidden = false; p[0].textContent = '123e'; p[1].hidden = false; p[1].textContent = '9+';
       }, [coins, etoiles, niv, lr]);
       await sleep(400);
       const m = await page.evaluate(() => {
@@ -159,13 +176,16 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
         const relais = spans.map((sp) => { spans.forEach((x) => { x.style.display = x === sp ? '' : 'none'; }); const rg = document.createRange(); rg.selectNodeContents(sp); const b = rg.getBoundingClientRect(); return { l: b.left, r: b.right, txt: sp.innerText }; });
         spans.forEach((x, k) => { x.style.display = avant[k]; });
         const textes = [texte('#coins'), ...relais];
-        const boutons = ['#b-cloche', '#b-nouveautes', '#b-etoiles'].map((s) => { const b = r(s); return { s, l: b.left, r: b.right, t: b.top, w: b.width, h: b.height }; });
-        return { w: innerWidth, sw: haut.scrollWidth, cw: haut.clientWidth, docW: document.documentElement.scrollWidth, h: r('#haut').height, btnsL: btns.left, textes, boutons, coins: document.querySelector('#coins').textContent, taux: relais.map((x) => x.txt).join(' | '), etoiles: document.querySelector('#etoiles-n').textContent, points: [!document.querySelector('#b-cloche .point').hidden, !document.querySelector('#b-nouveautes .point').hidden] };
+        const boutons = ['#b-classement', '#b-nouveautes', '#b-etoiles'].map((s) => { const b = r(s); return { s, l: b.left, r: b.right, t: b.top, w: b.width, h: b.height }; });
+        const pastilles = [...document.querySelectorAll('#b-classement .rang-pastille')].map((x) => x.getBoundingClientRect()), fin0 = Math.max(...textes.map((t) => t.r)), nv = r('#b-nouveautes');
+        const hb = r('#haut'), [p1, p2] = pastilles, aPart = p1.right <= p2.left || p2.right <= p1.left || p1.bottom <= p2.top || p2.bottom <= p1.top;
+        const pastillesOk = aPart && pastilles.every((q) => q.left >= fin0 && q.top >= 0 && q.bottom <= hb.bottom && q.right <= nv.left + 4); // l'une à côté de l'autre, ni sur le solde, ni sous la scène, ni sur le cadeau (4 px sur son liseré, au plus)
+        return { w: innerWidth, sw: haut.scrollWidth, cw: haut.clientWidth, docW: document.documentElement.scrollWidth, h: r('#haut').height, btnsL: btns.left, textes, boutons, coins: document.querySelector('#coins').textContent, taux: relais.map((x) => x.txt).join(' | '), etoiles: document.querySelector('#etoiles-n').textContent, points: [!document.querySelector('#b-nouveautes .point').hidden], pastillesOk, pastilles: pastilles.map((q) => [Math.round(q.left), Math.round(q.top), Math.round(q.right), Math.round(q.bottom)]) };
       });
       const dedans = m.boutons.every((b) => b.l >= 0 && b.r <= m.w + 0.5 && b.w >= 44 && b.h >= 44) && m.boutons.every((b) => Math.abs(b.t - m.boutons[0].t) < 2);
       const fin = Math.max(...m.textes.map((t) => t.r));
-      check(m.sw <= m.cw && m.docW <= m.w && dedans && m.textes.every((t) => t.l >= 0) && fin <= m.btnsL + 0.5 && m.points.every(Boolean) && m.h < 80,
-        `${w} px, « ${m.coins} », « ${m.taux} », « ${m.etoiles} » : rien ne déborde (texte jusqu'à ${Math.round(fin)}, pastilles dès ${Math.round(m.btnsL)}, la dernière finit à ${Math.round(m.boutons[2].r)}/${m.w}, haut ${Math.round(m.h)} px)`);
+      check(m.sw <= m.cw && m.docW <= m.w && dedans && m.textes.every((t) => t.l >= 0) && fin <= m.btnsL + 0.5 && m.points.every(Boolean) && m.pastillesOk && m.h < 80,
+        `${w} px, « ${m.coins} », « ${m.taux} », « ${m.etoiles} » : rien ne déborde (texte jusqu'à ${Math.round(fin)}, pastilles dès ${Math.round(m.btnsL)}, celles du classement ${JSON.stringify(m.pastilles)}, la dernière finit à ${Math.round(m.boutons[2].r)}/${m.w}, haut ${Math.round(m.h)} px)`);
       if (niv === 1500 || niv === 0) await page.screenshot({ path: path.join(out, `haut-${w}-${niv ? 'long' : 'debut'}.png`), clip: { x: 0, y: 0, width: w, height: 140 } });
     }
     await page.tap('#b-nouveautes'); await sleep(500);

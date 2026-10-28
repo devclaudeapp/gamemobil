@@ -1,5 +1,6 @@
-/* LE FOURNIL — le chat général des boulangers : un bouton rond dans le coin (sous les icônes des événements), avec la pastille des
-   messages non lus (st.chatVu : le dernier n° lu), et une feuille plein écran : les bulles (les siennes à droite), le pseudo, l'heure,
+/* LE FOURNIL — le chat général des boulangers : un onglet de la feuille du classement (« Chat », src/ui.js), avec la pastille des
+   messages non lus (st.chatVu : le dernier n° lu), reportée sur le bouton du classement en haut, et une feuille plein écran (le rang
+   d'onglets du classement en tête, #tc-onglets) : les bulles (les siennes à droite), le pseudo, l'heure,
    les photos en miniature (chargées seulement quand elles arrivent à l'écran, gardées dans un petit cache ; un toucher les agrandit),
    les GIF (GIPHY : on n'envoie que leur identifiant), la barre de saisie (texte de 300 caractères, 📷, GIF, Envoyer), et l'appui long sur
    une bulle : « Signaler » (ou « Effacer » si c'est la sienne). Tout le monde lit ; seuls les joueurs du classement écrivent.
@@ -105,14 +106,11 @@ const TCHAT = (() => {
     lire(ouvert() && tours % R.complete === 0).then(() => planifier());
   }
 
-  // ─── le bouton rond du coin et sa pastille ───
+  // ─── la pastille des non-lus : sur l'onglet « Chat » de la feuille du classement et sur le bouton du classement (src/ui.js, d.pastille) ───
   function nonLus() { const vu = vuJusqua(); return messages.filter((x) => x.n > vu && !mien(x)).length; }
   function majBouton() {
-    const b = $('#b-tchat'); if (!b) return;
-    const m = moteur(); b.hidden = !m; if (!m) return;
-    const n = ouvert() ? 0 : nonLus(), p = b.querySelector('.tc-nonlus');
-    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
-    b.setAttribute('aria-label', n ? `Le chat des boulangers : ${n > 9 ? 'plus de 9' : n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Le chat des boulangers');
+    const m = moteur(), n = m && !ouvert() ? nonLus() : 0;
+    if (d && d.pastille) d.pastille(n);
   }
   function marquerLu() {
     if (!ouvert() || !presDuBas()) return;
@@ -343,13 +341,11 @@ const TCHAT = (() => {
 
   // ─── le branchement ───
   // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
-  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement) }
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), pastille(n) (les non-lus, à montrer) }
   function init(deps) {
     d = deps; el = $('#tchat'); if (!el) return;
     fil = $('#tc-fil'); champ = $('#tc-texte'); note = $('#tc-note'); piecesEl = $('#tc-piece'); nouveaux = $('#tc-nouveaux'); gifs = $('#tc-gifs'); menu = $('#tc-menu'); zoom = $('#tc-zoom'); fichier = $('#tc-fichier');
     if (window.__tchatPas) Object.assign(pas, window.__tchatPas); // les tests : des lectures plus rapprochées
-    const b = $('#b-tchat');
-    if (b) b.addEventListener('click', () => { if (d.audio) d.audio(); if (d.son) d.son.tap(); ouvrir(); });
     try { observe = 'IntersectionObserver' in window ? new IntersectionObserver((l) => { for (const e of l) if (e.isIntersecting) { observe.unobserve(e.target); demander(+e.target.dataset.n); } }, { root: fil, rootMargin: '300px 0px' }) : null; } catch (e) { observe = null; }
     el.addEventListener('click', (e) => {
       const t = e.target.closest('[data-tc], .tc-photo, .tc-gifm, .tc-gif-choix'); if (!t || !el.contains(t)) return;
