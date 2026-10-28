@@ -20,8 +20,13 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      ESSAI_BRANCHE: chaine
+      # la branche du lot en essai, la même que dans pages.yml ; vide entre deux lots (« Ma chaîne » est en ligne pour tous depuis le 28 oct.) :
+      # ce workflow s'arrête alors tout de suite, sans rien publier. Pour le prochain lot : y mettre sa branche.
+      ESSAI_BRANCHE: ''
     steps:
+      - name: Une branche d'essai ?
+        run: |
+          if [ -z "$ESSAI_BRANCHE" ]; then echo "Aucune version d'essai en cours (ESSAI_BRANCHE vide) : rien à publier."; exit 1; fi
       - name: Le commit de master du dernier déploiement Pages vert
         id: vert
         env:

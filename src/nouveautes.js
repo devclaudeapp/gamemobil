@@ -16,6 +16,16 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-28-a', date: '2026-10-28', titre: 'Ma chaîne de boutiques : tes anciennes boutiques reviennent',
+      points: [
+        'Tes anciennes boutiques rouvrent, toutes ensemble, sur une petite planète : touche le bouton « Ma chaîne », en haut à droite de ta boutique.',
+        'Chaque palier franchi dans une ancienne boutique te rapporte des jetons de chaîne.',
+        'Des gérants font tourner tes anciennes boutiques pendant ton absence.',
+        'La boutique des jetons : des gérants, des objets rares et des boosts. Et le carnet « Mes décos », pour poser tes décos dans ta boulangerie (Réglages › Repeindre la boutique).',
+        'Un nouveau haut d’écran : le classement prend la place de la cloche, avec le chat dedans ; « Idées & bugs » et « Les nouvelles » sont dans Réglages › Aide ; un minuteur sous l’icône de chaque événement te dit le temps qu’il reste.',
+      ],
+    },
+    {
       id: '2026-10-27-b', date: '2026-10-27', titre: 'Le bestiaire continue : paliers d’argent et d’or',
       points: [
         'Le bestiaire du Manoir ne s’arrête plus à dix : chaque monstre a maintenant sa médaille de bronze (dix servis, comme avant), d’argent (30 servis) et d’or (140 servis). Tes clients déjà servis comptent.',

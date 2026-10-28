@@ -57,11 +57,12 @@ jobs:
           PORT_NOTIFS: '8867'
           PORT_COMPAGNONS: '8868'
           PORT_VERSION: '8869'
-  # Deux tâches en parallèle : une seule dépassait les 20 minutes.
+  # Deux tâches en parallèle : une seule dépassait les 20 minutes. Les activités du Manoir (près de 30 minutes à elles seules) ont leur
+  # tâche, fournil9 : ensemble, elles en prenaient 42.
   fournil2:
     name: Le Fournil, événements (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,13 +74,12 @@ jobs:
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       # test/fournil-quartier.cjs (l'écran de la Planque) : écarté avec la Planque le 27 oct., à remettre à son retour (QUARTIER.ECARTE, src/quartier.js) ;
       # ses règles (fournil-quartier.test.js, Node) restent testées
-      - name: Les règles du Quartier, la Maison hantée (ses activités, son annonce et sa vidéo)
+      - name: Les règles du Quartier, la Maison hantée (son annonce et sa vidéo)
         run: |
           node build.js
           node test/fournil-quartier.test.js
           node test/fournil-hantee.test.js
           node test/fournil-hantee.cjs
-          node test/fournil-hantee-activites.cjs
           node test/fournil-hantee-annonce.cjs
         env:
           TZ: Europe/Paris
@@ -271,8 +271,30 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_DECOS: '8891'
           PORT_PLANETE: '8878'
+  # Les activités de la Maison hantée (jouées au doigt dans le Manoir, en haute puis en éco) : près de 30 minutes, seules.
+  fournil9:
+    name: Le Fournil, les activités du Manoir (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les activités de la Maison hantée
+        run: |
+          node build.js
+          node test/fournil-hantee-activites.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_HANTEE_ACTIVITES: '8881'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -280,7 +302,9 @@ jobs:
     env:
       # La version d'essai (fournil-essai/, à côté du vrai jeu) : construite depuis la branche du lot en cours, à chaque déploiement (un
       # déploiement Pages remplace tout le site). Vide quand le lot est fusionné dans master : plus de version d'essai.
-      ESSAI_BRANCHE: chaine
+      # « Ma chaîne de boutiques » (branche chaine) est en ligne pour tous depuis le 28 oct. : vide. Pour le prochain lot, y mettre sa
+      # branche (et la même dans essai.yml) ; l'étape plus bas et essai.yml restent prêtes.
+      ESSAI_BRANCHE: ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
