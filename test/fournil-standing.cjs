@@ -3,7 +3,8 @@
 // 1) Sans navigateur : les bornes des paliers (n°1-5 → 0, 6-10 → 1… 26 et au-delà → 5), le palier fixé d'une visite, la photo (champ l).
 // 2) Dans Chromium, téléphone 390 × 844 : chaque palier 0 à 5, au village et à la capitale, en haute et en éco → captures dans
 //    test/shots/standing/ ; un décor distinct par palier ; les modèles cuits du palier en haute (fournil/hd/luxe/, ≤ 150 Ko, et les décors de
-//    la boutique entière < 400 Ko ; ses clients 3D, leur lot à part, ≤ 500 Ko ; le tout < 900 Ko, 400 Ko avant les clients 3D) ; le budget
+//    la boutique entière < 400 Ko ; ses clients 3D, leur lot à part, ≤ 500 Ko ; son boulanger et ses apprentis 3D, leur lot à part, ≤ 200 Ko ;
+//    le tout < 900 Ko, 400 Ko avant les clients 3D) ; le budget
 //    d'appels de dessin au pire palier, tout le mobilier au max ET, depuis « Mes décos » (lot de la chaîne), les 6 décos les plus lourdes
 //    posées (chaudron, lanterne, citrouilles, néon, bestiaire, toiles : fusionnées avec les petits décors fixes, src/meubles.js fusion) :
 //    éco ≤ 72, haute ≤ 80, les mêmes budgets (mesurés : 59 et 66 au pire, contre 72 et 79 sans déco avant la fusion) ; l'annonce « Ta boutique
@@ -113,17 +114,22 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     check(pire.decor <= max, `${qual} : le pire palier (${pire.ou}), avec les 6 décos les plus lourdes, fait ${pire.decor} appels de dessin pour le décor (≤ ${max}), dont ${pire.standing} pour le standing`);
     if (qual === 'haute') {
       const luxe = [...new Set(demandes.filter((d) => /\/hd\/luxe\//.test(d)))], poidsL = luxe.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
-      // (les décors : tout sauf les clients 3D, qui ont leur lot à eux, src/clients3d.js, et leur budget, vérifié juste après)
-      const tout = [...new Set(demandes.filter((d) => !/\/hd\/clients\//.test(d)))], poidsB = tout.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
+      // (les décors : tout sauf les lots des personnages, qui ont chacun leur budget : les clients 3D, src/clients3d.js, vérifiés juste après ;
+      // le boulanger et les apprentis 3D, src/equipe3d.js, demandés après les clients, ensuite)
+      const tout = [...new Set(demandes.filter((d) => !/\/hd\/(clients|equipe)\//.test(d)))], poidsB = tout.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
       const dossier = fs.readdirSync(path.join(root, 'fournil', 'hd', 'luxe')).filter((f) => f.endsWith('.glb')).reduce((n, f) => n + fs.statSync(path.join(root, 'fournil', 'hd', 'luxe', f)).size, 0);
       check(luxe.length >= 4 && poidsL <= 150 * 1024 && dossier <= 150 * 1024, `les modèles cuits du standing : ${luxe.length} demandés, ${Math.round(poidsL / 1024)} Ko (dossier fournil/hd/luxe : ${Math.round(dossier / 1024)} Ko ≤ 150 Ko)`);
       check(poidsB < 400e3, `la boutique en haute, standing compris : ${Math.round(poidsB / 1024)} Ko de modèles pour les décors (< 400 Ko)`);
       const okC = await attendre(() => ev(() => HDM.pret('clients')), 30000), cl = demandes.filter((d) => /\/hd\/clients\//.test(d)), clU = [...new Set(cl)], poidsC = clU.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
       check(okC && clU.length === 7 && cl.length === 7 && poidsC <= 500 * 1024, `et ses clients 3D, leur lot à part : ${clU.length} fichiers, chacun demandé une fois (${cl.length} demandes), ${Math.round(poidsC / 1024)} Ko (≤ 500 Ko)`);
+      // puis le boulanger et les apprentis 3D, leur lot à part (« equipe ») : quatre fichiers, une fois chacun, ≤ 200 Ko ; attendus ici, pour
+      // que le total les compte toujours
+      const okE = await attendre(() => ev(() => HDM.pret('equipe')), 60000), eq = demandes.filter((d) => /\/hd\/equipe\//.test(d)), eqU = [...new Set(eq)], poidsE = eqU.reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
+      check(okE && eqU.length === 4 && eq.length === 4 && poidsE <= 200 * 1024, `et son boulanger et ses apprentis 3D, leur lot à part : ${eqU.length} fichiers, chacun demandé une fois (${eq.length} demandes), ${Math.round(poidsE / 1024)} Ko (≤ 200 Ko)`);
       // le tout, ce que le téléphone télécharge pour la boutique en haute : 400 Ko au plus avant les clients 3D ; leur lot fait relever ce
-      // budget total à 900 Ko (les décors < 400 Ko, les clients ≤ 500 Ko)
+      // budget total à 900 Ko (les décors < 400 Ko, les clients ≤ 500 Ko), qui tient l'équipe 3D comprise
       const poidsT = [...new Set(demandes)].reduce((n, d) => n + fs.statSync(path.join(root, d)).size, 0);
-      check(poidsT < 900e3, `en tout, la boutique en haute télécharge ${Math.round(poidsT / 1024)} Ko de modèles, décors, standing et clients 3D compris (< 900 Ko ; le budget total était de 400 Ko avant les clients 3D)`);
+      check(poidsT < 900e3, `en tout, la boutique en haute télécharge ${Math.round(poidsT / 1024)} Ko de modèles, décors, standing, clients et équipe 3D compris (< 900 Ko ; le budget total était de 400 Ko avant les clients 3D)`);
     } else check(demandes.length === 0, `en éco, aucun modèle HD demandé (${demandes.length})`);
     // les textures du sol et du mur : un décor par quartier ET par palier (12 vus ici) ; le cache n'en garde que les 3 derniers (sol + mur)
     const enCache = await ev(() => MEUBLES.sallesEnCache);

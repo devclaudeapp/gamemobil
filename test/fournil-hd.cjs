@@ -1,7 +1,8 @@
 // Les modèles HD du Fournil (src/hd.js, fournil/hd/) sur la vraie page, téléphone en portrait, au 2e jour de la Maison hantée (le Manoir d'avant, ?boutique=0 ;
 // la boutique hantée a test/fournil-hantee-boutique.cjs ; la Planque, écartée avec le Quartier le 27 oct., était ici avant, à remettre à son retour) :
-// en qualité haute, la boutique reçoit ses décors (< 400 Ko) et ses clients 3D (le lot « clients », ≤ 500 Ko ; leur vie : test/fournil-clients3d.cjs ;
-// le tout < 900 Ko, 400 Ko avant eux), aucun personnage du Manoir, et le Manoir ses meubles, son jardin hanté et son équipe animée ;
+// en qualité haute, la boutique reçoit ses décors (< 400 Ko), ses clients 3D (le lot « clients », ≤ 500 Ko ; leur vie : test/fournil-clients3d.cjs),
+// puis son boulanger et ses apprentis 3D (le lot « equipe », ≤ 200 Ko ; leur vie : test/fournil-equipe3d.cjs) ; le tout < 900 Ko (400 Ko avant
+// les clients 3D) ; aucun personnage du Manoir ; et le Manoir ses meubles, son jardin hanté et son équipe animée ;
 // en éco ou avec ?hd=0, aucun modèle HD n'est demandé et le rendu habituel reste. Aucune erreur dans la page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hd.cjs
 'use strict';
@@ -69,13 +70,21 @@ async function calme(page) {
   await page.evaluate(() => { const id = VIE.accueillir(), c = VIE.clients.find((x) => x.id === id); if (c) { c.garde = false; c.wait = 1.2 + Math.random() * 1.5; } });
   const acteurs = await attendre(() => page.evaluate(() => window.__fournil.stats().acteurs > 0), 20000), nActeurs = await page.evaluate(() => window.__fournil.stats().acteurs);
   check(acteurs && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage du Manoir : ${nActeurs} personnage(s) dans la salle, ${demandes.length} modèles demandés, des décors et ses clients`);
-  const decorsB = demandes.filter((d) => !/\/clients\//.test(d)), poidsB = decorsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
+  // (les décors : tout sauf les lots des personnages, qui ont chacun leur budget, vérifié ensuite : les clients 3D, src/clients3d.js ; le
+  // boulanger et les apprentis 3D, src/equipe3d.js, demandés après les clients et parfois déjà là)
+  const decorsB = demandes.filter((d) => !/\/(clients|equipe)\//.test(d)), poidsB = decorsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
   check(await attendre(() => page.evaluate(() => HDM.pret('clients')), 30000), 'puis ses clients 3D arrivent (le lot « clients »)');
   const clientsB = [...new Set(demandes.filter((d) => /\/clients\//.test(d)))], poidsC = clientsB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
   check(clientsB.length === 7 && demandes.filter((d) => /\/clients\//.test(d)).length === 7 && poidsC <= 500 * 1024, `ses clients : ${clientsB.length} fichiers demandés une fois, ${Math.round(poidsC / 1024)} Ko (≤ 500 Ko)`);
-  // le tout : 400 Ko au plus avant les clients 3D ; leur lot fait relever ce budget total à 900 Ko (les décors < 400 Ko, les clients ≤ 500 Ko)
+  // puis le boulanger et les apprentis 3D (le lot « equipe » ; leur vie : test/fournil-equipe3d.cjs) : leurs quatre fichiers, une fois chacun,
+  // ≤ 200 Ko ; attendus ici, pour que le total les compte toujours
+  check(await attendre(() => page.evaluate(() => HDM.pret('equipe')), 60000), 'puis son boulanger et ses apprentis 3D (le lot « equipe »)');
+  const equipeB = [...new Set(demandes.filter((d) => /\/equipe\//.test(d)))], poidsE = equipeB.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
+  check(equipeB.length === 4 && demandes.filter((d) => /\/equipe\//.test(d)).length === 4 && poidsE <= 200 * 1024, `son équipe : ${equipeB.length} fichiers demandés une fois, ${Math.round(poidsE / 1024)} Ko (≤ 200 Ko)`);
+  // le tout : 400 Ko au plus avant les clients 3D ; leur lot fait relever ce budget total à 900 Ko (les décors < 400 Ko, les clients ≤ 500 Ko),
+  // qui tient l'équipe 3D comprise
   const poidsT = [...new Set(demandes)].reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0);
-  check(poidsT < 900e3, `en tout, la boutique en haute a téléchargé ${Math.round(poidsT / 1024)} Ko de modèles, décors et clients 3D (< 900 Ko ; le budget total était de 400 Ko avant les clients 3D)`);
+  check(poidsT < 900e3, `en tout, la boutique en haute a téléchargé ${Math.round(poidsT / 1024)} Ko de modèles, décors, clients et équipe 3D (< 900 Ko ; le budget total était de 400 Ko avant les clients 3D)`);
 
   console.log('── qualité haute : le Manoir ──');
   await page.evaluate(() => { window.__sansEvenements = false; }); // (la boutique mesurée : le Manoir peut venir)
