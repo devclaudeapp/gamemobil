@@ -279,6 +279,9 @@ function vieille() {
   console.log('── une nouvelle boutique : l’ancienne rejoint la chaîne avec ses niveaux ──');
   const niveaux = await ev(() => window.__fournil.st.stations.map((x) => x.niv));
   await ev(() => { const s = window.__fournil.st; s.lifetimeRun = 5e15; s.defi = null; window.__fournil.etoiles(); });
+  // (la feuille monte de 40 px en 0,25 s, l'animation « monte » de src/style.css : touché pendant sa montée, le doigt pouvait tomber à côté
+  //  du bouton, et la confirmation ne venait pas ; il attend qu'elle soit en place)
+  await attendre(() => ev(() => { const f = document.querySelector('#feuille'); return !f.hidden && f.getAnimations().every((a) => a.playState === 'finished'); }), 5000); await sleep(100);
   await page.tap('#feuille [data-a="prestige"]'); await sleep(200);
   check(await ev(() => /rejoint ta chaîne telle qu’elle est/.test(document.querySelector('#feuille-contenu').textContent)), 'la confirmation le dit : elle rejoint ta chaîne telle qu’elle est');
   await page.tap('#feuille [data-a="oui"]'); await sleep(500);
