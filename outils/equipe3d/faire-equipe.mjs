@@ -1,4 +1,4 @@
-// Le boulanger et les apprentis en 3D (src/equipe3d.js, derrière ?boulanger3d=1) : fournil/hd/equipe/, le lot « equipe » de src/hd.js.
+// Le boulanger et les apprentis en 3D (src/equipe3d.js : le défaut en qualité haute et moyenne) : fournil/hd/equipe/, le lot « equipe » de src/hd.js.
 // · Les corps : Chef_Male et Chef_Female de l'Ultimate Animated Character Pack de Quaternius (CC0), le pack et le rig de 23 os des clients 3D,
 //   traités comme eux (outils/clients3d/faire-clients.mjs) : chaque partie en facettes perd ses normales et se soude, les cheveux sont simplifiés
 //   (ils sont presque toujours sous un couvre-chef : à 25 % chez l'homme, 20 % chez la femme), meshopt « high ». Les noms des matériaux restent :
@@ -128,7 +128,7 @@ lignes.push(await clips(['Walk_Carry', 'Defeat'], [
   ['Rig_Medium_Simulation.glb', [['Cheering', 'Cheering', { haut: true }]]],
 ], 'anims-equipe'));
 lignes.push(await piece(path.join(KHB, 'addons/kaykit_halloween_bits/Assets/gltf/pumpkin_orange_jackolantern.gltf'), '', 'p-lanterne'));
-fs.writeFileSync(path.join(HD, 'LISEZMOI.txt'), `Le boulanger et les apprentis de la boutique (src/equipe3d.js, maquette derrière ?boulanger3d=1), en qualité haute et moyenne.
+fs.writeFileSync(path.join(HD, 'LISEZMOI.txt'), `Le boulanger et les apprentis de la boutique en personnages 3D (src/equipe3d.js), en qualité haute et moyenne, la HD permise.
 · Chef_Male.glb, Chef_Female.glb : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ; LICENCE.txt ; source : le dépôt GitHub
   dancerphil/games), le même pack et le même rig de 23 os que les clients (fournil/hd/clients/). Meshopt, sans clips, les facettes sans normales
   et soudées, les cheveux simplifiés.

@@ -24,9 +24,10 @@ const GARDEROBE_UI = (() => {
   // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
   const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
   let pieceOuverte = 'tete';
-  // la maquette du boulanger en 3D (src/equipe3d.js, seulement avec ?boulanger3d=1) : la vue « Mon boulanger », depuis la carte et la feuille
-  const E3V = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D.vue : null;
-  const BOUTON_3D = (attr) => (E3V ? `<button type="button" class="btn large lavande" ${attr} style="margin-bottom:10px"><b>Voir mon boulanger en 3D</b></button>` : '');
+  // le boulanger en 3D (src/equipe3d.js) : la vue « Mon boulanger », depuis la carte et la feuille, quand l'équipe 3D est possible (la HD permise :
+  // qualité haute ou moyenne, pas coupée dans les Réglages, le lot pas en échec) ; en éco, pas de bouton
+  const E3 = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D : null, vue3D = () => (E3 && E3.dispo() ? E3.vue : null);
+  const BOUTON_3D = (attr) => (vue3D() ? `<button type="button" class="btn large lavande" ${attr} style="margin-bottom:10px"><b>Voir mon boulanger en 3D</b></button>` : '');
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
   const icone = (v) => ICONS.vetement(v.forme, v.collection === 'base' ? 'base' : v.collection);
@@ -115,9 +116,9 @@ const GARDEROBE_UI = (() => {
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
-    ctx.on('[data-gr-3d-feuille]', () => { if (!E3V) return; ctx.son.tap(); ctx.closeSheet(); E3V.ouvrir(Object.assign({}, ctx, { ferme: () => ouvrir(ctx, pieceOuverte) }), pieceOuverte); }); // (la vue fermée, la feuille revient)
+    ctx.on('[data-gr-3d-feuille]', () => { const v = vue3D(); if (!v) return; ctx.son.tap(); ctx.closeSheet(); v.ouvrir(Object.assign({}, ctx, { ferme: () => ouvrir(ctx, pieceOuverte) }), pieceOuverte); }); // (la vue fermée, la feuille revient)
     ctx.on('[data-gr-compagnons]', () => { if (!ctx.compagnon) return; ctx.son.tap(); ctx.compagnon.ouvrir(() => ouvrir(ctx, pieceOuverte)); }); // « Retour » revient ici
   }
-  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); if (E3V) sec.querySelectorAll('[data-gr-3d]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); E3V.ouvrir(ctx); })); }
-  return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; } };
+  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); sec.querySelectorAll('[data-gr-3d]').forEach((b) => b.addEventListener('click', () => { const v = vue3D(); if (!v) return; ctx.son.tap(); v.ouvrir(ctx); })); }
+  return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; }, get vue3D() { return !!vue3D(); } };
 })();

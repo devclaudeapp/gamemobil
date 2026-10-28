@@ -1,14 +1,16 @@
-// La maquette du boulanger et des apprentis en personnages 3D (src/equipe3d.js, seulement avec ?boulanger3d=1 dans l'adresse) sur la vraie
-// page, téléphone en portrait (390 × 844), le mardi 27 octobre 2026. On vérifie :
-// · sans le paramètre, rien ne change : le module inactif, aucun fichier de l'équipe demandé, le boulanger et les apprentis en chibis ;
-// · avec, en qualité haute : le lot « equipe » demandé après celui des clients, chaque fichier une fois, 600 Ko au plus ; le boulanger et les
-//   apprentis en personnages 3D (un maillage chacun, plus le plateau de celui qui porte ; à la taille des clients : 62 × K à 5 % près, le
+// Le boulanger et les apprentis en personnages 3D (src/equipe3d.js : le défaut en qualité haute et moyenne, la HD permise, comme les clients
+// 3D ; ?equipe=0 les garde en chibis) sur la vraie page, téléphone en portrait (390 × 844), le mardi 27 octobre 2026. On vérifie :
+// · avec ?equipe=0, rien ne change : le module inactif, aucun fichier de l'équipe demandé, le boulanger et les apprentis en chibis ;
+// · par défaut, en qualité haute : le lot « equipe » demandé après celui des clients, chaque fichier une fois, 600 Ko au plus ; le boulanger et
+//   les apprentis en personnages 3D (un maillage chacun, plus le plateau de celui qui porte ; à la taille des clients : 62 × K à 5 % près, le
 //   boulanger ×1,1) ; le boulanger porte la tenue de la garde-robe (sa clé, GAME.tenueBoulanger), une pièce changée se voit à l'image suivante
 //   (la forme de chaque pièce), la mémoire ne monte pas ; les grades des apprentis (l'étoile dès le grade 3) ; le cycle des apprentis (pétrir au
-//   four, le pâton entre les mains ; porter le plateau, le poser, revenir), la panne (Defeat, puis la clé à la main et Hammering), la joie du
-//   boulanger (un toucher : VIE.tap) ; le décor ≤ 80 appels de dessin, le boulanger et les apprentis comptés ; le temps processeur d'une image
-//   (×4, face aux mêmes en chibis) ; les revenus des fournées inchangés (GAME.revenuFournee de la page, avec et sans le paramètre : les mêmes
-//   que src/game.js seul, dans Node, sur le même état) ;
+//   four, le pâton entre les mains ; porter le plateau, le poser, revenir), la vapeur du four (un appel de dessin), la panne (Defeat, puis la clé
+//   à la main et Hammering), la joie du boulanger (un toucher : VIE.tap) ; le décor ≤ 80 appels de dessin, le boulanger, les apprentis et la
+//   vapeur comptés ; le temps processeur d'une image (×4, face aux mêmes en chibis) ; les revenus des fournées inchangés (GAME.revenuFournee de
+//   la page, avec et sans l'équipe 3D : les mêmes que src/game.js seul, dans Node, sur le même état) ;
+// · la préparation à petits pas, le processeur ralenti ×4 : de l'arrivée du lot au boulanger et aux apprentis en 3D (la cuisson, la tenue du
+//   boulanger préparée avec le reste, puis le boulanger, puis un apprenti par image), aucune image ne passe plus de 30 ms dans l'équipe ;
 // · les tenues : chacune des 42 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
 //   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces, ni des mains dans une pièce (toutes les
 //   pièces seules, les ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
@@ -19,14 +21,17 @@
 // · la vue « Mon boulanger » : ouverte depuis la garde-robe (onglet Boulanger), tournée au doigt, une pièce mise depuis la vue (portée
 //   aussitôt, sa joie), fermée (la boutique reprend) ; trois fois : la mémoire de la boutique ne monte pas ;
 // · la HD coupée dans les Réglages : les chibis à l'image suivante, la mémoire rendue après 10 s, le retour des personnages 3D ;
-// · la Maison hantée : son équipe (les monstres HD ou les chibis déguisés), aucun personnage 3D de l'équipe ;
-// · la qualité éco : les chibis, aucun fichier de l'équipe demandé ; un fichier de l'équipe manquant : le lot échoue, les chibis restent.
+// · la Maison hantée : son équipe (les monstres HD ou les chibis déguisés), aucun personnage 3D de l'équipe, pas de vapeur ;
+// · une ancienne boutique de la chaîne (Ma chaîne) : ses apprentis en 3D, le boulanger aussi ; la visite d'un copain (Supabase simulé) : son
+//   boulanger en 3D dans sa tenue à lui, ses apprentis aussi ; au retour, chez soi, sa tenue à soi ;
+// · la qualité éco : les chibis, aucun fichier de l'équipe demandé, pas de bouton « Voir mon boulanger en 3D » ; un fichier de l'équipe
+//   manquant : le lot échoue, les chibis restent.
 // Aucune erreur dans la page, aucun avertissement de l'équipe 3D, de la HD ni de three.js.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-equipe3d.cjs   (port : PORT_EQUIPE3D)
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..'), PORT = +process.env.PORT_EQUIPE3D || 9910;
+const root = path.join(__dirname, '..'), PORT = +process.env.PORT_EQUIPE3D || 9910, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co'; // (le classement de fournil/config.js : la visite d'un copain, simulée)
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.glb': 'model/gltf-binary', '.webmanifest': 'application/manifest+json' };
 const DEPART = new Date('2026-10-27T13:00:00+01:00').getTime(), decal = DEPART - Date.now(), vrai = () => Date.now() + decal;
 const demandes = []; let bloques = []; // les fichiers hd/ demandés, dans l'ordre ; ceux qu'on refuse (404), pour le repli
@@ -125,8 +130,13 @@ function mesurerAura() {
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--js-flags=--expose-gc'] }); // WebGL2 : la HD en haute ; gc() : la mesure du tas JS
-  async function ouvrir(requete) {
+  async function ouvrir(requete, sonde) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    if (sonde) await ctx.addInitScript(() => { // (la préparation mesurée : chaque image de la boucle du jeu, et le temps qu'elle passe dans les fonctions d'EQUIPE3D)
+      const raf = window.requestAnimationFrame.bind(window); window.__images = []; window.__cour = null; window.__sonder = false;
+      window.requestAnimationFrame = (cb) => raf((n) => { if (!window.__sonder) return cb(n); const im = { fn: {} }; window.__cour = im; const t0 = performance.now(); try { cb(n); } finally { im.ms = performance.now() - t0; window.__cour = null; window.__images.push(im); } });
+      window.__envelopper = (obj, nom) => { const f = obj[nom]; if (typeof f !== 'function' || f.__sonde) return; const g = function (...a) { const t0 = performance.now(); try { return f.apply(this, a); } finally { const im = window.__cour; if (im) im.fn[nom] = (im.fn[nom] || 0) + performance.now() - t0; } }; g.__sonde = true; obj[nom] = g; };
+    });
     await ctx.addInitScript((d) => {
       const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = F;
       // le détecteur de gel du jeu (ui.js, verifierReveil) : le temps piloté suspend la boucle, il croirait à un retour d'absence
@@ -169,8 +179,8 @@ function mesurerAura() {
   const hauteurs = (ev) => ev(() => { const r = []; window.__fournil.SCENE.trois.scene.traverse((g) => { const a = g.userData && g.userData.e3d; if (a && g.visible && g.parent && !a.vue) { const m = EQUIPE3D.mesure(a); r.push({ qui: a.boul ? 'boulanger' : 'a' + a.i, clip: a.joue, h: +((m.haut - m.bas) / (EQUIPE3D.HAUT * VIE.K)).toFixed(3) }); } }); return r; });
 
   // ═══════════════════════════════ sans le paramètre ═══════════════════════════════
-  console.log('── sans ?boulanger3d=1 : rien ne change ──');
-  let { ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute');
+  console.log('── ?equipe=0 : les chibis d\'office, rien ne change ──');
+  let { ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute&equipe=0');
   check(await attendre(() => ev(() => HDM.pret('boutique') && HDM.pret('clients')), 90000), 'la boutique et les clients ont leur HD');
   await sleep(4000);
   { const r = await revenus(ev); check(r.egaux, `GAME.revenuFournee : les mêmes que src/game.js seul (${r.page.map((x) => +x.toPrecision(5)).join(', ')})`); }
@@ -184,8 +194,8 @@ function mesurerAura() {
   await ctx.close();
 
   // ═══════════════════════════════ qualité haute, avec le paramètre ═══════════════════════════════
-  console.log('── ?boulanger3d=1, qualité haute : le lot de l\'équipe, après celui des clients ──');
-  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute&boulanger3d=1'));
+  console.log('── par défaut, qualité haute : le lot de l\'équipe, après celui des clients ──');
+  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute'));
   check(await attendre(() => ev(() => typeof EQUIPE3D !== 'undefined' && EQUIPE3D.actif && HDM.pret('boutique')), 60000), 'le module de l\'équipe 3D est là, et la boutique a ses décors HD');
   check(await attendre(() => ev(() => HDM.pret('equipe')), 120000), 'le lot « equipe » arrive ensuite, de lui-même');
   check(await attendre(async () => { const e = await equipe(ev); return e && e.pret && e.compile === 2 && e.boulanger && e.apprentis.length >= 3 && e.apprentis.every((a) => !a.chibi); }, 120000), 'cuits à petits pas, leur programme compilé : le boulanger et les apprentis deviennent des personnages 3D');
@@ -222,6 +232,12 @@ function mesurerAura() {
     const ok = (s) => tous.has(s);
     check(ok('four/Working_A') && ok('porte/Walk_Carry+p') && ok('depose/Idle+p') && ok('retour/Walk'), `le cycle : ${['four/Working_A', 'porte/Walk_Carry+p', 'depose/Idle+p', 'retour/Walk'].map((s) => `${s} ${ok(s) ? 'vu' : 'ABSENT'}`).join(', ')}`);
     check([...tous].every((s) => !/^(porte|depose)\//.test(s) || s.endsWith('+p')) && [...tous].every((s) => !/^(four|retour)\//.test(s) || !s.endsWith('+p')), 'le plateau entre les mains en portant et en posant, jamais au four ni au retour');
+  }
+  // la vapeur du four : quand il cuit et que des apprentis 3D y pétrissent, des bouffées sortent du haut de ses portes ; un appel de dessin au plus
+  {
+    const v = await ev(() => window.__pas(150, true, (e) => ({ n: e.vapeur ? e.vapeur.bouffees : -1, appels: e.vapeur ? e.vapeur.appels : 0, four: e.apprentis.filter((a) => a.etat === 'four' && !a.chibi).length })));
+    const avec = v.filter((x) => x.n > 0), max = Math.max(...v.map((x) => x.n));
+    check(avec.length > 10 && v.every((x) => x.appels <= 1 && (x.n > 0) === (x.appels === 1)) && avec.every((x) => x.four > 0 || x.n <= 12), `la vapeur du four : des bouffées à ${avec.length} images sur ${v.length} (${max} au plus, un appel de dessin), quand des apprentis pétrissent`);
   }
   // la panne : la tête dans les mains (Defeat), puis la clé à la main (Hammering, le haut du corps), jusqu'à la réparation
   {
@@ -278,7 +294,7 @@ function mesurerAura() {
     check(r.enAttente >= 4 && r.cuits >= 4 && r.imagesAvance >= 8 && r.msMed <= 8 && r.s1 === r.s0 && r.tenue && r.tenue.endsWith('|' + r.cle) && r.msChangement <= 25, `une collection gagnée (le podium de bronze) : ses ${r.cuits} kits cuits d'avance à petits pas, en ${r.imagesAvance} images (${r.msMed} ms par image en médiane, ${r.msMax} ms au plus) ; puis portée : aucun kit cuit à l'image du changement (${r.s0} → ${r.s1} cuits sur place), ${r.msChangement} ms (${r.tenue})`);
     check(r.r0 === 5 || (r.r1 === r.r0 + 1 && r.s3 === r.s2 && r.tenue2 && r.tenue2.startsWith(r.r1 + '|')), `le titre suivant (${r.r0} → ${r.r1}) : sa toque était déjà cuite, rien n'est cuit sur place (${r.s2} → ${r.s3})`);
   }
-  // les revenus des fournées : la maquette ne montre que l'apparence (les mêmes que src/game.js seul, sur le même état)
+  // les revenus des fournées : l'équipe 3D ne montre que l'apparence (les mêmes que src/game.js seul, sur le même état)
   {
     const r = await revenus(ev);
     check(r.egaux, `GAME.revenuFournee inchangé : les mêmes que src/game.js seul (${r.page.map((x) => +x.toPrecision(5)).join(', ')})`);
@@ -446,30 +462,74 @@ function mesurerAura() {
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.annonce = true; q.billets = 5e9; q.total = 2e12; [[60, 1], [40, 1], [25, 1]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5, 6]; F.save(); });
     await ev(() => window.__fournil.hantee());
     const ok = await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.patronne && e.apprentis.length > 0; }), 60000); await sleep(1500);
-    const vus = await ev(() => { let e3 = 0; window.__fournil.SCENE.trois.scene.traverse((o) => { if (o.userData && o.userData.e3d && o.visible && o.parent) e3++; }); const e = window.__fournil.SCENE.evenement; return { e3, hd: e && e.hd, apprentis: e ? e.apprentis.length : 0 }; });
-    check(ok && vus.e3 === 0, `la Maison hantée ${vus.hd ? 'en HD (ses monstres)' : '(ses chibis déguisés)'} : ${vus.apprentis} apprentis à elle, aucun personnage 3D de l'équipe`);
+    const vus = await ev(() => { let e3 = 0, vap = 0; window.__fournil.SCENE.trois.scene.traverse((o) => { if (o.userData && o.userData.e3d && o.visible && o.parent) e3++; if (o.userData && o.userData.vapeur && o.visible && o.parent) vap++; }); const e = window.__fournil.SCENE.evenement; return { e3, vap, hd: e && e.hd, apprentis: e ? e.apprentis.length : 0 }; });
+    check(ok && vus.e3 === 0 && vus.vap === 0, `la Maison hantée ${vus.hd ? 'en HD (ses monstres)' : '(ses chibis déguisés)'} : ${vus.apprentis} apprentis à elle, aucun personnage 3D de l'équipe, pas de vapeur 3D`);
     await ev(() => window.__fournil.fermerHantee());
     check(await attendre(() => ev(() => { const e = window.__fournil.SCENE.equipe3d; return !window.__fournil.SCENE.evenement && e && e.boulanger && e.apprentis.length > 0 && e.apprentis.every((a) => !a.chibi); }), 60000), 'au retour, le boulanger et les apprentis 3D reprennent la boutique');
+  }
+
+  console.log('── une ancienne boutique de la chaîne : la même règle ──');
+  {
+    // trois anciennes boutiques (la boutique du joueur passe à la n°4) ; la n°2 a trois recettes et leurs trois apprentis
+    const ok0 = await ev(() => { const F = window.__fournil, st = F.st; if (!F.chaine) return false; st.boutiques = Math.max(st.boutiques || 1, 4); delete st.chaine; const c = F.chaine.etat, b = c.b.find((x) => x.n === 2); if (!b) return false; b.s = [30, 30, 30]; b.a = 7; F.save(); return F.chaine.ouvrir(2); });
+    const ok = ok0 && await attendre(() => ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return F.chaine.n === 2 && !!e && !!e.boulanger && e.apprentis.length >= 3 && e.apprentis.every((a) => !a.chibi); }), 60000);
+    const r = await ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return { n: F.chaine.n, app: e.apprentis.map((a) => a.chibi ? 'chibi' : a.corps), tenue: e.boulanger && e.boulanger.tenue, cle: F.G.tenueBoulanger(F.st).cle }; });
+    check(ok && r.tenue && r.tenue.endsWith('|' + r.cle), `dans l'ancienne boutique n°${r.n} : ses ${r.app.length} apprentis en 3D (${r.app.join(', ')}), le boulanger aussi, dans sa tenue (${r.tenue})`);
+    await ev(() => window.__fournil.chaine.fermer());
+    check(await attendre(() => ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return !F.chaine.vue && !!e && !!e.boulanger && e.apprentis.length > 0 && e.apprentis.every((a) => !a.chibi); }), 60000), 'revenu dans sa boulangerie : son équipe 3D');
+  }
+
+  console.log('── la visite d\'un copain (Supabase simulé) : son équipe en 3D, sa tenue à lui ──');
+  {
+    const ph = await ev(() => { const F = window.__fournil, p = CLASSEMENT.photo(F.st, { G: F.G }); p.q = 1; p.nom = 'Chez Mamie Jo'; p.t = ['or-toque', 'or-tablier', 'or-chaussures', 'or-foulard']; return p; });
+    await page.route(SUPA + '/rest/v1/rpc/fournil_boutique', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, erreur: null, pseudo: 'Mamie Jo', photo: ph, maj: new Date(vrai()).toISOString(), en_ligne: true }) }));
+    await ev(() => window.__fournil.visiter('Mamie Jo'));
+    const ok = await attendre(() => ev(() => { const v = window.__fournil.visite(), e = window.__fournil.SCENE.equipe3d; return !!v && v.scene && !!e && !!e.boulanger && /or-toque\|or-tablier\|or-chaussures\|or-foulard$/.test(e.boulanger.tenue) && e.apprentis.length > 0 && e.apprentis.every((a) => !a.chibi); }), 60000);
+    const r = await ev(() => { const e = window.__fournil.SCENE.equipe3d; return { tenue: e.boulanger && e.boulanger.tenue, app: e.apprentis.length }; });
+    check(ok, `chez Mamie Jo : son boulanger en 3D dans sa tenue d'or (${r.tenue}), ses ${r.app} apprentis en 3D`);
+    await ev(() => window.__fournil.finVisite());
+    check(await attendre(() => ev(() => { const F = window.__fournil, e = F.SCENE.equipe3d; return !F.visite() && !!e && !!e.boulanger && e.boulanger.tenue.endsWith('|' + F.G.tenueBoulanger(F.st).cle) && e.apprentis.every((a) => !a.chibi); }), 60000), 'de retour chez soi : son boulanger dans sa tenue à soi');
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   check(avertissements.length === 0, `aucun avertissement de l'équipe 3D, de la HD ni de three.js (${avertissements.slice(0, 2).join(' | ')})`);
   await ctx.close();
 
+  // ═══════════════════════════════ la préparation, le processeur ralenti ×4 ═══════════════════════════════
+  // de l'arrivée du lot jusqu'au boulanger et aux apprentis en 3D, chaque image de la boucle du jeu : le temps passé dans la préparation de
+  // l'équipe (EQUIPE3D.preparer : la cuisson à petits pas, la tenue du boulanger ; boulanger, apprenti, chauffer, echantillon : le passage en 3D,
+  // un apprenti par image). La compilation du programme (src/scene.js, compileAsync quand le pilote compile en parallèle) n'en est pas
+  console.log('── la préparation à petits pas, le processeur ralenti ×4 ──');
+  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute', true));
+  {
+    await ev(() => { for (const n of ['preparer', 'boulanger', 'apprenti', 'chauffer', 'echantillon']) window.__envelopper(EQUIPE3D, n); window.__sonder = true; });
+    const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const vu = await attendre(async () => { const e = await equipe(ev); return !!e && !!e.boulanger && e.apprentis.length >= 3 && e.apprentis.every((a) => !a.chibi); }, 300000);
+    await sleep(3000); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    const r = await ev(() => { window.__sonder = false; const l = window.__images.map((im) => Object.values(im.fn).reduce((a, b) => a + b, 0)); const imax = l.indexOf(Math.max(...l)); return { n: l.filter((x) => x > 0).length, max: +Math.max(...l).toFixed(1), detail: window.__images[imax] ? Object.entries(window.__images[imax].fn).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ') : '', pas: EQUIPE3D.etat.pasMax, pasLent: EQUIPE3D.etat.pasLent }; });
+    console.log(`        ${r.n} images avec de la préparation ; la plus chargée : ${r.max} ms (${r.detail}) ; le plus long pas : ${r.pas} ms (${r.pasLent})`);
+    check(vu && r.n > 20 && r.max <= 30, `×4 : de l'arrivée du lot au boulanger et aux apprentis en 3D, aucune image ne passe plus de 30 ms dans la préparation de l'équipe (${r.max} ms au plus, sur ${r.n} images)`);
+  }
+  check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+  await ctx.close();
+
   // ═══════════════════════════════ la qualité éco ═══════════════════════════════
-  console.log('── ?boulanger3d=1 en qualité éco : les chibis, aucun fichier de l\'équipe demandé ──');
-  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=eco&boulanger3d=1'));
+  console.log('── la qualité éco : les chibis, aucun fichier de l\'équipe demandé ──');
+  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=eco'));
   await sleep(6000);
   {
     const e = await equipe(ev);
     check(demandes.every((p) => !/\/hd\/equipe\//.test(p)) && e && !e.boulanger && e.chibiBoulanger && e.apprentis.every((a) => a.chibi), `le boulanger et ${e ? e.apprentis.length : 0} apprentis en chibis, aucun fichier de l'équipe demandé (${demandes.length} fichiers HD demandés)`);
+    await ev(() => { window.__fournil.page('boulanger'); }); await sleep(600);
+    const b = await ev(() => ({ carte: !!document.querySelector('[data-garderobe]'), bouton: !!document.querySelector('[data-gr-3d]') }));
+    check(b.carte && !b.bouton, 'la garde-robe sans le bouton « Voir mon boulanger en 3D » (la vue n\'est proposée qu\'en haute et moyenne)');
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 
   // ═══════════════════════════════ un fichier manquant ═══════════════════════════════
-  console.log('── ?boulanger3d=1, les clips de l\'équipe manquants : le lot échoue, les chibis restent ──');
+  console.log('── les clips de l\'équipe manquants : le lot échoue, les chibis restent ──');
   bloques = [/\/hd\/equipe\/anims-equipe\.glb$/];
-  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute&boulanger3d=1'));
+  ({ ctx, page, erreurs, avertissements, ev } = await ouvrir('?qualite=haute'));
   check(await attendre(() => ev(() => HDM.etat.equipe && !!HDM.etat.equipe.erreur), 120000), `le lot « equipe » échoue (${await ev(() => HDM.etat.equipe && HDM.etat.equipe.erreur)})`);
   await sleep(2500);
   {

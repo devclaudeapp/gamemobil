@@ -488,7 +488,7 @@ const VIE = (() => {
       else if (a.etat === 'depose') { a.t -= dt; if (a.t <= 0) { a.plateau = false; a.etat = 'retour'; } }
       else if (a.etat === 'retour') { a.dir = -1; const cible = LAY.fourSlots[a.lane]; a.x = Math.max(cible, a.x - v); if (a.x <= cible) { a.etat = 'four'; a.t = tCuisson(st, a.i); } }
       else if (a.etat === 'panne') { a.dir = 0; if (panneI !== a.i) { a.etat = 'four'; a.t = tCuisson(st, a.i); } }
-      if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6 }); // la vapeur des fournées
+      if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6, four: true }); // la vapeur des fournées (four : celle d'un apprenti au four, que l'équipe 3D remplace par la sienne)
     }
   }
   // ─── le chat : il dort sur le comptoir, saute, fait le tour (la plante, l'allée, le salon), s'assoit, remonte ; il court voir le client mystère ───

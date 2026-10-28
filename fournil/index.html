@@ -2595,7 +2595,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '5d8486356789';</script>
+<script>window.FOURNIL_VERSION = 'b65910614bae';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -8072,7 +8072,7 @@ const VIE = (() => {
       else if (a.etat === 'depose') { a.t -= dt; if (a.t <= 0) { a.plateau = false; a.etat = 'retour'; } }
       else if (a.etat === 'retour') { a.dir = -1; const cible = LAY.fourSlots[a.lane]; a.x = Math.max(cible, a.x - v); if (a.x <= cible) { a.etat = 'four'; a.t = tCuisson(st, a.i); } }
       else if (a.etat === 'panne') { a.dir = 0; if (panneI !== a.i) { a.etat = 'four'; a.t = tCuisson(st, a.i); } }
-      if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6 }); // la vapeur des fournées
+      if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6, four: true }); // la vapeur des fournées (four : celle d'un apprenti au four, que l'équipe 3D remplace par la sienne)
     }
   }
   // ─── le chat : il dort sur le comptoir, saute, fait le tour (la plante, l'allée, le salon), s'assoit, remonte ; il court voir le client mystère ───
@@ -10717,8 +10717,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
 /* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
    Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
    MeshoptDecoder de three r158 ; construit par outils/maquette-hd/construire.cjs). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
-   boutique reçoit quelques décors, ses meubles de salle et ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
-   Character Pack de Quaternius, CC0 ; le boulanger et les apprentis restent des chibis) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
+   boutique reçoit quelques décors, ses meubles de salle, ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
+   Character Pack de Quaternius, CC0) et son boulanger et ses apprentis animés (le lot « equipe », lu par src/equipe3d.js : les Chefs du même pack,
+   des clips des KayKit Character Animations, CC0) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
    pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
@@ -10747,9 +10748,9 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
-    // l'équipe de la boutique en 3D (src/equipe3d.js, la maquette du boulanger et des apprentis : seulement avec ?boulanger3d=1 ; fournil/hd/equipe/,
-    // ≈ 155 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module). Sans les clips ou sans le corps
-    // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
+    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 155 Ko ; demandé après les clients) :
+    // les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module).
+    // Sans les clips ou sans le corps du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
     equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
     // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
@@ -11426,13 +11427,16 @@ const CLIENTS3D = (() => {
 if (typeof module !== 'undefined') module.exports = CLIENTS3D;
 
 /* ── equipe3d.js ── */
-/* LE FOURNIL — MAQUETTE, seulement avec ?boulanger3d=1 dans l'adresse (sans lui, ce module ne fait rien et le jeu ne change pas) : le
-   boulanger et les apprentis en personnages 3D animés, comme les clients (src/clients3d.js), avec leur tenue pièce par pièce.
+/* LE FOURNIL — le boulanger et les apprentis en personnages 3D animés, comme les clients (src/clients3d.js), avec leur tenue pièce par pièce.
+   C'est le défaut en qualité haute et moyenne quand la HD est permise (HDM.permis : WebGL2, pas l'éco, pas coupée dans Réglages › Décors en
+   HD) : la même règle que les clients 3D. Les chibis (src/persos.js) restent en éco, la HD coupée, tant que le lot n'est pas prêt, s'il échoue
+   (les clips manquent, ou le corps du boulanger), et dans la boutique hantée (ses chibis déguisés ou ses monstres HD) ; ?equipe=0 dans
+   l'adresse les garde toujours (les tests). La visite d'un copain et les boutiques de la chaîne suivent la règle de la boutique.
    · Les corps : Chef_Male et Chef_Female de l'Ultimate Animated Character Pack de Quaternius (CC0) : le pack, le rig de 23 os, le matériau
      et l'échelle des clients (HAUT = 62 × K ; le boulanger, le patron, ×1,1). Le lot « equipe » de src/hd.js (fournil/hd/equipe/, refait par
      outils/equipe3d/faire-equipe.mjs) est demandé après celui des clients, dont il reprend les clips (Idle, Walk, Victory) ; les siens :
-     Walk_Carry (porter le plateau), Defeat (la panne : la tête dans les mains), Working_A (pétrir), Hammering (réparer le four, la clé à la
-     main) et Cheering (la joie du boulanger).
+     Walk_Carry (porter le plateau) et Defeat (la panne : la tête dans les mains) du même pack, Working_A (pétrir), Hammering (réparer le
+     four, la clé à la main) et Cheering (la joie du boulanger) des KayKit Character Animations de Kay Lousberg (CC0), reciblés sur ce rig.
    · Les tenues, pièce par pièce : GAME.tenueBoulanger(st) dit ce qu'il porte (l'id de chaque pièce, sa forme, sa collection). Chaque pièce de
      la garde-robe a son « kit » 3D, fidèle à son nom et à sa description (la toque blanche plissée, la toque d'or à l'étoile, le tablier
      brodé aux initiales de la boutique, la casquette néon qui clignote, le chapeau phosphorescent, la cape doublée qui fait « whoosh », le
@@ -11451,18 +11455,19 @@ if (typeof module !== 'undefined') module.exports = CLIENTS3D;
      bouge pas). Respiration (Idle), la joie aux réussites (Cheering, le haut du corps, et un petit saut), de temps en temps il s'essuie le
      front ou se frotte les mains, la goutte de sueur pendant le coup de feu, l'aura qui respire. Les apprentis : une géométrie par corps,
      partagée (toque, tablier, étoile du grade 3, clé) ; chacun sa couleur (le haut de son poste) et ses os (la toque grandit aux grades 4 et 5).
-     Au four, ils pétrissent (dos tourné, le pâton entre les mains) ; ils portent le plateau (Walk_Carry, le plateau entre les mains), le posent, reviennent (Walk) ; en
-     panne, la tête dans les mains (Defeat), puis ils réparent le four, la clé à la main (Hammering).
-   · Ce module ne touche ni à la vie (VIE) ni aux règles des apprentis (GAME.revenuFournee) : il lit leur état et le montre. Les chibis
-     (src/persos.js) restent en éco, la HD coupée, tant que le lot n'est pas prêt, s'il échoue, et dans la boutique hantée (ses chibis déguisés
-     ou ses monstres HD).
+     Au four, ils pétrissent (dos tourné, le pâton entre les mains), un peu de vapeur s'échappe du four (un maillage instancié : un appel de
+     dessin) ; ils portent le plateau (Walk_Carry, le plateau entre les mains), le posent, reviennent (Walk) ; en panne, la tête dans les mains
+     (Defeat), puis ils réparent le four, la clé à la main (Hammering).
+   · La préparation se fait à petits pas, sur des centaines d'images (aucun pas de plus de quelques millisecondes), la tenue du boulanger de la
+     partie comprise : le boulanger passe en 3D à une image, puis un apprenti par image, sans rien bâtir sur place.
+   · Ce module ne touche ni à la vie (VIE) ni aux règles des apprentis (GAME.revenuFournee) : il lit leur état et le montre.
    · La vue « Mon boulanger » (vue.ouvrir) : le boulanger en grand, qu'on tourne au doigt, sa tenue portée ; une pièce changée se voit aussitôt. */
 const EQUIPE3D = (() => {
   'use strict';
   const T = typeof THREE !== 'undefined' ? THREE : null, X = typeof FOURNIL_HD !== 'undefined' ? FOURNIL_HD : null;
-  const demande = typeof location !== 'undefined' && /[?&]boulanger3d=1(?:&|$)/.test(location.search);
-  const API = { actif: false, pret: false, erreur: '', permis: () => false, demander: () => {}, preparer: () => false, boulanger: () => null, rhabiller: () => {}, poserBoulanger: () => {}, apprenti: () => null, poserApprenti: () => {}, rendre: () => {}, liberer: () => false, chauffer: () => null, rentrer: () => {}, echantillon: () => null, tete: () => null, vue: { ouvert: false, ouvrir: () => false, fermer: () => {} } };
-  if (!demande || !T || !X || typeof document === 'undefined' || typeof HDM === 'undefined' || !HDM.actif || !HDM.LOTS || !HDM.LOTS.equipe || typeof PERSOS === 'undefined' || !PERSOS || typeof MODELES === 'undefined' || !MODELES || typeof GAME === 'undefined') return API;
+  const sansEquipe = typeof location !== 'undefined' && /[?&]equipe=0(?:&|$)/.test(location.search); // (les tests : les chibis d'office)
+  const API = { actif: false, pret: false, erreur: '', permis: () => false, dispo: () => false, demander: () => {}, preparer: () => false, boulanger: () => null, rhabiller: () => {}, poserBoulanger: () => {}, apprenti: () => null, poserApprenti: () => {}, rendre: () => {}, liberer: () => false, chauffer: () => null, rentrer: () => {}, echantillon: () => null, tete: () => null, vue: { ouvert: false, ouvrir: () => false, fermer: () => {} } };
+  if (sansEquipe || !T || !X || typeof document === 'undefined' || typeof HDM === 'undefined' || !HDM.actif || !HDM.LOTS || !HDM.LOTS.equipe || typeof PERSOS === 'undefined' || !PERSOS || typeof MODELES === 'undefined' || !MODELES || typeof GAME === 'undefined') return API;
   const M = MODELES, G = GAME, TAU = Math.PI * 2, HP = Math.PI / 2;
 
   // ═══ les corps, les rôles de couleur, les os ═══
@@ -11491,11 +11496,16 @@ const EQUIPE3D = (() => {
   const _m1 = new T.Matrix4(), _m2 = new T.Matrix4(), _c = new T.Color(), _s1 = new T.Vector3(), AXE_Y = new T.Vector3(0, 1, 0), _e = new T.Euler();
   const etat = { acteurs: 0, enService: 0, chauffe: false, msCuisson: 0, liberes: 0, rhabillages: 0, msRhabillage: 0, msRhabillageMax: 0, kits: 0, msKits: 0, msKitMax: 0, kitLent: '', surPlace: 0, avance: 0, imagesAvance: 0, msAvance: 0, msAvanceMax: 0 }; // (surPlace : les kits cuits à l'image où on les porte ; avance : ceux cuits d'avance, en imagesAvance images, msAvance ms dans la dernière, msAvanceMax au plus)
   const permis = (renderer) => !!(typeof HDM !== 'undefined' && HDM.permis(renderer));
+  // l'équipe 3D possible ici : la HD permise dans la boutique (src/scene.js : WebGL2, pas l'éco, pas coupée) et le lot pas en échec ; la vue
+  // « Mon boulanger » (son bouton dans la garde-robe) ne se propose qu'alors
+  const dispo = () => !echec && !(HDM.etat.equipe && HDM.etat.equipe.erreur) && typeof SCENE !== 'undefined' && !!SCENE.hdPermise;
   function demander() { if (!HDM.etat.equipe) HDM.charger('equipe'); }
   const lin = (hex, k) => { _c.set(hex); if (k != null) _c.multiplyScalar(k); return [_c.r, _c.g, _c.b]; };
   const clair = (hex) => { _c.set(hex); return 0.2126 * _c.r + 0.7152 * _c.g + 0.0722 * _c.b; };
   const mel = (a, b, k) => M.melange(a, b, k);
 
+  // un générateur mené pas à pas, chaque pas nommé quoi (la préparation garde le nom de son plus long pas) ; rend sa valeur finale
+  function* nomme(gen, quoi) { for (;;) { const x = gen.next(); if (x.done) return x.value; yield quoi; } }
   // ═══ la cuisson d'un corps (à petits pas) : ses parties sur le squelette de la première, les normales de face des parties en facettes, un rôle par
   //     sommet ; ses mesures au repos de liaison (la pose en T : le crâne, le visage, le buste, le cou, le bas des jambes) ; le gabarit (os ajoutés) ═══
   function* cuire(nom, gltf) {
@@ -11515,12 +11525,15 @@ const EQUIPE3D = (() => {
       for (let i = 0; i < pos.count; i++) {
         let jd = 0, wd = -1; for (let q = 0; q < 4; q++) { const ww = sw.getComponent(i, q), jj = si.getComponent(i, q); SIi[i * 4 + q] = remap[jj]; SWi[i * 4 + q] = ww; if (ww > wd) { wd = ww; jd = jj; } }
         dom[i] = jd; v.fromBufferAttribute(pos, i).applyMatrix4(Mj[jd]); PP[i * 3] = v.x; PP[i * 3 + 1] = v.y; PP[i * 3 + 2] = v.z;
+        if (i % 1200 === 1199) yield o.material.name;
       }
+      yield o.material.name;
       const nb = ix ? ix.count : pos.count, at = (k) => (ix ? ix.getX(k) : k);
-      if (nor) { const base = P.length / 3; for (let i = 0; i < pos.count; i++) { n3.fromBufferAttribute(nor, i).applyMatrix3(Nj[dom[i]]).normalize(); emettre(PP[i * 3], PP[i * 3 + 1], PP[i * 3 + 2], n3.x, n3.y, n3.z, col, role, SIi, SWi, i * 4); } for (let k = 0; k < nb; k++) I.push(base + at(k)); }
+      if (nor) { const base = P.length / 3; for (let i = 0; i < pos.count; i++) { n3.fromBufferAttribute(nor, i).applyMatrix3(Nj[dom[i]]).normalize(); emettre(PP[i * 3], PP[i * 3 + 1], PP[i * 3 + 2], n3.x, n3.y, n3.z, col, role, SIi, SWi, i * 4); if (i % 1200 === 1199) yield o.material.name; } for (let k = 0; k < nb; k++) I.push(base + at(k)); }
       else { // en facettes : la normale de chaque triangle ; les sommets d'une même facette plane partagés
         const vus = new Map();
         for (let k = 0; k < nb; k += 3) {
+          if (k % 2400 === 2397) yield o.material.name;
           const i0 = at(k), i1 = at(k + 1), i2 = at(k + 2);
           a.fromArray(PP, i0 * 3); b.fromArray(PP, i1 * 3); c.fromArray(PP, i2 * 3); n3.subVectors(c, b).cross(_v1.subVectors(a, b)).normalize();
           const cle = ((Math.round(n3.x * 500) + 500) * 1001 + Math.round(n3.y * 500) + 500) * 1001 + Math.round(n3.z * 500) + 500;
@@ -11530,14 +11543,14 @@ const EQUIPE3D = (() => {
       yield o.material.name;
     }
     const n = P.length / 3, pr = { nom, n, P: new Float32Array(P), N: new Float32Array(N), C0: new Float32Array(C0), R: new Uint8Array(R), SI: new Uint16Array(SI), SW: new Float32Array(SW), I: new Uint32Array(I), bindMatrix: S0.bindMatrix.clone(), iB, osIdx: new Map(idx), nbOs: bones.length, kits: new Map() };
+    yield 'positions';
     pr.dom = new Uint16Array(n); for (let k = 0; k < n; k++) { let jd = pr.SI[k * 4], wd = pr.SW[k * 4]; for (let q = 1; q < 4; q++) if (pr.SW[k * 4 + q] > wd) { wd = pr.SW[k * 4 + q]; jd = pr.SI[k * 4 + q]; } pr.dom[k] = jd; }
+    yield 'positions';
     pr.osW = {}; bones.forEach((bo, i) => { pr.osW[bo.name] = new T.Vector3().setFromMatrixPosition(BI0[i]); }); // les os au repos de liaison (le monde)
     pr.W = new Float32Array(n * 3); for (let k = 0; k < n; k++) { v.fromArray(pr.P, k * 3).applyMatrix4(pr.bindMatrix); v.toArray(pr.W, k * 3); } // les positions au repos de liaison, dans le monde
     yield 'positions';
-    mesures(pr, bones);
-    yield 'mesures';
-    facade(pr, 1);
-    yield 'façade';
+    yield* nomme(mesuresGen(pr, bones), 'mesures');
+    yield* nomme(facadeGen(pr, 1), 'façade');
     // le gabarit : le gltf cloné, un seul SkinnedMesh, les os ajoutés, le squelette refait
     const tpl = X.SkeletonUtils.clone(src); let S1 = null; const jeter = [];
     tpl.traverse((o) => { if (o.isMesh) { if (!S1 && o.isSkinnedMesh) S1 = o; else jeter.push(o); } });
@@ -11565,18 +11578,24 @@ const EQUIPE3D = (() => {
   }
 
   // les mesures au repos de liaison (en T, le visage vers +z, le haut +y, la gauche du personnage vers +x), en unités du modèle
-  function mesures(pr, bones) {
+  function* mesuresGen(pr, bones) { // (à petits pas : quelques boîtes à la fois)
     const nomDe = (j) => bones[j] ? bones[j].name : '', W = pr.W, R = pr.R, n = pr.n, bx = (f) => { const b = new T.Box3(); for (let k = 0; k < n; k++) if (f(k)) b.expandByPoint(_v1.fromArray(W, k * 3)); return b; };
-    const os = (k) => nomDe(pr.dom[k]);
+    const noms = new Array(n); for (let k = 0; k < n; k++) noms[k] = nomDe(pr.dom[k]); const os = (k) => noms[k];
+    yield;
     const crane = bx((k) => R[k] === RI.peau && os(k) === OS.tete), visage = bx((k) => R[k] === RI.yeux), cheveux = bx((k) => R[k] === RI.cheveux);
+    yield;
     const buste = bx((k) => R[k] === RI.veste && (os(k) === OS.torse || os(k) === OS.ventre)), foulard = bx((k) => R[k] === RI.foulard), pantalon = bx((k) => R[k] === RI.pantalon), cou = bx((k) => R[k] === RI.peau && os(k) === OS.cou);
+    yield;
     const t = { cx: (crane.min.x + crane.max.x) / 2, cy: (crane.min.y + crane.max.y) / 2, cz: (crane.min.z + crane.max.z) / 2, rx: (crane.max.x - crane.min.x) / 2, ry: (crane.max.y - crane.min.y) / 2, rz: (crane.max.z - crane.min.z) / 2, sommet: crane.max.y };
     // les yeux : le bas de la partie « Face » de chaque côté (le haut, ce sont les sourcils)
     const cxv = (visage.min.x + visage.max.x) / 2, hy = visage.max.y - visage.min.y, basY = visage.min.y + hy * 0.6, oeil = (cote) => { const s = new T.Vector3(); let k0 = 0; for (let k = 0; k < n; k++) if (R[k] === RI.yeux && (W[k * 3] - cxv) * cote > 0 && W[k * 3 + 1] < basY) { s.x += W[k * 3]; s.y += W[k * 3 + 1]; s.z += W[k * 3 + 2]; k0++; } return s.multiplyScalar(1 / Math.max(1, k0)); };
     const yeux = { g: oeil(1), d: oeil(-1), front: visage.max.z, sourcils: visage.max.y, bas: visage.min.y };
+    yield;
     // les pieds : la peau sous le pantalon (les tibias et les pieds de l'UACP), de chaque côté (0 : la gauche, +x ; 1 : la droite)
-    const piedsY0 = bx((k) => R[k] === RI.peau && /Foot|LowerLeg/.test(os(k))).min.y;
-    const pieds = [1, -1].map((cote) => bx((k) => R[k] === RI.peau && /Foot|LowerLeg/.test(os(k)) && W[k * 3] * cote > 0));
+    const jambe = new Uint8Array(n); for (let k = 0; k < n; k++) jambe[k] = R[k] === RI.peau && /Foot|LowerLeg/.test(os(k)) ? 1 : 0;
+    const piedsY0 = bx((k) => jambe[k] === 1).min.y;
+    const pieds = [1, -1].map((cote) => bx((k) => jambe[k] === 1 && W[k * 3] * cote > 0));
+    yield;
     const epaules = bx((k) => R[k] === RI.veste && /^Shoulder/.test(os(k))), veste = bx((k) => R[k] === RI.veste && !/^(UpperArm|LowerArm|Fist)/.test(os(k)));
     pr.m = { tete: t, yeux, cheveux, buste, foulard, pantalon, cou, piedsY0, pieds, epaules, veste, chevilleY: pantalon.min.y, H: Math.max(cheveux.max.y, crane.max.y) - piedsY0,
       // l'échelle des chibis (src/persos.js) : un crâne de rayon 10, un buste de rayon 11 haut de 34 (y de 19 à 53) ; les pièces y sont dessinées
@@ -11605,12 +11624,13 @@ const EQUIPE3D = (() => {
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pr.P, 3)); geo.setAttribute('skinIndex', new T.BufferAttribute(pr.SI, 4)); geo.setAttribute('skinWeight', new T.BufferAttribute(pr.SW, 4)); S.geometry = geo;
     const mx = new T.AnimationMixer(g), tete = g.getObjectByName(OS.tete), pied = g.getObjectByName(OS.pieds[0]);
     const id = mx.clipAction(CL.Idle); id.play(); mx.setTime(0.01); g.updateMatrixWorld(true);
+    yield 'debout';
     let ymax = -1e9, ymin = 1e9; sommetsMonde(S, pr.n, (i, x, y) => { if (y > ymax) ymax = y; if (y < ymin) ymin = y; });
     pr.hauteur = ymax - Math.min(0, ymin); pr.sol = ymin; tete.getWorldPosition(_v1); pr.dessus = ymax - _v1.y; id.stop();
     yield 'debout';
     for (const nom of ['Walk', 'Walk_Carry']) {
       const clip = CL[nom]; if (!clip) continue; const ma = mx.clipAction(clip); ma.play(); let z0 = 1e9, z1 = -1e9;
-      for (let k = 0; k < 24; k++) { mx.setTime(clip.duration * k / 24); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); z0 = Math.min(z0, _v1.z); z1 = Math.max(z1, _v1.z); }
+      for (let k = 0; k < 24; k++) { mx.setTime(clip.duration * k / 24); g.updateMatrixWorld(true); pied.getWorldPosition(_v1); z0 = Math.min(z0, _v1.z); z1 = Math.max(z1, _v1.z); if (k % 8 === 7) yield 'marche'; }
       pr['vitesse' + nom] = 2 * (z1 - z0) / clip.duration; ma.stop();
     }
     mx.uncacheRoot(g); geo.dispose();
@@ -11619,10 +11639,12 @@ const EQUIPE3D = (() => {
 
   // ═══ le corps vu par les pièces : ses sommets les plus proches (leurs poids d'os), son contour à une hauteur, sa façade de face et de dos ═══
   // les sommets du corps rangés dans une grille (au repos de liaison) : les plus proches d'un point, parmi ceux qu'un filtre garde (le nom de leur os)
-  function proches(pr) {
+  function proches(pr) { if (pr.proches) return pr.proches; const g = prochesGen(pr); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* prochesGen(pr) { // (à petits pas : la grille, puis le nom de l'os de chaque sommet)
     if (pr.proches) return pr.proches;
     const W = pr.W, n = pr.n, c = 0.04 * pr.m.u, cel = new Map(), cle = (i, j, k) => ((i + 512) * 1024 + (j + 512)) * 1024 + (k + 512);
-    for (let v = 0; v < n; v++) { const q = cle(Math.floor(W[v * 3] / c), Math.floor(W[v * 3 + 1] / c), Math.floor(W[v * 3 + 2] / c)); let l = cel.get(q); if (!l) cel.set(q, (l = [])); l.push(v); }
+    for (let v = 0; v < n; v++) { const q = cle(Math.floor(W[v * 3] / c), Math.floor(W[v * 3 + 1] / c), Math.floor(W[v * 3 + 2] / c)); let l = cel.get(q); if (!l) cel.set(q, (l = [])); l.push(v); if (v % 2000 === 1999) yield; }
+    yield;
     const nomOs = new Array(n); for (let v = 0; v < n; v++) nomOs[v] = pr.nomOs(pr.dom[v]);
     const passe = new Map(), filtreDe = (f) => { if (!f) return null; let a = passe.get(f.source); if (!a) { a = new Uint8Array(n); for (let v = 0; v < n; v++) a[v] = f.test(nomOs[v]) ? 1 : 0; passe.set(f.source, a); } return a; };
     function chercher(x, y, z, filtre, kmax) { // les kmax plus proches : [[sommet, distance²], …], du plus proche au plus loin
@@ -11673,27 +11695,39 @@ const EQUIPE3D = (() => {
   // les trous d'une rangée (entre les jambes) bouchés d'un bord à l'autre. Un point posé sur la façade reprend les poids d'os du point du corps
   // qui est dessous : il se déforme avec lui (les épaules qui tombent, les cuisses qui marchent), sans que la veste ni le pantalon le percent. En
   // cache par corps et par sens
-  function facade(pr, sens) {
+  // (facade() la rend d'un trait, en cache ; facadeGen() la bâtit à petits pas — la préparation, src/scene.js à chaque image —, rendant la
+  //  main tous les 192 triangles et entre ses passes)
+  function facade(pr, sens) { const k0 = (sens || 1) > 0 ? 'facade' : 'facadeDos'; if (pr[k0]) return pr[k0]; const g = facadeGen(pr, sens); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* facadeGen(pr, sens) {
     sens = sens || 1; const k0 = sens > 0 ? 'facade' : 'facadeDos'; if (pr[k0]) return pr[k0];
     const W = pr.W, R = pr.R, I = pr.I, m = pr.m, pas = 0.006 * m.u, x0 = m.tete.cx - 0.4 * m.u, y0 = m.piedsY0, y1 = m.buste.max.y + 0.03 * m.u, nx = Math.round(0.8 * m.u / pas) + 1, ny = Math.round((y1 - y0) / pas) + 1, nc = nx * ny;
     const Z = new Float32Array(nc).fill(-1e9), TR = new Int32Array(nc).fill(-1), BA = new Float32Array(nc * 2), GA = new Int32Array(nc * 2).fill(-1), GF = new Float32Array(nc);
-    const ok = (k) => (R[k] === RI.veste || R[k] === RI.pantalon || R[k] === RI.foulard || (R[k] === RI.peau && /Torso|Abdomen/.test(pr.nomOs(pr.dom[k])))) && !/^(UpperArm|LowerArm|Fist)/.test(pr.nomOs(pr.dom[k])); // (le haut de la poitrine est sur les os des épaules : gardé)
+    const torse = new Uint8Array(pr.nbOs), bras = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) { const os = pr.nomOs(j); torse[j] = /Torso|Abdomen/.test(os) ? 1 : 0; bras[j] = /^(UpperArm|LowerArm|Fist)/.test(os) ? 1 : 0; } // (par os, une fois : pas d'expression régulière par sommet)
+    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) { const j = pr.dom[k]; garde[k] = (R[k] === RI.veste || R[k] === RI.pantalon || R[k] === RI.foulard || (R[k] === RI.peau && torse[j])) && !bras[j] ? 1 : 0; } // (le haut de la poitrine est sur les os des épaules : gardé)
+    const ok = (k) => garde[k] === 1;
+    yield;
+    let travail = 0; // (les cases parcourues depuis le dernier pas : un grand triangle en couvre des centaines ; on rend la main toutes les 6 000)
     for (let t = 0; t < I.length; t += 3) {
+      if (travail > 6000 || t % 288 === 285) { travail = 0; yield; }
       const a = I[t], b = I[t + 1], c = I[t + 2]; if (!ok(a) || !ok(b) || !ok(c)) continue;
       const ax = W[a * 3], ay = W[a * 3 + 1], az = sens * W[a * 3 + 2], bx = W[b * 3], by = W[b * 3 + 1], bz = sens * W[b * 3 + 2], cx = W[c * 3], cy = W[c * 3 + 1], cz = sens * W[c * 3 + 2];
       const det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy); if (Math.abs(det) < 1e-12) continue;
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / pas)), i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / pas)), j0 = Math.max(0, Math.floor((Math.min(ay, by, cy) - y0) / pas)), j1 = Math.min(ny - 1, Math.ceil((Math.max(ay, by, cy) - y0) / pas));
+      travail += (i1 - i0 + 1) * (j1 - j0 + 1);
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         const px = x0 + i * pas, py = y0 + j * pas, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / det, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / det, l3 = 1 - l1 - l2;
         if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const z = l1 * az + l2 * bz + l3 * cz, q = j * nx + i;
         if (z > Z[q]) { Z[q] = z; TR[q] = t; BA[q * 2] = l1; BA[q * 2 + 1] = l2; }
       }
     }
+    yield;
     for (let j = 0; j < ny; j++) { let prev = -1; for (let i = 0; i < nx; i++) { const q = j * nx + i; if (Z[q] > -1e8 && TR[q] >= 0) { if (prev >= 0 && i - prev > 1) for (let r = prev + 1; r < i; r++) { const f = (r - prev) / (i - prev), qq = j * nx + r; Z[qq] = Z[j * nx + prev] + (Z[q] - Z[j * nx + prev]) * f; GA[qq * 2] = j * nx + prev; GA[qq * 2 + 1] = q; GF[qq] = f; } prev = i; } } }
+    yield;
     // la façade drapée : le plus en avant à 0,024 près autour de chaque point (un tissu posé passe par-dessus les marches : l'ourlet de la veste, l'entrejambe)
     const ZD = new Float32Array(nc).fill(-1e9), ZH = new Float32Array(nc), rd = 4; // (le maximum sur le carré : sur la ligne, puis sur la colonne)
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let z = -1e9; for (let ii = Math.max(0, i - rd), i1 = Math.min(nx - 1, i + rd); ii <= i1; ii++) { const v = Z[j * nx + ii]; if (v > z) z = v; } ZH[j * nx + i] = z; }
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { if (!(Z[j * nx + i] > -1e8)) continue; let z = -1e9; for (let jj = Math.max(0, j - rd), j1 = Math.min(ny - 1, j + rd); jj <= j1; jj++) { const v = ZH[jj * nx + i]; if (v > z) z = v; } ZD[j * nx + i] = z; }
+    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { let z = -1e9; for (let ii = Math.max(0, i - rd), i1 = Math.min(nx - 1, i + rd); ii <= i1; ii++) { const v = Z[j * nx + ii]; if (v > z) z = v; } ZH[j * nx + i] = z; } if (j % 40 === 39) yield; }
+    yield;
+    for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) { if (!(Z[j * nx + i] > -1e8)) continue; let z = -1e9; for (let jj = Math.max(0, j - rd), j1 = Math.min(ny - 1, j + rd); jj <= j1; jj++) { const v = ZH[jj * nx + i]; if (v > z) z = v; } ZD[j * nx + i] = z; } if (j % 40 === 39) yield; }
     const cellule = (i, j) => { i = Math.max(0, Math.min(nx - 1, i)); j = Math.max(0, Math.min(ny - 1, j)); let q = j * nx + i; for (let d = 1; Z[q] < -1e8 && d < nx; d++) { const g = j * nx + Math.max(0, i - d), dr = j * nx + Math.min(nx - 1, i + d); q = Z[g] > -1e8 ? g : dr; } return q; };
     const zA = (x, y) => { const fi = (x - x0) / pas, fj = (y - y0) / pas, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j; return sens * ((ZD[cellule(i, j)] * (1 - u) + ZD[cellule(i + 1, j)] * u) * (1 - v) + (ZD[cellule(i, j + 1)] * (1 - u) + ZD[cellule(i + 1, j + 1)] * u) * v); };
     const ajouterSommet = (k, w, acc) => { for (let q = 0; q < 4; q++) { const ww = pr.SW[k * 4 + q] * w; if (ww > 0) acc.set(pr.SI[k * 4 + q], (acc.get(pr.SI[k * 4 + q]) || 0) + ww); } };
@@ -11707,13 +11741,20 @@ const EQUIPE3D = (() => {
 
   // le dessus du corps vu d'en haut (le haut des épaules, la nuque, le col ; ni la tête ni les avant-bras) : toit(x, z), la hauteur la plus
   // haute sous ce point (-1e9 hors du corps) ; une fois par corps
-  function toit(pr) {
+  function toit(pr) { if (pr.toit) return pr.toit; const g = toitGen(pr); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* toitGen(pr) { // (à petits pas, comme facadeGen)
     if (pr.toit) return pr.toit; const W = pr.W, R = pr.R, I = pr.I, m = pr.m, u = m.u, pas = 0.008 * u, x0 = m.tete.cx - 0.36 * u, z0 = m.busteZ - 0.3 * u, nx = Math.ceil(0.72 * u / pas) + 1, nz = Math.ceil(0.6 * u / pas) + 1, Y = new Float32Array(nx * nz).fill(-1e9);
-    const ok = (k) => (R[k] === RI.veste || R[k] === RI.foulard || R[k] === RI.peau) && /^(Torso|Neck|Shoulder|UpperArm)/.test(pr.nomOs(pr.dom[k]));
+    const haut = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) haut[j] = /^(Torso|Neck|Shoulder|UpperArm)/.test(pr.nomOs(j)) ? 1 : 0;
+    const garde = new Uint8Array(pr.n); for (let k = 0; k < pr.n; k++) garde[k] = (R[k] === RI.veste || R[k] === RI.foulard || R[k] === RI.peau) && haut[pr.dom[k]] ? 1 : 0;
+    const ok = (k) => garde[k] === 1;
+    yield;
+    let travail = 0;
     for (let t = 0; t < I.length; t += 3) {
+      if (travail > 6000 || t % 768 === 765) { travail = 0; yield; }
       const a = I[t], b = I[t + 1], c = I[t + 2]; if (!ok(a) || !ok(b) || !ok(c)) continue;
       const ax = W[a * 3], ay = W[a * 3 + 1], az = W[a * 3 + 2], bx = W[b * 3], by = W[b * 3 + 1], bz = W[b * 3 + 2], cx = W[c * 3], cy = W[c * 3 + 1], cz = W[c * 3 + 2], det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(det) < 1e-12) continue;
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / pas)), i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / pas)), j0 = Math.max(0, Math.floor((Math.min(az, bz, cz) - z0) / pas)), j1 = Math.min(nz - 1, Math.ceil((Math.max(az, bz, cz) - z0) / pas));
+      travail += (i1 - i0 + 1) * (j1 - j0 + 1);
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const px = x0 + i * pas, pz = z0 + j * pas, l1 = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / det, l2 = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det, l3 = 1 - l1 - l2; if (l1 < -1e-3 || l2 < -1e-3 || l3 < -1e-3) continue; const y = l1 * ay + l2 * by + l3 * cy, q = j * nx + i; if (y > Y[q]) Y[q] = y; }
     }
     return (pr.toit = (x, z) => { const i = Math.round((x - x0) / pas), j = Math.round((z - z0) / pas); return i < 0 || j < 0 || i >= nx || j >= nz ? -1e9 : Y[j * nx + i]; });
@@ -11793,7 +11834,7 @@ const EQUIPE3D = (() => {
 
   // les parts d'un kit, en tableaux : chaque part dans le monde au repos, ramenée dans l'espace de liaison, en facettes ; os et poids par sommet ;
   // un rôle global par sommet (l'emplacement du kit et le rôle local de la part). Les géométries des parts sont jetées. Un générateur : il rend
-  // la main tous les 128 sommets et après chaque part (la cuisson d'avance s'étale ainsi sur plusieurs images, quelques millisecondes chacune)
+  // la main tous les 64 sommets et après chaque part (la cuisson d'avance s'étale ainsi sur plusieurs images, quelques millisecondes chacune)
   function* emettre(pr, parts, emp) {
     const P = [], N = [], C = [], R = [], MU = [], SI = [], SW = [], I = [], vus = new Map(), q = (x, k) => Math.round(x * k); let yMax = -Infinity;
     const iB = pr.iB, nm = new T.Matrix3().getNormalMatrix(iB), osDe = (nom) => (pr.osIdx.has(nom) ? pr.osIdx.get(nom) : 0);
@@ -11817,7 +11858,7 @@ const EQUIPE3D = (() => {
           for (let i = 0; i < 4; i++) { SI.push(ww[i] ? ww[i][0] : 0); SW.push(ww[i] ? ww[i][1] / s : 0); }
         }
         I.push(k);
-        if ((j & 127) === 127) yield;
+        if ((j & 63) === 63) yield;
       }
       g.dispose(); if (!p.garder && !(p.geo.userData && p.geo.userData.cache)) p.geo.dispose();
       yield;
@@ -11966,11 +12007,13 @@ const EQUIPE3D = (() => {
   // une surface drapée sur la façade (sens 1 : devant ; -1 : le dos), en rangées de yH (en haut) à yB (en bas), de demi-largeur largeur(y) autour
   // de o.cx, décalée de e vers l'extérieur ; role(u, v) par quad (u de -1 à 1, v de 0 en haut à 1 en bas) ; chaque sommet avec les poids d'os de
   // la façade sous lui
-  function drape(pr, o) {
+  // (drape() d'un trait ; drapeGen() rend la main toutes les trois rangées : les grands pans des kits à petits pas)
+  function drape(pr, o) { const g = drapeGen(pr, o); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* drapeGen(pr, o) {
     const sens = o.sens || 1, f = facade(pr, sens), cx0 = o.cx != null ? o.cx : pr.m.tete.cx, centre = o.centre || (() => cx0), nc = o.colonnes, rangees = [];
     for (let y = o.yH; y > o.yB - 1e-6; y -= o.pas) rangees.push(y); if (rangees[rangees.length - 1] > o.yB + 1e-4) rangees.push(o.yB);
     const nr = rangees.length, V = [], PW = [];
-    for (let j = 0; j < nr; j++) for (let i = 0; i <= nc; i++) { const y = rangees[j], x = centre(y) + (i / nc * 2 - 1) * o.largeur(y), z = f.zA(x, y) + sens * o.e; V.push([x, y, z]); PW.push(f.poidsA(x, y)); }
+    for (let j = 0; j < nr; j++) { for (let i = 0; i <= nc; i++) { const y = rangees[j], x = centre(y) + (i / nc * 2 - 1) * o.largeur(y), z = f.zA(x, y) + sens * o.e; V.push([x, y, z]); PW.push(f.poidsA(x, y)); } if (j % 3 === 2) yield; }
     const P = [], roles = [], poidsS = [];
     for (let j = 0; j < nr - 1; j++) for (let i = 0; i < nc; i++) {
       const k = (jj, ii) => jj * (nc + 1) + ii, quad = sens > 0 ? [k(j, i), k(j + 1, i), k(j, i + 1), k(j, i + 1), k(j + 1, i), k(j + 1, i + 1)] : [k(j, i), k(j, i + 1), k(j + 1, i), k(j, i + 1), k(j + 1, i + 1), k(j + 1, i)];
@@ -11990,14 +12033,16 @@ const EQUIPE3D = (() => {
   //     podium, « brodé au nom de la boutique » : un cartouche au bas de la bavette, ses initiales brodées dedans (l'or : le liseré doré de la
   //     bavette, deux épis de blé brodés, un double ourlet ; l'argent : le liseré ; le bronze : le cartouche seul). Celui du parcours : « une
   //     poche par quartier », quatre poches cuivrées ───
-  function kitTablier(pr, o) {
+  function* kitTablier(pr, o) { // (un générateur : rend la main entre ses parties, la cuisson s'étale sur plusieurs images)
     const m = pr.m, u = m.u, v = o.v || 'base', f = facade(pr, 1), cx = m.tete.cx, parts = [], podium = v === 'or' || v === 'argent' || v === 'bronze';
     const yH = m.foulard.min.y - (m.foulard.max.y - m.foulard.min.y) * 0.25, yT = m.pantalon.max.y + 0.01 * u, yK = m.chevilleY + (m.pantalon.max.y - m.chevilleY) * 0.34;
     const b = m.buste, larg = Math.max(Math.abs(b.min.x - cx), Math.abs(b.max.x - cx)), lH = larg * 0.42, lT = larg * 0.66, lJ = larg * 1.08, lK = larg * 1.12, d35 = 0.035 * u;
     const largeur = (y) => (y >= yT + d35 ? lH + (lT - lH) * (yH - y) / (yH - yT - d35) : y >= yT ? lT + (lJ - lT) * (yT + d35 - y) / d35 : lJ + (lK - lJ) * (yT - y) / (yT - yK));
     const ourlet = 0.034 * u, hautB = 0.026 * u, e = 0.012 * u, wF = poidsFacade(pr);
-    parts.push(drape(pr, { yH, yB: yK, pas: 0.03 * u, colonnes: 12, e, largeur, role: (uu, vv) => { const y = yH + (yK - yH) * vv; return y < yK + ourlet ? 'galon' : y > yH - hautB && o.biais ? 'bord' : (v === 'or' || v === 'argent') && uu > 0.4 && uu < 0.7 && y < yT - 0.02 * u ? 'reflet' : 'tissu'; } }));
-    if (v === 'or') parts.push(drape(pr, { yH: yK + ourlet + 0.016 * u, yB: yK + ourlet + 0.008 * u, pas: 0.01 * u, colonnes: 12, e: e + 0.002 * u, largeur: (y) => largeur(y) * 0.995, role: () => 'bijou' }));
+    yield;
+    parts.push(yield* drapeGen(pr, { yH, yB: yK, pas: 0.03 * u, colonnes: 12, e, largeur, role: (uu, vv) => { const y = yH + (yK - yH) * vv; return y < yK + ourlet ? 'galon' : y > yH - hautB && o.biais ? 'bord' : (v === 'or' || v === 'argent') && uu > 0.4 && uu < 0.7 && y < yT - 0.02 * u ? 'reflet' : 'tissu'; } }));
+    if (v === 'or') parts.push(yield* drapeGen(pr, { yH: yK + ourlet + 0.016 * u, yB: yK + ourlet + 0.008 * u, pas: 0.01 * u, colonnes: 12, e: e + 0.002 * u, largeur: (y) => largeur(y) * 0.995, role: () => 'bijou' }));
+    yield;
     // la bride du cou : des coins de la bavette au col (elle passe dessous)
     const wH = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/);
     for (const s of [1, -1]) {
@@ -12014,23 +12059,27 @@ const EQUIPE3D = (() => {
       parts.push(pc(new T.BoxGeometry(0.016 * u, 0.075 * u, 0.005 * u), 'tissu', new T.Matrix4().makeTranslation(cx + s * 0.016 * u, yL - 0.042 * u, zb - 0.002 * u).multiply(new T.Matrix4().makeRotationZ(s * 0.22)), wB));
     }
     parts.push(pc(new T.SphereGeometry(0.013 * u, 8, 5), 'tissu', { x: cx, y: yL, z: zb - 0.006 * u, sz: 0.7 }, wB));
+    yield;
     // une pièce rapportée, drapée : de (xc, yc), largeur w, hauteur h, au-dessus du tablier
     const piece = (xc, yc, w, h, role, de, cols) => drape(pr, { yH: yc + h / 2, yB: yc - h / 2, pas: h / 2, colonnes: cols || 4, e: e + de, cx: xc, largeur: () => w / 2, role: () => role });
     if (v === 'base' || v === 'apprenti') { const yc = yT - 0.16 * u; parts.push(piece(cx, yc, 0.13 * u, 0.1 * u, 'poche', 0.003 * u), piece(cx, yc + 0.05 * u - 0.007 * u, 0.13 * u, 0.014 * u, 'bord', 0.005 * u)); }
     if (v === 'parcours') { // une poche par quartier : quatre, leur rabat cuivré, deux rivets
       const yc = yT - 0.15 * u;
-      for (const k of [-1.5, -0.5, 0.5, 1.5]) { const xc = cx + k * 0.104 * u; parts.push(piece(xc, yc, 0.086 * u, 0.085 * u, 'poche', 0.003 * u), piece(xc, yc + 0.0425 * u - 0.008 * u, 0.086 * u, 0.016 * u, 'fonce', 0.005 * u)); for (const s of [-1, 1]) { const [p] = surFacade(pr, xc + s * 0.034 * u, yc + 0.034 * u, e + 0.008 * u); parts.push(pc(new T.SphereGeometry(0.0055 * u, 6, 4), 'bijou', { x: p.x, y: p.y, z: p.z, sz: 0.6 }, wF)); } }
+      for (const k of [-1.5, -0.5, 0.5, 1.5]) { const xc = cx + k * 0.104 * u; parts.push(piece(xc, yc, 0.086 * u, 0.085 * u, 'poche', 0.003 * u), piece(xc, yc + 0.0425 * u - 0.008 * u, 0.086 * u, 0.016 * u, 'fonce', 0.005 * u)); for (const s of [-1, 1]) { const [p] = surFacade(pr, xc + s * 0.034 * u, yc + 0.034 * u, e + 0.008 * u); parts.push(pc(new T.SphereGeometry(0.0055 * u, 6, 4), 'bijou', { x: p.x, y: p.y, z: p.z, sz: 0.6 }, wF)); } yield; }
     }
     if (podium) { // le cartouche brodé : son cadre, son fond, les initiales de la boutique
       const yc = yT + 0.105 * u, a = 0.064 * u, bb = 0.046 * u, ell = (k) => (y) => a * k * Math.sqrt(Math.max(0.04, 1 - Math.pow((y - yc) / (bb * k), 2)));
       parts.push(drape(pr, { yH: yc + bb, yB: yc - bb, pas: bb / 3, colonnes: 12, e: e + 0.003 * u, largeur: ell(1), role: () => 'fonce' }), drape(pr, { yH: yc + bb * 0.8, yB: yc - bb * 0.8, pas: bb * 0.8 / 3, colonnes: 12, e: e + 0.0045 * u, largeur: ell(0.8), role: () => 'clair' }));
+      yield;
       const txt = o.mono || 'B', h = 0.036 * u, w = largeurTexte(txt, h);
       for (const g of tracer(txt, h, 0.0064 * u, 0.0035 * u, (uu, vv) => surFacade(pr, cx - w / 2 + uu, yc - h / 2 + vv, e + 0.0052 * u))) parts.push(pc(g, 'broderie', null, (x, y) => wF(x, y)));
+      yield;
       if (v === 'or' || v === 'argent') for (const s of [1, -1]) { const pts = []; for (let k = 0; k <= 6; k++) { const y = yH - 0.008 * u - (yH - yT - 0.01 * u) * k / 6, x = cx + s * (largeur(y) - 0.006 * u); pts.push(new T.Vector3(x, y, f.zA(x, y) + e + 0.002 * u)); } parts.push(pc(tube(pts, 0.0045 * u, 4, 12), v === 'or' ? 'bijou' : 'fonce', null, (x, y) => wF(x, y))); }
       if (v === 'or') for (const s of [1, -1]) { // deux épis de blé, de part et d'autre du cartouche
         const x0 = cx + s * (a + 0.016 * u), [p0] = surFacade(pr, x0, yc - bb * 0.9, e + 0.004 * u), [p1, n1] = surFacade(pr, x0 + s * 0.006 * u, yc + bb * 1.05, e + 0.004 * u);
         parts.push(pc(baton(p0, p1, 0.0035 * u, 0.003 * u, n1), 'bijou', null, (x, y) => wF(x, y)));
         for (let k = 0; k < 4; k++) for (const c of [-1, 1]) { const t = 0.35 + k * 0.17, [p, n] = surFacade(pr, x0 + s * 0.006 * u * t + c * 0.007 * u, yc - bb * 0.9 + (bb * 1.95) * t, e + 0.0045 * u); parts.push(pc(new T.SphereGeometry(0.0062 * u, 6, 4), 'bijou', surSurface(p, n, new T.Vector3(0.55, 1, 0.5), -c * 0.5), (x, y) => wF(x, y))); }
+        yield;
       }
     }
     return { parts };
@@ -12042,7 +12091,7 @@ const EQUIPE3D = (() => {
   //     de métal ; la poche kangourou (le même tissu, ses rebords, ses deux entrées) ; l'étoile du quartier sur la poitrine ; les côtes des
   //     poignets et de l'ourlet. En or : « noir et or, rien d'autre », l'or en grand pour qu'on le voie de la salle, d'en haut : le bord de la
   //     capuche, les côtes des poignets et de l'ourlet, les rebords de la poche, des cordons plus épais ───
-  function kitSweat(pr, o) {
+  function* kitSweat(pr, o) { // (un générateur, comme le tablier)
     const m = pr.m, u = m.u, v = o.v || 'quartier', or = v === 'quartier-or', f = facade(pr, 1), fd = facade(pr, -1), cx = m.tete.cx, parts = [], wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/), wF = poidsFacade(pr);
     const C = contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'), cz = C.cz, yN = m.foulard.max.y - 0.02 * u, K = 22, PH = 2.3, pts = [], rr = [];
     const To = toit(pr), r0s = [];
@@ -12054,6 +12103,7 @@ const EQUIPE3D = (() => {
       pts.push(new T.Vector3(cx + Math.sin(th) * r0, yc, cz + Math.cos(th) * r0)); rr.push([ra, rb]);
     }
     parts.push(pc(fourreau(pts, rr, 8, { n0: new T.Vector3(0, 1, 0), debut: true, bout: true }), or ? 'fonce' : 'tissu', null, wC));
+    yield;
     // ses deux pans, devant : à plat sur la poitrine, du bout du boudin jusqu'au V sous le col (le gauche passe sur le droit)
     const xV0 = 0.12 * u, yV0 = yN - 0.05 * u, yV1 = m.foulard.min.y - 0.085 * u, eV = 0.0032 * u, ancres = []; // (à plat : une chaîne de cou passe dessus)
     for (const s of [1, -1]) {
@@ -12062,6 +12112,7 @@ const EQUIPE3D = (() => {
       parts.push(pc(fourreau(l, r2, 6, { n0: new T.Vector3(0, 0, 1), debut: true, bout: true }), 'doublure', null, OS.torse)); // (sur le torse, comme la chaîne qui passe dessus)
       ancres.push(l[4]);
     }
+    yield;
     // la poche de la capuche, dans le dos : une coque aplatie du bord jusqu'au milieu du dos, sa couture, son ouverture
     const yH = yN - 0.01 * u, yB = m.buste.max.y - 0.25 * u, hp = yH - yB, lp = 0.13 * u, NP = 7, MP = 10, coque = [];
     for (let j = 0; j <= NP; j++) { const t = j / NP, y = yH - hp * t, l = lp * Math.sin(Math.min(1, 0.25 + t) * Math.PI * 0.82) * (t > 0.85 ? 1 - (t - 0.85) * 3.2 : 1), bomb = 0.05 * u * Math.sin(Math.min(1, t * 1.15) * Math.PI) + 0.012 * u, row = []; for (let i = 0; i <= MP; i++) { const x = cx + l * (2 * i / MP - 1), b = bomb * Math.sqrt(Math.max(0, 1 - Math.pow(2 * i / MP - 1, 2))); row.push(new T.Vector3(x, y, fd.zA(x, y) - 0.008 * u - b)); } coque.push(row); }
@@ -12070,6 +12121,7 @@ const EQUIPE3D = (() => {
     parts.push(pc(tube(couture.slice(1, NP), 0.0035 * u, 4, 12), 'bord', null, wC));
     const ov = new T.Shape(); ov.absellipse(0, 0, 0.085 * u, 0.026 * u, 0, TAU, false, 0);
     parts.push(pc(plaque(ov, 0.004 * u), 'doublure', surSurface(new T.Vector3(cx, yH - 0.006 * u, fd.zA(cx, yH) - 0.03 * u), new T.Vector3(0, 0.75, -0.66).normalize()), wC));
+    yield;
     // les cordons : ils sortent des pans du V et pendent, leurs embouts
     for (const [i, s] of [[0, 1], [1, -1]]) {
       const a0 = ancres[i], l = [], rc = (or ? 0.0072 : 0.0048) * u, ec = (or ? 0.0086 : 0.0062) * u; for (let k = 0; k <= 4; k++) { const y = a0.y - 0.004 * u - k * 0.03 * u, x = a0.x + s * k * 0.004 * u; l.push(new T.Vector3(x, y, f.zA(x, y) + (k ? ec : a0.z - f.zA(a0.x, a0.y) + eV + 0.006 * u))); }
@@ -12078,7 +12130,9 @@ const EQUIPE3D = (() => {
     }
     // la poche kangourou : le même tissu, un peu plus clair ; ses rebords piqués, ses deux entrées sur les côtés
     const yb = m.pantalon.max.y + 0.035 * u, yh = yb + (m.buste.max.y - yb) * 0.24, lk = Math.max(Math.abs(m.buste.min.x - cx), Math.abs(m.buste.max.x - cx)) * 0.5;
+    yield;
     parts.push(drape(pr, { yH: yh, yB: yb, pas: (yh - yb) / 4, colonnes: 8, e: 0.013 * u, largeur: (y) => lk * (0.86 + 0.14 * (y - yb) / (yh - yb)), role: (uu, vv) => (vv < 0.2 || Math.abs(uu) > 0.78 && vv < 0.75 ? 'bord' : 'poche') }));
+    yield;
     // l'étoile, sur la poitrine gauche
     const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), or ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y)));
     parts.push(...poignets(pr, 'bord', 0.006 * u, 0.04 * u), ...ourlet(pr, 'bord', 0.034 * u));
@@ -12113,7 +12167,7 @@ const EQUIPE3D = (() => {
   //     mollets ; dehors le tissu, dedans la doublure (« doublée de violet » ; en or : « noire dehors, dorée dedans »), qu'on voit sur ses côtés
   //     depuis la salle ; le grand col dressé, doublé lui aussi ; l'agrafe et sa chaînette. Son bas est sur un os à ressort (accCape) : elle fait
   //     « whoosh » quand il se retourne. La veste devient la robe ───
-  function kitCape(pr, o) {
+  function* kitCape(pr, o) { // (un générateur, comme le tablier)
     const m = pr.m, u = m.u, cx = m.tete.cx, parts = [], C = contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape'), cz = C.cz, wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen|Hips)/), wE = poidsCorps(pr, /^(Torso|Neck|Shoulder|UpperArm)/);
     const yN = m.foulard.max.y - 0.006 * u, yS = m.epaules.max.y - 0.006 * u, yBas = m.chevilleY + (m.pantalon.max.y - m.chevilleY) * 0.3, S = [0, 0.03, 0.07, 0.13, 0.22, 0.34, 0.48, 0.63, 0.78, 0.9, 1], NU = 22;
     const yDe = (s) => yN + (yBas - yN) * s, d12 = 0.12 * u;
@@ -12125,10 +12179,12 @@ const EQUIPE3D = (() => {
     const rangee = (s, dr) => { const y = yDe(s), d = demi(y), l = []; for (let i = 0; i <= NU; i++) { const th = Math.PI - d + 2 * d * i / NU, r = rCape(th, y) + (dr || 0); l.push(new T.Vector3(cx + Math.sin(th) * r, y, cz + Math.cos(th) * r)); } return l; };
     const ext = S.slice().reverse().map((s) => rangee(s)), dbl = S.slice().reverse().map((s) => rangee(s, -0.007 * u));
     parts.push(pc(nappe(ext, { ouvert: true }), 'tissu', null, ressort), pc(nappe(dbl, { ouvert: true, dedans: true }), 'doublure', null, ressort));
+    yield;
     // ses tranches (le bas, les deux côtés), des deux faces
     const deuxFaces = (anneaux, role) => [pc(nappe(anneaux, { ouvert: true }), role, null, ressort), pc(nappe(anneaux, { ouvert: true, dedans: true }), role, null, ressort)];
     parts.push(...deuxFaces([dbl[0], ext[0]], 'tissu'));
     for (const i of [0, NU]) parts.push(...deuxFaces(ext.map((l, j) => [dbl[j][i], l[i]]), 'doublure'));
+    yield;
     // le col dressé : il monte derrière la nuque, plus haut vers l'avant, évasé ; dehors le tissu, dedans la doublure
     const NC = 20, dC = 2.25, yC0 = yN - 0.012 * u, colA = (k, dr) => { const l = []; for (let i = 0; i <= NC; i++) { const th = Math.PI - dC + 2 * dC * i / NC, a = Math.abs(th - Math.PI) / dC, y = yC0 + (0.08 * u + 0.11 * u * a * a) * k, r = rBase(th, yN) + 0.024 * u + (0.13 * u + 0.05 * u * a) * Math.pow(k, 1.3) + (dr || 0); l.push(new T.Vector3(cx + Math.sin(th) * r, y, cz + Math.cos(th) * r)); } return l; };
     const colE = [0, 0.35, 0.7, 1].map((k) => colA(k)), colI = [0, 0.35, 0.7, 1].map((k) => colA(k, -0.006 * u));
@@ -12206,7 +12262,7 @@ const EQUIPE3D = (() => {
   //     boutiques » : le bout un peu usé) ; les souliers vernis de la chaîne (noirs, fins, leurs reflets) ; les baskets (la grosse semelle blanche,
   //     les deux bandes, la languette du talon, les lacets ; « blanches, enfin presque » : quelques traces) ; les bottes (le bout pointu qui se
   //     recourbe, la tige jusqu'au mollet, le revers rabattu à pointes, la boucle) ; celles d'un apprenti ───
-  function kitChaussures(pr, o) {
+  function* kitChaussures(pr, o) { // (un générateur : un pied, puis l'autre)
     const m = pr.m, u = m.u, v = o.v || 'sabots', parts = [];
     for (const [cote, os] of [[1, OS.pieds[0]], [-1, OS.pieds[1]]]) {
       let c = null;
@@ -12259,6 +12315,7 @@ const EQUIPE3D = (() => {
         }
       }
       parts.push(...c.parts);
+      yield;
     }
     return { parts };
   }
@@ -12440,51 +12497,72 @@ const EQUIPE3D = (() => {
     return l;
   }
   // un kit cuit, en cache par corps : le premier usage le bâtit ; ensuite, rien que des tableaux à recoller. cuireKit est un générateur (les
-  // parts, puis leur émission à petits pas ; son temps de calcul compté sans les attentes entre deux images) : la cuisson d'avance le mène pas
-  // à pas (cuireAvance) ; kitCuit le mène d'un trait, sur place (le kit commencé d'avance, s'il l'est, est fini plutôt que recommencé)
+  // parts, puis leur émission à petits pas ; son temps de calcul compté sans les attentes entre deux images) : la préparation et la cuisson
+  // d'avance le mènent pas à pas (cuireAvance) ; geometrieGen le mène là où on le porte, s'il n'est pas encore cuit (le kit commencé d'avance,
+  // s'il l'est, est fini plutôt que recommencé)
   let cuisson = null; // le kit qui cuit d'avance : { pr, k0, gen }
   function* cuireKit(pr, cle, emp, faire) {
-    let ms = 0, t0 = performance.now(); const r = faire(pr); ms += performance.now() - t0; yield;
+    let ms = 0, mf = 0, t0 = performance.now(), r = faire(pr);
+    if (r && typeof r.next === 'function') { const gen = r; ms += performance.now() - t0; yield; t0 = performance.now(); for (;;) { const x = gen.next(), d = performance.now() - t0; ms += d; if (d > mf) mf = d; if (x.done) { r = x.value; break; } yield; t0 = performance.now(); } } // (un kit qui se bâtit à petits pas : le tablier, le sweat, la cape, les chaussures)
+    else { mf = performance.now() - t0; ms += mf; }
+    if (mf > (etat.msFaireMax || 0)) { etat.msFaireMax = Math.round(mf * 10) / 10; etat.faireLent = emp + '|' + cle; } // (le plus long pas de la construction d'un kit)
+    yield;
     const g = emettre(pr, r.parts, emp); let x;
     for (;;) { t0 = performance.now(); x = g.next(); ms += performance.now() - t0; if (x.done) break; yield; }
     const k = x.value, k0 = emp + '|' + cle; k.info = r.info || null; k.cle = cle; k.emp = emp; k.ms = Math.round(ms * 10) / 10;
     pr.kits.set(k0, k); etat.kits++; etat.msKits = Math.round((etat.msKits + k.ms) * 10) / 10; if (k.ms > etat.msKitMax) { etat.msKitMax = k.ms; etat.kitLent = k0; }
     return k;
   }
-  function kitCuit(pr, cle, emp, faire) {
-    const k0 = emp + '|' + cle, k = pr.kits.get(k0); if (k) return k;
-    const c = cuisson && cuisson.pr === pr && cuisson.k0 === k0 ? cuisson : { gen: cuireKit(pr, cle, emp, faire) }; if (c === cuisson) cuisson = null;
-    let x; do x = c.gen.next(); while (!x.done);
-    etat.surPlace++; return x.value; // (cuit sur place, à l'image où on le porte : ce que la cuisson d'avance évite)
-  }
 
   // les boutons de la veste du Chef (le masque « boutons » de geometrie) : chaque sommet et le centre de son bouton (ses sommets reliés), dans
   // l'espace du maillage ; une fois par corps
-  function boutonsDe(pr) {
-    if (pr.boutons) return pr.boutons; const m = pr.m, u = m.u, W = pr.W, n = pr.n, yCol = m.foulard.min.y - 0.01 * u, dans = new Uint8Array(n), pere = new Int32Array(n).map((_, i) => i);
-    for (let k = 0; k < n; k++) dans[k] = pr.R[k] === RI.peau && /Torso|Abdomen/.test(pr.nomOs(pr.dom[k])) && W[k * 3 + 1] < yCol && W[k * 3 + 2] > m.busteZ + 0.07 * u ? 1 : 0;
+  function boutonsDe(pr) { if (pr.boutons) return pr.boutons; const g = boutonsGen(pr); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* boutonsGen(pr) { // (à petits pas : le masque, les liens des triangles, puis les boutons)
+    if (pr.boutons) return pr.boutons; const m = pr.m, u = m.u, W = pr.W, n = pr.n, yCol = m.foulard.min.y - 0.01 * u, dans = new Uint8Array(n), pere = new Int32Array(n);
+    const torse = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) torse[j] = /Torso|Abdomen/.test(pr.nomOs(j)) ? 1 : 0;
+    for (let k = 0; k < n; k++) { pere[k] = k; dans[k] = pr.R[k] === RI.peau && torse[pr.dom[k]] && W[k * 3 + 1] < yCol && W[k * 3 + 2] > m.busteZ + 0.07 * u ? 1 : 0; }
+    yield;
     const chef = (i) => { while (pere[i] !== i) { pere[i] = pere[pere[i]]; i = pere[i]; } return i; };
     for (let k = 0; k < pr.I.length; k += 3) { const a = pr.I[k], b = pr.I[k + 1], c = pr.I[k + 2]; if (dans[a] && dans[b] && dans[c]) { pere[chef(b)] = chef(a); pere[chef(c)] = chef(a); } }
+    yield;
     // (les sommets du maillage sont doublés aux arêtes vives : ceux d'un même point sont du même bouton)
     const vus = new Map(); for (let k = 0; k < n; k++) if (dans[k]) { const q = `${Math.round(W[k * 3] * 1e4)},${Math.round(W[k * 3 + 1] * 1e4)},${Math.round(W[k * 3 + 2] * 1e4)}`; if (vus.has(q)) pere[chef(k)] = chef(vus.get(q)); else vus.set(q, k); }
+    yield;
     const somme = new Map(); for (let k = 0; k < n; k++) if (dans[k]) { const c = chef(k); let s = somme.get(c); if (!s) somme.set(c, (s = [0, 0, 0, 0])); s[0] += pr.P[k * 3]; s[1] += pr.P[k * 3 + 1]; s[2] += pr.P[k * 3 + 2]; s[3]++; }
-    pr.boutons = []; for (let k = 0; k < n; k++) if (dans[k]) { const s = somme.get(chef(k)); pr.boutons.push([k, new Float32Array([s[0] / s[3], s[1] / s[3], s[2] / s[3]])]); }
-    pr.nBoutons = somme.size; return pr.boutons;
+    const boutons = []; for (let k = 0; k < n; k++) if (dans[k]) { const s = somme.get(chef(k)); boutons.push([k, new Float32Array([s[0] / s[3], s[1] / s[3], s[2] / s[3]])]); }
+    pr.nBoutons = somme.size; return (pr.boutons = boutons);
   }
 
   // ═══ la géométrie d'une tenue : le corps (ses masques : les boutons, les poignets, l'ourlet, les pieds, le pantalon dans la botte, le col
   //     tricolore ; les cheveux cachés sous le couvre-chef retirés ou resserrés) et ses kits, recollés ═══
-  function geometrie(pr, h) {
-    const t0 = performance.now(), m = pr.m, u = m.u, n0 = pr.n, Rb = pr.R.slice(), W = pr.W;
-    const liste = kitsDe(h), kits = liste.map(([cle, emp, faire]) => kitCuit(pr, cle, emp, faire)), t1 = performance.now();
-    const pied0 = m.piedsY0, ch = m.chevilleY, hp = ch - pied0, yBotte = ch + (m.pantalon.max.y - ch) * 0.3, yCol = m.foulard.min.y - 0.01 * u, cxT = m.tete.cx;
+  // les masques du corps, une fois par corps (le pas « masques » de la préparation) : le rôle de chaque sommet sous les pièces — les pieds
+  // chaussés (le dessus, la semelle), les boutons du Chef —, puis ceux qui changent selon la tenue : le pantalon rentré dans la botte, le col
+  // tricolore (le blanc, le bleu, le rouge selon l'angle autour du cou)
+  function masques(pr) {
+    if (pr.masques) return pr.masques;
+    const m = pr.m, u = m.u, W = pr.W, n0 = pr.n, rb = pr.R.slice(), pied0 = m.piedsY0, ch = m.chevilleY, hp = ch - pied0, yBotte = ch + (m.pantalon.max.y - ch) * 0.3, yCol = m.foulard.min.y - 0.01 * u, cxT = m.tete.cx, botte = [], col = [];
+    const cl = new Uint8Array(pr.nbOs); for (let j = 0; j < pr.nbOs; j++) { const os = pr.nomOs(j); cl[j] = /LowerLeg/.test(os) ? 3 : /Foot/.test(os) ? 1 : /Torso|Abdomen/.test(os) ? 2 : 0; } // (par os : 1 le pied, 3 le tibia, 2 le torse)
     for (let k = 0; k < n0; k++) {
-      const y = W[k * 3 + 1], os = pr.nomOs(pr.dom[k]), r = Rb[k];
-      if (r === RI.peau && /Foot|LowerLeg/.test(os)) Rb[k] = y < pied0 + hp * 0.22 ? RI.semelleM : RI.chaussure;
-      else if (r === RI.peau && /Torso|Abdomen/.test(os) && y < yCol && W[k * 3 + 2] > m.busteZ + 0.07 * u) Rb[k] = RI.boutons;
-      else if (h.pieds === 'bottes' && r === RI.pantalon && y < yBotte && /LowerLeg/.test(os)) Rb[k] = RI.botte;
-      else if (r === RI.foulard && h.colTri) { const a = Math.atan2(W[k * 3] - cxT, W[k * 3 + 2] - m.busteZ); Rb[k] = Math.abs(a) > 2.3 || Math.abs(a) < 0.42 ? RI['X.blanc'] : a < 0 ? RI['X.bleu'] : RI['X.rouge']; }
+      const y = W[k * 3 + 1], c = cl[pr.dom[k]], r = rb[k];
+      if (r === RI.peau && (c === 1 || c === 3)) rb[k] = y < pied0 + hp * 0.22 ? RI.semelleM : RI.chaussure;
+      else if (r === RI.peau && c === 2 && y < yCol && W[k * 3 + 2] > m.busteZ + 0.07 * u) rb[k] = RI.boutons;
+      else if (r === RI.pantalon && y < yBotte && c === 3) botte.push(k);
+      else if (r === RI.foulard) { const a = Math.atan2(W[k * 3] - cxT, W[k * 3 + 2] - m.busteZ); col.push(k, Math.abs(a) > 2.3 || Math.abs(a) < 0.42 ? RI['X.blanc'] : a < 0 ? RI['X.bleu'] : RI['X.rouge']); }
     }
+    return (pr.masques = { rb, botte: new Int32Array(botte), col: new Int32Array(col) });
+  }
+  // (geometrie() la bâtit d'un trait ; geometrieGen() à petits pas : les kits — cuits à petits pas s'il le faut —, le corps, puis l'assemblage)
+  function geometrie(pr, h) { const g = geometrieGen(pr, h); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* geometrieGen(pr, h) {
+    let ms = 0, tPas = performance.now(); const m = pr.m, u = m.u, n0 = pr.n, W = pr.W, mq = masques(pr), Rb = mq.rb.slice();
+    const liste = kitsDe(h), kits = [];
+    for (const [cle, emp, faire] of liste) { // (un kit pas encore cuit : cuit ici, à l'image où on le porte — celui qui cuisait d'avance est fini plutôt que recommencé)
+      const k0 = emp + '|' + cle, k = pr.kits.get(k0); if (k) { kits.push(k); continue; }
+      const c = cuisson && cuisson.pr === pr && cuisson.k0 === k0 ? cuisson : null; if (c) cuisson = null;
+      ms += performance.now() - tPas; kits.push(yield* (c ? c.gen : cuireKit(pr, cle, emp, faire))); etat.surPlace++; tPas = performance.now();
+    }
+    if (h.pieds === 'bottes') for (let i = 0; i < mq.botte.length; i++) Rb[mq.botte[i]] = RI.botte;
+    if (h.colTri) for (let i = 0; i < mq.col.length; i += 2) Rb[mq.col[i]] = mq.col[i + 1];
     // les cheveux qui dépassent sous le couvre-chef : ramenés vers l'axe de la tête près du bord (dans son rayon au bord, libres 0,1 plus bas) ;
     // ceux du dessus sont retirés (cachés dedans : des triangles en moins). Les longs cheveux d'une apprentie tombent encore sous la toque
     const info = (kits.find((k) => k.info && k.info.bord != null) || {}).info, bord = info ? info.bord : Infinity;
@@ -12496,9 +12574,11 @@ const EQUIPE3D = (() => {
     }
     // les boutons du Chef, sous le sweat et la veste de patron (elle a les siens) : chacun ramené à son centre (des triangles nuls, rien ne dépasse)
     if (h.haut === 'sweat' || h.haut === 'veste') { if (Pc === pr.P) Pc = pr.P.slice(); for (const [k, c] of boutonsDe(pr)) Pc.set(c, k * 3); }
+    ms += performance.now() - tPas; yield; tPas = performance.now(); // (à petits pas : les masques, puis les triangles, puis l'assemblage)
     const I = [];
     for (let k = 0; k < pr.I.length; k += 3) { const a = pr.I[k], b = pr.I[k + 1], c = pr.I[k + 2]; if (Rb[a] === RI.cheveux && W[a * 3 + 1] > bord && W[b * 3 + 1] > bord && W[c * 3 + 1] > bord) continue; I.push(a, b, c); }
     const nCorpsTris = I.length / 3;
+    ms += performance.now() - tPas; yield; tPas = performance.now();
     // les kits, recollés à la suite du corps
     let n = n0; for (const k of kits) n += k.n;
     const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C0 = new Float32Array(n * 3), R = new Uint8Array(n), MU = new Float32Array(n).fill(1), SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), places = [];
@@ -12508,12 +12588,13 @@ const EQUIPE3D = (() => {
       P.set(k.P, o * 3); N.set(k.N, o * 3); C0.set(k.C, o * 3); R.set(k.R, o); MU.set(k.MU, o); SI.set(k.SI, o * 4); SW.set(k.SW, o * 4);
       const tA = I.length / 3; for (let i = 0; i < k.I.length; i++) I.push(o + k.I[i]); places.push({ cle: k.emp + '|' + k.cle, emp: k.emp, v0: o, v1: o + k.n, t0: tA, t1: I.length / 3 }); o += k.n;
     }
+    ms += performance.now() - tPas; yield; tPas = performance.now();
     const geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.BufferAttribute(P, 3)); geo.setAttribute('normal', new T.BufferAttribute(N, 3)); geo.setAttribute('skinIndex', new T.BufferAttribute(SI, 4)); geo.setAttribute('skinWeight', new T.BufferAttribute(SW, 4));
     geo.setAttribute('color', new T.BufferAttribute(new Uint16Array(n * 3), 3, true)); geo.setAttribute('lueur', new T.BufferAttribute(new Uint8Array(n * 4), 4, true));
     geo.setIndex(new T.BufferAttribute(n > 65535 ? new Uint32Array(I) : new Uint16Array(I), 1)); geo.computeBoundingSphere();
-    const ms = Math.round((performance.now() - t0) * 10) / 10;
-    etat.msRhabillage = ms; etat.msAssemblage = Math.round((performance.now() - t1) * 10) / 10; etat.msRhabillageMax = Math.max(etat.msRhabillageMax || 0, ms);
+    ms = Math.round((ms + performance.now() - tPas) * 10) / 10;
+    etat.msRhabillage = ms; etat.msAssemblage = ms; etat.msRhabillageMax = Math.max(etat.msRhabillageMax || 0, ms); // (le temps de l'assemblage, sans les kits cuits ici ni les attentes entre deux images)
     const sommet = Math.max(m.tete.sommet, m.cheveux.max.y, ...kits.filter((k) => k.emp === 'T').map((k) => k.yMax)); // (le cadre de la vue : la tenue entière, chapeau pointu compris)
     return { geo, R, C0, MU, n, tris: I.length / 3, nCorps: n0, trisCorps: nCorpsTris, kits: places, ms, haut: (sommet - m.piedsY0) / m.H };
   }
@@ -12619,15 +12700,23 @@ const EQUIPE3D = (() => {
     if (CL.Hammering) CL.__repare = haut(CL.Hammering, 'repare');
   }
 
-  // ═══ la préparation, à petits pas (src/scene.js l'appelle à chaque image, tant que l'image n'a pas passé 6 ms, un pas au moins) : les clips ;
-  //     chaque corps, une partie par pas, ses mesures, son gabarit, ce que les pièces lisent du corps (ses façades, ses contours, ses épaules,
-  //     les boutons du Chef) ; les kits des apprentis, chacun à petits pas, leur géométrie partagée ; la réserve, un acteur par pas. Prêt, il
-  //     cuit encore à l'avance, à petits pas (quelques millisecondes par image), la tenue portée, les pièces que le boulanger possède et la
-  //     toque de son titre suivant (st, rang, nom : sa partie, que src/scene.js lui passe à chaque image ; une pièce gagnée est cuite dans les
-  //     images qui suivent, la porter ou changer de titre ne bâtit alors plus rien) ═══
-  const PROTOS = {}; let iCuit = 0, enCours = null, echec = false, aRemplir = false, clipsLus = false, geoApp = 0, avance = null, pasKit = null;
-  const AVANCE = []; // les kits à cuire à l'avance : [corps, clé, emplacement, fabrique]
+  // ═══ la préparation, à petits pas (src/scene.js l'appelle à chaque image, tant que l'image n'a pas passé 3 ms, un pas au moins) : les clips ;
+  //     chaque corps, une partie par pas (ses parties, ses positions, ses mesures, sa façade — par paquets de triangles —, son gabarit, sa
+  //     marche), ce que les pièces lisent du corps (sa façade de dos, ses contours, ses épaules, les boutons du Chef, ses masques) ; les kits des
+  //     apprentis, chacun à petits pas (les grands kits — tablier, sweat, cape, chaussures — se bâtissent eux-mêmes par morceaux, puis leurs
+  //     sommets s'émettent 64 par 64), leur géométrie partagée ; la réserve, un acteur par pas ; enfin le boulanger de la partie : les kits de sa
+  //     tenue portée, son acteur, sa géométrie (en trois pas). Aucun pas ne dépasse ainsi quelques millisecondes : le processeur ralenti ×4,
+  //     aucune image ne passe plus de 30 ms dans l'équipe (test/fournil-equipe3d.cjs). src/scene.js montre ensuite le boulanger à une image,
+  //     puis un apprenti par image. Prêt, il cuit encore à l'avance, à petits pas (quelques millisecondes par image, pas aux images où l'équipe
+  //     passe en 3D), les pièces que le boulanger possède et la toque de son titre suivant (st, rang, nom : sa partie, que src/scene.js lui
+  //     passe à chaque image ; une pièce gagnée est cuite dans les images qui suivent, la porter ou changer de titre ne bâtit alors plus rien) ═══
+  const PROTOS = {}; let iCuit = 0, enCours = null, echec = false, aRemplir = false, clipsLus = false, geoApp = 0, avance = null, pasKit = null, prepB = null;
+  const AVANCE = [], BUDGET = 3; // les kits à cuire à l'avance : [corps, clé, emplacement, fabrique] ; la préparation : 3 ms par image (un pas au moins)
+  const partie = { st: null, rang: 0, nom: '' }; // (la partie que montre la boutique : son boulanger est préparé avec le reste)
+  // (les cinq plus longs pas de la préparation, pour la mise au point : etat.pasLents, [[ms, pas], …])
+  function noterPas(d, quoi) { const l = etat.pasLents || (etat.pasLents = []); if (l.length < 5 || d > l[l.length - 1][0]) { l.push([Math.round(d * 10) / 10, quoi]); l.sort((a, b) => b[0] - a[0]); if (l.length > 5) l.length = 5; } }
   function preparer(st, rang, nom) {
+    if (st) { partie.st = st; partie.rang = Math.max(0, Math.min(5, rang || 0)); partie.nom = nom || ''; }
     if (API.pret) {
       if (aRemplir) remplir();
       else { if (st) prevoir(st, rang, nom); cuireAvance(3); }
@@ -12635,7 +12724,7 @@ const EQUIPE3D = (() => {
     }
     if (echec || !HDM.pret('equipe')) return false;
     const t0 = performance.now();
-    try { do { const t1 = performance.now(), quoi = etape(), d = performance.now() - t1; if (d > (etat.pasMax || 0)) { etat.pasMax = Math.round(d * 10) / 10; etat.pasLent = quoi; } } while (!API.pret && performance.now() - t0 < 6); }
+    try { do { const t1 = performance.now(), quoi = etape(), d = performance.now() - t1; if (d > (etat.pasMax || 0)) { etat.pasMax = Math.round(d * 10) / 10; etat.pasLent = quoi; } noterPas(d, quoi); } while (!API.pret && performance.now() - t0 < BUDGET); }
     catch (e) { echec = true; API.erreur = String((e && e.message) || e); console.warn('Équipe 3D : pas préparée, les chibis restent', API.erreur); }
     const ms = performance.now() - t0; etat.msCuisson = Math.round(etat.msCuisson + ms); etat.msImageMax = Math.max(etat.msImageMax || 0, Math.round(ms)); etat.images = (etat.images || 0) + 1;
     return API.pret;
@@ -12649,13 +12738,27 @@ const EQUIPE3D = (() => {
     const noms = Object.keys(PROTOS);
     if (!avance) { // ce que les pièces lisent du corps, un morceau par pas ; puis les kits des apprentis, chacun à petits pas (un générateur)
       avance = [];
-      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facade(pr, 1)], ['dos ' + nom, () => facade(pr, -1)], ['proches ' + nom, () => proches(pr)], ['contours ' + nom, () => { contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'); contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'); contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape'); }], ['épaules ' + nom, () => toit(pr)], ['boutons ' + nom, () => boutonsDe(pr)]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => (pr.kits.has(emp + '|' + cle) ? null : cuireKit(pr, cle, emp, faire))]); }
+      for (const nom of noms) { const pr = PROTOS[nom]; avance.push(['façade ' + nom, () => facadeGen(pr, 1)], ['dos ' + nom, () => facadeGen(pr, -1)], ['proches ' + nom, () => prochesGen(pr)], ['contour taille ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille')], ['contour haut ' + nom, () => contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut')], ['contour cape ' + nom, () => contour(pr, /^(Torso|Abdomen|Hips|Body|Neck|Shoulder|UpperLeg)/, 'cape')], ['épaules ' + nom, () => toitGen(pr)], ['boutons ' + nom, () => boutonsGen(pr)], ['masques ' + nom, () => masques(pr)]); for (const [cle, emp, faire] of kitsDe(HABIT_APPRENTI)) avance.push(['kit ' + emp + '|' + cle + ' ' + nom, () => (pr.kits.has(emp + '|' + cle) ? null : cuireKit(pr, cle, emp, faire))]); }
     }
-    if (pasKit) { if (pasKit.gen.next().done) pasKit = null; return pasKit ? pasKit.quoi : 'kit cuit'; }
-    if (avance.length) { const [quoi, f] = avance.shift(), gen = f(); if (gen && typeof gen.next === 'function') pasKit = { quoi, gen }; return quoi; }
-    if (geoApp < noms.length) { const pr = PROTOS[noms[geoApp++]]; pr.app = geometrie(pr, HABIT_APPRENTI); pr.app.geo.userData.partagee = true; return 'apprentis ' + pr.nom; }
+    if (pasKit) { if (pasKit.gen.next().done) pasKit = null; return pasKit ? pasKit.quoi : 'pas fini'; }
+    const lancer = (l) => { const [quoi, f] = l.shift(), gen = f(); if (gen && typeof gen.next === 'function') pasKit = { quoi, gen }; return quoi; }; // (un générateur : mené aux pas suivants)
+    if (avance.length) return lancer(avance);
+    if (geoApp < noms.length) { const pr = PROTOS[noms[geoApp++]]; pasKit = { quoi: 'apprentis ' + pr.nom, gen: (function* () { pr.app = yield* geometrieGen(pr, HABIT_APPRENTI); pr.app.geo.userData.partagee = true; })() }; return 'apprentis ' + pr.nom; }
     for (const nom of noms) { const l = LIBRES.get(nom) || []; LIBRES.set(nom, l); if (TOUS.filter((a) => a.pr.nom === nom && !a.boul).length < RESERVE) { l.push(creerApprenti(PROTOS[nom])); return 'réserve'; } }
+    // le boulanger de la partie : les kits de sa tenue portée (à petits pas), son acteur, puis sa géométrie ; la boutique le montre ensuite sans
+    // rien bâtir (une tenue changée entre-temps est faite à l'image où elle se voit, comme d'habitude)
+    if (!prepB) { prepB = listeBoulanger(); return 'tenue du boulanger'; }
+    if (prepB.length) return lancer(prepB);
     etat.chauffe = false; API.pret = true; return 'prêt';
+  }
+  // les pas qui préparent le boulanger de la partie : ses kits pas encore cuits (sa tenue au titre du moment, et au suivant : la toque qui
+  // grandit), son acteur, sa géométrie (un générateur)
+  function listeBoulanger() {
+    const pr = PROTOS.Chef_Male, l = [], vus = new Set(); if (!pr || !partie.st) return l;
+    const garde = G.tenueBoulanger(partie.st);
+    for (const r of partie.rang < 5 ? [partie.rang, partie.rang + 1] : [partie.rang]) for (const [c, emp, faire] of kitsDe(habitBoulanger(r, garde, partie.nom))) { const k0 = emp + '|' + c; if (pr.kits.has(k0) || vus.has(k0)) continue; vus.add(k0); l.push(['kit ' + k0 + ' boulanger', () => (pr.kits.has(k0) ? null : cuireKit(pr, c, emp, faire))]); }
+    l.push(['boulanger', () => { if (!BOUL) creerBoulanger(); }], ['habit du boulanger', () => (partie.st && BOUL ? rhabillerGen(BOUL, partie.rang, G.tenueBoulanger(partie.st), partie.nom) : null)]);
+    return l;
   }
   // ce qui est à cuire à l'avance pour le boulanger de st : sa tenue portée d'abord, puis chaque pièce qu'il possède (portée avec les pièces de
   // base : un kit ne dépend que de sa pièce, du titre et du nom de la boutique) ; au titre du moment, puis au suivant (la toque qui grandit, la
@@ -12701,21 +12804,33 @@ const EQUIPE3D = (() => {
     geo.setIndex(src.index); geo.boundingSphere = src.boundingSphere; geo.setAttribute('color', new T.BufferAttribute(new Uint16Array(pr.app.n * 3), 3, true));
     a.S.geometry = geo; a.habit = pr.app; a.g.userData.e3d = a; a.g.userData.cle = 'e3d'; return a;
   }
-  function remplir() { for (const nom of Object.keys(PROTOS)) { const l = LIBRES.get(nom) || []; LIBRES.set(nom, l); if (TOUS.filter((a) => a.pr.nom === nom && !a.boul).length < RESERVE) { l.push(creerApprenti(PROTOS[nom])); return; } } aRemplir = false; etat.chauffe = false; }
+  // la réserve rendue (la HD interdite plus de 10 s), puis permise de nouveau : un acteur par image, puis le boulanger (son acteur, puis sa
+  // géométrie, à petits pas), avant d'être chauffée
+  let pasRemplir = null;
+  function remplir() {
+    for (const nom of Object.keys(PROTOS)) { const l = LIBRES.get(nom) || []; LIBRES.set(nom, l); if (TOUS.filter((a) => a.pr.nom === nom && !a.boul).length < RESERVE) { l.push(creerApprenti(PROTOS[nom])); return; } }
+    if (pasRemplir) { if (pasRemplir.next().done) pasRemplir = null; return; }
+    if (!BOUL && PROTOS.Chef_Male && partie.st) { creerBoulanger(); pasRemplir = rhabillerGen(BOUL, partie.rang, G.tenueBoulanger(partie.st), partie.nom); return; }
+    aRemplir = false; etat.chauffe = false;
+  }
 
-  // ─── le boulanger : un seul acteur, rhabillé sur place (sa géométrie refaite, l'ancienne rendue ; même squelette, même mélangeur) ───
+  // ─── le boulanger : un seul acteur, rhabillé sur place (sa géométrie refaite, l'ancienne rendue ; même squelette, même mélangeur). Préparé
+  //     avec le reste (la tenue de la partie), il n'est d'habitude plus à bâtir quand la boutique le montre ───
   let BOUL = null;
+  function creerBoulanger() { BOUL = squelette(PROTOS.Chef_Male); BOUL.boul = true; BOUL.g.userData.e3d = BOUL; BOUL.g.userData.cle = 'e3d-boulanger'; return BOUL; }
   function boulanger(rang, garde, nom, st) {
     if (!API.pret || !PROTOS.Chef_Male) return null;
-    if (!BOUL) { BOUL = squelette(PROTOS.Chef_Male); BOUL.boul = true; BOUL.g.userData.e3d = BOUL; BOUL.g.userData.cle = 'e3d-boulanger'; }
+    if (!BOUL) creerBoulanger(); if (pasRemplir) pasRemplir = null; // (montré avant la fin de son habillage à petits pas : fini ici)
     rhabiller(BOUL, rang, garde, nom); BOUL.g.visible = true; if (!BOUL.service) { BOUL.service = true; etat.enService++; } // (rhabillé sur place : compté une fois)
     if (st) prevoir(st, rang, nom);
     return BOUL;
   }
-  function rhabiller(a, rang, garde, nom) {
+  // (rhabiller() d'un trait ; rhabillerGen() à petits pas : la géométrie, puis les couleurs)
+  function rhabiller(a, rang, garde, nom) { const g = rhabillerGen(a, rang, garde, nom); let x; do x = g.next(); while (!x.done); return x.value; }
+  function* rhabillerGen(a, rang, garde, nom) {
     const h = habitBoulanger(rang, garde, nom), cles = kitsDe(h).map((k) => k[1] + '|' + k[0]).join(';'); if (a.cleHabit === h.cle0 && a.clesKits === cles && a.habit) return false;
-    const vieux = a.S.geometry, x = geometrie(a.pr, h);
-    a.S.geometry = x.geo; if (vieux && !vieux.userData.partagee && vieux !== x.geo) vieux.dispose();
+    const x = yield* geometrieGen(a.pr, h); yield;
+    const vieux = a.S.geometry; a.S.geometry = x.geo; if (vieux && !vieux.userData.partagee && vieux !== x.geo) vieux.dispose();
     teindre(x.geo, x.R, x.C0, x.MU, palette(h));
     a.habit = x; a.h = h; a.cleHabit = h.cle0; a.clesKits = cles; etat.rhabillages++;
     // l'aura : un plan dressé derrière lui (un appel de dessin de plus), qui respire ; posé à chaque rendu face à la caméra (poserAura), dessiné
@@ -12962,6 +13077,31 @@ const EQUIPE3D = (() => {
     // le pâton entre ses mains quand il pétrit (il s'écrase un peu sous les paumes)
     if (ap.etat === 'four' && a.joue === 'Working_A') { posM(os.mainD, _v1); posM(os.mainG, _v2); _v1.add(_v2).multiplyScalar(0.5); _v1.y -= 0.035 * pr.hauteur * s; _q1.setFromAxisAngle(AXE_Y, a.yaw); tenir(os.pate, _v1, _q1, K * (1 + 0.06 * Math.sin(ctx.t * 9))); } else tenir(os.pate, null);
   }
+  // ═══ la vapeur du four : quand il cuit et que des apprentis y travaillent, quelques bouffées s'échappent du haut de ses portes, montent, enflent
+  //     et s'évanouissent (plus nombreuses pendant le coup de feu). UN appel de dessin : un maillage instancié (douze bouffées au plus, des boules
+  //     à facettes blanches, translucides), posé par src/scene.js tant que l'équipe est en 3D ; les bouffées 2D des chibis au four n'y sont plus
+  //     dessinées. Son tirage au sort est le sien (la vie de la boutique garde Math.random) ═══
+  const VAP = { g: null, b: [], acc: 0, graine: 7, N: 12, VIE: 1.9 };
+  const hasardV = () => { VAP.graine = (Math.imul(VAP.graine, 1664525) + 1013904223) >>> 0; return VAP.graine / 4294967296; };
+  function vapeur() {
+    if (VAP.g) return VAP.g;
+    const g = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), new T.MeshLambertMaterial({ color: '#FFFFFF', emissive: '#FFF4E6', emissiveIntensity: 0.25, transparent: true, opacity: 0.5, depthWrite: false }), VAP.N);
+    g.count = 0; g.visible = false; g.castShadow = false; g.receiveShadow = false; g.frustumCulled = false; g.renderOrder = 3; g.instanceMatrix.setUsage(T.DynamicDrawUsage); g.userData.vapeur = true;
+    return (VAP.g = g);
+  }
+  // o : { x, y, z (monde : le haut des portes, au milieu, juste devant), l (la largeur des portes), K, n (les apprentis au four), chaud, rush } ;
+  // null : plus de vapeur (l'équipe redevenue chibis)
+  function poserVapeur(dt, o) {
+    const g = vapeur(), b = VAP.b; dt = Math.max(0, Math.min(dt || 0, 0.1));
+    if (!o) { b.length = 0; g.count = 0; g.visible = false; return g; }
+    const K = o.K || 1, debit = o.chaud && o.n > 0 ? (0.8 + 0.45 * Math.min(3, o.n)) * (o.rush ? 1.7 : 1) : 0; // (des bouffées par seconde)
+    VAP.acc += dt * debit;
+    while (VAP.acc >= 1) { VAP.acc -= 1; if (b.length < VAP.N) b.push({ x: o.x + (hasardV() - 0.5) * o.l, y: o.y, z: o.z, vx: (hasardV() - 0.5) * 3 * K, vz: (1 + hasardV() * 2) * K, r: (1.9 + hasardV() * 1.2) * K, t: 0, vie: VAP.VIE * (0.8 + hasardV() * 0.4) }); }
+    for (let i = b.length - 1; i >= 0; i--) { const p = b[i]; p.t += dt; if (p.t >= p.vie) { b.splice(i, 1); continue; } p.x += p.vx * dt; p.z += p.vz * dt; p.y += (10 + 6 * (1 - p.t / p.vie)) * K * dt; }
+    for (let i = 0; i < b.length; i++) { const p = b[i], u = p.t / p.vie, k = p.r * (0.55 + 1.3 * u) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.15)), 0.6); _m1.makeScale(k, k * 0.85, k).setPosition(p.x, p.y, p.z); g.setMatrixAt(i, _m1); }
+    g.count = b.length; g.visible = b.length > 0; g.instanceMatrix.needsUpdate = true;
+    return g;
+  }
   // le plateau d'un apprenti : la planche et la pâtisserie de son poste (celle des chibis, src/persos.js), en cache (jamais libéré)
   const geoPlateau = (i) => memo('plateau|' + i, () => M.assembler([M.part(M.boite(24, 2, 13, 0.8), '#C9B8AE'), ...PERSOS.partsPatisserie(i).map((p) => ({ geo: p.geo, col: p.col, m: new T.Matrix4().makeTranslation(0, 2, 0).multiply(p.m || new T.Matrix4()) }))]));
   // le haut de la tête d'un acteur (monde) : la bulle des talents, le calque
@@ -13063,7 +13203,7 @@ const EQUIPE3D = (() => {
   }
   function imageVue(dt) { // une image de la vue (la boucle, ou les tests qui la pilotent)
     if (!V3) return; V3.t += dt; V3.images++;
-    if (!API.pret) { HDM.charger('boutique'); demander(); preparer(); if (API.pret) habillerVue(false); }
+    if (!API.pret) { const st = V3.ctx.st; HDM.charger('boutique'); demander(); preparer(st, GAME.rangTitre(st), GAME.nomBoutique ? GAME.nomBoutique(st) : ''); if (API.pret) habillerVue(false); } // (ouverte avant que l'équipe soit prête : la préparation continue ici, la tenue du boulanger comprise)
     else { const st = V3.ctx.st; prevoir(st, GAME.rangTitre(st), GAME.nomBoutique ? GAME.nomBoutique(st) : ''); cuireAvance(2); } // (la boutique attend sous la vue : la cuisson d'avance continue ici, une pièce gagnée juste avant est prête à être mise)
     const a = V3.a;
     if (a) {
@@ -13101,8 +13241,9 @@ const EQUIPE3D = (() => {
   Object.assign(VUE, { ouvrir: ouvrirVue, fermer: fermerVue, image: imageVue, tourner: tournerVue, zoom: zoomVue, zoomPiece, rhabiller: () => { habillerVue(false); dessinerBas(); } }); // (rhabiller : la tenue changée ailleurs, la vue suit)
   Object.defineProperty(VUE, 'etat', { enumerable: true, get() { return V3 ? { piece: V3.piece, yaw: +V3.yaw.toFixed(3), tenue: V3.a ? V3.a.cleHabit : '', tris: V3.a ? V3.a.habit.tris : 0, kits: V3.a ? V3.a.habit.kits.map((k) => k.cle) : [], ms: V3.a ? V3.a.habit.ms : 0, aura: !!(V3.a && V3.a.aura), formes: V3.a ? { tete: V3.a.h.tete, haut: V3.a.h.haut, pieds: V3.a.h.pieds, acc: V3.a.h.acc, lunettes: V3.a.h.lunettes, foulard: V3.a.h.foulardTitre, col: V3.a.h.colTri } : null, joie: !!(V3.a && V3.a.joieT > 0), images: V3.images, appels: V3.renderer.info.render.calls, triangles: V3.renderer.info.render.triangles } : null; } }); // (un accesseur : Object.assign le figerait)
 
-  Object.assign(API, { actif: true, HAUT, HAUT_BOULANGER: HAUT * ECHELLE_BOULANGER, permis, demander, preparer, boulanger, rhabiller, poserBoulanger, apprenti, poserApprenti, rendre, liberer, chauffer, rentrer, echantillon, tete, mesure, PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, toit, contour, initiales, sommetsMonde, U_LUEUR, vue: VUE }); // (PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, initiales, sommetsMonde, U_LUEUR : pour les tests et la mise au point)
-  Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0), aCuire: AVANCE.length + (cuisson ? 1 : 0) }, etat) }); // (aCuire : les kits qui attendent leur cuisson d'avance)
+  Object.assign(API, { actif: true, HAUT, HAUT_BOULANGER: HAUT * ECHELLE_BOULANGER, permis, dispo, demander, preparer, boulanger, rhabiller, poserBoulanger, apprenti, poserApprenti, vapeur, poserVapeur, rendre, liberer, chauffer, rentrer, echantillon, tete, mesure, PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, toit, contour, initiales, sommetsMonde, U_LUEUR, vue: VUE }); // (PROTOS, CL, ROLES, habitBoulanger, kitsDe, geometrie, palette, facade, initiales, sommetsMonde, U_LUEUR : pour les tests et la mise au point)
+  Object.defineProperty(API, 'etat', { enumerable: true, get: () => Object.assign({ libres: [...LIBRES.values()].reduce((s, l) => s + l.length, 0), aCuire: AVANCE.length + (cuisson ? 1 : 0), vapeur: VAP.b.length }, etat) }); // (aCuire : les kits qui attendent leur cuisson d'avance ; vapeur : les bouffées du four)
+  Object.defineProperty(API, 'remplit', { enumerable: true, get: () => aRemplir }); // (la réserve se refait après avoir rendu sa mémoire : la boutique garde ses chibis jusque-là)
   return API;
 })();
 if (typeof module !== 'undefined') module.exports = EQUIPE3D;
@@ -14732,22 +14873,23 @@ if (typeof module !== 'undefined') module.exports = PLANETE;
    (X, ys) est en monde (X, 0, wz(ys)), un point du mur (X, ys) en (X, wy(murH − ys), 0). Les meubles et la salle viennent de MEUBLES,
    les personnages et les pâtisseries de PERSOS ; en qualité haute et moyenne, la HD permise, les clients sont des personnages 3D animés
    (CLIENTS3D, src/clients3d.js : leur lot demandé après celui de la boutique, cuit à petits pas ; des chibis tant qu'il n'est pas prêt, en éco
-   et la HD coupée). Un calque 2D (#scene-ui) porte les textes, les pastilles, le mode Aménager et les confettis.
+   et la HD coupée), et le boulanger et les apprentis aussi (EQUIPE3D, src/equipe3d.js : leur lot après celui des clients, préparés à petits pas
+   avec la tenue du boulanger ; la même règle, la vapeur au four en plus). Un calque 2D (#scene-ui) porte les textes, les pastilles, le mode
+   Aménager et les confettis.
    setEvenement(vue) bascule la scène sur un événement (la Maison hantée, src/boutiquehantee.js) : la même boutique, son thème (src/vie.js,
    DECORS.hantee), ses clients déguisés, son équipe, ses bougies ; la vie de la boutique attend de côté (VIE.basculer), setEvenement(null)
    la rend telle quelle. vue = { id, compagnon, garde (la tenue du boulanger), equipe (le déguisement de l'apprenti de chaque station),
    friandises (ce que porte chaque station : vitrine et plateaux), cadre: { haut, bas } (la fenêtre de l'écran qui montre la scène, en px
    du canvas : la scène y descend de haut, et ne se rend que jusqu'à bas) }. En qualité haute, quand le lot HD « hantee3 » est là
    (src/boutiquehantee.js, BOUTIQUE_HANTEE.HD), la boutique hantée change tout : son décor cuit d'un bloc, sa nuit (brouillard, ACES, huit
-   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural.
-   MAQUETTE (?boulanger3d=1 seulement : E3, src/equipe3d.js) : le boulanger et les apprentis en personnages 3D, comme les clients, quand leur lot
-   est prêt (hors de la boutique hantée, la HD permise) ; sans le paramètre, E3 est nul et rien ne change. */
+   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural. La
+   boutique hantée garde son équipe à elle (chibis déguisés ou monstres HD) : ni clients 3D ni équipe 3D. */
 const SCENE = (() => {
   'use strict';
   const G = GAME, V = VIE, M = MODELES;
   // les clients en personnages 3D animés (src/clients3d.js) : en qualité haute et moyenne, la HD permise, dès que leur lot est prêt ; sinon les chibis
   const C3 = typeof CLIENTS3D !== 'undefined' && CLIENTS3D && CLIENTS3D.actif ? CLIENTS3D : null;
-  // la maquette du boulanger et des apprentis en 3D (src/equipe3d.js) : seulement avec ?boulanger3d=1 dans l'adresse, sinon nul
+  // le boulanger et les apprentis en personnages 3D animés (src/equipe3d.js) : la même règle que les clients 3D ; nul avec ?equipe=0 (les chibis d'office)
   const E3 = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D : null;
   const TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), L = '#4A3328';
   let cv, cvUi, ctx2, renderer, scene, camera, hemi, dir, W = 1, H = 1, DPR = 1, DPRui = 1, LAY = null, visH = 1e9, amenager = false, webgl = false, perdu = 0, nFrame = 0, dernier = null;
@@ -15180,11 +15322,11 @@ const SCENE = (() => {
       remplacer('produits', g);
     }
     const garde = EVV && EVV.garde ? EVV.garde : G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (la boutique hantée : la tenue de l'événement) (REC.tenue, l'ancienne tenue du podium, ne décide plus)
-    const b3 = e3Pret() && !EVV, nomB = b3 ? G.nomBoutique(E.st) : '', kb3 = b3 ? 'e3d|' + kb + '|' + nomB : kb; // (la maquette : le boulanger 3D, prêt et permis, hors de la boutique hantée ; le nom de la boutique est brodé sur ses tabliers du podium)
+    const b3 = e3Pret() && !EVV, nomB = b3 ? G.nomBoutique(E.st) : '', kb3 = b3 ? 'e3d|' + kb + '|' + nomB : kb; // (le boulanger 3D, prêt et permis, hors de la boutique hantée ; le nom de la boutique est brodé sur ses tabliers du podium)
     if (b3 && boulangerG && boulangerG.userData.e3d && boulangerG.userData.e3d.cleHabit !== `${Math.max(0, Math.min(5, E.rang || 0))}|${garde.cle}`) cles.boulanger = null; // (l'acteur rhabillé ailleurs — un test, un outil de captures : la boutique le remet dans sa tenue)
     if (cles.boulanger !== kb3 && b3) { // le boulanger 3D : rhabillé sur place (même acteur, sa géométrie refaite) ; sa zone de touche : sa taille, toque comprise
       cles.boulanger = kb3; const a = E3.boulanger(E.rang, garde, nomB, E.st);
-      if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); }
+      if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); e3Bascule = nFrame; } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); } // (e3Bascule : à cette image, les apprentis attendent la suivante pour passer en 3D)
       else cles.boulanger = null;
     }
     if (cles.boulanger !== kb3 && !b3) { cles.boulanger = kb3; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
@@ -15433,14 +15575,19 @@ const SCENE = (() => {
     habiller(g);
     try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); } // (extensions.has se tait, extensions.get avertit)
   }
-  // la maquette du boulanger et des apprentis en 3D (E3) : le même parcours que les clients 3D (compilés hors de l'image, chauffés, la mémoire rendue
-  // après 10 s d'interdiction) ; le boulanger posé derrière le comptoir (sa zone de touche : sa taille, toque comprise)
-  const ctxE3 = { wz, K: 1, rush: false, t: 0, LAY: null, habiller: (o) => habiller(o) }, ctxB3 = { K: 1, x: 0, y: 0, z: 0 }, oB3 = { t: 0, hop: 0, rush: false }; let e3Chauffe = null, e3Interdit = 0, e3Compile = 0;
-  const e3Pret = () => !!E3 && E3.pret && E3.permis(renderer) && e3Compile === 2;
-  function compilerE3() {
+  // le boulanger et les apprentis en 3D (E3) : le même parcours que les clients 3D (compilés hors de l'image, chauffés, la mémoire rendue après
+  // 10 s d'interdiction ; permis de nouveau, ils reviennent quand la réserve est refaite) ; le boulanger posé derrière le comptoir (sa zone de
+  // touche : sa taille, toque comprise). Le passage des chibis à la 3D s'étale : le boulanger à une image, puis un apprenti par image
+  const ctxE3 = { wz, K: 1, rush: false, t: 0, LAY: null, habiller: (o) => habiller(o) }, ctxB3 = { K: 1, x: 0, y: 0, z: 0 }, oB3 = { t: 0, hop: 0, rush: false }, oVap = { x: 0, y: 0, z: 0, l: 1, K: 1, n: 0, chaud: false, rush: false }; let e3Chauffe = null, e3Interdit = 0, e3Compile = 0, e3Bascule = -1, e3Reste = 0, vapeurG = null, e3Vu = false;
+  const e3Pret = () => !!E3 && E3.pret && !E3.remplit && E3.permis(renderer) && e3Compile === 2;
+  function compilerE3() { // (un acteur de la réserve, et la vapeur du four : son programme instancié)
     e3Compile = 1; const g = E3.echantillon(), fini = () => { e3Compile = 2; }; if (!g) { fini(); return; }
-    habiller(g);
-    try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); }
+    habiller(g); if (!vapeurG) { vapeurG = E3.vapeur(); habiller(vapeurG); }
+    const lot = [g, vapeurG];
+    try {
+      const par = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile');
+      if (par) Promise.all(lot.map((o) => renderer.compileAsync(o, camera, scene))).then(fini, fini); else { for (const o of lot) renderer.compile(o, camera, scene); fini(); }
+    } catch (e) { fini(); }
   }
   function poserBoulanger3D(E, dt) {
     const a = boulangerG && boulangerG.userData.e3d; if (!a || !LAY) return;
@@ -15449,10 +15596,18 @@ const SCENE = (() => {
     E3.poserBoulanger(a, oB3, dt, ctxB3);
   }
   function zoneBoulanger3D(a) { const h = E3.HAUT_BOULANGER * V.K, p = a.g.position, z = wz(LAY.boulanger.y), y0 = ctxB3.y; return new THREE.Box3(new THREE.Vector3(p.x - h * 0.3, y0, z - h * 0.15), new THREE.Vector3(p.x + h * 0.3, y0 + h * Math.max(a.h && a.h.tete === 'toque' ? 1.08 + a.h.hc * 0.012 : 1.12, ((a.habit && a.habit.haut) || 0) + 0.05), z + h * 0.15)); } // (sa taille, toque comprise — ou le chapeau pointu, mesuré —, sur son estrade)
+  // la vapeur du four (E3.poserVapeur : un maillage instancié, un appel de dessin) : n, les apprentis 3D au four ; -1, l'équipe n'est pas en 3D
+  function poserVapeur(E, dt, n) {
+    if (!E3) return;
+    if (n < 0 || !LAY || !LAY.four) { if (vapeurG) E3.poserVapeur(dt, null); return; }
+    if (!vapeurG) { vapeurG = E3.vapeur(); habiller(vapeurG); } if (!vapeurG.parent) scene.add(vapeurG);
+    const f = LAY.four; oVap.x = f.x + f.w / 2; oVap.l = Math.max(4, f.w - 18); oVap.y = wy(f.h * 0.7) - 6; oVap.z = wz(f.y + f.h) + 2; oVap.K = V.K; oVap.n = n; oVap.chaud = !!E.chaud; oVap.rush = !!E.rush; // (le haut des portes du four, MEUBLES.four)
+    E3.poserVapeur(dt, oVap);
+  }
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)
     if (e3Chauffe) { E3.rentrer(e3Chauffe); e3Chauffe = null; }
-    if (modeHD) { synchroniserHD(E, dt); return; }
+    if (modeHD) { e3Vu = false; poserVapeur(E, dt, -1); synchroniserHD(E, dt); return; }
     vus.clear();
     const c3p = C3 && C3.pret && C3.permis(renderer); if (c3p && !c3Compile) compilerC3();
     const c3 = c3p && c3Compile === 2 ? C3 : null; ctxC3.K = V.K;
@@ -15467,17 +15622,22 @@ const SCENE = (() => {
       if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.repli = glb; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); if (g.userData.c3d) c3.poser(g.userData.c3d, c, E, dt, ctxC3); else poser(g, c, E, dt);
     }
+    let passes3d = e3Bascule === nFrame ? 1 : 0, auFour = 0;
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
-      if (E3 && g && !!g.userData.e3d !== !!e3) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (la maquette : chibi ↔ 3D)
+      const vers3d = !!e3 && passes3d < 1; // (un apprenti par image passe en 3D ; aucun à l'image où passe le boulanger)
+      if (E3 && g && g.userData.e3d && !e3) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (3D → chibi : tous à la fois, à l'image où la HD s'arrête)
+      if (E3 && g && !g.userData.e3d && vers3d) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (chibi → 3D)
       if (g && !g.userData.e3d && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue (l'apprenti 3D change seulement ses couleurs et ses os)
-      if (!g && e3) { const ac = e3.apprenti(a); if (ac) { g = ac.g; habiller(g); scene.add(g); acteurs.set(id, g); } }
+      if (!g && vers3d) { const ac = e3.apprenti(a); if (ac) { passes3d++; g = ac.g; habiller(g); scene.add(g); acteurs.set(id, g); } }
       if (!g && EVV) g = prendre(`ht|${a.i}`, () => PERSOS.creer({ deguisement: (EVV.equipe || [])[a.i] || 'fantome2', plateau: true, produit: (EVV.friandises || [])[a.i] || 0, cle: true })); // la boutique hantée : le monstre de la station, sa friandise sur le plateau
       if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); }
       if (!g.parent) { g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; habiller(g); scene.add(g); acteurs.set(id, g); }
-      vus.add(id); if (g.userData.e3d) e3.poserApprenti(g.userData.e3d, a, E, dt, ctxE3); else poserApprenti(g, a, E, dt);
+      vus.add(id); if (g.userData.e3d) { e3.poserApprenti(g.userData.e3d, a, E, dt, ctxE3); if (a.etat === 'four') auFour++; } else poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
+    e3Vu = !!e3; poserVapeur(E, dt, e3 ? auFour : -1); // (l'équipe en 3D : la vapeur sort du four, les bouffées 2D des chibis au four ne sont plus dessinées)
+    e3Reste = 0; if (e3) { if (!(boulangerG && boulangerG.userData.e3d)) e3Reste++; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g || !g.userData.e3d) e3Reste++; } } // (ceux qui attendent encore leur passage en 3D)
     if (boulangerG && boulangerG.userData.e3d) poserBoulanger3D(E, dt);
     else if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
     poserChat(E, dt);
@@ -15558,7 +15718,7 @@ const SCENE = (() => {
       if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       if (C3 && HDM.pret('boutique') && C3.permis(renderer)) { C3.demander(); C3.preparer(); } // les clients 3D : leur lot après celui de la boutique, cuit dès qu'il est là (demander ne redemande pas)
-      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); E3.preparer(E.st, E.rang, G.nomBoutique(E.st)); } // (la maquette : l'équipe 3D, son lot après celui des clients ; prête, elle cuit d'avance la garde-robe de cette partie)
+      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); if (!e3Reste) E3.preparer(E.st, E.rang, G.nomBoutique(E.st)); } // l'équipe 3D : son lot après celui des clients, préparé à petits pas avec la tenue du boulanger de cette partie ; prête, elle cuit d'avance le reste de sa garde-robe (pas aux images où l'équipe passe en 3D : une chose par image)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -15644,7 +15804,7 @@ const SCENE = (() => {
   function calque(E, hv) {
     const c = ctx2, dy = decalage(); c.setTransform(DPRui, 0, 0, DPRui, 0, 0); c.clearRect(0, 0, W, H);
     c.save(); c.beginPath(); c.rect(0, 0, W, hv); c.clip(); if (dy) c.translate(0, dy); // la fenêtre d'un événement : le plan descend avec la scène
-    for (const v of V.vapeurs) { c.globalAlpha = Math.max(0, v.life) * 0.7; c.fillStyle = v.gris ? '#8C8C8C' : '#fff'; c.beginPath(); c.arc(v.x, v.y, v.r, 0, TAU); c.fill(); }
+    for (const v of V.vapeurs) { if (v.four && e3Vu) continue; c.globalAlpha = Math.max(0, v.life) * 0.7; c.fillStyle = v.gris ? '#8C8C8C' : '#fff'; c.beginPath(); c.arc(v.x, v.y, v.r, 0, TAU); c.fill(); } // (four : les bouffées d'un chibi qui pétrit ; l'équipe en 3D a sa vapeur à elle)
     c.globalAlpha = 1;
     const s0 = V.K, hp = PERSOS.HAUTEUR || 73;
     for (const cl of V.clients) {
@@ -15803,7 +15963,7 @@ const SCENE = (() => {
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(FUS.vus.has('rosette') ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
-    get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
+    get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); if (vapeurG && vapeurG.parent && vapeurG.visible && vapeurG.count > 0) out.vapeur = 1; return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests ; la vapeur du four de l'équipe 3D : un appel)
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get clients3d() { // les clients 3D (pour les tests) : prêts, permis, combien en 3D et en chibis dans la salle, la réserve, et chacun (son personnage, son clip, ses accessoires,
       // ses maillages visibles, le bas de ses pieds et son sac (y monde), le haut de sa tête à l'écran)
@@ -15816,11 +15976,12 @@ const SCENE = (() => {
           x: g.position.x, y: g.position.y, z: g.position.z, echelle: g.scale.x, tete: t ? { x: t.x, y: t.y, z: t.z, ecran: projeterY(t.y, t.z) } : null }); }
       return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), compile: c3Compile, erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
     },
-    get equipe3d() { // la maquette du boulanger et des apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
-      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le pâton, le grade, l'étoile)
+    get hdPermise() { return typeof HDM !== 'undefined' && webgl && !!renderer && HDM.permis(renderer); }, // la HD permise ici (WebGL2, pas l'éco, pas coupée) : la garde-robe propose alors la vue « Mon boulanger »
+    get equipe3d() { // le boulanger et les apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
+      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le pâton, le grade, l'étoile) ; la vapeur du four
       if (!E3) return null; const b = boulangerG && boulangerG.userData.e3d, mailles = (g) => { let n = 0; g.traverse((o) => { if ((o.isMesh || o.isSprite) && o.visible) n++; }); return n; };
       const app = []; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g) continue; const x = g.userData.e3d; app.push(x ? { i: a.i, etat: a.etat, corps: x.pr.nom, clip: x.joue, repare: !!(x.actions.__repare && x.actions.__repare.isRunning()), plateau: !!x.plateau, cle: x.os.cle.scale.x > 0, pate: !!x.os.pate && x.os.pate.scale.x > 0, grade: x.grade, etoile: x.os.etoile.scale.x > 0, mailles: mailles(g), echelle: +g.scale.x.toFixed(4), yaw: +x.yaw.toFixed(2), x: g.position.x, y: g.position.y, z: g.position.z } : { i: a.i, etat: a.etat, chibi: true }); }
-      return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, etat: E3.etat, info: E3.info };
+      return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, vapeur: vapeurG ? { bouffees: vapeurG.count, visible: vapeurG.visible && !!vapeurG.parent, appels: vapeurG.visible && vapeurG.count > 0 ? 1 : 0 } : null, etat: E3.etat, info: E3.info };
     },
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
@@ -17117,9 +17278,10 @@ const GARDEROBE_UI = (() => {
   // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
   const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
   let pieceOuverte = 'tete';
-  // la maquette du boulanger en 3D (src/equipe3d.js, seulement avec ?boulanger3d=1) : la vue « Mon boulanger », depuis la carte et la feuille
-  const E3V = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D.vue : null;
-  const BOUTON_3D = (attr) => (E3V ? `<button type="button" class="btn large lavande" ${attr} style="margin-bottom:10px"><b>Voir mon boulanger en 3D</b></button>` : '');
+  // le boulanger en 3D (src/equipe3d.js) : la vue « Mon boulanger », depuis la carte et la feuille, quand l'équipe 3D est possible (la HD permise :
+  // qualité haute ou moyenne, pas coupée dans les Réglages, le lot pas en échec) ; en éco, pas de bouton
+  const E3 = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D : null, vue3D = () => (E3 && E3.dispo() ? E3.vue : null);
+  const BOUTON_3D = (attr) => (vue3D() ? `<button type="button" class="btn large lavande" ${attr} style="margin-bottom:10px"><b>Voir mon boulanger en 3D</b></button>` : '');
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
   const icone = (v) => ICONS.vetement(v.forme, v.collection === 'base' ? 'base' : v.collection);
@@ -17208,11 +17370,11 @@ const GARDEROBE_UI = (() => {
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
-    ctx.on('[data-gr-3d-feuille]', () => { if (!E3V) return; ctx.son.tap(); ctx.closeSheet(); E3V.ouvrir(Object.assign({}, ctx, { ferme: () => ouvrir(ctx, pieceOuverte) }), pieceOuverte); }); // (la vue fermée, la feuille revient)
+    ctx.on('[data-gr-3d-feuille]', () => { const v = vue3D(); if (!v) return; ctx.son.tap(); ctx.closeSheet(); v.ouvrir(Object.assign({}, ctx, { ferme: () => ouvrir(ctx, pieceOuverte) }), pieceOuverte); }); // (la vue fermée, la feuille revient)
     ctx.on('[data-gr-compagnons]', () => { if (!ctx.compagnon) return; ctx.son.tap(); ctx.compagnon.ouvrir(() => ouvrir(ctx, pieceOuverte)); }); // « Retour » revient ici
   }
-  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); if (E3V) sec.querySelectorAll('[data-gr-3d]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); E3V.ouvrir(ctx); })); }
-  return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; } };
+  function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); sec.querySelectorAll('[data-gr-3d]').forEach((b) => b.addEventListener('click', () => { const v = vue3D(); if (!v) return; ctx.son.tap(); v.ouvrir(ctx); })); }
+  return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; }, get vue3D() { return !!vue3D(); } };
 })();
 
 /* ── activites.js ── */
@@ -24785,7 +24947,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -26401,7 +26563,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // (la maquette ?boulanger3d=1 : la vue « Mon boulanger » couvre la boutique) // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D ; la vue « Mon boulanger », src/equipe3d.js, aussi)
     const atelier = couvert || !!chaineVue; // pendant l'Atelier, la Planque, une visite ou dans une boutique de la chaîne : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte

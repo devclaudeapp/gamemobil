@@ -1,4 +1,4 @@
-// La maquette du boulanger et des apprentis en 3D (src/equipe3d.js, ?boulanger3d=1) sur la vraie page, téléphone en portrait (390 × 844) :
+// Le boulanger et les apprentis en 3D (src/equipe3d.js : le défaut en haute et moyenne ; --sans3d : ?equipe=0, les chibis) sur la vraie page, téléphone en portrait (390 × 844) :
 // la boutique au complet (quatre recettes, quatre apprentis, tout le mobilier), le temps piloté image par image (comme outils/clients3d/boutique.cjs :
 // la boucle du jeu gelée, Math.random graine-fixé, l'avance rapide sans dessin). Les scénarios :
 //   boutique  : la boutique en haute, les apprentis au travail (capture, gros plans de l'équipe, mesures) ; --video s : une vidéo
@@ -11,7 +11,7 @@
 //   melanges  : des tenues mêlées pièce par pièce, dans la boutique (--tenues "tête,haut,pieds,acc;…") : la boutique et la loupe du boulanger
 //               (l'aura portée, sauf avec --sansaura)
 //   tourne    : une vidéo (--video 9) du boulanger dans la vue, qui tourne en changeant de tenue
-// usage : node rendus.cjs <scénario> <nom> [--requete "qualite=haute"] [--port 9902] [--video 9] [--tenues …] [--tourne] [--sortie dossier] [--sans3d] [--sansaura]
+// usage : node rendus.cjs <scénario> <nom> [--requete "qualite=haute"] [--port 9902] [--video 9] [--tenues …] [--tourne] [--sortie dossier] [--sans3d] [--sansaura] [--taille 360x640]
 // Sorties dans --sortie (par défaut $EQUIPE3D_TRAVAIL ou <tmp>/equipe3d) : <nom>.png, <nom>-loupeN.png, <nom>-<tenue>.png, <nom>.mp4, <nom>-mesures.json.
 // Le jeu servi : ce dépôt (node build.js d'abord). Playwright et son Chromium (NODE_PATH), ffmpeg pour la vidéo.
 'use strict';
@@ -29,7 +29,8 @@ const server = http.createServer((req, res) => {
 const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  const [LW, LH] = val('--taille', '390x844').split('x').map(Number); // (--taille 360x640 : un petit téléphone)
+  const ctx = await browser.newContext({ viewport: { width: LW || 390, height: LH || 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await ctx.addInitScript(() => {
     let s = 20261027, s2 = 7; const r1 = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }, r2 = () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
     Math.random = function () { const l = (new Error().stack || '').split('\n')[2] || ''; return /three\.min\.js|fournil-hd\.min\.js/.test(l) ? r2() : r1(); };
@@ -50,7 +51,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
   const page = await ctx.newPage(); const errs = []; page.setDefaultTimeout(180000);
   page.on('pageerror', (e) => errs.push('pageerror ' + e.message)); page.on('console', (m) => { if (m.type() === 'error' || /Équipe 3D|HD :|THREE\./.test(m.text())) errs.push(m.type() + ' ' + m.text()); });
   const requete = val('--requete', scenario === 'eco' ? 'qualite=eco' : 'qualite=haute');
-  await page.goto(`http://localhost:${PORT}/fournil/?${opt('--sans3d') ? '' : 'boulanger3d=1&'}${requete}`); // (--sans3d : le jeu tel qu'il est, ses chibis, pour la planche côte à côte)
+  await page.goto(`http://localhost:${PORT}/fournil/?${opt('--sans3d') ? 'equipe=0&' : ''}${requete}`); // (--sans3d : les chibis d'office, pour la planche côte à côte)
   await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 90000, polling: 200 }); await dodo(800);
   const ev = (f, a) => page.evaluate(f, a);
   await ev(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; st.mystereTimer = 1e9; st.evTimer = 1e9; for (let k = 0; k < 6; k++) if (st.stations[k]) st.stations[k].niv = Math.max(st.stations[k].niv, 25); st.images = 'max'; f.scene({ heure: 13, saison: [], assis: true }); });

@@ -4,22 +4,23 @@
    (X, ys) est en monde (X, 0, wz(ys)), un point du mur (X, ys) en (X, wy(murH − ys), 0). Les meubles et la salle viennent de MEUBLES,
    les personnages et les pâtisseries de PERSOS ; en qualité haute et moyenne, la HD permise, les clients sont des personnages 3D animés
    (CLIENTS3D, src/clients3d.js : leur lot demandé après celui de la boutique, cuit à petits pas ; des chibis tant qu'il n'est pas prêt, en éco
-   et la HD coupée). Un calque 2D (#scene-ui) porte les textes, les pastilles, le mode Aménager et les confettis.
+   et la HD coupée), et le boulanger et les apprentis aussi (EQUIPE3D, src/equipe3d.js : leur lot après celui des clients, préparés à petits pas
+   avec la tenue du boulanger ; la même règle, la vapeur au four en plus). Un calque 2D (#scene-ui) porte les textes, les pastilles, le mode
+   Aménager et les confettis.
    setEvenement(vue) bascule la scène sur un événement (la Maison hantée, src/boutiquehantee.js) : la même boutique, son thème (src/vie.js,
    DECORS.hantee), ses clients déguisés, son équipe, ses bougies ; la vie de la boutique attend de côté (VIE.basculer), setEvenement(null)
    la rend telle quelle. vue = { id, compagnon, garde (la tenue du boulanger), equipe (le déguisement de l'apprenti de chaque station),
    friandises (ce que porte chaque station : vitrine et plateaux), cadre: { haut, bas } (la fenêtre de l'écran qui montre la scène, en px
    du canvas : la scène y descend de haut, et ne se rend que jusqu'à bas) }. En qualité haute, quand le lot HD « hantee3 » est là
    (src/boutiquehantee.js, BOUTIQUE_HANTEE.HD), la boutique hantée change tout : son décor cuit d'un bloc, sa nuit (brouillard, ACES, huit
-   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural.
-   MAQUETTE (?boulanger3d=1 seulement : E3, src/equipe3d.js) : le boulanger et les apprentis en personnages 3D, comme les clients, quand leur lot
-   est prêt (hors de la boutique hantée, la HD permise) ; sans le paramètre, E3 est nul et rien ne change. */
+   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural. La
+   boutique hantée garde son équipe à elle (chibis déguisés ou monstres HD) : ni clients 3D ni équipe 3D. */
 const SCENE = (() => {
   'use strict';
   const G = GAME, V = VIE, M = MODELES;
   // les clients en personnages 3D animés (src/clients3d.js) : en qualité haute et moyenne, la HD permise, dès que leur lot est prêt ; sinon les chibis
   const C3 = typeof CLIENTS3D !== 'undefined' && CLIENTS3D && CLIENTS3D.actif ? CLIENTS3D : null;
-  // la maquette du boulanger et des apprentis en 3D (src/equipe3d.js) : seulement avec ?boulanger3d=1 dans l'adresse, sinon nul
+  // le boulanger et les apprentis en personnages 3D animés (src/equipe3d.js) : la même règle que les clients 3D ; nul avec ?equipe=0 (les chibis d'office)
   const E3 = typeof EQUIPE3D !== 'undefined' && EQUIPE3D && EQUIPE3D.actif ? EQUIPE3D : null;
   const TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), L = '#4A3328';
   let cv, cvUi, ctx2, renderer, scene, camera, hemi, dir, W = 1, H = 1, DPR = 1, DPRui = 1, LAY = null, visH = 1e9, amenager = false, webgl = false, perdu = 0, nFrame = 0, dernier = null;
@@ -452,11 +453,11 @@ const SCENE = (() => {
       remplacer('produits', g);
     }
     const garde = EVV && EVV.garde ? EVV.garde : G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (la boutique hantée : la tenue de l'événement) (REC.tenue, l'ancienne tenue du podium, ne décide plus)
-    const b3 = e3Pret() && !EVV, nomB = b3 ? G.nomBoutique(E.st) : '', kb3 = b3 ? 'e3d|' + kb + '|' + nomB : kb; // (la maquette : le boulanger 3D, prêt et permis, hors de la boutique hantée ; le nom de la boutique est brodé sur ses tabliers du podium)
+    const b3 = e3Pret() && !EVV, nomB = b3 ? G.nomBoutique(E.st) : '', kb3 = b3 ? 'e3d|' + kb + '|' + nomB : kb; // (le boulanger 3D, prêt et permis, hors de la boutique hantée ; le nom de la boutique est brodé sur ses tabliers du podium)
     if (b3 && boulangerG && boulangerG.userData.e3d && boulangerG.userData.e3d.cleHabit !== `${Math.max(0, Math.min(5, E.rang || 0))}|${garde.cle}`) cles.boulanger = null; // (l'acteur rhabillé ailleurs — un test, un outil de captures : la boutique le remet dans sa tenue)
     if (cles.boulanger !== kb3 && b3) { // le boulanger 3D : rhabillé sur place (même acteur, sa géométrie refaite) ; sa zone de touche : sa taille, toque comprise
       cles.boulanger = kb3; const a = E3.boulanger(E.rang, garde, nomB, E.st);
-      if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); }
+      if (a) { if (boulangerG !== a.g) { boulangerG = a.g; remplacer('boulanger', boulangerG); e3Bascule = nFrame; } else { habiller(boulangerG); zonesCache = null; } poserBoulanger3D(E, 0); boulangerG.userData.zoneBoite = zoneBoulanger3D(a); } // (e3Bascule : à cette image, les apprentis attendent la suivante pour passer en 3D)
       else cles.boulanger = null;
     }
     if (cles.boulanger !== kb3 && !b3) { cles.boulanger = kb3; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
@@ -705,14 +706,19 @@ const SCENE = (() => {
     habiller(g);
     try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); } // (extensions.has se tait, extensions.get avertit)
   }
-  // la maquette du boulanger et des apprentis en 3D (E3) : le même parcours que les clients 3D (compilés hors de l'image, chauffés, la mémoire rendue
-  // après 10 s d'interdiction) ; le boulanger posé derrière le comptoir (sa zone de touche : sa taille, toque comprise)
-  const ctxE3 = { wz, K: 1, rush: false, t: 0, LAY: null, habiller: (o) => habiller(o) }, ctxB3 = { K: 1, x: 0, y: 0, z: 0 }, oB3 = { t: 0, hop: 0, rush: false }; let e3Chauffe = null, e3Interdit = 0, e3Compile = 0;
-  const e3Pret = () => !!E3 && E3.pret && E3.permis(renderer) && e3Compile === 2;
-  function compilerE3() {
+  // le boulanger et les apprentis en 3D (E3) : le même parcours que les clients 3D (compilés hors de l'image, chauffés, la mémoire rendue après
+  // 10 s d'interdiction ; permis de nouveau, ils reviennent quand la réserve est refaite) ; le boulanger posé derrière le comptoir (sa zone de
+  // touche : sa taille, toque comprise). Le passage des chibis à la 3D s'étale : le boulanger à une image, puis un apprenti par image
+  const ctxE3 = { wz, K: 1, rush: false, t: 0, LAY: null, habiller: (o) => habiller(o) }, ctxB3 = { K: 1, x: 0, y: 0, z: 0 }, oB3 = { t: 0, hop: 0, rush: false }, oVap = { x: 0, y: 0, z: 0, l: 1, K: 1, n: 0, chaud: false, rush: false }; let e3Chauffe = null, e3Interdit = 0, e3Compile = 0, e3Bascule = -1, e3Reste = 0, vapeurG = null, e3Vu = false;
+  const e3Pret = () => !!E3 && E3.pret && !E3.remplit && E3.permis(renderer) && e3Compile === 2;
+  function compilerE3() { // (un acteur de la réserve, et la vapeur du four : son programme instancié)
     e3Compile = 1; const g = E3.echantillon(), fini = () => { e3Compile = 2; }; if (!g) { fini(); return; }
-    habiller(g);
-    try { const p = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile') ? renderer.compileAsync(g, camera, scene) : null; if (p && p.then) p.then(fini, fini); else { renderer.compile(g, camera, scene); fini(); } } catch (e) { fini(); }
+    habiller(g); if (!vapeurG) { vapeurG = E3.vapeur(); habiller(vapeurG); }
+    const lot = [g, vapeurG];
+    try {
+      const par = renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile');
+      if (par) Promise.all(lot.map((o) => renderer.compileAsync(o, camera, scene))).then(fini, fini); else { for (const o of lot) renderer.compile(o, camera, scene); fini(); }
+    } catch (e) { fini(); }
   }
   function poserBoulanger3D(E, dt) {
     const a = boulangerG && boulangerG.userData.e3d; if (!a || !LAY) return;
@@ -721,10 +727,18 @@ const SCENE = (() => {
     E3.poserBoulanger(a, oB3, dt, ctxB3);
   }
   function zoneBoulanger3D(a) { const h = E3.HAUT_BOULANGER * V.K, p = a.g.position, z = wz(LAY.boulanger.y), y0 = ctxB3.y; return new THREE.Box3(new THREE.Vector3(p.x - h * 0.3, y0, z - h * 0.15), new THREE.Vector3(p.x + h * 0.3, y0 + h * Math.max(a.h && a.h.tete === 'toque' ? 1.08 + a.h.hc * 0.012 : 1.12, ((a.habit && a.habit.haut) || 0) + 0.05), z + h * 0.15)); } // (sa taille, toque comprise — ou le chapeau pointu, mesuré —, sur son estrade)
+  // la vapeur du four (E3.poserVapeur : un maillage instancié, un appel de dessin) : n, les apprentis 3D au four ; -1, l'équipe n'est pas en 3D
+  function poserVapeur(E, dt, n) {
+    if (!E3) return;
+    if (n < 0 || !LAY || !LAY.four) { if (vapeurG) E3.poserVapeur(dt, null); return; }
+    if (!vapeurG) { vapeurG = E3.vapeur(); habiller(vapeurG); } if (!vapeurG.parent) scene.add(vapeurG);
+    const f = LAY.four; oVap.x = f.x + f.w / 2; oVap.l = Math.max(4, f.w - 18); oVap.y = wy(f.h * 0.7) - 6; oVap.z = wz(f.y + f.h) + 2; oVap.K = V.K; oVap.n = n; oVap.chaud = !!E.chaud; oVap.rush = !!E.rush; // (le haut des portes du four, MEUBLES.four)
+    E3.poserVapeur(dt, oVap);
+  }
   function synchroniser(E, dt) {
     if (c3Chauffe) { C3.rentrer(c3Chauffe); c3Chauffe = null; } // (avant tout : la boutique hantée en HD peut arriver juste après la chauffe)
     if (e3Chauffe) { E3.rentrer(e3Chauffe); e3Chauffe = null; }
-    if (modeHD) { synchroniserHD(E, dt); return; }
+    if (modeHD) { e3Vu = false; poserVapeur(E, dt, -1); synchroniserHD(E, dt); return; }
     vus.clear();
     const c3p = C3 && C3.pret && C3.permis(renderer); if (c3p && !c3Compile) compilerC3();
     const c3 = c3p && c3Compile === 2 ? C3 : null; ctxC3.K = V.K;
@@ -739,17 +753,22 @@ const SCENE = (() => {
       if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.repli = glb; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); if (g.userData.c3d) c3.poser(g.userData.c3d, c, E, dt, ctxC3); else poser(g, c, E, dt);
     }
+    let passes3d = e3Bascule === nFrame ? 1 : 0, auFour = 0;
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
-      if (E3 && g && !!g.userData.e3d !== !!e3) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (la maquette : chibi ↔ 3D)
+      const vers3d = !!e3 && passes3d < 1; // (un apprenti par image passe en 3D ; aucun à l'image où passe le boulanger)
+      if (E3 && g && g.userData.e3d && !e3) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (3D → chibi : tous à la fois, à l'image où la HD s'arrête)
+      if (E3 && g && !g.userData.e3d && vers3d) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); g = null; } // (chibi → 3D)
       if (g && !g.userData.e3d && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue (l'apprenti 3D change seulement ses couleurs et ses os)
-      if (!g && e3) { const ac = e3.apprenti(a); if (ac) { g = ac.g; habiller(g); scene.add(g); acteurs.set(id, g); } }
+      if (!g && vers3d) { const ac = e3.apprenti(a); if (ac) { passes3d++; g = ac.g; habiller(g); scene.add(g); acteurs.set(id, g); } }
       if (!g && EVV) g = prendre(`ht|${a.i}`, () => PERSOS.creer({ deguisement: (EVV.equipe || [])[a.i] || 'fantome2', plateau: true, produit: (EVV.friandises || [])[a.i] || 0, cle: true })); // la boutique hantée : le monstre de la station, sa friandise sur le plateau
       if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); }
       if (!g.parent) { g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; habiller(g); scene.add(g); acteurs.set(id, g); }
-      vus.add(id); if (g.userData.e3d) e3.poserApprenti(g.userData.e3d, a, E, dt, ctxE3); else poserApprenti(g, a, E, dt);
+      vus.add(id); if (g.userData.e3d) { e3.poserApprenti(g.userData.e3d, a, E, dt, ctxE3); if (a.etat === 'four') auFour++; } else poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
+    e3Vu = !!e3; poserVapeur(E, dt, e3 ? auFour : -1); // (l'équipe en 3D : la vapeur sort du four, les bouffées 2D des chibis au four ne sont plus dessinées)
+    e3Reste = 0; if (e3) { if (!(boulangerG && boulangerG.userData.e3d)) e3Reste++; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g || !g.userData.e3d) e3Reste++; } } // (ceux qui attendent encore leur passage en 3D)
     if (boulangerG && boulangerG.userData.e3d) poserBoulanger3D(E, dt);
     else if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
     poserChat(E, dt);
@@ -830,7 +849,7 @@ const SCENE = (() => {
       if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       if (C3 && HDM.pret('boutique') && C3.permis(renderer)) { C3.demander(); C3.preparer(); } // les clients 3D : leur lot après celui de la boutique, cuit dès qu'il est là (demander ne redemande pas)
-      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); E3.preparer(E.st, E.rang, G.nomBoutique(E.st)); } // (la maquette : l'équipe 3D, son lot après celui des clients ; prête, elle cuit d'avance la garde-robe de cette partie)
+      if (E3 && HDM.pret('boutique') && E3.permis(renderer) && (!C3 || HDM.pret('clients') || (HDM.etat.clients && HDM.etat.clients.erreur))) { E3.demander(); if (!e3Reste) E3.preparer(E.st, E.rang, G.nomBoutique(E.st)); } // l'équipe 3D : son lot après celui des clients, préparé à petits pas avec la tenue du boulanger de cette partie ; prête, elle cuit d'avance le reste de sa garde-robe (pas aux images où l'équipe passe en 3D : une chose par image)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -916,7 +935,7 @@ const SCENE = (() => {
   function calque(E, hv) {
     const c = ctx2, dy = decalage(); c.setTransform(DPRui, 0, 0, DPRui, 0, 0); c.clearRect(0, 0, W, H);
     c.save(); c.beginPath(); c.rect(0, 0, W, hv); c.clip(); if (dy) c.translate(0, dy); // la fenêtre d'un événement : le plan descend avec la scène
-    for (const v of V.vapeurs) { c.globalAlpha = Math.max(0, v.life) * 0.7; c.fillStyle = v.gris ? '#8C8C8C' : '#fff'; c.beginPath(); c.arc(v.x, v.y, v.r, 0, TAU); c.fill(); }
+    for (const v of V.vapeurs) { if (v.four && e3Vu) continue; c.globalAlpha = Math.max(0, v.life) * 0.7; c.fillStyle = v.gris ? '#8C8C8C' : '#fff'; c.beginPath(); c.arc(v.x, v.y, v.r, 0, TAU); c.fill(); } // (four : les bouffées d'un chibi qui pétrit ; l'équipe en 3D a sa vapeur à elle)
     c.globalAlpha = 1;
     const s0 = V.K, hp = PERSOS.HAUTEUR || 73;
     for (const cl of V.clients) {
@@ -1075,7 +1094,7 @@ const SCENE = (() => {
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(FUS.vus.has('rosette') ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
-    get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
+    get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); if (vapeurG && vapeurG.parent && vapeurG.visible && vapeurG.count > 0) out.vapeur = 1; return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests ; la vapeur du four de l'équipe 3D : un appel)
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get clients3d() { // les clients 3D (pour les tests) : prêts, permis, combien en 3D et en chibis dans la salle, la réserve, et chacun (son personnage, son clip, ses accessoires,
       // ses maillages visibles, le bas de ses pieds et son sac (y monde), le haut de sa tête à l'écran)
@@ -1088,11 +1107,12 @@ const SCENE = (() => {
           x: g.position.x, y: g.position.y, z: g.position.z, echelle: g.scale.x, tete: t ? { x: t.x, y: t.y, z: t.z, ecran: projeterY(t.y, t.z) } : null }); }
       return { pret: C3.pret, permis: !!renderer && C3.permis(renderer), compile: c3Compile, erreur: C3.erreur, glb, chibis, liste, etat: C3.etat, info: C3.info };
     },
-    get equipe3d() { // la maquette du boulanger et des apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
-      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le pâton, le grade, l'étoile)
+    get hdPermise() { return typeof HDM !== 'undefined' && webgl && !!renderer && HDM.permis(renderer); }, // la HD permise ici (WebGL2, pas l'éco, pas coupée) : la garde-robe propose alors la vue « Mon boulanger »
+    get equipe3d() { // le boulanger et les apprentis en 3D (pour les tests) : prêts, permis, compilés ; le boulanger (sa tenue, ses formes, son clip, ses
+      // appels de dessin, ses triangles, son échelle, sa place) ; chaque apprenti (son état, son corps, son clip, la réparation, le plateau, la clé, le pâton, le grade, l'étoile) ; la vapeur du four
       if (!E3) return null; const b = boulangerG && boulangerG.userData.e3d, mailles = (g) => { let n = 0; g.traverse((o) => { if ((o.isMesh || o.isSprite) && o.visible) n++; }); return n; };
       const app = []; for (const a of V.apprentis) { const g = acteurs.get('a' + a.i); if (!g) continue; const x = g.userData.e3d; app.push(x ? { i: a.i, etat: a.etat, corps: x.pr.nom, clip: x.joue, repare: !!(x.actions.__repare && x.actions.__repare.isRunning()), plateau: !!x.plateau, cle: x.os.cle.scale.x > 0, pate: !!x.os.pate && x.os.pate.scale.x > 0, grade: x.grade, etoile: x.os.etoile.scale.x > 0, mailles: mailles(g), echelle: +g.scale.x.toFixed(4), yaw: +x.yaw.toFixed(2), x: g.position.x, y: g.position.y, z: g.position.z } : { i: a.i, etat: a.etat, chibi: true }); }
-      return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, etat: E3.etat, info: E3.info };
+      return { pret: E3.pret, permis: !!renderer && E3.permis(renderer), compile: e3Compile, erreur: E3.erreur, boulanger: b ? { tenue: b.cleHabit, formes: { tete: b.h.tete, haut: b.h.haut, pieds: b.h.pieds, acc: b.h.acc, lunettes: b.h.lunettes }, clip: b.joue, joie: (b.joieT || 0) > 0, aura: !!b.aura, mailles: mailles(boulangerG), tris: b.habit.tris, echelle: +boulangerG.scale.x.toFixed(4), x: boulangerG.position.x, y: boulangerG.position.y, z: boulangerG.position.z } : null, chibiBoulanger: !!boulangerG && !b, apprentis: app, vapeur: vapeurG ? { bouffees: vapeurG.count, visible: vapeurG.visible && !!vapeurG.parent, appels: vapeurG.visible && vapeurG.count > 0 ? 1 : 0 } : null, etat: E3.etat, info: E3.info };
     },
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)

@@ -551,7 +551,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -2167,7 +2167,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // (la maquette ?boulanger3d=1 : la vue « Mon boulanger » couvre la boutique) // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D)
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, couvert = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert) || !!(CE && CE.ouvert) || !!(typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue.ouvert); // un écran couvre la boutique (« Ma chaîne » aussi : la planète a sa 3D ; la vue « Mon boulanger », src/equipe3d.js, aussi)
     const atelier = couvert || !!chaineVue; // pendant l'Atelier, la Planque, une visite ou dans une boutique de la chaîne : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
     // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte

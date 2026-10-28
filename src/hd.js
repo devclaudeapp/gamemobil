@@ -1,8 +1,9 @@
 /* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
    Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
    MeshoptDecoder de three r158 ; construit par outils/maquette-hd/construire.cjs). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
-   boutique reçoit quelques décors, ses meubles de salle et ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
-   Character Pack de Quaternius, CC0 ; le boulanger et les apprentis restent des chibis) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
+   boutique reçoit quelques décors, ses meubles de salle, ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
+   Character Pack de Quaternius, CC0) et son boulanger et ses apprentis animés (le lot « equipe », lu par src/equipe3d.js : les Chefs du même pack,
+   des clips des KayKit Character Animations, CC0) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
    pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
@@ -31,9 +32,9 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
-    // l'équipe de la boutique en 3D (src/equipe3d.js, la maquette du boulanger et des apprentis : seulement avec ?boulanger3d=1 ; fournil/hd/equipe/,
-    // ≈ 155 Ko) : les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module). Sans les clips ou sans le corps
-    // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
+    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 155 Ko ; demandé après les clients) :
+    // les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module).
+    // Sans les clips ou sans le corps du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
     equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
     // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
