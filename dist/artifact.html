@@ -16532,7 +16532,7 @@ const EVENEMENTS = (() => {
         poser(p, y, anime) {
           t.style.setProperty('--pq-tiroir-y', y + 'px'); el.dataset.tiroir = p; poignee.setAttribute('aria-expanded', String(p !== 'ferme'));
           clearTimeout(fin); fin = 0; tailleScene(true); // la scène descend jusqu'au tiroir (tout de suite si elle grandit : le tiroir qui descend la découvre)
-          const fini = () => { fin = 0; if (!T.glisse) tailleScene(false); ranger(); placerAct(); }; // remontée : elle rapetisse une fois couverte
+          const fini = () => { fin = 0; if (!T.glisse && Math.abs(T.y - T.Y[T.pos]) > 0.5) { T.poser(T.pos, false); return; } if (!T.glisse) tailleScene(false); ranger(); placerAct(); }; // remontée : elle rapetisse une fois couverte ; les crans ont bougé pendant la course (le solde, une rotation) : il se repose au sien
           if (anime) { ranger(); fin = setTimeout(fini, 300); } else fini();
         },
         bouge() { if (t) suivre2(court); },

@@ -2381,7 +2381,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '8998c3e9c3db';</script>
+<script>window.FOURNIL_VERSION = 'efc319d66092';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -16548,7 +16548,7 @@ const EVENEMENTS = (() => {
         poser(p, y, anime) {
           t.style.setProperty('--pq-tiroir-y', y + 'px'); el.dataset.tiroir = p; poignee.setAttribute('aria-expanded', String(p !== 'ferme'));
           clearTimeout(fin); fin = 0; tailleScene(true); // la scène descend jusqu'au tiroir (tout de suite si elle grandit : le tiroir qui descend la découvre)
-          const fini = () => { fin = 0; if (!T.glisse) tailleScene(false); ranger(); placerAct(); }; // remontée : elle rapetisse une fois couverte
+          const fini = () => { fin = 0; if (!T.glisse && Math.abs(T.y - T.Y[T.pos]) > 0.5) { T.poser(T.pos, false); return; } if (!T.glisse) tailleScene(false); ranger(); placerAct(); }; // remontée : elle rapetisse une fois couverte ; les crans ont bougé pendant la course (le solde, une rotation) : il se repose au sien
           if (anime) { ranger(); fin = setTimeout(fini, 300); } else fini();
         },
         bouge() { if (t) suivre2(court); },
