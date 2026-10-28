@@ -293,8 +293,32 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_HANTEE_ACTIVITES: '8881'
+  # Le boulanger et les apprentis en personnages 3D (src/equipe3d.js) : leur lot après celui des clients, la préparation à petits pas, la vie
+  # image par image, les 42 tenues (traversées, budgets, cache, mémoire), la vue « Mon boulanger », la HD coupée, la Maison hantée, l'éco, un
+  # fichier manquant, le processeur ralenti ×4 : une dizaine de minutes à lui seul ; fournil5 (les clients 3D, une douzaine) n'avait plus la place.
+  fournil10:
+    name: Le Fournil, le boulanger et les apprentis en 3D (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Le boulanger et les apprentis en 3D
+        run: |
+          node build.js
+          node test/fournil-equipe3d.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_EQUIPE3D: '8892'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
