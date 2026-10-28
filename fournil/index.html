@@ -2595,7 +2595,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '3dffb2394d9b';</script>
+<script>window.FOURNIL_VERSION = '05594f478ba0';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -19359,7 +19359,10 @@ const EVENEMENTS = (() => {
             if (dg.laisse) return; const tc = [...ev2.changedTouches].find((x) => x.identifier === tid); if (!tc) return; const cy = tc.clientY, dy = cy - dg.y0;
             if (!dg.pris) {
               if (Math.abs(dy) <= 6) return;
-              if (!dg.enHaut || !((dy < 0 && T.pos !== 'haut') || (dy > 0 && T.pos !== 'ferme'))) { dg.laisse = true; return; } // la liste défile
+              // dans la liste, comme dans la boutique : vers le haut, elle défile toujours (le tiroir monte par sa poignée ou sa barre) ; vers le
+              // bas, tout en haut de la liste, elle redescend le tiroir. Ailleurs (la tête du tiroir), le geste tire le tiroir dans les deux sens.
+              const dansListe = cartesEl.contains(cible);
+              if (!dg.enHaut || !((dy < 0 && T.pos !== 'haut' && !dansListe) || (dy > 0 && T.pos !== 'ferme'))) { dg.laisse = true; return; } // la liste défile
               verifier(); if (!T.prendre(dg.y0, 'liste', 6)) { dg.laisse = true; return; } dg.pris = true;
             }
             if (ev2.cancelable) ev2.preventDefault(); if (T.doigt === 'liste') T.suivre(cy);

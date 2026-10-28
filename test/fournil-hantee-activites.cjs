@@ -24,7 +24,8 @@
 //   elle ne cache ni la file, ni les bulles, ni la bannière d'un coup de pouce (en 390 × 844 comme en 360 × 640) ; le tiroir des cartes :
 //   la poignée glissée vers le haut le monte jusque sous le solde (les cartes ont toute la hauteur), un toucher sur ×10 change le mode sans
 //   le bouger, une feuille et un mini-jeu passent par-dessus, la barre glissée vers le bas (depuis ×100, qui n'est pas touché) le redescend ;
-//   la liste tout en haut, un glisser vers le haut sur les cartes monte d'abord le tiroir, puis la liste défile ; une touche sur la poignée
+//   au cran mi comme en haut, un glisser vers le haut sur les cartes fait défiler la liste (comme dans la boutique : le tiroir monte par
+//   sa poignée ou sa barre), la liste tout en haut, un glisser vers le bas redescend le tiroir ; une touche sur la poignée
 //   le bascule (mi → haut → fermé → mi, comme celui de la boutique) ; ses trois crans (haut, mi, fermé) en 390 × 844, 375 × 812, 360 × 640
 //   et installé (les marges de l'iPhone simulées) : après des glisser lents, vifs, arrêtés à mi-course, six d'affilée, une carte redessinée
 //   sous le doigt, une feuille refermée, une rotation, il est sur un cran exact et le bas de la liste touche le bas de l'écran (à 2 px),
@@ -436,12 +437,14 @@ function faux(d) {
     await glisser(x100, y100, y100 + 320);
     const g3 = await geo();
     check(g3.pos === 'mi' && Math.abs(g3.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g3.cartes.ht - g0.cartes.ht) < 1 && g3.mode === 10, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
-    // la liste tout en haut, tiroir en bas : un glisser vers le haut sur les cartes monte d'abord le tiroir ; en haut, la liste défile
+    // le tiroir au cran mi, la liste tout en haut : un glisser vers le haut sur les cartes fait défiler la liste (le joueur, 28 oct. : « à
+    // mi-hauteur je ne peux pas naviguer dans les améliorations ») ; le tiroir reste à mi-hauteur, comme celui de la boutique
     await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
-    const lx = 120, ly = Math.min(g3.cartes.b - 30, g3.cartes.h + 80);
-    await glisser(lx, ly, ly - 220);
+    const lx = 120, ly = Math.min(g3.cartes.b - 30, g3.cartes.h + 160);
+    await glisser(lx, ly, ly - 160);
     const g4 = await geo();
-    check(g4.pos === 'haut' && g4.defile === 0, `la liste tout en haut, un glisser vers le haut sur les cartes monte d’abord le tiroir (${g4.pos}, la liste à ${g4.defile} px)`);
+    check(g4.pos === 'mi' && g4.defile > 50, `tiroir à mi-hauteur, un glisser vers le haut sur les cartes fait défiler la liste (${g4.pos}, la liste à ${Math.round(g4.defile)} px)`);
+    await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await ev(() => window.__fournil.evHantee.tiroir('haut')); await pose();
     await glisser(lx, 700, 450); const g5 = await geo();
     check(g5.pos === 'haut' && g5.defile > 50, `tiroir en haut, le même glisser fait défiler la liste (${Math.round(g5.defile)} px)`);
     await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await sleep(200);
@@ -487,12 +490,14 @@ function faux(d) {
       for (let k = 0; k < 6; k++) { [x, y] = await P(); await vite(x, y, k % 2 ? y + 260 : y - 260); await sleep(60); } // six pichenettes d'affilée, sans attendre la fin des courses
       await sleep(600); await pose(); await surCran(`${ou}, six glisser rapides d’affilée`);
       // un glisser sur la liste dont la carte touchée est redessinée en route (le chrono d'une fournée, sur iPhone) : le tiroir suit jusqu'au bout
-      await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose(); await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
-      { const k0 = await cran(), lx2 = 120, ly2 = Math.min(k0.H - 40, k0.y + 140);
-        await touche('touchStart', [[lx2, ly2]]); for (let k = 1; k <= 4; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); }
-        const refait = await ev(([x2, y2]) => { const e = document.elementFromPoint(x2, y2), c = e && e.closest('#ht-cartes > *'); if (!c) return false; c.innerHTML = c.innerHTML; return true; }, [lx2, ly2 - 100]);
-        for (let k = 5; k <= 10; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); } await touche('touchEnd', []); await sleep(600); await pose();
-        await surCran(`${ou}, la liste glissée vers le haut, sa carte redessinée en route (${refait ? 'redessinée' : 'pas de carte sous le doigt'})`, 'haut'); }
+      // (en haut, la liste tout en haut, glissée vers le bas : le tiroir redescend au cran mi)
+      await ev(() => window.__fournil.evHantee.tiroir('haut')); await pose(); await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
+      { const k0 = await cran(), lx2 = 120, ly2 = Math.min(k0.H - 300, k0.y + 140), pas = (crans.mi - crans.haut) * 0.08; // (8/10 du chemin vers le cran mi, lentement : il s'y pose)
+        await touche('touchStart', [[lx2, ly2]]); for (let k = 1; k <= 4; k++) { await touche('touchMove', [[lx2, ly2 + pas * k]]); await sleep(40); }
+        const refait = await ev(([x2, y2]) => { const e = document.elementFromPoint(x2, y2), c = e && e.closest('#ht-cartes > *'); if (!c) return false; c.innerHTML = c.innerHTML; return true; }, [lx2, ly2 + pas * 4]);
+        for (let k = 5; k <= 10; k++) { await touche('touchMove', [[lx2, ly2 + pas * k]]); await sleep(40); } await touche('touchEnd', []); await sleep(600); await pose();
+        await surCran(`${ou}, la liste glissée vers le bas, sa carte redessinée en route (${refait ? 'redessinée' : 'pas de carte sous le doigt'})`, 'mi'); }
+      await ev(() => window.__fournil.evHantee.tiroir('haut')); await pose();
       // une feuille ouverte puis refermée (Sortilèges), le tiroir en haut : il y reste, la liste jusqu'en bas
       { const [xs2, ys2] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs2, ys2); await attendre(() => ev(() => !document.querySelector('#feuille').hidden), 3000); await sleep(300);
         await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
