@@ -51,7 +51,7 @@ check(Object.values(F.couleurs).every((c) => /^#[0-9A-F]{6}$/i.test(c)) && F.cou
 check(F.produits === HT.PRODUITS && F.paliers === HT.PALIERS && F.ameliorations === HT.AMELIORATIONS && F.dates.debut === HT.DEBUT && F.dates.fin === HT.FIN, 'la fiche pointe sur les mêmes produits, paliers, améliorations et dates');
 check(Object.keys(F.evenements).sort().join() === Object.keys(HT.EVENEMENTS).sort().join() && Object.values(F.evenements).every((e) => e.nom && e.annonce && e.fin && typeof e.detail === 'function'), 'chaque coup de pouce a son habillage d’Halloween (nom, annonce, détail, fin), aux clés de mécanique du Quartier');
 check(['titre', 'annonceTitre', 'annonce', 'ouvrir', 'fermer', 'bilanTitre', 'bilan', 'palier12', 'paliersNote', 'classementInfo', 'classementFini', 'vide', 'podiumFinal'].every((k) => typeof F.textes[k] === 'string' && F.textes[k].length > 3) && typeof F.textes.absence === 'function' && /bonbons/.test(F.textes.absence('2 h', HT.fmtEur(1200))), 'les textes de l’écran, tous là');
-{ const manquants = Object.keys(Q).filter((k) => !(k in HT) || typeof HT[k] !== typeof Q[k]);
+{ const manquants = Object.keys(Q).filter((k) => k !== 'ECARTE' && (!(k in HT) || typeof HT[k] !== typeof Q[k])); // (ECARTE : le drapeau du Quartier écarté, le sien seul)
   check(manquants.length === 0, `tout ce qu’exporte QUARTIER existe dans HANTEE, du même type${manquants.length ? ' — manquent : ' + manquants.join(', ') : ''}`); }
 check(HT.PRODUITS.length === 8 && HT.PRODUITS.map((p) => p.id).join() === 'acidule,pomme,cookie,toile,potion,citrouille,cimetiere,dragon' && HT.PRODUITS.slice(0, 6).every((p) => !p.apres), 'six friandises : acidulés, pommes d’amour, cookies fantômes, toiles en sucre, potions fumantes, citrouilles sculptées ; puis deux recettes après le maître');
 check(HT.PRODUITS.map((p) => p.staffNom.split(' ').slice(-1)[0]).join() === 'fantôme,momie,squelette,Vladimir,sorcière,Lanterne,loup-garou,dragonne' && HT.PRODUITS.every((p) => p.cout > 0 && p.rev > 0 && p.temps > 0 && p.croiss > 1 && p.staff > 0 && p.staffNom && p.staffDesc && p.poste && p.desc), 'leurs monstres : le fantôme, la momie, le squelette, le vampire (Comte Vladimir), la sorcière, la citrouille-lanterne, puis le loup-garou et la petite dragonne ; chacun a son poste et sa phrase');
@@ -605,6 +605,60 @@ console.log('── lot 6 : le bestiaire (dix servis par sorte ; des étoiles, l
   check(ab.bestiaire.zombie === 25 && !('licorne' in ab.bestiaire) && ab.bestiaire.momie === 0 && ab.bestiaire.fantome === 0 && ab.bestiaireFaits.join() === 'zombie' && ab.bestiaireAVerser === 0 && ab.chauvesouris === false, 'une sauvegarde abîmée : remise d’aplomb (inconnues et doublons retirés, comptes à zéro), rien d’inventé'); }
 { const m = S.marathon.q, a = S.assidu.q;
   check(m.bestiaireFaits.length === 9 && m.chauvesouris && m.decos.includes('bestiaire') && a.bestiaireFaits.length >= 5, `la simulation : le marathon complète le bestiaire (${HT.SORTES.map((k) => m.bestiaire[k]).join(', ')} servis), l’assidu ${a.bestiaireFaits.length} sortes sur 9 (${a.stats.clientsServis} clients servis)`); }
+
+console.log('── le bestiaire continue (27 octobre) : les paliers d’argent et d’or de chaque sorte ──');
+{ const B = HT.BESTIAIRE, A = B.argent, O = B.or, ET = B.etoiles.reduce((a, x) => a + x, 0);
+  check(B.par === 10 && ET === 11 && A.par === 30 && O.par === 140 && A.etoiles === 1 && O.etoiles === 2 && A.deco === 'bestiaire-argent' && O.deco === 'bestiaire-or',
+    `les règles : le bronze inchangé (10 servis, ${ET} ★) ; l’argent à ${A.par} servis (+${A.etoiles} ★ par sorte), l’or à ${O.par} (+${O.etoiles} ★) ; les neuf : '${A.deco}', '${O.deco}'`);
+  // la vieille sauvegarde du joueur : le bronze 9/9 fini (tout payé, versé), des servis au-delà de dix (jamais plafonnés), pas de listes d'argent ni d'or
+  const { st, q } = prep6(T6, { vide: true }), cpt = { squelette: 31, 'squelette-sorcier': 12, zombie: 29, citrouille: 10, fantome: 18, momie: 30, sorciere: 14, vampire: 22, loup: 11 };
+  Object.assign(q.bestiaire, cpt); q.bestiaireFaits = HT.SORTES.slice(); q.chauvesouris = true; if (!q.decos.includes('bestiaire')) q.decos.push('bestiaire'); q.bestiaireAVerser = 0;
+  const vieux = JSON.parse(JSON.stringify(st)); delete vieux.hantee.bestiaireArgent; delete vieux.hantee.bestiaireOr;
+  const v = HT.etat(vieux, T6), e0 = v.etoiles || 0, b0 = HT.bestiaire(v);
+  check(Array.isArray(v.bestiaireArgent) && !v.bestiaireArgent.length && Array.isArray(v.bestiaireOr) && !v.bestiaireOr.length && b0.faits === 9 && b0.argent === 0 && b0.or === 0 && v.bestiaire.squelette === 31,
+    'une vieille sauvegarde à 9/9 bronze : l’argent et l’or vides, les servis au-delà de dix gardés (31 squelettes)');
+  const sq = b0.sortes.find((x) => x.sorte === 'squelette'), zb = b0.sortes.find((x) => x.sorte === 'zombie');
+  check(sq.medaille === 'bronze' && sq.servis === 31 && sq.n === 10 && sq.prochain === 30 && zb.depuis === 10 && zb.prochain === 30, 'l’écran : chacun en bronze, vers l’argent (« 29/30 » ; n reste 10/10 pour le bronze)');
+  const bil0 = v.billets, tot0 = v.total, dus = HT.bestiaireDus(v);
+  check(dus.map((x) => `${x.sorte}:${x.palier}`).join() === 'squelette:argent,momie:argent' && dus.every((x) => x.etoiles === 1 && !x.deco) && v.etoiles === e0 + 2 && v.bestiaireAVerser === 2 && v.bestiaireArgent.join() === 'squelette,momie',
+    `déjà au-delà de 30 : le squelette et la momie passent en argent, une fois (+2 ★ à verser) — ${dus.map((x) => x.sorte).join(', ')}`);
+  check(HT.bestiaireDus(v).length === 0 && v.etoiles === e0 + 2 && HT.verserBestiaire(v) === 2 && HT.verserBestiaire(v) === 0, 'rejoué : rien de plus ; versé une fois');
+  check(v.billets === bil0 && v.total === tot0 && v.bestiaireFaits.length === 9 && v.decos.filter((d) => d === 'bestiaire').length === 1, 'aucun bonbon (l’enveloppe du serveur ne bouge pas) ; le bronze n’est pas rejoué');
+  // le jeu : chaque client servi en entier ; au-delà des plafonds de l'heure et du jour (pourboire 0), les paliers comptent quand même
+  let id = 7e6; HT.plafondsManoir(v, v.now); v.manoir.h.clients = HT.CLIENTS.parHeure; v.manoir.j.clients = HT.CLIENTS.parJour;
+  const servirTout = (sorte) => { const c = { id: ++id, sorte, commande: [{ i: 0, n: 1, servi: false }], arrive: v.now }; v.manoir.file.push(c); return HT.servir(v, c.id, 0); };
+  let r = servirTout('zombie');
+  check(r.bestiaire.n === 30 && r.bestiaire.complete && r.bestiaire.complete.palier === 'argent' && r.bestiaire.complete.rang === 3 && r.bestiaire.medaille === 'argent' && r.bestiaire.prochain === 140 && r.prime === 0 && v.etoiles === e0 + 3,
+    'le 30e zombie : la médaille d’argent (3/9, +1 ★), le suivant vise l’or (140)');
+  r = servirTout('zombie'); check(!r.bestiaire.complete && v.etoiles === e0 + 3 && v.bestiaireArgent.filter((k) => k === 'zombie').length === 1, 'le 31e : rien de plus (une seule fois)');
+  const rangs = []; for (const k of HT.SORTES) while (v.bestiaire[k] < 30) { const x = servirTout(k); for (const c of x.bestiaire.completes) rangs.push(c); }
+  const neuf = rangs[rangs.length - 1];
+  check(v.bestiaireArgent.length === 9 && neuf.rang === 9 && neuf.deco === 'bestiaire-argent' && v.decos.filter((d) => d === 'bestiaire-argent').length === 1 && !v.decos.includes('bestiaire-or') && v.etoiles === e0 + 9 && HT.bestiaire(v).decoArgent,
+    `les neuf en argent : +9 ★ en tout, l’étagère aux bocaux d’argent (q.decos, une fois) au 9e (${neuf.sorte})`);
+  const ors = []; for (const k of HT.SORTES) while (v.bestiaire[k] < 140) { const x = servirTout(k); for (const c of x.bestiaire.completes) ors.push(c); }
+  check(ors.length === 9 && ors.every((c) => c.palier === 'or' && c.etoiles === 2) && ors[8].deco === 'bestiaire-or' && v.bestiaireOr.length === 9 && v.etoiles === e0 + 9 + 18 && v.decos.filter((d) => d === 'bestiaire-or').length === 1 && v.decos.includes('bestiaire-argent'),
+    `les neuf en or : +2 ★ chacune (${v.etoiles - e0} ★ en tout depuis le bronze), l’étagère dorée au 9e`);
+  const bo = HT.bestiaire(v), so = bo.sortes[0];
+  check(bo.or === 9 && bo.argent === 9 && so.medaille === 'or' && so.prochain === null && bo.decoOr && servirTout('loup').bestiaire.completes.length === 0 && v.billets === bil0, 'au bout : chacune en or, plus rien à viser, plus rien de payé ; toujours aucun bonbon');
+  // une sauvegarde abîmée : doublons, inconnues ; l'or sans l'argent n'invente rien
+  const ab = HT.etat({ hantee: Object.assign(JSON.parse(JSON.stringify(v)), { bestiaireArgent: ['zombie', 'zombie', 'licorne', 3], bestiaireOr: 'oui' }) }, T6);
+  check(ab.bestiaireArgent.join() === 'zombie' && Array.isArray(ab.bestiaireOr) && ab.bestiaireOr.length === 0, 'une sauvegarde abîmée : listes remises d’aplomb (doublons et inconnues retirés)');
+  const ab2 = HT.etat({ hantee: Object.assign(JSON.parse(JSON.stringify(v)), { bestiaireArgent: [], bestiaireOr: [] }) }, T6), e2 = ab2.etoiles, d2 = HT.bestiaireDus(ab2);
+  check(d2.length === 18 && d2.slice(0, 9).every((x) => x.palier === 'argent') && d2.slice(9).every((x) => x.palier === 'or') && ab2.etoiles === e2 + 27 && ab2.decos.filter((d) => d === 'bestiaire-or').length === 1,
+    'les listes perdues, les comptes gardés : l’argent puis l’or, payés une fois chacun, dans l’ordre, les étagères pas redonnées'); }
+{ // les seuils, réglés par la simulation (src/hantee.js, le commentaire du bestiaire) : parJour[j].bestiaire, les servis par sorte au soir
+  const jourMetal = (s, seuil) => { const d = s.parJour.find((x) => HT.SORTES.every((k) => x.bestiaire[k] >= seuil)); return d ? d.j : Infinity; };
+  const enMetal = (s, seuil) => HT.SORTES.filter((k) => s.q.bestiaire[k] >= seuil).length, A = HT.BESTIAIRE.argent.par, O = HT.BESTIAIRE.or.par;
+  const quo = [], ass = [], assOr = [], occ = [];
+  for (let g = 1; g <= 8; g++) { const sq = HT.simuler('quotidien', 7, { graine: g }), sa = HT.simuler('assidu', 7, { graine: g }), so = HT.simuler('occasionnel', 7, { graine: g });
+    quo.push(jourMetal(sq, A)); ass.push(jourMetal(sa, A)); assOr.push(enMetal(sa, O)); occ.push(enMetal(so, A)); }
+  check(quo.every((j) => j >= 5 && j <= 6), `le quotidien a l’argent des neuf le 5e ou le 6e jour (graines 1 à 8 : ${quo.join(', ')})`);
+  check(assOr.every((n) => n >= 1 && n <= 6) && ass.every((j) => j <= 3), `l’assidu a l’or sur quelques sortes au dernier soir (${assOr.join(', ')} sur 9) ; l’argent des neuf dès le ${Math.max(...ass)}e jour au plus tard`);
+  check(occ.every((n) => n <= 2), `l’occasionnel : l’argent reste rare (${occ.join(', ')} sorte(s) sur 9)`);
+  const ta = S.tresactif, jta = jourMetal(ta, O);
+  check(jta <= 7 && ta.q.bestiaireOr.length === 9 && ta.q.decos.includes('bestiaire-or') && ta.q.bestiaireArgent.length === 9, `le très actif de la simulation (250 clients à l’heure, sans un trou) : l’or des neuf le ${jta}e jour, les deux étagères`);
+  const sa = S.assidu.q;
+  check(sa.bestiaireArgent.length === enMetal(S.assidu, A) && sa.bestiaireOr.length === enMetal(S.assidu, O) && sa.decos.includes('bestiaire-argent'), `la simulation paie ce qu’elle compte (l’assidu, graine 7 : ${sa.bestiaireArgent.length} en argent, ${sa.bestiaireOr.length} en or)`); }
 
 console.log('── lot 6 : la simulation (le marathon et le très actif jouent tout, les autres ont des trous) ──');
 { const heures = (p) => { let h = 0; for (let j = 0; j < 7; j++) for (const [hh, mn] of HT.PROFILS[p].sessions) { const d = HT.DEBUT - 12 * 3600e3 + j * 864e5 + hh * 3600e3; if (d >= HT.DEBUT && d < HT.FIN) h += Math.min(mn * 60e3, HT.FIN - d) / 3600e3; } return h; };

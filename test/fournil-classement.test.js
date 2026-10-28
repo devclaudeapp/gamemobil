@@ -564,9 +564,12 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(f.evt === null && f.recompenses.evenements.hantee.rang === null && egal(f.recompenses.evenements.hantee.podium, []), 'un événement inconnu ou un rang absurde : écartés'); }
   { // les onglets d'événement du classement (pour l'interface)
     const Q = require('../src/quartier.js'), H = require('../src/hantee.js');
-    const liste = (masque) => [{ periode: 'quartier', nom: 'Événement', regles: Q, masque: !!masque }, { periode: 'hantee', nom: 'Halloween', regles: H }];
+    // (le Quartier est écarté depuis le 27 oct., QUARTIER.ECARTE : ses règles sont rejouées ici comme s'il revenait, Qr, puis telles quelles)
+    const Qr = Object.assign({}, Q, { ECARTE: false });
+    const liste = (masque, R) => [{ periode: 'quartier', nom: 'Événement', regles: R || Qr, masque: !!masque }, { periode: 'hantee', nom: 'Halloween', regles: H }];
     check(egal(CL.ongletsEvenements(liste(), Date.UTC(2026, 9, 20)), [['quartier', 'Événement']]), 'le 20 octobre : l’onglet Événement seul');
     check(egal(CL.ongletsEvenements(liste(), H.DEBUT + 3600e3), [['quartier', 'Événement'], ['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(true), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le 27 octobre après midi : le podium final du Quartier et Halloween (le Quartier masqué : Halloween seul)');
+    check(Q.ECARTE === true && egal(CL.ongletsEvenements(liste(false, Q), Date.UTC(2026, 9, 20)), []) && egal(CL.ongletsEvenements(liste(false, Q), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le Quartier écarté : plus d’onglet, même pendant ses deux semaines de podium (Halloween seul)');
     check(egal(CL.ongletsEvenements(liste(), H.FIN + 13 * 864e5), [['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(), H.FIN + 15 * 864e5), []), 'deux semaines après Halloween, l’onglet s’efface');
     check(CL.PERIODES.includes('hantee') && CL.EVTS.join() === 'hantee', 'la période « hantee » est connue du moteur'); }
 

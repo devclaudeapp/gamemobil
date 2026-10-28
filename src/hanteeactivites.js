@@ -12,6 +12,9 @@
    servi, colorés à dix) ouvre sa feuille (les neuf, « 3/10 », les récompenses à venir) ; chaque client servi qui le fait avancer, un petit
    mot sur la scène (« Zombie 4/10 ») ; chaque sorte complétée, une feuille de fête (et au 5e le décor, au 9e la chauve-souris) ; les étoiles
    gagnées sont versées dans la boulangerie tout de suite (verserBestiaire : une fois). Les gabarits : F.gabarits (src/evenement.js).
+   Depuis le 27 octobre, l'argent et l'or de chaque sorte (BESTIAIRE.argent, .or) : chaque miniature porte sa médaille, le petit mot dit la
+   marche suivante (« Zombie 23/30 »), chaque médaille a sa fête (plusieurs d'un coup, une vieille sauvegarde : une seule fête), et les neuf
+   d'un métal, leur étagère. Une sauvegarde déjà au-delà d'un seuil est payée à l'entrée (bestiaireDus).
    Les liens : un id des règles ↔ un id de la scène (clients : 'c12' ; apparitions : un nombre), tenus ici et remis d'aplomb à chaque pas
    (réconciliés sur l'état des règles : une file vidée par une absence, une apparition perdue, une sauvegarde rechargée). Sans la scène de la
    boutique hantée (?boutique=0, le Manoir d'avant ; ou pas de WebGL), le repli est en DOM : la file en bas de la scène (un monstre, sa
@@ -56,6 +59,7 @@ const HANTEE_ACTIVITES = (() => {
         const z = document.createElement('div'); z.className = 'mh-dodo'; z.hidden = true; z.setAttribute('aria-hidden', 'true'); z.textContent = T.reveil || 'Zzz… touche le Manoir pour le réveiller'; couche.appendChild(z); // (le boss dort : le mot sur la scène, et le voile)
       }
       if (Q.reparerManoir) Q.reparerManoir(qq(), maint());
+      if (Q.bestiaireDus) { const dus = Q.bestiaireDus(qq()); if (dus.length) { verserBestiaire(); feter(dus); } } // (une sauvegarde déjà au-delà d'un seuil : l'argent ou l'or, payés ici, une fois)
       majTout();
     }
     function fermer() {
@@ -64,6 +68,7 @@ const HANTEE_ACTIVITES = (() => {
       for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
       if (btEl) { btEl.remove(); btEl = null; }
       lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'); if (ca) for (const b of ca.children) b.classList.remove('pq-traverse');
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -320,15 +325,18 @@ const HANTEE_ACTIVITES = (() => {
     const icoMonstre = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.monstres && ICONS.HANTEE.monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
     const court = (k) => (M0.courts && M0.courts[k]) || nomSorte(k);
     const etatSorte = (s) => (s.fait ? 'fait' : s.n > 0 ? 'encours' : 'vide'); // sombre (aucun servi), en cours, coloré (complété)
+    const partSorte = (x) => (x.prochain == null ? 1 : Math.max(0, Math.min(1, ((x.servis != null ? x.servis : x.n) - (x.depuis || 0)) / (x.prochain - (x.depuis || 0))))); // vers le palier suivant
+    const seuilDe = (m) => (m === 'argent' || m === 'or' ? Q.BESTIAIRE[m].par : Q.BESTIAIRE.par);
     function donneesBestiaire() { // l'état des règles, prêt pour les gabarits (src/evenement.js, F.gabarits.bestiaire*)
       const b = Q.bestiaire(qq()), B0 = Q.BESTIAIRE, et = B0.etoiles.reduce((a, x) => a + x, 0), gagnees = B0.etoiles.slice(0, b.faits).reduce((a, x) => a + x, 0);
-      return { faits: b.faits, total: b.total, deco: b.deco, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
-        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), ico: icoMonstre(x.sorte) })),
+      return { faits: b.faits, argent: b.argent || 0, or: b.or || 0, total: b.total, deco: b.deco, decoArgent: !!b.decoArgent, decoOr: !!b.decoOr, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
+        seuils: B0.argent ? { argent: B0.argent.par, or: B0.or.par } : null, etoilesArgent: B0.argent ? B0.argent.etoiles : 0, etoilesOr: B0.or ? B0.or.etoiles : 0,
+        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), servis: x.servis, medaille: x.medaille, depuis: x.depuis, prochain: x.prochain, part: partSorte(x), ico: icoMonstre(x.sorte) })),
         ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), textes: T };
     }
     function majBestiaire(force) { // la carte du tiroir : redessinée quand un compte change
       const e = bestEl(); if (!e || !Q.bestiaire || !F.gabarits || !F.gabarits.bestiaire) return;
-      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.n}${x.fait ? '*' : ''}`).join(',');
+      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.servis != null ? x.servis : x.n}${x.medaille || ''}`).join(',');
       if (!force && cle === lastBest && !e.hidden) return; lastBest = cle;
       e.hidden = false; e.innerHTML = F.gabarits.bestiaire(donneesBestiaire());
     }
@@ -337,24 +345,49 @@ const HANTEE_ACTIVITES = (() => {
       const n = Q.verserBestiaire(q), s = d.st(); if (s && n > 0) { s.etoiles += n; if (G && G.gagnerXp) G.gagnerXp(s, 10); }
       if (F.decos) F.decos(q.decos); X.save(); if (d.apres) d.apres(); return n;
     }
-    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 ») ; sa sorte complétée : les étoiles, la fête
+    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 », puis vers l'argent « 23/30 », vers l'or) ; un palier passé : les étoiles, la fête
       const sc = sceneEl(); lastBest = '';
+      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
       if (sc && F.gabarits && F.gabarits.bestiaireMot) {
         if (!btEl || !btEl.isConnected) { btEl = document.createElement('div'); btEl.className = 'mh-bt'; btEl.setAttribute('role', 'status'); sc.appendChild(btEl); }
-        const n = Math.min(be.n, be.par);
-        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, be.par) : `${court(be.sorte)} ${n}/${be.par}`, part: n / be.par, fait: n >= be.par });
-        btEl.classList.toggle('fait', n >= be.par); btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
+        const ici = faites.filter((x) => x.sorte === be.sorte).pop(); // (le palier que ce servi vient de passer)
+        let n, par, med = ici ? ici.palier || 'bronze' : be.medaille || null;
+        if (ici) { par = seuilDe(ici.palier); n = par; } else if (be.prochain === null) { par = 0; n = be.n; } else { par = be.prochain || be.par; n = Math.min(be.n, par); }
+        const fait = !!ici || par === 0, txt = par === 0 ? `${court(be.sorte)} ${n} · or` : T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, par) : `${court(be.sorte)} ${n}/${par}`;
+        const de = par === 0 ? 0 : !ici && be.depuis ? be.depuis : 0;
+        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: txt, part: par === 0 ? 1 : (n - de) / (par - de), fait });
+        btEl.classList.toggle('fait', fait); for (const m of ['bronze', 'argent', 'or']) btEl.classList.toggle('m-' + m, fait && med === m);
+        btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
         clearTimeout(btT); btT = setTimeout(() => { if (btEl) btEl.hidden = true; }, 2200);
       }
-      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
-      if (faites.length) { verserBestiaire(); for (const x of faites) fetes.push(x); montrerFete(); }
+      if (faites.length) { verserBestiaire(); feter(faites); }
       majBestiaire(true);
+    }
+    function feter(faites) { // les paliers passés : une fête chacun ; plusieurs d'argent ou d'or d'un coup (une vieille sauvegarde) : une seule pour eux
+      for (const m of ['bronze', 'argent', 'or']) {
+        const l = faites.filter((x) => (x.palier || 'bronze') === m); if (!l.length) continue;
+        if (m === 'bronze' || l.length === 1) { for (const x of l) fetes.push(x); continue; }
+        const der = l[l.length - 1];
+        fetes.push({ sorte: der.sorte, palier: m, rang: der.rang, etoiles: l.reduce((a, x) => a + x.etoiles, 0), deco: l.map((x) => x.deco).find(Boolean) || null, compagnon: false, sortes: l.map((x) => x.sorte) });
+      }
+      montrerFete();
     }
     const libre = () => document.querySelector('#feuille').hidden && !(X.mini && X.mini());
     function montrerFete() { // une sorte complétée : sa feuille de fête, quand la feuille est libre (jamais par-dessus une autre)
       if (!fetes.length || !ouvert || !libre() || !F.gabarits || !F.gabarits.bestiaireFete) return;
       const x = fetes.shift(), b = Q.bestiaire(qq()), G0 = G || {};
       const dons = [`+${x.etoiles} étoile${x.etoiles > 1 ? 's' : ''} pour ta boulangerie${G0.ETOILE_BONUS ? ` (+${Math.round(x.etoiles * G0.ETOILE_BONUS * 100)} % de gains, pour toujours)` : ''}`];
+      if (x.palier === 'argent' || x.palier === 'or') { // une médaille d'argent ou d'or (ou plusieurs d'un coup)
+        const or = x.palier === 'or', decoNom = or ? T.bestiaireDecoOr || 'l’étagère dorée' : T.bestiaireDecoArgent || 'l’étagère aux bocaux d’argent';
+        if (x.deco) dons.push(decoNom);
+        const plusieurs = x.sortes && x.sortes.length > 1, titre = plusieurs ? (T.bestiaireMedailles ? T.bestiaireMedailles(x.sortes.length, x.palier) : `${x.sortes.length} monstres en ${x.palier} !`) : T.bestiaireMedaille ? T.bestiaireMedaille(nomSorte(x.sorte), x.palier) : `${nomSorte(x.sorte)} : médaille ${or ? 'd’or' : 'd’argent'} !`;
+        d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(or ? 1 : 0.8);
+        const s3 = X.scene(); if (s3 && s3.fete) s3.fete();
+        d.openSheet(F.gabarits.bestiaireFete({ palier: x.palier, sorte: x.sorte, sortes: x.sortes || [x.sorte], titre, rang: x.rang, total: b.total, seuil: seuilDe(x.palier), dons, deco: !!x.deco, decoNom: decoNom.charAt(0).toUpperCase() + decoNom.slice(1).split(',')[0], reste: b.total - (or ? b.or : b.argent), ico: icoMonstre(x.sorte) }));
+        d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
+        d.on('[data-a="mh-best-voir"]', () => { d.son.tap(); feuilleBestiaire(); });
+        return;
+      }
       if (x.deco) dons.push(T.bestiaireDeco || 'l’étagère aux bocaux de monstres, pour ta boutique');
       if (x.compagnon) dons.push(T.bestiaireCompagnon || 'la chauve-souris, un compagnon pour ta boutique');
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(0.8);
@@ -370,10 +403,23 @@ const HANTEE_ACTIVITES = (() => {
       d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
     }
 
-    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ───
+    // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ; la colonne des activités (en haut à droite de la
+    //     scène, src/evenement.js) : les bulles passent à sa gauche ; une apparition qui passe sous un de ses boutons le rend transparent
+    //     (.pq-traverse, jusqu'à 0,4 s après : le doigt arrive toujours un peu après) ; un toucher sur ce bouton-là, ou là où elle passe
+    //     (sousDoigt), va à l'apparition ; ailleurs, il ouvre le bouton ───
+    const tTraverse = new Map(); // bouton de la colonne → l'instant où une apparition était encore dessous
+    function sousDoigt(x, y) { // une apparition sous ce point (le doigt arrive un peu après : 16 px de plus) ? le repli l'attrape ici ; la scène, elle, la reçoit du toucher
+      if (!ouvert) return false;
+      if (mode === 'scene' && B()) return B().vise ? B().vise(x, y) : B().apparitions().some((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 16); // (la même visée que le toucher de la scène)
+      for (const o of apps.values()) if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width && x >= b.left - 16 && x <= b.right + 16 && y >= b.top - 16 && y <= b.bottom + 16) { d.audio(); attraper(o.id); return true; } }
+      return false;
+    }
     function image() {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
+      const ca = sceneEl() && sceneEl().querySelector('.pq-act'), rc = ca ? ca.getBoundingClientRect() : null, tuiles = ca ? [...ca.children].map((b) => [b, b.getBoundingClientRect()]) : [];
+      const dessous = (x, y, rr) => { if (!rc || !(rc.width > 0) || !(x + rr > rc.left && x - rr < rc.right && y + rr > rc.top && y - rr < rc.bottom)) return false;
+        for (const [b, r] of tuiles) if (x + rr > r.left && x - rr < r.right && y + rr > r.top && y - rr < r.bottom) tTraverse.set(b, performance.now()); return true; };
       if (mode === 'scene' && B()) {
         const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
@@ -383,17 +429,29 @@ const HANTEE_ACTIVITES = (() => {
           vis.push({ b, o, x: a.x - r.left, hy: a.y - r.top, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
         }
         // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
-        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
-        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
+        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe). La colonne
+        // des activités (en haut à droite de la scène, src/evenement.js) : une bulle à sa hauteur passe à sa gauche, jamais dessous
+        const col = rc && rc.width ? { g: rc.left - r.left - 6, haut: rc.top - r.top - 6, bas: rc.bottom - r.top + 6 } : null;
+        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = col && v.y > col.haut && v.y - v.h < col.bas ? Math.min(v.x, col.g - v.w / 2) : v.x;
         for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        // puis de droite à gauche : chacune sous sa borne droite (le bord, ou la colonne à sa hauteur), sa voisine de gauche poussée d'autant
+        for (let i = vis.length - 1; i >= 0; i--) {
+          const v = vis[i], n = vis[i + 1]; v.cx = Math.min(v.cx, (col && v.y > col.haut && v.y - v.h < col.bas ? col.g : r.width - 4) - v.w / 2);
+          if (n && Math.abs(v.y - n.y) < (v.h + n.h) / 2) v.cx = Math.min(v.cx, n.cx - (v.w + n.w) / 2 - 6);
+        }
         // La pointe part du bas de la bulle (sa base, bornée à ±(largeur/2 − 14) px) et montre la tête de SON monstre : une bulle écartée de
         // sa tête monte d'autant (la moitié de l'écart qui dépasse, 26 px au plus) et sa pointe s'allonge en biais jusqu'à la tête
         // (--mh-queue : sa longueur, --mh-biais : son angle). Borne haute : une bulle ne passe jamais sous l'en-tête du Manoir (le haut de
         // la fenêtre de la scène) : un client qui entre par la porte du fond garde la sienne entière ; tout près du bord, sa pointe se cache.
         for (const v of vis) {
-          v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
-          const base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)), reste = v.x - v.cx - base;
-          v.y = Math.max(v.h + 4, v.y - Math.min(26, Math.abs(reste) * 0.5));
+          const y0 = v.y, sous = (y) => !!col && y > col.haut && y - v.h < col.bas; // (à la hauteur de la colonne)
+          let base = 0, reste = 0;
+          for (let k = 0; k < 2; k++) { // (une bulle écartée monte : à sa nouvelle hauteur, elle peut passer à côté de la colonne, une fois de plus)
+            v.cx = Math.max(v.w / 2 + 4, Math.min((sous(v.y) ? col.g : r.width - 4) - v.w / 2, v.cx));
+            base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)); reste = v.x - v.cx - base;
+            v.y = Math.max(v.h + 4, y0 - Math.min(26, Math.abs(reste) * 0.5));
+            if (!sous(v.y) || v.cx + v.w / 2 <= col.g + 0.5) break;
+          }
           const dy = v.hy - v.y, lg = dy > 3 ? Math.hypot(reste, dy) + 2 : 0, biais = lg ? -Math.atan2(reste, dy) * 180 / Math.PI : 0;
           v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
           const pointe = base.toFixed(0) + 'px', queue = lg.toFixed(0) + 'px', angle = biais.toFixed(1) + 'deg';
@@ -410,8 +468,10 @@ const HANTEE_ACTIVITES = (() => {
           if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
           if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
           o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
+          dessous(p.x, p.y, p.r);
         }
-      } else for (const o of apps.values()) placerApp(o, q.now);
+      } else for (const o of apps.values()) { placerApp(o, q.now); if (o.img) { const b = o.img.getBoundingClientRect(); if (b.width) dessous(b.left + b.width / 2, b.top + b.height / 2, b.width / 2); } }
+      for (const [b] of tuiles) { const sous = performance.now() - (tTraverse.get(b) || -1e9) < 400; if (b.classList.contains('pq-traverse') !== sous) b.classList.toggle('pq-traverse', sous); }
     }
 
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───
@@ -438,7 +498,7 @@ const HANTEE_ACTIVITES = (() => {
         serie: M ? M.serie : 0, record: M ? M.record || 0 : 0, eveil: Q.presence ? Q.presence(q, maint()) : null,
         bestiaire: Q.bestiaire ? Q.bestiaire(q) : null, fetes: fetes.length, mot: btEl && !btEl.hidden ? btEl.textContent.trim() : '' };
     }
-    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire };
+    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire, sousDoigt };
   }
   return { creer };
 })();

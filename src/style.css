@@ -767,7 +767,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ticket.boosts .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
 .ticket.boosts.actif .tk-pill { background: var(--menthe); color: #fff; font-variant-numeric: tabular-nums; }
 .ticket.boosts.actif > .ico { background: #E3F7EE; }
-:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
+:is(#planque, #hantee) { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; overflow: hidden; overflow: clip; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
 :is(#planque, #hantee) .at-haut { padding-bottom: 2px; }
 :is(#planque, #hantee) .at-fermer { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
 :is(#planque, #hantee) .at-fermer svg { stroke: #fff; }
@@ -779,7 +779,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-cl-btn svg { stroke: #FFF7EC; }
 .pq-paliers-btn.pret { background: var(--beurre); color: var(--texte); box-shadow: 0 3px 0 var(--beurre-sombre); animation: pulse 1.2s ease-in-out infinite; }
 .pq-paliers-btn:active { transform: translateY(3px); box-shadow: none; }
-.pq-solde { display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; }
+.pq-solde { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; } /* au-dessus du tiroir monté */
 .pq-solde .pq-ico { width: 36px; height: 36px; flex: 0 0 auto; }
 .pq-solde .pq-ico svg { width: 36px; height: 36px; }
 .pq-solde > div { min-width: 0; flex: 1 1 auto; }
@@ -787,9 +787,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-solde small { display: block; margin-top: 2px; font-size: 12px; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pq-solde small b { display: inline; font: 800 12px/1 var(--texte-font); color: #8FE3C2; }
 .pq-reste { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #3F3A50; font: 700 12px/1.2 var(--titre); color: #FFC84A; white-space: nowrap; }
-.pq-scene { position: relative; flex: 0 0 auto; height: clamp(150px, 26vh, 230px); margin: 0 10px; border-radius: 22px; overflow: hidden; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.pq-scene { position: relative; isolation: isolate; flex: 0 0 auto; height: clamp(150px, 26vh, 230px); margin: 0 10px; border-radius: 22px; overflow: hidden; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* (isolée : ce qui flotte sur la scène reste sous le tiroir quand il monte) */
 :is(#pq-canvas, #ht-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-:is(#pq-ev, #ht-ev) { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; }
+/* les bandeaux de la scène (src/evenement.js, tiroir) : juste au-dessus du tiroir, comme ceux de la boutique ; le coup de pouce, puis ce qui
+   suit le tiroir (la commande du Manoir), empilés ; .pq-un : le coup de pouce passe seul devant (une scène basse) */
+.pq-bandeaux { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.pq-bandeaux > * { pointer-events: auto; }
+.pq-bandeaux.pq-un > .pq-suit { display: none; }
+:is(#pq-ev, #ht-ev) { position: relative; }
 :is(#pq-ev, #ht-ev) .ev { min-height: 52px; }
 @media (max-width: 379px) { /* 360 px : la bannière des coups de pouce passe sur deux lignes au lieu d'être coupée, le bouton se resserre */
   :is(#pq-ev, #ht-ev) .ev { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; padding: 8px 8px 10px 8px; }
@@ -813,7 +818,26 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 :is(#planque, #hantee)[data-ecran="porte"] .pq-solde, :is(#planque, #hantee)[data-ecran="porte"] .pq-scene, :is(#planque, #hantee)[data-ecran="porte"] .pq-barre, :is(#planque, #hantee)[data-ecran="porte"] .pq-paliers-btn,
 :is(#planque, #hantee)[data-ecran="bilan"] .pq-solde, :is(#planque, #hantee)[data-ecran="bilan"] .pq-scene, :is(#planque, #hantee)[data-ecran="bilan"] .pq-barre { display: none; }
 :is(#planque, #hantee)[data-ecran="porte"] :is(#pq-cartes, #ht-cartes), :is(#planque, #hantee)[data-ecran="bilan"] :is(#pq-cartes, #ht-cartes) { display: none; }
-:is(#pq-cartes, #ht-cartes) { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px 16px; }
+/* (l'écran rogne ce qui dépasse, overflow: clip : jamais un conteneur qu'on fait défiler ; un scrollIntoView le décalait tout entier vers
+   le haut, le bouton fermer hors de l'écran. Les vieux Safari, sans clip : src/evenement.js le remet en place à chaque image) */
+/* le tiroir (src/evenement.js, tiroir ; la mécanique : src/tiroir.js) : comme celui de la boutique (#tiroir, #pages), il fait toute la hauteur
+   de l'écran et glisse par une translation, --pq-tiroir-y (son cran : haut, mi, fermé) ; le même --pq-tiroir-y en marge du bas donne à sa
+   liste la hauteur qui reste : elle va toujours jusqu'au bas de l'écran, et défile dedans */
+.pq-tiroir { position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 1; display: flex; flex-direction: column; padding-bottom: var(--pq-tiroir-y, 0px); transform: translateY(var(--pq-tiroir-y, 0px));
+  background: #2E2B3A; border-radius: 22px 22px 0 0; transition: transform .28s cubic-bezier(.2, .8, .2, 1), border-radius .2s ease-out; will-change: transform; }
+.pq-tiroir.glisse { transition: none; }
+:is(#planque, #hantee)[data-tiroir="haut"] > .pq-tiroir { border-radius: 0; } /* en haut : une page sous le solde */
+:is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) > .pq-tiroir { display: none; }
+.pq-poignee { position: relative; flex: 0 0 auto; height: 24px; touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent; }
+.pq-poignee > i { position: absolute; top: 9px; left: 50%; width: 56px; height: 5px; margin-left: -28px; border-radius: 3px; background: #56516B; }
+.pq-poignee:focus-visible { outline: 2px solid #FFC84A; outline-offset: -4px; border-radius: 12px; }
+.pq-tiroir-tete { flex: 0 0 auto; padding: 0 12px 8px; }
+.pq-tiroir-tete:empty, .pq-tiroir-tete:not(:has(> :not([hidden]))) { display: none; }
+.pq-tiroir > .pq-barre { flex: 0 0 auto; padding-top: 0; touch-action: none; } /* la barre se tire aussi (un toucher sur ses boutons reste un toucher) */
+.pq-tiroir > :is(#pq-cartes, #ht-cartes) { flex: 1 1 0; min-height: 0; }
+:is(#planque, #hantee)[data-tiroir="ferme"] > .pq-tiroir > :is(#pq-cartes, #ht-cartes) { padding-block: 0; } /* fermé : la liste n'a plus que le bas de l'écran (l'indicateur d'accueil), rien ne dépasse */
+@media (prefers-reduced-motion: reduce) { .pq-tiroir { transition: none; } }
+:is(#pq-cartes, #ht-cartes) { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px calc(16px + env(safe-area-inset-bottom, 0px)); } /* (le bas de l'écran : au-dessus de l'indicateur d'accueil) */
 .carte.pq { background: #3F3A50; color: #FFF7EC; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
 .carte.pq .icone { background: #56516B; }
 .carte.pq .palier, .carte.pq .palier span + span { color: #C7B8FF; }
@@ -932,19 +956,22 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 @media (prefers-reduced-motion: reduce) { .mh-cs { animation: none; } }
 /* la scène en pleine largeur, comme la boutique ; le tiroir passe par-dessus son bas (la boutique hantée, ?boutique=1, a déjà ce cadre) */
 #hantee:not(.ht-boutique) > .pq-scene { margin: 0 0 -20px; height: clamp(180px, 28vh, 260px); border-radius: 0; background: #2A2140; box-shadow: none; } /* à peu près les pixels de l'ancien cadre (la 3D coûte cher aux petits téléphones) */
-#hantee:not(.ht-boutique) > .pq-scene > .pq-ev { bottom: 28px; }
+#hantee:not(.ht-boutique) > .pq-scene > .pq-bandeaux { bottom: 28px; }
 #hantee:not(.ht-boutique) > .pq-scene ~ * { background: var(--mh-creme); }
-#hantee > .pq-scene + * { position: relative; z-index: 1; border-radius: 24px 24px 0 0; padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
-body #hantee.ht-boutique > .pq-scene + * { padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+#hantee > .pq-tiroir { border-radius: 24px 24px 0 0; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+body #hantee.ht-boutique > .pq-tiroir { box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
 body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .12); }
-/* la poignée du tiroir, et sa petite citrouille */
-#hantee > .pq-scene + *::before { content: ''; position: absolute; top: 9px; left: 50%; width: 56px; height: 5px; margin-left: -28px; border-radius: 3px; background: var(--mh-ombre); }
-#hantee > .pq-scene + *::after { content: ''; position: absolute; top: 2px; left: calc(50% + 34px); width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7c-1.3-1-3-1.4-4.7-1.1C4.6 6.4 3 9 3 12.6s2.2 6.6 5.6 7c1.2.1 2.4-.2 3.4-.8 1 .6 2.2.9 3.4.8 3.4-.4 5.6-3.4 5.6-7s-1.6-6.2-4.3-6.7C15 5.6 13.3 6 12 7z' fill='%23FF8A1F' stroke='%233D2748' stroke-width='1.5'/%3E%3Cpath d='M9 7.5c-1 3-1 8 0 11.6M15 7.5c1 3 1 8 0 11.6' stroke='%23D9660A' stroke-width='1.2' fill='none'/%3E%3Cpath d='M12 7V4.4l2.2-1.2' stroke='%235B8C3A' stroke-width='1.7' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
-/* la barre des activités et la barre ×1 ×10 ×100 Max · Sortilèges : les pastilles blanches de la boulangerie */
-#hantee .pq-act-btn { background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 var(--mh-ombre); }
-#hantee .pq-act-btn:active { box-shadow: 0 1px 0 var(--mh-ombre); }
+#hantee[data-tiroir="haut"] > .pq-tiroir { border-radius: 0; }
+/* la poignée du tiroir (on la tire, ou on la touche : src/evenement.js, tiroir), et sa petite citrouille */
+#hantee .pq-poignee > i { background: var(--mh-ombre); }
+#hantee .pq-poignee:focus-visible { outline-color: var(--mh-violet); }
+#hantee .pq-poignee::after { content: ''; position: absolute; top: 2px; left: calc(50% + 34px); width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7c-1.3-1-3-1.4-4.7-1.1C4.6 6.4 3 9 3 12.6s2.2 6.6 5.6 7c1.2.1 2.4-.2 3.4-.8 1 .6 2.2.9 3.4.8 3.4-.4 5.6-3.4 5.6-7s-1.6-6.2-4.3-6.7C15 5.6 13.3 6 12 7z' fill='%23FF8A1F' stroke='%233D2748' stroke-width='1.5'/%3E%3Cpath d='M9 7.5c-1 3-1 8 0 11.6M15 7.5c1 3 1 8 0 11.6' stroke='%23D9660A' stroke-width='1.2' fill='none'/%3E%3Cpath d='M12 7V4.4l2.2-1.2' stroke='%235B8C3A' stroke-width='1.7' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* la colonne des activités (sur la scène : un blanc à peine transparent) et la barre ×1 ×10 ×100 Max · Sortilèges : les pastilles blanches de la boulangerie */
+#hantee .pq-act-btn { background: rgba(255, 255, 255, .9); color: var(--mh-texte); box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18); }
+#hantee .pq-act-btn:active { box-shadow: 0 1px 0 rgba(61, 39, 72, .28); }
 #hantee .pq-act-txt small { color: var(--mh-texte2); }
-#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 var(--mh-ombre), inset 0 0 0 2px var(--menthe); }
+#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18), inset 0 0 0 2px var(--menthe); }
+#hantee .pq-act-btn.actif { box-shadow: 0 3px 0 rgba(61, 39, 72, .28), 0 4px 10px rgba(21, 17, 31, .18), inset 0 0 0 2px var(--mh-orange); }
 #hantee .pq-act-btn.pret small { color: var(--menthe-sombre); }
 #hantee .pq-act-btn.actif small { color: var(--mh-orange-texte); }
 #hantee .pq-pastille { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 2px 0 var(--mh-orange-sombre); }
@@ -1052,6 +1079,20 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-commande-temps { display: block; height: 5px; margin-top: 5px; border-radius: 999px; background: var(--mh-creme2); overflow: hidden; }
 .mh-commande-temps b { display: block; height: 100%; border-radius: inherit; background: var(--mh-violet); transition: width .5s linear; }
 .mh-commande .btn { min-width: 0; }
+/* en bandeau sur la scène (et dans la tête du tiroir monté) : compacte, comme les coups de pouce */
+:is(.pq-bandeaux, .pq-tiroir-tete) > .mh-commande-place { padding: 0; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; min-height: 52px; padding: 6px 8px 6px 6px; border-radius: 18px; box-shadow: 0 0 0 2px var(--mh-violet) inset, 0 6px 16px rgba(21, 17, 31, .3); }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande.prete { box-shadow: 0 0 0 3px var(--menthe) inset, 0 6px 16px rgba(21, 17, 31, .3); }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-pic { width: 36px; height: 36px; border-radius: 12px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-pic svg { width: 28px; height: 28px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-corps { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 6px; row-gap: 1px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-tag { grid-column: 1 / -1; font-size: 10px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-corps > b { font-size: 14px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-lignes { margin: 0; flex-wrap: nowrap; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande-temps { grid-column: 1 / -1; margin-top: 2px; height: 4px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn { min-height: 40px; padding: 4px 10px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn small { font-size: 11px; }
+:is(.pq-bandeaux, .pq-tiroir-tete) .mh-commande .btn b { font-size: 15px; }
 /* les activités de la Maison hantée en jeu (src/hanteeactivites.js) : une couche sur la scène (les bulles des clients-monstres au-dessus
    de leur tête, les apparitions du repli en images, la file du repli en bas), la fenêtre « parfait » sur les barres de cuisson, ce qui
    vole jusqu'au solde et les mots qui flottent */
@@ -1129,6 +1170,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 /* le bestiaire (src/hanteeactivites.js, gabarits de src/evenement.js) : la carte en tête du tiroir, le petit mot sur la scène, la feuille, la fête.
    Un monstre jamais servi : une silhouette sombre ; en cours : pâli, sa jauge dessous ; complété : en couleur, son étoile */
 .mh-bestiaire-place { flex: 0 0 auto; padding: 2px 12px 8px; }
+.pq-cartes-liste > .mh-bestiaire-place { padding: 0; } /* (en tête de la liste : il défile avec les cartes) */
 .mh-bestiaire-place[hidden] { display: none; }
 .mh-bestiaire { display: grid; grid-template-columns: 44px minmax(0, 1fr) 16px; gap: 10px; align-items: center; width: 100%; min-height: 64px; padding: 8px 10px; border: 0; border-radius: var(--r-carte); background: #fff; color: var(--mh-texte); text-align: left;
   box-shadow: 0 0 0 2px #FFD2AE inset, var(--mh-ombre-carte); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -1182,14 +1224,14 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-barre { display: block; width: 80%; height: 5px; border-radius: 999px; background: #EADBEF; overflow: hidden; }
 .mh-best-barre b { display: block; height: 100%; border-radius: inherit; background: #FF8A1F; }
 .mh-best-case.fait .mh-best-barre { background: #FFC79E; }
-.mh-best-recomp { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
-.mh-best-recomp li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
-.mh-best-recomp li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
-.mh-best-recomp li div { min-width: 0; display: grid; gap: 2px; }
-.mh-best-recomp li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
-.mh-best-recomp li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
-.mh-best-recomp em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
-.mh-best-recomp li.fait em { color: #2E9C70; }
+.mh-best-recomp, .mh-best-paliers { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.mh-best-recomp li, .mh-best-paliers li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: #fff; box-shadow: var(--ombre-carte), inset 0 0 0 1.5px #F0DCC9; }
+.mh-best-recomp li.fait, .mh-best-paliers li.fait { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
+.mh-best-recomp li div, .mh-best-paliers li div { min-width: 0; display: grid; gap: 2px; }
+.mh-best-recomp li div b, .mh-best-paliers li div b { font: 700 14.5px/1.2 var(--titre); color: #3D2748; }
+.mh-best-recomp li div small, .mh-best-paliers li div small { font: 700 12px/1.3 var(--texte-font); color: #775B8A; }
+.mh-best-recomp em, .mh-best-paliers em { font: 800 12.5px/1 var(--texte-font); font-style: normal; color: #B04C06; white-space: nowrap; }
+.mh-best-recomp li.fait em, .mh-best-paliers li.fait em { color: #2E9C70; }
 .mh-best-r-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F1E9FF; }
 .mh-best-r-ico svg { width: 36px; height: 36px; }
 .mh-best-r-et { font: 700 26px/1 var(--titre); color: #FF8A1F; }
@@ -1204,6 +1246,33 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-cs p { margin: 0; font: 700 13.5px/1.35 var(--texte-font); color: #3D2748; }
 .mh-best-fete-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 @keyframes mhFete { 0% { scale: .3; rotate: -12deg; opacity: 0; } 100% { scale: 1; rotate: 0deg; opacity: 1; } }
+/* les médailles du bestiaire (le bronze, l'argent, l'or de chaque sorte) : la carte du tiroir (son résumé, les miniatures cerclées), les cases
+   de la feuille (la médaille du portrait, la marche suivante), le petit mot sur la scène, la fête d'argent ou d'or, les étagères */
+.mh-best-tete { flex-wrap: wrap; row-gap: 2px; }
+.mh-best-meds { font-variant-numeric: tabular-nums; }
+.mh-best-meds .m-bronze { color: #A55A1C; } .mh-best-meds .m-argent { color: #677585; } .mh-best-meds .m-or { color: #A87700; }
+.mh-best-mini i.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-mini i.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-mini i.fait.m-bronze::after, .mh-best-mini i.fait.m-argent::after { display: block; background: #9AA6B4; }
+.mh-best-mini i.fait.m-argent::after { background: #E0A91B; }
+.mh-best-case.fait.m-argent { background: #EEF2F7; box-shadow: inset 0 0 0 2px #9AA6B4; }
+.mh-best-case.fait.m-or { background: #FFF1BF; box-shadow: inset 0 0 0 2px #E0A91B; }
+.mh-best-case.m-argent > small { color: #4F5B69; } .mh-best-case.m-or > small { color: #8A6100; }
+.mh-best-case.m-bronze .mh-best-barre b { background: #9AA6B4; } .mh-best-case.m-argent .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-argent .mh-best-barre { background: #D6DDE5; } .mh-best-case.m-or .mh-best-barre { background: #FFE07A; } .mh-best-case.m-or .mh-best-barre b { background: #E0A91B; }
+.mh-best-case.m-bronze .mh-best-et { background: #C77B30; box-shadow: 0 2px 0 #8F5216; }
+.mh-best-case.m-argent .mh-best-et { background: linear-gradient(#F4F7FA, #B5BFCB); color: #fff; text-shadow: 0 1px 0 #6E7B8A; box-shadow: 0 2px 0 #7D8997; }
+.mh-best-case.m-or .mh-best-et { background: linear-gradient(#FFE58A, #F0B11F); color: #fff; text-shadow: 0 1px 0 #A87700; box-shadow: 0 2px 0 #B98300; }
+.mh-best-r-et.m-argent { color: #8E9AA8; } .mh-best-r-et.m-or { color: #E0A91B; }
+.mh-best-r-deco { display: grid; place-items: center; } .mh-best-r-deco svg { width: 36px; height: 36px; }
+.mh-best-r-deco.m-argent svg { filter: grayscale(1) brightness(1.08) contrast(.95); }
+.mh-best-r-deco.m-or svg { filter: sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.05); }
+.mh-bt.fait.m-argent { background: #E6EBF1; color: #2F3945; } .mh-bt.fait.m-argent .mh-bt-barre b { background: #6E7B8A; } .mh-bt.fait.m-argent .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #6E7B8A; }
+.mh-bt.fait.m-or { background: #FFD45A; color: #3D2A00; } .mh-bt.fait.m-or .mh-bt-barre b { background: #3D2A00; } .mh-bt.fait.m-or .mh-bt-et { color: #fff; text-shadow: 0 1px 0 #A87700; }
+.mh-best-fete.m-argent .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFFFFF 0 45%, #DDE3EA 46% 70%, #EEF2F7 71%); box-shadow: 0 0 0 4px #9AA6B4, 0 8px 24px rgba(110, 123, 138, .35); }
+.mh-best-fete.m-argent .mh-best-fete-pic > b { background: linear-gradient(#F4F7FA, #A9B4C1); box-shadow: 0 3px 0 #6E7B8A; }
+.mh-best-fete.m-or .mh-best-fete-pic { background: radial-gradient(circle at 50% 45%, #FFF8D6 0 45%, #FFE07A 46% 70%, #FFF1BF 71%); box-shadow: 0 0 0 4px #E0A91B, 0 8px 24px rgba(224, 169, 27, .45); }
+.mh-best-fete.m-or .mh-best-fete-pic > b { background: linear-gradient(#FFE58A, #E9A714); box-shadow: 0 3px 0 #A87700; }
 @media (prefers-reduced-motion: reduce) { .mh-bt.mh-bt-vu, .mh-best-fete-pic { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .mh-bulle.presse, .mh-monstre, #hantee .carte.pq[data-mh~="voulu"] .icone, .mh-halo, .mh-dodo { animation: none; } .mh-flotte { animation-duration: 1.6s; } }
 /* les prix en bonbons : le nombre et un petit bonbon emballé (pas d'emoji : une image SVG en fond, au trait du jeu) */
@@ -1612,24 +1681,37 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .card.arriere-carte .chev svg { width: 20px; height: 20px; }
 .card.arriere-carte:active { transform: translateY(2px); }
 
-/* ─── les activités des événements (src/activites.js, src/evenement.js) : la barre de trois boutons sous la scène, les mini-jeux en plein
-   écran par-dessus la boutique de l'événement, les feuilles des contrats et de l'opération. Les mêmes pour tous les événements ; la Maison
-   hantée les teinte (--ht-*). ─── */
-.pq-act { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 0; }
-.pq-act-btn { position: relative; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 48px; padding: 6px 6px 6px 5px; border-radius: 16px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; text-align: left; }
+/* ─── les activités des événements (src/activites.js, src/evenement.js) : la colonne de trois boutons en haut à droite de la scène, les
+   mini-jeux en plein écran par-dessus la boutique de l'événement, les feuilles des contrats et de l'opération. Les mêmes pour tous les
+   événements ; la Maison hantée les teinte (--ht-*). ─── */
+/* la colonne : par-dessus la 3D, sous le solde (--pq-scene-haut : ce que le solde cache du haut de la scène), de haut en bas Mini-jeux,
+   Contrats, Opération : des tuiles de 76 px de large (l'icône, le nom, la petite ligne d'état), assez étroites pour laisser la file du
+   comptoir et ses bulles (qui passent à sa gauche si une tête est dessous : src/hanteeactivites.js). Une scène basse : sans la petite
+   ligne (l'état : la pastille et les couleurs) ; si le coup de pouce la toucherait (.pq-serre, placerAct), la bannière s'arrête à sa gauche */
+.pq-act { position: absolute; z-index: 3; top: calc(var(--pq-scene-haut, 0px) + 8px); right: 8px; display: grid; grid-auto-rows: minmax(48px, auto); gap: 5px; width: 76px; }
+.pq-act-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; min-height: 48px; padding: 5px 3px; border-radius: 15px; background: rgba(63, 58, 80, .9); box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; text-align: center; -webkit-tap-highlight-color: transparent; }
 .pq-act-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1E1B26; }
-.pq-act-ico { flex: 0 0 auto; display: grid; place-items: center; width: 24px; height: 24px; }
-.pq-act-ico svg { width: 24px; height: 24px; }
-.pq-act-txt { min-width: 0; flex: 1 1 auto; }
-.pq-act-txt b { display: block; font: 700 13.5px/1.1 var(--titre); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pq-act-txt small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.1; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.pq-act-ico { flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; }
+.pq-act-ico svg { width: 22px; height: 22px; }
+.pq-act-txt { display: block; width: 100%; min-width: 0; }
+.pq-act-txt b { display: block; font: 700 12px/1.1 var(--titre); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pq-act-txt small { display: block; margin-top: 1px; font: 800 9.5px/1.15 var(--texte-font); color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .pq-act-btn.pret { box-shadow: 0 3px 0 #1E1B26, inset 0 0 0 2px var(--menthe); }
 .pq-act-btn.pret small { color: #8FE3C2; }
-.pq-act-btn.actif small { color: var(--beurre); font-weight: 800; }
+.pq-act-btn.actif { box-shadow: 0 3px 0 #1E1B26, inset 0 0 0 2px var(--beurre); }
+.pq-act-btn.actif small { color: var(--beurre); }
+.pq-scene.pq-serre .pq-act-txt small { display: none; }
+.pq-scene.pq-serre > .pq-bandeaux { right: 90px; }
+.pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt b { white-space: nowrap; } /* (la bannière plus étroite : son titre sur une ligne, son détail sur deux) */
+.pq-scene.pq-serre :is(#pq-ev, #ht-ev) .ev-txt > span { -webkit-line-clamp: 2; }
+#hantee.ht-boutique { --pq-scene-haut: 20px; } /* la boutique hantée : le haut de la scène passe sous le solde */
+.pq-act-btn { transition: opacity .15s ease-out; }
+.pq-act-btn.pq-traverse { opacity: .3; } /* une apparition passe dessous (src/hanteeactivites.js) : on la voit, un toucher sur ce bouton l'attrape */
 .pq-pastille { position: absolute; top: -7px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 13px/22px var(--titre); font-style: normal; text-align: center; box-shadow: 0 2px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
 :is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) .pq-act { display: none; }
-@media (max-width: 359px) { .pq-act { gap: 4px; padding-inline: 8px; } .pq-act-btn { padding: 6px 4px; gap: 3px; } .pq-act-ico, .pq-act-ico svg { width: 18px; height: 18px; } .pq-act-txt b { font-size: 12px; } }
-@media (max-height: 700px) { .pq-act-btn { min-height: 44px; } }
+@media (max-height: 760px) { .pq-act { grid-auto-rows: minmax(44px, auto); gap: 4px; } .pq-act-btn { min-height: 44px; padding-block: 3px; } .pq-act-txt small { display: none; } } /* (une scène basse : l'état par la couleur et la pastille) */
+/* le petit mot « Zzz… » du Manoir endormi : centré sur ce que la colonne laisse libre */
+.pq-act ~ .mh-couche .mh-dodo { left: calc(50% - 42px); box-sizing: border-box; max-width: calc(100% - 104px); white-space: normal; text-align: center; }
 /* le mini-jeu, par-dessus la boutique (qui continue de tourner dessous) */
 .pq-mini { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; background: #2E2B3A; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .2s ease-out; }
 .pq-mini[hidden] { display: none; }

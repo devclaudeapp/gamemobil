@@ -1,14 +1,14 @@
 // Les gains hors ligne quand l'app n'est pas fermée (iPhone verrouillé, app installée laissée ouverte) : la page dort, performance.now()
 // s'arrête, et iOS ne prévient pas toujours (pas de visibilitychange). Ici, le sommeil est simulé : l'heure du téléphone ET celle du serveur
 // avancent, performance.now() non, sans aucun événement. Le détecteur de réveil doit payer l'absence (feuille « Pendant ton absence »),
-// la Planque ouverte doit payer ses apprentis (jusqu'à la fermeture si l'événement ferme pendant le sommeil, puis le bilan) ; avancer seulement l'heure du téléphone ne rapporte rien ; un même sommeil n'est payé qu'une fois.
+// l'écran d'un événement ouvert (le Manoir de la Maison hantée ; la Planque, écartée avec le Quartier le 27 oct., était ici avant, à remettre à son retour) doit payer ses apprentis (jusqu'à la fermeture si l'événement ferme pendant le sommeil, puis le bilan) ; avancer seulement l'heure du téléphone ne rapporte rien ; un même sommeil n'est payé qu'une fois.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-reveil.cjs
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), PORT = +process.env.PORT_REVEIL || 8869;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary' };
-const H = 3600e3, DEPART = new Date('2026-10-14T10:00:00+02:00').getTime(); // le 2e jour du Quartier (la Planque est ouverte)
+const H = 3600e3, DEPART = new Date('2026-10-28T10:00:00+01:00').getTime(); // le 2e jour de la Maison hantée (le Manoir est ouvert)
 let decalServeur = DEPART - Date.now();
 const server = http.createServer((req, res) => {
   res.setHeader('Date', new Date(Date.now() + decalServeur).toUTCString());
@@ -31,7 +31,7 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   page.on('pageerror', (e) => erreurs.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) erreurs.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(1500);
-  const fermerFeuille = () => page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
+  const fermerFeuille = () => page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"], #feuille [data-a="pq-tard"]'); if (b) b.click(); }); // (l'annonce du Manoir : « Plus tard »)
   await fermerFeuille();
   // une boulangerie qui tourne toute seule : des produits ouverts et des apprentis
   await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e9); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); st.tuto = 99; f.save(); });
@@ -86,17 +86,16 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   const c1 = await argent();
   check(c1 > c0 && !/Pendant ton absence/.test(await feuille()), `+${Math.round(c1 - c0)} €, sans feuille (moins de 90 s)`);
 
-  console.log('── la Planque ouverte pendant le sommeil ──');
-  await page.evaluate(() => window.__fournil.quartier()); await sleep(500);
-  await page.evaluate(() => { const b = document.querySelector('#pq-corps [data-pq="oui"]'); if (b) b.click(); }); await sleep(500);
-  await page.evaluate(() => { const q = window.__fournil.st.quartier; q.billets = 5e4; }); await sleep(200);
-  await page.evaluate(() => { const b = document.querySelector('#pq-cartes [data-a="embaucher"]'); if (b) b.click(); }); await sleep(1500);
-  const b0 = await page.evaluate(() => window.__fournil.st.quartier.billets);
+  console.log('── le Manoir ouvert pendant le sommeil ──');
+  await fermerFeuille(); await page.evaluate(() => window.__fournil.hantee()); await sleep(500);
+  await page.evaluate(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.billets = 5e4; }); await sleep(200);
+  await page.evaluate(() => { const b = document.querySelector('#ht-cartes [data-a="embaucher"]'); if (b) b.click(); }); await sleep(1500);
+  const b0 = await page.evaluate(() => { const F = window.__fournil; return F.st[F.evHantee.cle].billets; });
   await sommeil(1 * H);
   await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'reveil' && !window.__fournil.retour.enCours)); await sleep(1500);
-  const b1 = await page.evaluate(() => window.__fournil.st.quartier.billets);
-  check(b1 > b0, `l'apprenti de la Planque a travaillé pendant le sommeil : +${Math.round(b1 - b0)} billets`);
-  await page.evaluate(() => { const b = document.querySelector('#pq-fermer, [data-pq="fermer"], #pq [data-a="fermer"]'); if (b) b.click(); }); await sleep(800); await fermerFeuille();
+  const b1 = await page.evaluate(() => { const F = window.__fournil; return F.st[F.evHantee.cle].billets; });
+  check(b1 > b0, `l'apprenti du Manoir a travaillé pendant le sommeil : +${Math.round(b1 - b0)} bonbons`);
+  await page.evaluate(() => { const b = document.querySelector('#hantee [data-pq="fermer"]'); if (b) b.click(); }); await sleep(800); await fermerFeuille();
 
   console.log('── le jeu gelé 2 h (performance.now() avance aussi, aucun événement : l\'app laissée en arrière-plan, téléphone éveillé) ──');
   const g0 = await argent();
@@ -204,41 +203,40 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
     check(await p4.evaluate(() => { const p = window.__fournil.st.parcours; return !!p && p.recus.length === 13 && p.gains === 2; }), 'les récompenses des boutiques n°2 à 14 sont reçues une fois (+2 % de gains)');
     await ctx4.close();
   }
-  console.log('── la Planque ouverte, le téléphone verrouillé 3 h avant la fermeture, rouvert après : payée jusqu’à la fermeture, puis le bilan ──');
+  console.log('── le Manoir ouvert, le téléphone verrouillé 3 h avant la fermeture, rouvert après : payé jusqu’à la fermeture, puis le bilan ──');
   {
-    const Q = require('../src/quartier.js');
+    const Q = require('../src/hantee.js'); // (la Planque, écartée avec le Quartier le 27 oct., était ici avant : à remettre à son retour)
     decalServeur = Q.FIN - 3 * H - Date.now();
     const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx3.addInitScript((d0) => { let d = d0; const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = F; window.__avancerTel = (ms) => { d += ms; }; window.__sansQuartier = false; }, decalServeur);
     await ctx3.route(/supabase\.co/, (r) => r.abort());
     const p3 = await ctx3.newPage(); p3.on('pageerror', (e) => erreurs.push(e.message));
     await p3.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await p3.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(1500);
-    const fermer3 = () => p3.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
-    await fermer3(); await p3.evaluate(() => window.__fournil.quartier()); await sleep(500);
-    await p3.evaluate(() => { const b = document.querySelector('#pq-corps [data-pq="oui"]'); if (b) b.click(); }); await sleep(800);
-    await p3.evaluate(() => { const F = window.__fournil, Q = F.Q, q = F.st.quartier; q.billets = 1e9; for (let i = 0; i < 3; i++) { Q.acheter(q, i); Q.embaucher(q, i); } q.billets = 0; }); await sleep(1200);
+    const fermer3 = () => p3.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"], #feuille [data-a="pq-tard"]'); if (b) b.click(); });
+    await fermer3(); await p3.evaluate(() => window.__fournil.hantee()); await sleep(800);
+    await p3.evaluate(() => { const F = window.__fournil, Q = F.HT, q = F.st[F.evHantee.cle]; q.billets = 1e9; for (let i = 0; i < 3; i++) { Q.acheter(q, i); Q.embaucher(q, i); } q.billets = 0; }); await sleep(1200);
     // la carte du produit suivant, pas encore débloqué : « Rapporte X la vente » dit le vrai gain de sa première vente (à la main, présence comprise)
-    const carte = await p3.evaluate(() => { const F = window.__fournil, Q = F.Q, q = F.st.quartier, c = document.querySelector('#pq-cartes .carte[data-i="3"]'), m = c && /Rapporte (.+?) la vente/.exec(c.innerText.replace(/\s+/g, ' '));
+    const carte = await p3.evaluate(() => { const F = window.__fournil, Q = F.HT, q = F.st[F.evHantee.cle], c = document.querySelector('#ht-cartes .carte[data-i="3"]'), m = c && /Rapporte (.+?) la vente/.exec(c.innerText.replace(/\s+/g, ' '));
       const x = JSON.parse(JSON.stringify(q)); x.billets = 1e12; Q.acheter(x, 3); x.postes.forEach((s, i) => { if (i !== 3) s.actif = false; }); const t0 = x.total; Q.lancer(x, 3); Q.tick(x, Q.temps(x, 3) + 0.01, x.now); // la vraie première vente, au moteur du jeu
-      return { texte: m ? m[1] : '', gain: x.total - t0, attendu: Q.fmtEur(x.total - t0), base: Q.PRODUITS[3].rev }; });
+      return { texte: m ? m[1] : '', gain: x.total - t0, attendu: F.evHantee.F.fmtPhrase(x.total - t0), base: Q.PRODUITS[3].rev }; });
     check(carte.texte && carte.texte === carte.attendu && carte.gain > carte.base * 6, `la carte « Rapporte ${carte.texte} la vente » : la vraie première vente fait ${carte.attendu} (le prix de base : ${carte.base})`);
     // une opération en cours et une partie de mini-jeu ouverte au moment du verrouillage
-    await p3.evaluate(() => { const F = window.__fournil, Q = F.Q; Q.lancerOperation(F.st.quartier, Q.OPERATIONS[0].id, HORLOGE.maintenant(), () => 0.99); });
-    await p3.evaluate(() => document.querySelector('#planque [data-act="mini"]').click()); await sleep(400);
+    await p3.evaluate(() => { const F = window.__fournil, Q = F.HT; Q.lancerOperation(F.st[F.evHantee.cle], Q.OPERATIONS[0].id, HORLOGE.maintenant(), () => 0.99); });
+    await p3.evaluate(() => document.querySelector('#hantee [data-act="mini"]').click()); await sleep(400);
     await p3.evaluate(() => document.querySelector('#feuille [data-jeu]').click()); await sleep(400);
-    check(await p3.evaluate(() => !document.querySelector('#planque .pq-mini').hidden), 'une partie de mini-jeu est ouverte');
-    const avant = await p3.evaluate((fin) => { const F = window.__fournil, Q = F.Q, q = F.st.quartier, x = JSON.parse(JSON.stringify(q)); x.lastSeen = Math.max(x.lastSeen, x.now); Q.absence(x, fin); const op = Q.ramasserOperation(x, fin); return { total: q.total, attendu: x.total - q.total, op: op ? op.net : 0 }; }, Q.FIN);
+    check(await p3.evaluate(() => !document.querySelector('#hantee .pq-mini').hidden), 'une partie de mini-jeu est ouverte');
+    const avant = await p3.evaluate((fin) => { const F = window.__fournil, Q = F.HT, q = F.st[F.evHantee.cle], x = JSON.parse(JSON.stringify(q)); x.lastSeen = Math.max(x.lastSeen, x.now); Q.absence(x, fin); const op = Q.ramasserOperation(x, fin); return { total: q.total, attendu: x.total - q.total, op: op ? op.net : 0 }; }, Q.FIN);
     decalServeur += 4 * H; await p3.evaluate((x) => window.__avancerTel(x), 4 * H);
-    check(await attendre(() => p3.evaluate(() => document.querySelector('#planque').dataset.ecran === 'bilan'), 15000), 'au réveil, l’événement est fini : le bilan');
-    const apres = await p3.evaluate(() => { const q = window.__fournil.st.quartier; return { total: q.total, lastSeen: q.lastSeen, absenceFin: q.absenceFin, operation: q.operation, mini: !document.querySelector('#planque .pq-mini').hidden, enMini: document.querySelector('#planque').classList.contains('en-mini') }; });
+    check(await attendre(() => p3.evaluate(() => document.querySelector('#hantee').dataset.ecran === 'bilan'), 15000), 'au réveil, l’événement est fini : le bilan');
+    const apres = await p3.evaluate(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; return { total: q.total, lastSeen: q.lastSeen, absenceFin: q.absenceFin, operation: q.operation, mini: !document.querySelector('#hantee .pq-mini').hidden, enMini: document.querySelector('#hantee').classList.contains('en-mini') }; });
     const gain = apres.total - avant.total;
-    check(apres.absenceFin && apres.lastSeen === Q.FIN && Math.abs(gain - avant.attendu) <= avant.attendu * 0.02, `l’équipe est payée jusqu’à la fermeture, pas au-delà : +${Math.round(gain)} billets (attendu ${Math.round(avant.attendu)}, dont l’opération ${Math.round(avant.op)})`);
+    check(apres.absenceFin && apres.lastSeen === Q.FIN && Math.abs(gain - avant.attendu) <= avant.attendu * 0.02, `l’équipe est payée jusqu’à la fermeture, pas au-delà : +${Math.round(gain)} bonbons (attendu ${Math.round(avant.attendu)}, dont l’opération ${Math.round(avant.op)})`);
     check(!apres.operation && !apres.mini && !apres.enMini, 'les activités s’arrêtent : l’opération est ramassée, le mini-jeu fermé');
     await sleep(2500);
-    const encore = await p3.evaluate(() => window.__fournil.st.quartier.total);
-    await p3.evaluate(() => { const b = document.querySelector('[data-pq="fin"]'); if (b) b.click(); }); await sleep(300); await p3.evaluate(() => window.__fournil.quartier()); await sleep(400);
-    const fin3 = await p3.evaluate(() => ({ total: window.__fournil.st.quartier.total, ecran: document.querySelector('#planque').dataset.ecran }));
-    check(encore === apres.total && fin3.total === apres.total && fin3.ecran === 'bilan', 'payée une seule fois (rien de plus ensuite, ni en rouvrant le bilan)');
+    const encore = await p3.evaluate(() => { const F = window.__fournil; return F.st[F.evHantee.cle].total; });
+    await p3.evaluate(() => { const b = document.querySelector('#hantee [data-pq="fin"]'); if (b) b.click(); }); await sleep(300); await p3.evaluate(() => window.__fournil.hantee()); await sleep(400);
+    const fin3 = await p3.evaluate(() => ({ total: window.__fournil.st[window.__fournil.evHantee.cle].total, ecran: document.querySelector('#hantee').dataset.ecran }));
+    check(encore === apres.total && fin3.total === apres.total && fin3.ecran === 'bilan', 'payé une seule fois (rien de plus ensuite, ni en rouvrant le bilan)');
     await ctx3.close();
   }
   check(erreurs.length === 0, `toujours aucune erreur (${erreurs.slice(0, 3).join(' | ')})`);

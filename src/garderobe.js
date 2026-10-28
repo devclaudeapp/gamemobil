@@ -19,6 +19,9 @@ const GARDEROBE_UI = (() => {
   }
   const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger' };
   const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.' };
+  // une collection d'un événement écarté (le Quartier, QUARTIER.ECARTE, depuis le 27 oct. ; réintroduction plus tard) : ses pièces gagnées
+  // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
+  const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
   let pieceOuverte = 'tete';
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
@@ -71,7 +74,7 @@ const GARDEROBE_UI = (() => {
         ${base ? '' : max ? '<span class="gr-max">Niveau max ✓</span>' : `<button type="button" class="btn ${ok ? 'beurre' : 'non'} gr-ameliorer" data-gr-ameliorer="${v.id}" aria-label="Améliorer ${esc(v.nom)} : ${cout} étoile${cout > 1 ? 's' : ''}"><small>Améliorer</small><b>${cout} ★</b></button>`}</div>`;
     }).join('');
     const indice = liste.length <= 1 && p !== 'accessoire' ? `<p class="note centre">Une seule pièce ici pour l’instant. Les podiums du classement, les événements et le parcours du boulanger en offrent d’autres.</p>` : '';
-    const ensembles = Object.keys(GR.ensembles).map((c) => {
+    const ensembles = Object.keys(GR.ensembles).filter((c) => !ecartee(c) || Object.values(GR.objets).some((v) => v.collection === c && g.objets[v.id])).map((c) => {
       const pieces = Object.values(GR.objets).filter((v) => v.collection === c), eues = pieces.filter((v) => g.objets[v.id]).length, portees = pieces.filter((v) => g.equipe[v.piece] === v.id).length, complet = ens === c;
       return `<div class="gr-ensemble ${c} ${complet ? 'complet' : ''} ${eues ? '' : 'absent'}"><span class="gr-minis" aria-hidden="true">${pieces.map((v) => `<i class="${g.objets[v.id] ? '' : 'manque'}">${icone(v)}</i>`).join('')}</span><span class="gr-txt"><b>${esc(GR.ensembles[c].nom)}</b><small>${complet ? 'Ensemble complet porté : ' + G.texteBonus(GR.ensembles[c].bonus).join(' · ') : eues ? `${eues === 4 ? `${portees}/4 portée${portees > 1 ? 's' : ''}` : `${eues}/4 pièce${eues > 1 ? 's' : ''}`} · au complet : ${G.texteBonus(GR.ensembles[c].bonus).join(' · ').toLowerCase()}` : esc(QUELLE[c] || '')}</small></span>${eues === 4 && !complet ? `<button type="button" class="btn clair gr-tout" data-gr-ensemble="${c}"><b>Tout porter</b></button>` : complet ? '<span class="gr-ok">✓</span>' : ''}</div>`;
     }).join('');

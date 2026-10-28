@@ -14,7 +14,7 @@ const ESSAI = process.argv.includes('--essai');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
 // « Ma chaîne de boutiques » : chaine.js (les règles) juste après game.js, planete.js (la petite planète) avant scene.js, chaine-ecran.js (les feuilles) avant ui.js
-const js = ['game.js', 'chaine.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'nouveautes.js', 'chaine-ecran.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const js = ['game.js', 'chaine.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'tiroir.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'nouveautes.js', 'chaine-ecran.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

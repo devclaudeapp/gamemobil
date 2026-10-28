@@ -308,9 +308,12 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, 'bestiaire-argent': false, 'bestiaire-or': false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
+  // l'étagère aux bocaux du bestiaire : les neuf sortes en argent ('bestiaire-argent'), puis en or ('bestiaire-or') : la même étagère, à la
+  // teinte du plus beau métal gagné → 'or', 'argent', '1' (le bronze) ou '' (pas gagnée)
+  const teinteBestiaire = () => (HDECO['bestiaire-or'] ? 'or' : HDECO['bestiaire-argent'] ? 'argent' : HDECO.bestiaire ? '1' : '');
   // ─── « Mes décos » : la disposition, la fusion des petits décors et des décos en deux maillages (src/meubles.js fusion) ───
   // decos(poses) : poses = [[id, place]…] (CHAINE.decosDepuisCode : la boulangerie, st.decos ; une boutique de la chaîne ; la photo d'un
   // copain) ou null : le plan d'origine, EXACTEMENT ce qu'on voyait avant (les décos gagnées, QDECO, HDECO et la rosette, à leurs places
@@ -348,32 +351,32 @@ const SCENE = (() => {
   // au plan d'origine, les décos gagnées et ce qui règle leur dessin (comme les anciens CONDS) : [id, clé ('' : absente)]
   function decosOrigine() {
     const out = [], q = (id, k) => { if (k) out.push([id, k]); };
-    if (!EVV) { q('graffiti', QDECO.graffiti && '1'); q('neon', QDECO.neon && (HDECO.bestiaire ? 'haut' : '1')); q('rosette', REC.equipe && '1'); } // (le néon remonte au-dessus des bocaux du bestiaire, même fenêtre ; la boutique hantée n'a ni tag, ni néon, ni chien, ni rosette)
+    if (!EVV) { q('graffiti', QDECO.graffiti && '1'); q('neon', QDECO.neon && (teinteBestiaire() ? 'haut' : '1')); q('rosette', REC.equipe && '1'); } // (le néon remonte au-dessus des bocaux du bestiaire, même fenêtre ; la boutique hantée n'a ni tag, ni néon, ni chien, ni rosette)
     q('chien', !EVV && QDECO.chien && modeleComp !== 'chien-quartier' && '1'); // le chien couché, sauf s'il est le compagnon : il s'est levé pour te suivre
     for (const id of ['citrouilles', 'toiles', 'chaudron']) q(id, htDeco(id) && '1');
-    q('bestiaire', HDECO.bestiaire && '1'); q('legende', HDECO.legende && '1');
+    q('bestiaire', teinteBestiaire()); q('legende', HDECO.legende && '1'); // l'étagère aux bocaux à la teinte du plus beau métal gagné
     q('toque-or', QDECO['toque-or'] && '1'); q('toque-citrouille', HDECO['toque-citrouille'] && (QDECO['toque-or'] ? 'bas' : '1')); // la toque du Manoir plus bas si les deux sont là
     return out;
   }
-  let FUS = { boites: {}, vus: new Set(), parts: 0, tri: 0, liste: [] }, scooterVu = false; const VIVES = new Set();
+  let FUS = { boites: {}, vus: new Set(), parts: 0, tri: 0, liste: [], teinte: '' }, scooterVu = false; const VIVES = new Set();
   function construireFusion(E, c, base) {
     const k = [], fixes = [];
     for (const [id, cle] of FIXES) { if (EVV && SANS_EV.has(id)) continue; const v = cle(E); if (v != null) { fixes.push([id, v]); k.push(id + ':' + v); } }
     const pl = posees(), liste = pl ? pl.filter(([id]) => !(id === 'chien' && modeleComp === 'chien-quartier')) : decosOrigine();
     for (const [id, v] of liste) k.push(id + (pl ? '@' : ':') + v);
     scooterVu = pl ? pl.some(([id]) => id === 'scooter') : !!QDECO.scooter;
-    const kk = `${k.join(';')}|${base}|${Math.round(c.dessusY * 10)}|${c.trophees ? 't' : ''}`;
+    const kk = `${k.join(';')}|${base}|${Math.round(c.dessusY * 10)}|${c.trophees ? 't' : ''}|${teinteBestiaire()}`;
     if (cles.fusion === kk) return; cles.fusion = kk;
     const parts = [], vus = new Set();
     for (const [id, v] of fixes) parts.push({ d: FIXES.find((f) => f[0] === id)[2](c, v), place: null });
     for (const [id, v] of liste) {
-      const p = pl ? LAY.decos.find((x) => x.id === v) : null, o = pl ? null : { haut: v === 'haut', bas: v === 'bas' };
+      const p = pl ? LAY.decos.find((x) => x.id === v) : null, o = pl ? (id === 'bestiaire' ? { teinte: teinteBestiaire() } : null) : { haut: v === 'haut', bas: v === 'bas', teinte: id === 'bestiaire' ? v : '' }; // (l'étagère posée ailleurs garde sa teinte)
       const l = MEUBLES.decoParties(id, c, p, o); if (!l) continue; parts.push(...l); vus.add(id);
     }
     const f = MEUBLES.fusion(parts), gp = new THREE.Group(), gl = new THREE.Group(); gp.userData.nom = 'petits'; gl.userData.nom = 'lueurs';
     for (const m of [f.petits, f.lueurs]) if (m) { const g = m.geometry; VIVES.add(g); g.addEventListener('dispose', () => VIVES.delete(g)); } // (les géométries fusionnées encore vivantes : pour les tests de mémoire)
     if (f.petits) gp.add(f.petits); if (f.lueurs) { gl.add(f.lueurs); gl.userData.anime = f.anime; }
-    FUS = { boites: f.boites, vus, parts: f.parts, tri: f.tri, liste: liste.map((x) => x.slice()) };
+    FUS = { boites: f.boites, vus, parts: f.parts, tri: f.tri, liste: liste.map((x) => x.slice()), teinte: vus.has('bestiaire') ? teinteBestiaire() : '' };
     remplacer('petits', f.petits ? gp : null); remplacer('lueurs', f.lueurs ? gl : null);
   }
   // le mode Déplacer des décos (l'écran le pilote : src/ui.js) : les 12 places dessinées, celle visée en vert ou en rouge (CHAINE.peutPoser)
@@ -1013,6 +1016,7 @@ const SCENE = (() => {
     get decosMonde() { const o = {}; for (const [id, b] of Object.entries(FUS.boites)) if (!b.isEmpty()) o[id] = { x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z }; const cp = groupes.comptoir; return { boites: o, dessusY: cp ? cp.userData.dessusY : null }; }, // leurs boîtes monde (le pied sur le sol, le comptoir ; contre le mur)
     get fusionVue() { return { parts: FUS.parts, tri: FUS.tri, ids: [...FUS.vus], liste: FUS.liste.map((x) => x.slice()), maxParts: MEUBLES.MAX_VIFS, vivantes: VIVES.size }; },
     get deplacerDecos() { return deplacerDecos; }, get glisseDeco() { return glisseDeco; },
+    get teinteBocaux() { const k = FUS.teinte || ''; return k === '1' ? 'bronze' : k || null; }, // l'étagère du bestiaire posée : 'bronze', 'argent', 'or' (null : pas posée ; pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
     get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
     precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite

@@ -15,8 +15,10 @@
      la visite d'un copain), dont les stations sont les postes du Manoir (niveaux, fournées actives, monstres embauchés) ; le mobilier
      est celui de la boutique, complété par ce que l'événement a gagné (des tables de plus à chaque monstre…). SCENE.setEvenement(vue)
      bascule la scène (la vie de la boutique attend de côté) ; detruire() appelle SCENE.setEvenement(null) : tout revient.
-   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes ; la
-     boutique, ses boutons et son tiroir sont masqués dessous. Une feuille de style ajoutée une fois porte ces règles (classes
+   · L'écran : la scène se voit par une fenêtre (la place du canvas du Manoir) entre le haut de l'écran et le tiroir des cartes (qui monte
+     par-dessus au doigt : src/evenement.js, tiroir ; posé au cran mi ou fermé, la fenêtre descend jusqu'à lui, et redim la suit) ; la
+     boutique, ses boutons, son tiroir, sa barre du haut et ses onglets sont masqués dessous (seul son canvas se voit), et la page ne défile
+     ni ne rebondit (src/evenement.js : seule la liste des cartes défile). Une feuille de style ajoutée une fois porte ces règles (classes
      .ht-boutique sur #hantee et sur body).
    · L'API des activités (les monstres à servir, les apparitions à attraper, la lumière qui baisse quand le ×6 s'endort) : acteurs, client,
      entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance (voir plus bas) ; l'écran les relie aux
@@ -485,16 +487,17 @@ const BOUTIQUE_HANTEE = (() => {
   let style = null;
   function feuille() {
     if (style || typeof document === 'undefined') return; style = document.createElement('style'); style.id = 'ht-boutique-style';
-    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice { visibility: hidden; }
+    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice, body.ht-boutique #haut, body.ht-boutique #onglets, body.ht-boutique #corps > :not(#scene-wrap) { visibility: hidden; }
+html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-behavior: none; }
 #hantee.ht-boutique { background: transparent; }
 #hantee.ht-boutique > .at-haut { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 1; }
+#hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 2; transition: border-radius .2s ease-out; }
+#hantee.ht-boutique[data-tiroir="haut"] > .pq-solde { border-radius: 0; }
 #hantee.ht-boutique > .pq-scene { flex: 0 0 auto; height: clamp(220px, 38vh, 340px); margin: -20px 0 -22px; border-radius: 0; background: transparent; box-shadow: none; }
 #hantee.ht-boutique > .pq-scene > canvas { visibility: hidden; }
-#hantee.ht-boutique > .pq-scene > .pq-ev { z-index: 2; bottom: 30px; }
+#hantee.ht-boutique > .pq-scene > .pq-bandeaux { bottom: 30px; }
 #hantee.ht-boutique > .pq-scene ~ * { background: var(--ht-fond); }
-#hantee.ht-boutique > .pq-scene + * { position: relative; border-radius: 22px 22px 0 0; padding-top: 12px; box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }
-#hantee.ht-boutique > .pq-cartes-liste { flex: 1 1 0; min-height: 190px; }`;
+#hantee.ht-boutique > .pq-tiroir { box-shadow: 0 -6px 16px rgba(21, 17, 31, .45); }`;
     document.head.appendChild(style);
   }
 
@@ -577,14 +580,20 @@ const BOUTIQUE_HANTEE = (() => {
   const fache = (id) => { const n = numero(id); return n != null && !!courant && VIE.congedier(n, 'fache'); }; // il repart sans payer
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
-  function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (la plus proche, rayon d'au moins 22 px), un client (44 × 44 au moins), ou le vide
-    if (!cbToucher) return; const x = e.clientX, y = e.clientY;
-    // (une cible qui file : le doigt vise là où il l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes)
+  // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null. Une cible qui file : le doigt vise là où il
+  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (aussi pour un toucher sur la colonne des
+  // activités posée sur la scène : src/hanteeactivites.js, sousDoigt)
+  function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
       const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
+    return best;
+  }
+  function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (viser), un client (44 × 44 au moins), ou le vide
+    if (!cbToucher) return; const x = e.clientX, y = e.clientY;
+    const best = viser(x, y);
     if (best) { cbToucher({ genre: 'apparition', id: best.id }); return; }
     let cl = null, cd = 1e9;
     for (const a of acteurs()) {
@@ -637,6 +646,6 @@ const BOUTIQUE_HANTEE = (() => {
     };
     courant = s3; return s3;
   }
-  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance, get ouverte() { return !!courant; } };
+  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, vise: (x, y) => !!courant && !!viser(x, y), fete, ambiance, get ouverte() { return !!courant; } };
 })();
 if (typeof module !== 'undefined') module.exports = BOUTIQUE_HANTEE;

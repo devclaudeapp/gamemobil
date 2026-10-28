@@ -16,8 +16,21 @@
 //   la scène baisse, « ×1 » ; un toucher sur la scène, et tout revient ;
 // · le bestiaire : chaque client servi fait avancer sa sorte (un petit mot sur la scène, « Zombie 4/10 », la carte du tiroir) ; une sorte
 //   complétée (la sauvegarde préparée : la 5e) : la feuille de fête, les étoiles versées une fois dans la boulangerie, le décor posé ; la
-//   feuille du bestiaire (les neuf, « 3/10 », les récompenses) ; en éco, la 9e : la chauve-souris, choisie depuis la fête ;
+//   feuille du bestiaire (les neuf, « 3/10 », les récompenses) ; en éco, la 9e : la chauve-souris, choisie depuis la fête ; puis l'argent
+//   (le bronze 9/9 fini, le 30e servi d'une sorte) : la fête d'argent, la carte « Bronze 9/9 · Argent 1/9 · Or 0/9 », la feuille (la
+//   médaille de chaque portrait, « 30/140 », les étagères d'argent et d'or) ;
 // · les bulles : leur pointe montre la tête de leur monstre (même écartées), et elles ne passent jamais sous l'en-tête (borne haute) ;
+// · la colonne des activités (Mini-jeux, Contrats et sa pastille, Opération, de haut en bas, 44 px au moins), en haut à droite de la scène :
+//   elle ne cache ni la file, ni les bulles, ni la bannière d'un coup de pouce (en 390 × 844 comme en 360 × 640) ; le tiroir des cartes :
+//   la poignée glissée vers le haut le monte jusque sous le solde (les cartes ont toute la hauteur), un toucher sur ×10 change le mode sans
+//   le bouger, une feuille et un mini-jeu passent par-dessus, la barre glissée vers le bas (depuis ×100, qui n'est pas touché) le redescend ;
+//   la liste tout en haut, un glisser vers le haut sur les cartes monte d'abord le tiroir, puis la liste défile ; une touche sur la poignée
+//   le bascule (mi → haut → fermé → mi, comme celui de la boutique) ; ses trois crans (haut, mi, fermé) en 390 × 844, 375 × 812, 360 × 640
+//   et installé (les marges de l'iPhone simulées) : après des glisser lents, vifs, arrêtés à mi-course, six d'affilée, une carte redessinée
+//   sous le doigt, une feuille refermée, une rotation, il est sur un cran exact et le bas de la liste touche le bas de l'écran (à 2 px),
+//   la colonne jamais à moitié couverte ; il revient au cran mi à la réouverture de l'écran ; la commande de la nuit : un bandeau juste au-dessus du tiroir (dans sa tête
+//   quand il est monté) ; rien de l'interface de la boulangerie ne se voit, la page ne défile pas (seule la liste) ; la pastille de
+//   Sortilèges compte ce qui est achetable ;
 // puis le soir (21 h 15, haute et éco : la file avec ses bulles, une apparition ; des captures), et, avec ?boutique=0 (le Manoir d'avant :
 // pas de scène de boutique), le repli en DOM : la file en bas de la scène, une apparition en image. Aucune erreur dans la page. Captures dans test/shots/hantee-activites/ (et dans SHOTS_HANTEE_ACTIVITES, préfixées « final- »).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee-activites.cjs
@@ -93,6 +106,37 @@ function faux(d) {
     const ouv = await ev(() => { const e = document.querySelector('#ht-eveil'); return { vu: !e.hidden && e.getBoundingClientRect().height > 0, txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#ht-taux').innerText }; });
     check(ouv.vu && ouv.niveau === 'plein' && ouv.jauge === '100%' && /×6/.test(ouv.taux), `la jauge sous le ×6, pleine (« ${ouv.txt} », ${ouv.jauge}) ; « ${ouv.taux} »`);
 
+    // ─── la colonne des activités, en haut à droite de la scène ; le tiroir des cartes, qui monte au doigt (des touchers bruts : CDP) ───
+    const cdp = await ctx.newCDPSession(page);
+    const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
+    // le tiroir posé : sa course finie (sa place est son cran, --pq-tiroir-y, sans translation de glisser) ; sous SwiftShader, une image peut prendre une seconde ou plus
+    const pose = () => attendre(() => ev(() => { const t = document.querySelector('#hantee .pq-tiroir'); return !t.style.transform && Math.abs(t.getBoundingClientRect().top - document.querySelector('#hantee').getBoundingClientRect().top - parseFloat(t.style.getPropertyValue('--pq-tiroir-y'))) < 0.5; }), 15000, 50); // (le temps des animations n'avance qu'aux images : sous une machine chargée, en haute, une course de 0,28 s peut finir des secondes plus tard)
+    const glisser = async (x, y0, y1, n = 10, pas = 16, tenir = 0) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= n; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / n]]); await sleep(pas); } if (tenir) await sleep(tenir); await touche('touchEnd', []); await sleep(600); await pose(); };
+    const toucherA = async (x, y) => { await touche('touchStart', [[x, y]]); await sleep(40); await touche('touchEnd', []); await sleep(500); };
+    const geo = () => ev(() => { const R = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { g: b.left, d: b.right, h: b.top, b: b.bottom, l: b.width, ht: b.height }; }, el = document.querySelector('#hantee'), c = document.querySelector('#ht-cartes');
+      return { pos: el.dataset.tiroir, solde: R(el.querySelector('.pq-solde')), scene: R(el.querySelector('.pq-scene')), tiroir: R(el.querySelector('.pq-tiroir')), barre: R(el.querySelector('.pq-barre')), cartes: R(c), defile: c.scrollTop,
+        ev: document.querySelector('#ht-ev').hidden ? null : R(document.querySelector('#ht-ev')), bx: R(el.querySelector('.pq-bandeaux')), cmd: R(document.querySelector('#ht-commande')), cmdOu: (document.querySelector('#ht-commande') || {}).parentElement ? document.querySelector('#ht-commande').parentElement.className : '', col: R(el.querySelector('.pq-act')), serre: el.querySelector('.pq-scene').classList.contains('pq-serre'),
+        act: [...el.querySelectorAll('.pq-act-btn')].map((b) => Object.assign(R(b), { k: b.dataset.act, txt: b.innerText.replace(/\s+/g, ' ').trim() })), pastille: !!el.querySelector('.pq-act-btn[data-act="contrats"] .pq-pastille'),
+        mode: window.__fournil.st.hantee.mode, actif: (el.querySelector('.pq-modes .actif') || {}).dataset.mode }; });
+    const chevauche = (a, b) => !!a && !!b && a.g < b.d - 0.5 && b.g < a.d - 0.5 && a.h < b.b - 0.5 && b.h < a.b - 0.5;
+    const centreDe = (sel) => ev((s2) => { const b = document.querySelector(s2).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, sel);
+    const verifierColonne = async (ou) => {
+      const g = await geo(), [m, c, o] = g.act;
+      check(g.act.length === 3 && m.k === 'mini' && c.k === 'contrats' && o.k === 'operation' && /Mini-jeux/.test(m.txt) && /Contrats/.test(c.txt) && /Opération/.test(o.txt) && m.b <= c.h && c.b <= o.h && g.pastille,
+        `${ou} : Mini-jeux, Contrats (et sa pastille), Opération, de haut en bas (${g.act.map((b) => `« ${b.txt} »`).join(', ')})`);
+      check(g.act.every((b) => b.ht >= 44 && b.l >= 44 && Math.abs(b.d - m.d) < 1 && b.g >= g.scene.g && b.d <= g.scene.d && b.d > g.scene.d - 20 && b.h >= g.solde.b && b.b <= g.tiroir.h),
+        `${ou} : une colonne en haut à droite de la scène, sous le solde, au-dessus du tiroir, 44 px au moins (${g.act.map((b) => `${Math.round(b.g)}–${Math.round(b.d)} × ${Math.round(b.h)}–${Math.round(b.b)}`).join(', ')} ; scène visible ${Math.round(g.solde.b)}–${Math.round(g.tiroir.h)})`);
+      return g;
+    };
+    const colonneEtCoup = async (ou) => { // un coup de pouce (le plus long à dire : le cortège, qui se livre) : sa bannière ne touche jamais la colonne
+      await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); window.__evTimer0 = q.evTimer; q.ev = null; q.evTimer = 9999; F.evHantee.R.lancerEvenement(q, () => 0, 'grosclient'); });
+      const g = await attendre(async () => { const x = await geo(); return x.ev && x.ev.ht > 0 ? x : null; }, 8000);
+      if (!g) console.log('   (diagnostic)', JSON.stringify(await ev(() => { const F = window.__fournil, q = F.st.hantee, e = document.querySelector('#ht-ev'); return { ev: q.ev, hidden: e.hidden, html: e.innerHTML.length, ecran: F.evHantee.ecran, mini: F.evHantee.mini().ouvert, tiroir: document.querySelector('#hantee').dataset.tiroir }; })));
+      check(!!g && g.act.every((b) => !chevauche(b, g.ev) && !chevauche(b, g.bx)) && g.bx.b <= g.tiroir.h + 1, `${ou} : les bandeaux (le coup de pouce${g && g.cmdOu === 'pq-bandeaux' ? ', la commande' : ''}) ne touchent pas la colonne (bandeaux ${g && `${Math.round(g.bx.g)}–${Math.round(g.bx.d)} × ${Math.round(g.bx.h)}–${Math.round(g.bx.b)}`}, colonne jusqu’à ${g && Math.round(g.col.b)}${g && g.serre ? ', la bannière à sa gauche' : ''})`);
+      if (g) await shot(page, `${qual}-colonne-coup-${ou.replace(/\D+/g, 'x')}`);
+      await ev(() => { const F = window.__fournil, q = F.st.hantee; q.ev = null; q.evTimer = window.__evTimer0; }); await attendre(async () => !(await geo()).ev, 3000);
+    };
+
     // ─── servir un client au doigt : le toucher, puis la carte de chaque friandise de sa commande ───
     const visible = (id) => attendre(async () => { const e = await act(); const c = e.clients.find((x) => x.id === id); return c && c.bulle && c.sid ? c : null; }, 25000);
     let R = await regles(); if (!R.file.length) await pousser('client');
@@ -101,6 +145,12 @@ function faux(d) {
     const acteur = (sid) => ev((s) => BOUTIQUE_HANTEE.acteurs().find((x) => x.id === s) || null, sid);
     const ac1 = await acteur(c1.sid);
     check(ac1 && ac1.role === 'client' && ac1.sorte === c1.sorte && Math.abs(c1.bulle.x - ac1.x) < 3 && c1.bulle.y < ac1.y, `c'est un acteur de la scène (${ac1 && `${ac1.sorte}, ${ac1.etat}, tête à ${ac1.x},${ac1.y}`}), la bulle posée sur sa tête`);
+    { // la colonne des activités ne cache ni la file (les têtes des clients qui attendent), ni leurs bulles
+      const gc = await geo(), e = await act(), tetes = await ev(() => BOUTIQUE_HANTEE.acteurs().filter((x) => x.role === 'client' && x.etat === 'file').map((x) => ({ x: x.x, y: x.y })));
+      const bulles = e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h }));
+      check(bulles.length > 0 && bulles.every((b) => !chevauche(b, gc.col)) && tetes.every((t) => !(t.x > gc.col.g && t.x < gc.col.d && t.y > gc.col.h && t.y < gc.col.b)),
+        `la colonne (${Math.round(gc.col.g)}–${Math.round(gc.col.d)} × ${Math.round(gc.col.h)}–${Math.round(gc.col.b)}) ne cache ni les têtes de la file (${tetes.map((t) => `${Math.round(t.x)},${Math.round(t.y)}`).join(' ')}) ni leurs bulles (${bulles.map((b) => `${Math.round(b.g)}–${Math.round(b.d)}`).join(', ')})`);
+    }
     const ic = await ev((id) => document.querySelectorAll(`.mh-bulle[data-client="${id}"] [data-p]`).length, c1.id);
     check(ic === c1.commande.length && c1.reste > 0 && c1.reste <= 40000, `la bulle : les ${ic} friandises de sa commande, sa patience (${(c1.reste / 1000).toFixed(0)} s)`);
     // le toucher (le milieu du corps) le choisit
@@ -235,7 +285,18 @@ function faux(d) {
     // ─── la commande de la nuit : sa carte, sa jauge, son bouton ───
     await pousser('commande');
     const cm = await attendre(() => ev(() => { const e = document.querySelector('#ht-commande'); return !e.hidden && e.querySelector('[data-a="mh-commande"]') ? e.innerText.replace(/\s+/g, ' ') : null; }), 8000);
-    check(!!cm && (await toasts()).some((t) => /commande de la nuit/i.test(t)), `une commande de la nuit arrive : sa carte en tête du tiroir (« ${cm} »)`);
+    check(!!cm && (await toasts()).some((t) => /commande de la nuit/i.test(t)), `une commande de la nuit arrive : son bandeau (« ${cm} »)`);
+    { // en bandeau sur la scène, juste au-dessus du tiroir (comme les coups de pouce) : il ne touche ni la colonne, ni les bulles de la file ;
+      // tiroir en haut, il passe dans sa tête (toujours sous les yeux), puis revient
+      const g = await geo(), e = await act(), bulles = e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h }));
+      check(g.cmdOu === 'pq-bandeaux' && g.cmd.h >= g.solde.b && g.cmd.b <= g.tiroir.h && g.tiroir.h - g.cmd.b < 40 && !chevauche(g.cmd, g.col) && bulles.every((b) => !chevauche(b, g.cmd)),
+        `la commande : un bandeau juste au-dessus du tiroir (${Math.round(g.cmd.h)}–${Math.round(g.cmd.b)}, tiroir à ${Math.round(g.tiroir.h)}), loin de la colonne et des ${bulles.length} bulle(s)`);
+      await ev(() => window.__fournil.evHantee.tiroir('haut')); await sleep(400);
+      const g2 = await geo();
+      check(g2.cmdOu === 'pq-tiroir-tete' && g2.cmd.h >= g2.solde.b - 1 && g2.cmd.b <= g2.barre.h + 1 && g2.cmd.ht > 40, `tiroir en haut : la commande dans sa tête, sous la poignée (${Math.round(g2.cmd.h)}–${Math.round(g2.cmd.b)})`);
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await sleep(400);
+      check((await geo()).cmdOu === 'pq-bandeaux', 'tiroir redescendu : la commande revient au-dessus de lui');
+    }
     check(await ev(() => !!document.querySelector('#ht-commande .mh-commande-temps b') && document.querySelector('#ht-commande .btn').classList.contains('non')), 'sa jauge de temps, son bouton pas encore prêt');
     await page.locator('#ht-commande [data-a="mh-commande"]').tap(); await sleep(300);
     const fl = await attendre(async () => (await flottes()).find((t) => /Encore \S+ à vendre/.test(t)), 3000, 100), tt = await attendre(async () => (await toasts()).find((t) => /encore .* à vendre/.test(t)), 8000);
@@ -281,10 +342,39 @@ function faux(d) {
         const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="loup"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
         check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Myrtille/.test(f9 || ''), `la 9e sorte (le loup-garou) : +2 étoiles, la chauve-souris ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
         if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
-        check(await ev(() => window.__fournil.st.compagnon === 'chauve-souris' && window.__fournil.G.aCompagnon(window.__fournil.st, 'chauve-souris')), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
+        check(await attendre(() => ev(() => window.__fournil.st.compagnon === 'chauve-souris' && window.__fournil.G.aCompagnon(window.__fournil.st, 'chauve-souris')), 4000), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
         await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
+
+    // ─── le bestiaire continue (27 octobre) : la sauvegarde préparée, le bronze 9/9 fini, des servis au-delà de dix ; le 30e servi d'une
+    //     sorte : sa médaille d'argent (la fête, l'étoile), la carte « Bronze 9/9 · Argent 1/9 · Or 0/9 », la feuille (la médaille, « 30/140 »)
+    { const SA = 'momie';
+      await ev((sa) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); const cpt = [29, 12, 25, 10, 17, 22, 14, 11, 19];
+        F.HT.SORTES.forEach((k, i) => { q.bestiaire[k] = k === sa ? 29 : cpt[i]; }); q.bestiaireFaits = F.HT.SORTES.slice(); q.bestiaireArgent = []; q.bestiaireOr = []; q.bestiaireAVerser = 0;
+        if (!q.decos.includes('bestiaire')) q.decos.push('bestiaire'); q.bestiaire.squelette = 28; F.save(); }, SA);
+      const carte0 = await attendre(() => ev(() => { const x = document.querySelector('#ht-bestiaire .mh-best-meds'); return x && /Bronze 9\/9/.test(x.textContent) ? x.textContent.replace(/\s+/g, ' ').trim() : null; }), 4000);
+      check(carte0 === 'Bronze 9/9 · Argent 0/9 · Or 0/9', `la carte du tiroir : « ${carte0} »`);
+      const r = await ev((sa) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), id = 880101; q.manoir.file = q.manoir.file.slice(0, 2); q.manoir.file.push({ id, sorte: sa, commande: [{ i: 0, n: 1, servi: false }], arrive: q.now });
+        const e0 = F.st.etoiles, r = F.evHantee.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, argent: q.bestiaireArgent.slice(), mot: F.evHantee.act.etat().mot }; }, SA);
+      const fa = await attendre(() => ev(() => { const x = document.querySelector('#feuille:not([hidden]) [data-bestiaire-fete][data-palier="argent"]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 6000);
+      check(r.c && r.c.palier === 'argent' && r.c.rang === 1 && r.de === 1 && r.argent.join() === SA && /30\/30/.test(r.mot), `le 30e (la momie) : la médaille d’argent, +1 étoile versée dans la boulangerie ; le petit mot « ${r.mot} »`);
+      check(!!fa && fa.sorte === SA && /médaille d’argent/.test(fa.txt) && /1\/9 monstres en argent/.test(fa.txt) && /\+1 étoile/.test(fa.txt), `la fête d’argent : « ${fa && fa.txt.slice(0, 110)}… »`);
+      await sleep(900); await shot(page, `${qual}-bestiaire-fete-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete-argent.png`), path.join(out3, 'bestiaire-fete-argent.png'));
+      if (fa) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evHantee.act.feuilleBestiaire());
+      const fe = await ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { sous: x.querySelector('.sous').innerText.replace(/\s+/g, ' '), cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, med: c.dataset.medaille || '', txt: c.innerText.replace(/\s+/g, ' ').trim() })), paliers: [...x.querySelectorAll('.mh-best-paliers li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })), anciens: x.querySelectorAll('.mh-best-recomp li').length } : null; });
+      const cm = fe && fe.cases.find((c) => c.sorte === SA), csq = fe && fe.cases.find((c) => c.sorte === 'squelette');
+      check(fe && cm && cm.med === 'argent' && /30\/140/.test(cm.txt) && csq && csq.med === 'bronze' && /28\/30/.test(csq.txt) && fe.cases.filter((c) => c.med === 'bronze').length === 8 && /Argent 1\/9/.test(fe.sous) && /30 pour l’argent, 140 pour l’or/.test(fe.sous),
+        `la feuille : la momie en argent (« ${cm && cm.txt} »), le squelette en bronze vers l’argent (« ${csq && csq.txt} ») ; « ${fe && fe.sous} »`);
+      check(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /bocaux d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait),
+        `les étagères : ${fe && fe.paliers.map((l) => l.txt).join(' | ')}`);
+      await sleep(300); await shot(page, `${qual}-bestiaire-feuille-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-argent.png`), path.join(out3, 'bestiaire-feuille-argent.png'));
+      if (out3 && qual === 'haute') { await ev(() => { const l = document.querySelector('#feuille .mh-best-paliers'); if (l) l.scrollIntoView({ block: 'center' }); }); await sleep(400); await shot(page, `${qual}-bestiaire-feuille-etageres`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-etageres.png`), path.join(out3, 'bestiaire-feuille-etageres.png')); }
+      await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(500);
+      const carte1 = await attendre(() => ev((sa) => { const x = document.querySelector('#ht-bestiaire'), m = x && x.querySelector(`.mh-best-mini i[data-sorte="${sa}"]`); return x && m && /Argent 1\/9/.test(x.textContent) ? { meds: x.querySelector('.mh-best-meds').textContent.replace(/\s+/g, ' ').trim(), cls: m.className } : null; }, SA), 4000);
+      check(carte1 && carte1.meds === 'Bronze 9/9 · Argent 1/9 · Or 0/9' && /\bm-argent\b/.test(carte1.cls), `la carte : « ${carte1 && carte1.meds} », la miniature de la momie cerclée d’argent (${carte1 && carte1.cls})`);
+      if (out3 && qual === 'haute') { await ev(() => document.querySelector('#ht-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte-argent`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte-argent.png`), path.join(out3, 'bestiaire-carte-argent.png')); }
+      await sleep(300); }
 
     // ─── un coup de pouce sous un mini-jeu : en pause selon le vrai temps. Des images espacées de 0,8 s (l'horloge avancée à chaque image,
     //     comme un téléphone qui rame : ui.js plafonne son dt à 0,25 s) ; l'échéance recule d'autant, le temps restant ne bouge pas ───
@@ -315,6 +405,159 @@ function faux(d) {
     const reveil = await ev(() => { const e = document.querySelector('#ht-eveil'); return { p: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), niveau: e.dataset.niveau, taux: document.querySelector('#ht-taux').innerText, amb: window.__amb[window.__amb.length - 1] }; });
     check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1 && await ev(() => document.querySelector('.mh-dodo').hidden), `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
 
+    // ─── la colonne des activités et le tiroir, au doigt (en fin de parcours : les clients de plus n'y dérangent rien) ───
+    const g0 = await verifierColonne('la colonne des activités');
+    await colonneEtCoup('390 × 844');
+    check(g0.pos === 'mi' && Math.abs(g0.tiroir.h - (g0.scene.b - 22)) < 2 && g0.cartes.b <= 844 + 1, `le tiroir à sa place, sous la scène (son haut à ${Math.round(g0.tiroir.h)} px, les cartes ${Math.round(g0.cartes.h)}–${Math.round(g0.cartes.b)})`);
+    // la poignée tirée vers le haut : le tiroir monte par-dessus la scène, jusque sous le solde ; les cartes ont toute la hauteur
+    const [px, py] = await centreDe('#hantee .pq-poignee');
+    await glisser(px, py, g0.solde.b + 30);
+    const g1 = await geo();
+    check(g1.pos === 'haut' && Math.abs(g1.tiroir.h - g1.solde.b) <= 2 && g1.cartes.ht > g0.cartes.ht + 150 && g1.cartes.h < g0.cartes.h - 150 && Math.abs(g1.cartes.b - g0.cartes.b) < 2,
+      `la poignée glissée vers le haut : le tiroir monte jusque sous le solde (${Math.round(g1.tiroir.h)} px, solde ${Math.round(g1.solde.b)}), les cartes passent de ${Math.round(g0.cartes.ht)} à ${Math.round(g1.cartes.ht)} px de haut`);
+    await shot(page, `${qual}-tiroir-haut`);
+    check(await ev(() => { const e = document.elementFromPoint(300, 200); return !!e && !!e.closest('.pq-tiroir'); }), 'en haut, le tiroir passe par-dessus la scène et sa colonne');
+    // un toucher sur ×10 : le mode change, le tiroir ne bouge pas
+    const [x10, y10] = await centreDe('#hantee .pq-modes [data-mode="10"]');
+    await toucherA(x10, y10);
+    const g2 = await geo();
+    check(g2.mode === 10 && g2.actif === '10' && g2.pos === 'haut' && Math.abs(g2.tiroir.h - g1.tiroir.h) < 1, `un toucher sur ×10 (dans la barre, qui se tire aussi) : le mode passe à ×10 (${g2.mode}), le tiroir ne bouge pas (${g2.pos}, ${Math.round(g2.tiroir.h)} px)`);
+    // les feuilles passent par-dessus le tiroir monté (Sortilèges, touché)
+    const [xs, ys] = await centreDe('#hantee [data-pq="ameliorations"]');
+    await toucherA(xs, ys); await attendre(() => ev(() => !document.querySelector('#feuille').hidden && !document.querySelector('#feuille').getAnimations().length), 3000);
+    check(await ev(() => { const f = document.querySelector('#feuille'), b = f.getBoundingClientRect(), e = document.elementFromPoint(b.left + b.width / 2, b.top + Math.min(b.height / 2, 120)); return !f.hidden && !!e && !!e.closest('#feuille'); }), 'Sortilèges, touché le tiroir en haut : sa feuille s’ouvre par-dessus');
+    await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
+    // le mini-jeu en plein écran aussi
+    await ev(() => window.__fournil.evHantee.ouvrirMini('guet')); await sleep(300);
+    check(await ev(() => { const e = document.elementFromPoint(195, 300); return !!e && !!e.closest('.pq-mini'); }), 'un mini-jeu ouvert le tiroir en haut : il s’affiche par-dessus');
+    await ev(() => window.__fournil.evHantee.fermerMini()); await sleep(300);
+    // la barre glissée vers le bas, en partant de ×100 : le tiroir redescend à sa place, et ×100 n'a pas été touché
+    const [x100, y100] = await centreDe('#hantee .pq-modes [data-mode="100"]');
+    await glisser(x100, y100, y100 + 320);
+    const g3 = await geo();
+    check(g3.pos === 'mi' && Math.abs(g3.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g3.cartes.ht - g0.cartes.ht) < 1 && g3.mode === 10, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
+    // la liste tout en haut, tiroir en bas : un glisser vers le haut sur les cartes monte d'abord le tiroir ; en haut, la liste défile
+    await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
+    const lx = 120, ly = Math.min(g3.cartes.b - 30, g3.cartes.h + 80);
+    await glisser(lx, ly, ly - 220);
+    const g4 = await geo();
+    check(g4.pos === 'haut' && g4.defile === 0, `la liste tout en haut, un glisser vers le haut sur les cartes monte d’abord le tiroir (${g4.pos}, la liste à ${g4.defile} px)`);
+    await glisser(lx, 700, 450); const g5 = await geo();
+    check(g5.pos === 'haut' && g5.defile > 50, `tiroir en haut, le même glisser fait défiler la liste (${Math.round(g5.defile)} px)`);
+    await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await sleep(200);
+    await glisser(lx, 420, 720); const g6 = await geo();
+    check(g6.pos === 'mi', `la liste revenue tout en haut, un glisser vers le bas sur les cartes redescend le tiroir (${g6.pos})`);
+    // une simple touche sur la poignée : il bascule (en haut, puis en bas)
+    const [qx, qy] = await centreDe('#hantee .pq-poignee'); await toucherA(qx, qy); await pose(); const g7 = await geo();
+    const [qx2, qy2] = await centreDe('#hantee .pq-poignee'); await toucherA(qx2, qy2); await pose(); const g8 = await geo();
+    const [qx3, qy3] = await centreDe('#hantee .pq-poignee'); await toucherA(qx3, qy3); await pose(); const g9 = await geo();
+    const [qx4, qy4] = await centreDe('#hantee .pq-poignee'); await toucherA(qx4, qy4); await pose(); const g10 = await geo();
+    check(g7.pos === 'haut' && g8.pos === 'ferme' && g9.pos === 'mi' && g10.pos === 'haut', `une touche sur la poignée le bascule comme celui de la boutique : mi → haut → fermé → mi → haut (${g7.pos}, ${g8.pos}, ${g9.pos}, ${g10.pos})`);
+    await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+    // ─── les crans, comme le tiroir de la boutique (src/tiroir.js) : haut (sous le solde), mi (sous la scène), fermé (la barre seule, la scène
+    // agrandie jusqu'à elle) ; après chaque glisser (lent, vif, arrêté à mi-course puis lâché, plusieurs d'affilée, un toucher dont la carte est
+    // redessinée en route, comme sur iPhone), il est posé sur un cran exact, et le bas de la liste touche le bas de l'écran (à 2 px près) ;
+    // la colonne des activités n'est jamais à moitié recouverte (entière au-dessus du tiroir au cran mi, toute couverte en haut). En 390 × 844,
+    // 375 × 812, 360 × 640 et en mode installé (plein écran, les marges de l'encoche et de l'indicateur d'accueil simulées)
+    const cran = () => ev(() => { const el = document.querySelector('#hantee'), t = el.querySelector('.pq-tiroir'), c = el.querySelector('#ht-cartes'), a = el.querySelector('.pq-act'), r0 = el.getBoundingClientRect(), R = (e) => e.getBoundingClientRect();
+      return { pos: el.dataset.tiroir, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: R(t).top - r0.top, tr: t.style.transform, bas: R(c).bottom, H: window.innerHeight, ecran: R(el).bottom, fond: R(t).bottom, col: [R(a).top, R(a).bottom], solde: R(el.querySelector('.pq-solde')).bottom, barre: R(el.querySelector('.pq-barre')).bottom, scene: R(el.querySelector('.pq-scene')).bottom, defile: document.scrollingElement.scrollTop + el.scrollTop }; });
+    const crans = {};
+    const surCran = async (ou, attendu) => {
+      const k = await cran(), exact = ['haut', 'mi', 'ferme'].includes(k.pos) && !k.tr && Math.abs(k.haut - k.y) < 1 && (!crans[k.pos] || Math.abs(crans[k.pos] - k.y) < 1);
+      const liste = Math.abs(k.bas - k.H) <= 2 && k.fond >= k.H - 1, col = k.pos === 'haut' ? k.col[0] >= k.haut : k.col[1] <= k.haut, rien = !k.defile && Math.abs(k.ecran - k.H) < 1;
+      const lieu = k.pos === 'haut' ? Math.abs(k.haut - k.solde) <= 2 : k.pos === 'ferme' ? Math.abs(k.barre - k.H) <= 40 && k.scene > k.H - 120 : true;
+      check(exact && liste && col && rien && lieu && (!attendu || k.pos === attendu), `${ou} : sur le cran ${k.pos}${attendu && k.pos !== attendu ? ` (attendu : ${attendu})` : ''} (${Math.round(k.haut)} px${k.tr ? ', ' + k.tr : ''}), le bas de la liste à ${Math.round(k.bas)} px pour un écran de ${k.H}, la colonne ${Math.round(k.col[0])}–${Math.round(k.col[1])} ${k.pos === 'haut' ? 'toute couverte' : 'entière au-dessus'}${exact && liste && col && rien && lieu ? '' : ` (cran ${Math.round(k.y)}, noté ${crans[k.pos] != null ? Math.round(crans[k.pos]) : '–'}, solde ${Math.round(k.solde)}, barre ${Math.round(k.barre)}, scène ${Math.round(k.scene)}, défilé ${k.defile}, écran ${Math.round(k.ecran)})`}`);
+      return k;
+    };
+    const vite = async (x, y0, y1) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= 3; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / 3]]); await sleep(8); } await touche('touchEnd', []); };
+    for (const [w, h, pwa] of [[390, 844], [375, 812], [360, 640], [390, 844, true]]) {
+      const ou = `${w} × ${h}${pwa ? ', installé' : ''}`;
+      if (pwa) await ev(() => { const s2 = document.createElement('style'); s2.id = 'pwa-simule'; s2.textContent = '#hantee { padding: 47px 0 34px !important; } #ht-cartes { padding-bottom: 50px !important; } #hantee[data-tiroir="ferme"] > .pq-tiroir > #ht-cartes { padding-bottom: 0 !important; }'; document.head.appendChild(s2); window.dispatchEvent(new Event('resize')); }); // (env(safe-area-inset-…) de l'iPhone : 47 et 34 px)
+      for (const k in crans) delete crans[k]; // (les crans de cet écran)
+      await page.setViewportSize({ width: w, height: h }); await sleep(1200); await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+      for (const c of ['mi', 'haut', 'ferme', 'mi']) { await ev((c2) => window.__fournil.evHantee.tiroir(c2), c); await pose(); await sleep(150); const k = await surCran(`${ou}, posé ${c}`, c); crans[c] = k.y; if (w === 390 && !pwa) await shot(page, `${qual}-cran-${c}`); }
+      const P = async () => centreDe('#hantee .pq-poignee'), B = async () => centreDe('#hantee .pq-modes [data-mode="100"]');
+      let [x, y] = await P(); await glisser(x, y, crans.haut + 12, 14, 40); await surCran(`${ou}, la poignée glissée lentement jusqu’en haut`, 'haut');
+      [x, y] = await B(); await glisser(x, y, y + (crans.mi - crans.haut) * 0.55, 3, 8); { const k = await surCran(`${ou}, la barre tirée vite vers le bas`); check(k.pos !== 'haut', `${ou}, la barre tirée vite vers le bas le fait descendre (${k.pos})`); }
+      if (w === 390 && !pwa) await shot(page, `${qual}-apres-glisser-vif`);
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+      [x, y] = await P(); await glisser(x, y, y + (crans.ferme - crans.mi) * 0.3, 16, 60, 400); await surCran(`${ou}, glissé lentement vers le bas aux 3/10 du chemin, arrêté, lâché : il revient`, 'mi');
+      [x, y] = await P(); await glisser(x, y, y + (crans.ferme - crans.mi) * 0.7, 16, 60, 400); await surCran(`${ou}, glissé lentement aux 7/10 du chemin, arrêté, lâché : le cran suivant`, 'ferme');
+      [x, y] = await P(); await glisser(x, y, y - (crans.ferme - crans.mi) * 0.5 - 4, 10, 40, 300); await surCran(`${ou}, depuis le fermé, à mi-chemin et lâché`);
+      for (let k = 0; k < 6; k++) { [x, y] = await P(); await vite(x, y, k % 2 ? y + 260 : y - 260); await sleep(60); } // six pichenettes d'affilée, sans attendre la fin des courses
+      await sleep(600); await pose(); await surCran(`${ou}, six glisser rapides d’affilée`);
+      // un glisser sur la liste dont la carte touchée est redessinée en route (le chrono d'une fournée, sur iPhone) : le tiroir suit jusqu'au bout
+      await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose(); await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; });
+      { const k0 = await cran(), lx2 = 120, ly2 = Math.min(k0.H - 40, k0.y + 140);
+        await touche('touchStart', [[lx2, ly2]]); for (let k = 1; k <= 4; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); }
+        const refait = await ev(([x2, y2]) => { const e = document.elementFromPoint(x2, y2), c = e && e.closest('#ht-cartes > *'); if (!c) return false; c.innerHTML = c.innerHTML; return true; }, [lx2, ly2 - 100]);
+        for (let k = 5; k <= 10; k++) { await touche('touchMove', [[lx2, ly2 - 25 * k]]); await sleep(30); } await touche('touchEnd', []); await sleep(600); await pose();
+        await surCran(`${ou}, la liste glissée vers le haut, sa carte redessinée en route (${refait ? 'redessinée' : 'pas de carte sous le doigt'})`, 'haut'); }
+      // une feuille ouverte puis refermée (Sortilèges), le tiroir en haut : il y reste, la liste jusqu'en bas
+      { const [xs2, ys2] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs2, ys2); await attendre(() => ev(() => !document.querySelector('#feuille').hidden), 3000); await sleep(300);
+        await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
+        await surCran(`${ou}, une feuille ouverte et refermée`, 'haut'); }
+      if (pwa) await ev(() => { document.querySelector('#pwa-simule').remove(); window.dispatchEvent(new Event('resize')); });
+    }
+    // une rotation (paysage, puis portrait) : posé en haut, il reste en haut, la liste jusqu'en bas
+    for (const k in crans) delete crans[k];
+    await page.setViewportSize({ width: 844, height: 390 }); await sleep(800); await page.setViewportSize({ width: 390, height: 844 }); await sleep(1200); await pose();
+    await surCran('390 × 844, après une rotation', 'haut');
+    await ev(() => window.__fournil.evHantee.tiroir('mi')); await pose();
+    await ev(() => document.querySelector('#hantee .pq-modes [data-mode="1"]').click()); await sleep(200);
+    // ─── la boulangerie derrière : rien de son interface ne se voit (seul son canvas) ; la page ne défile pas : seule la liste bouge ───
+    {
+      const vus = await ev(() => ['#haut', '#onglets', '#tiroir', '#coin', '#haut .solde'].map((s2) => { const e = document.querySelector(s2); if (!e) return null; const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { s: s2, vu: cs.visibility !== 'hidden' && cs.display !== 'none' && b.width > 0 && b.height > 0 }; }).filter((x) => x && x.vu));
+      check(vus.length === 0, `pendant le Manoir, rien de l’interface de la boulangerie ne se voit (barre du haut, onglets, tiroir, coin)${vus.length ? ' : ' + vus.map((x) => x.s).join(', ') : ''}`);
+      const avant = await geo();
+      await ev(() => { document.querySelector('#ht-cartes').scrollTop = 500; window.scrollTo(0, 400); document.scrollingElement.scrollTop = 400; document.body.scrollTop = 400; });
+      await page.mouse.move(200, 300); await page.mouse.wheel(0, 600); await glisser(200, 300, 120);
+      await ev(() => { const l = document.querySelectorAll('#ht-cartes .carte'); l[l.length - 1].scrollIntoView({ block: 'end' }); }); await sleep(500); // (un scrollIntoView ne décale pas l'écran tout entier)
+      const apres = await geo(), page0 = await ev(() => ({ y: window.scrollY, s: document.scrollingElement.scrollTop, b: document.body.scrollTop, e: document.querySelector('#hantee').scrollTop }));
+      check(Math.abs(apres.scene.h - avant.scene.h) < 1 && Math.abs(apres.solde.h - avant.solde.h) < 1 && Math.abs(apres.tiroir.h - avant.tiroir.h) < 1 && !page0.y && !page0.s && !page0.b && !page0.e && apres.defile > 0,
+        `la liste défile (${Math.round(apres.defile)} px), mais ni la page (${page0.y}, ${page0.s}, ${page0.b}, l’écran ${page0.e}), ni la scène (${Math.round(avant.scene.h)} → ${Math.round(apres.scene.h)}), ni le solde, ni le tiroir ne bougent`);
+      await shot(page, `${qual}-liste-defilee`);
+      await ev(() => { document.querySelector('#ht-cartes').scrollTop = 0; }); await sleep(200);
+    }
+
+    // ─── la pastille du bouton Sortilèges : combien sont achetables tout de suite (la règle de la feuille), mise à jour avec le solde ───
+    {
+      const am = () => ev(() => { const p = document.querySelector('#hantee [data-pq="ameliorations"] .pq-am-n'), F = window.__fournil, R = F.evHantee.R, q = R.etat(F.st, HORLOGE.maintenant());
+        const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout);
+        return { vu: !p.hidden && p.getBoundingClientRect().width > 0, n: p.hidden ? 0 : +p.textContent, att: att.length, id: att.length ? att[0].id : null }; });
+      await ev(() => { const F = window.__fournil; F.evHantee.R.etat(F.st, HORLOGE.maintenant()).billets = 1e30; });
+      const a1 = await attendre(async () => { const x = await am(); return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 5000);
+      await ev((id) => { const F = window.__fournil; F.evHantee.R.amelioration(F.evHantee.R.etat(F.st, HORLOGE.maintenant()), id); }, a1 && a1.id);
+      const a2 = await attendre(async () => { const x = await am(); return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 5000);
+      const a3 = await ev(() => new Promise((ok) => { const F = window.__fournil, R = F.evHantee.R, q = R.etat(F.st, HORLOGE.maintenant()), p = document.querySelector('#hantee [data-pq="ameliorations"] .pq-am-n'), t0 = performance.now(); q.billets = 0;
+        const voir = () => { const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout).length;
+          if (p.hidden && att === 0) ok({ n: 0 }); else if (performance.now() - t0 > 1500) ok(null); else { q.billets = 0; requestAnimationFrame(voir); } }; requestAnimationFrame(voir); })); // (remis à 0 à chaque image : une fournée vendue d'un coup rapporte de quoi en payer une)
+      check(!!a1 && !!a2 && !!a3, `la pastille de Sortilèges : ${a1 && a1.n} achetable(s) avec assez de bonbons, ${a2 && a2.n} après un achat, cachée à 0`);
+      await ev(() => { const F = window.__fournil; F.evHantee.R.etat(F.st, HORLOGE.maintenant()).billets = 5e9; }); await sleep(300);
+    }
+
+    // ─── en 360 × 640, la colonne et le tiroir restent justes ───
+    await page.setViewportSize({ width: 360, height: 640 }); await sleep(1500);
+    const gp = await verifierColonne('en 360 × 640');
+    check(gp.pos === 'mi' && gp.cartes.b <= 640 + 1 && gp.cartes.ht > 40 && gp.barre.d <= 360 + 1, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
+    await colonneEtCoup('360 × 640');
+    await shot(page, `${qual}-360-tiroir-bas`);
+    const [sx, sy] = await centreDe('#hantee .pq-poignee'); await glisser(sx, sy, gp.solde.b + 20);
+    const gq = await geo();
+    check(gq.pos === 'haut' && Math.abs(gq.tiroir.h - gq.solde.b) <= 2 && gq.cartes.b <= 640 + 1 && gq.cartes.ht > gp.cartes.ht + 120, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
+    await shot(page, `${qual}-360-tiroir-haut`);
+    const [bx, by] = await centreDe('#hantee .pq-barre'); await glisser(bx, by, by + (gp.tiroir.h - gq.tiroir.h)); // (jusqu'au cran mi)
+    check((await geo()).pos === 'mi', 'en 360 × 640, glissé vers le bas : à sa place');
+
+    await page.setViewportSize({ width: 390, height: 844 }); await sleep(800);
+    // ─── le tiroir revient en bas à la réouverture de l'écran ───
+    await ev(() => window.__fournil.evHantee.tiroir('haut')); await sleep(300);
+    await ev(() => window.__fournil.fermerHantee()); await sleep(900);
+    await ev(() => document.querySelector('#b-hantee').click()); await attendre(() => ev(() => window.__fournil.evHantee.ecran === window.__fournil.evHantee.F.ecran), 10000); await sleep(1500);
+    await pose(); const gr = await geo(), gs = await ev(() => { const el = document.querySelector('#hantee'), sc = el.querySelector('.pq-scene'), t = el.querySelector('.pq-tiroir'); return { mb: parseFloat(getComputedStyle(sc).marginBottom) || 0, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: el.getBoundingClientRect().top, cls: el.className, h: sc.style.height, s3: window.__fournil.evHantee.scene ? (window.__fournil.evHantee.scene.vue ? 'boutique' : 'manoir') : 'aucune', T: window.__fournil.evHantee.tiroirEtat ? JSON.stringify(window.__fournil.evHantee.tiroirEtat()) : '' }; });
+    // (sous la scène : son bas, sa marge négative comprise, -22 px pour la boutique hantée, -20 px pour le Manoir d'avant ; et au cran mi de cet écran)
+    check(gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b + gs.mb)) < 1 && Math.abs(gr.tiroir.h - gs.haut - gs.y) < 1 && Math.abs(gs.y - g0.tiroir.h) < 1, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px ; cran ${gs.y}, mi du début ${Math.round(g0.tiroir.h)} ; scène ${Math.round(gr.scene.h)}–${Math.round(gr.scene.b)}, marge ${gs.mb}, hauteur ${gs.h} ; ${gs.cls}, scène ${gs.s3} ; tiroir ${gs.T})`);
+    { const t0 = await ev(() => window.__fournil.st.hantee.now); await sleep(1500); const t1 = await ev(() => window.__fournil.st.hantee.now); console.log(`   (rouvert : le temps des règles avance de ${t1 - t0} ms en 1,5 s)`); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();
   }
