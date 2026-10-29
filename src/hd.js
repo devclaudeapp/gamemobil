@@ -32,10 +32,11 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
-    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 155 Ko ; demandé après les clients) :
-    // les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module).
-    // Sans les clips ou sans le corps du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
-    equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
+    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 167 Ko ; demandé après les clients) :
+    // les corps Chef de l'UACP, tous leurs clips (Idle et Walk compris : le lot ne prend rien à celui des clients, et avec ?clients=0 aucun
+    // fichier de hd/clients/ n'est demandé), la citrouille-lanterne (le reste des tenues est bâti par le module). Sans les clips ou sans le corps
+    // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
+    equipe: { equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
     // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
     planete: { planete: ['planete'] },
@@ -59,8 +60,8 @@ const HDM = (() => {
     }
     e.promesse = Promise.all(t).then(() => {
       if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants');
-      if (LOTS[lot].equipe) { if (!(CLI.anims && EQ['anims-equipe'] && EQ.Chef_Male)) throw new Error('équipe HD manquante'); }
-      else if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
+      if (LOTS[lot].equipe && !(EQ['anims-equipe'] && EQ.Chef_Male)) throw new Error('équipe HD manquante');
+      if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
       e.pret = true; API.version++; return true;
     }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;

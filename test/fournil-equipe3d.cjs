@@ -1,7 +1,8 @@
 // Le boulanger et les apprentis en personnages 3D (src/equipe3d.js : le défaut en qualité haute et moyenne, la HD permise, comme les clients
 // 3D ; ?equipe=0 les garde en chibis) sur la vraie page, téléphone en portrait (390 × 844), le mardi 27 octobre 2026. On vérifie :
 // · avec ?equipe=0, rien ne change : le module inactif, aucun fichier de l'équipe demandé, le boulanger et les apprentis en chibis ;
-// · par défaut, en qualité haute : le lot « equipe » demandé après celui des clients, chaque fichier une fois, 600 Ko au plus ; le boulanger et
+// · par défaut, en qualité haute : le lot « equipe » demandé après celui des clients, chaque fichier une fois, 600 Ko au plus, tous ses clips à
+//   lui (aucun fichier des clients redemandé ; avec ?clients=0, aucun du tout : test/fournil-clients3d.cjs) ; le boulanger et
 //   les apprentis en personnages 3D (un maillage chacun, plus le plateau de celui qui porte ; à la taille des clients : 62 × K à 5 % près, le
 //   boulanger ×1,1) ; le boulanger porte la tenue de la garde-robe (sa clé, GAME.tenueBoulanger), une pièce changée se voit à l'image suivante
 //   (la forme de chaque pièce), la mémoire ne monte pas ; les grades des apprentis (l'étoile dès le grade 3) ; le cycle des apprentis (pétrir au
@@ -204,7 +205,10 @@ function mesurerAura() {
     const eq = demandes.filter((p) => /\/hd\/equipe\//.test(p)), uniques = [...new Set(eq)], poids = uniques.reduce((s, p) => s + fs.statSync(path.join(root, p)).size, 0);
     const pc = [...new Set(demandes.filter((p) => /\/hd\/clients\//.test(p)))].reduce((s, p) => s + fs.statSync(path.join(root, p)).size, 0);
     check(iC >= 0 && iE > iC, `les fichiers de l'équipe sont demandés après ceux des clients (n° ${iE} après le n° ${iC} sur ${demandes.length})`);
-    check(uniques.length === FICHIERS.length && eq.length === FICHIERS.length && FICHIERS.every((n) => uniques.some((p) => p.endsWith(`/equipe/${n}.glb`))) && demandes.filter((p) => p.endsWith('/clients/anims.glb')).length === 1, `${FICHIERS.length} fichiers (les deux corps, leurs clips, la lanterne), chacun demandé une fois ; les clips des clients repris, pas redemandés`);
+    // (le lot de l'équipe ne prend rien à celui des clients : les sept fichiers des clients sont demandés une fois chacun, par leur lot)
+    const cl = demandes.filter((p) => /\/hd\/clients\//.test(p)), clips = await ev(() => HDM.equipe('anims-equipe').animations.map((c) => c.name).sort());
+    check(uniques.length === FICHIERS.length && eq.length === FICHIERS.length && FICHIERS.every((n) => uniques.some((p) => p.endsWith(`/equipe/${n}.glb`))) && cl.length === 7 && new Set(cl).size === 7, `${FICHIERS.length} fichiers (les deux corps, leurs clips, la lanterne), chacun demandé une fois ; aucun fichier des clients en plus (${cl.length} demandes, une par fichier de leur lot)`);
+    check(['Cheering', 'Defeat', 'Hammering', 'Idle', 'Walk', 'Walk_Carry', 'Working_A'].every((n) => clips.includes(n)), `tous ses clips dans son lot, Idle et Walk compris (anims-equipe.glb : ${clips.join(', ')})`);
     check(poids <= 600 * 1024, `leur poids : ${Math.round(poids / 1024)} Ko (≤ 600 Ko) ; avec le lot des clients : ${Math.round((poids + pc) / 1024)} Ko`);
     const e = await equipe(ev);
     check(e.info.corps.length === 2 && e.info.corps.every((c) => c.tris > 2500 && c.tris < 5000), `deux corps cuits (${e.info.corps.map((c) => `${c.nom} ${c.tris} triangles`).join(', ')})`);

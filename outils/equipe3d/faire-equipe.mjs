@@ -3,10 +3,11 @@
 //   traités comme eux (outils/clients3d/faire-clients.mjs) : chaque partie en facettes perd ses normales et se soude, les cheveux sont simplifiés
 //   (ils sont presque toujours sous un couvre-chef : à 25 % chez l'homme, 20 % chez la femme), meshopt « high ». Les noms des matériaux restent :
 //   ils disent le rôle de chaque couleur (peau, veste, pantalon, foulard, cheveux, yeux).
-// · Les clips (anims-equipe.glb, en plus de ceux des clients, fournil/hd/clients/anims.glb : Idle, Walk, Victory…) : Walk_Carry (marcher en
-//   portant le plateau) et Defeat (la panne : les épaules tombent) de l'UACP ; Working_A (pétrir), Hammering (réparer le four, la clé à la main)
-//   et Cheering (la joie du boulanger) de KayKit Character Animations 1.1 (Kay Lousberg, CC0), reciblés sur le rig UACP par
-//   outils/clients3d/recibler.mjs. Les pistes constantes retirées, rééchantillonnés ; les clips du haut du corps n'ont que ses os.
+// · Les clips (anims-equipe.glb, tous ceux de l'équipe : le lot ne prend rien à celui des clients, ?clients=0 ne demande aucun fichier de
+//   fournil/hd/clients/) : Idle (le repos), Walk (marcher ; les mêmes que les clients, à 2e-5 près), Walk_Carry (marcher en portant le plateau)
+//   et Defeat (la panne : les épaules tombent) de l'UACP ; Working_A (pétrir), Hammering (réparer le four, la clé à la main) et Cheering (la joie
+//   du boulanger) de KayKit Character Animations 1.1 (Kay Lousberg, CC0), reciblés sur le rig UACP par outils/clients3d/recibler.mjs. Les
+//   pistes constantes retirées, rééchantillonnés ; les clips du haut du corps n'ont que ses os.
 // · La citrouille-lanterne (p-lanterne.glb) : celle de KayKit Halloween Bits 1.0 (CC0) ; sa texture cuite en couleurs de sommets. Les autres
 //   pièces des tenues (le chapeau pointu compris) sont bâties par src/equipe3d.js, sans fichier.
 // usage : node faire-equipe.mjs            (écrit fournil/hd/equipe/ ; ne touche à rien d'autre ; rejoué : fichiers identiques à l'octet)
@@ -123,7 +124,7 @@ fs.copyFileSync(licence(KHB), path.join(HD, 'LICENCE-kaykit-halloween.txt'));
 for (const f of fs.readdirSync(HD)) fs.chmodSync(path.join(HD, f), 0o644); // (une licence copiée garde le mode de sa source)
 const lignes = [];
 lignes.push(await corps('Chef_Male', 0.25)); lignes.push(await corps('Chef_Female', 0.2));
-lignes.push(await clips(['Walk_Carry', 'Defeat'], [
+lignes.push(await clips(['Idle', 'Walk', 'Walk_Carry', 'Defeat'], [
   ['Rig_Medium_Tools.glb', [['Working_A', 'Working_A'], ['Hammering', 'Hammering', { haut: true }]]],
   ['Rig_Medium_Simulation.glb', [['Cheering', 'Cheering', { haut: true }]]],
 ], 'anims-equipe'));
@@ -132,9 +133,10 @@ fs.writeFileSync(path.join(HD, 'LISEZMOI.txt'), `Le boulanger et les apprentis d
 · Chef_Male.glb, Chef_Female.glb : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ; LICENCE.txt ; source : le dépôt GitHub
   dancerphil/games), le même pack et le même rig de 23 os que les clients (fournil/hd/clients/). Meshopt, sans clips, les facettes sans normales
   et soudées, les cheveux simplifiés.
-· anims-equipe.glb : Walk_Carry et Defeat de ce pack ; Working_A, Hammering et Cheering de KayKit Character Animations 1.1 (Kay Lousberg, CC0 ;
-  LICENCE-kaykit-animations.txt ; source : le miroir GitHub GeorgeQLe/assets-kaykit-3d-characters, commit af08a62, dossier
-  character-animations-1.1), reciblés sur le rig UACP. Les autres clips (Idle, Walk, Victory…) sont ceux des clients (fournil/hd/clients/anims.glb).
+· anims-equipe.glb : Idle, Walk, Walk_Carry et Defeat de ce pack ; Working_A, Hammering et Cheering de KayKit Character Animations 1.1 (Kay
+  Lousberg, CC0 ; LICENCE-kaykit-animations.txt ; source : le miroir GitHub GeorgeQLe/assets-kaykit-3d-characters, commit af08a62, dossier
+  character-animations-1.1), reciblés sur le rig UACP. Tous les clips de l'équipe sont ici : le lot ne prend rien à celui des clients
+  (fournil/hd/clients/).
 · p-lanterne.glb : la citrouille-lanterne de KayKit Halloween Bits 1.0 (Kay Lousberg, CC0 ; LICENCE-kaykit-halloween.txt) ; sa texture cuite
   en couleurs de sommets. Les autres pièces des tenues (dont le chapeau pointu) sont bâties par le module, sans fichier.
 Refaits par outils/equipe3d/faire-equipe.mjs.

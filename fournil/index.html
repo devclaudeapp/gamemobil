@@ -2595,7 +2595,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'b1cd2d37d52b';</script>
+<script>window.FOURNIL_VERSION = '4815b5b708ac';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -10749,10 +10749,11 @@ const HDM = (() => {
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
     // sans les clips, ou sans aucun personnage, le lot échoue et les chibis restent
     clients: { clients: ['anims', 'Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldClassy_Male', 'Suit_Male', 'Worker_Female'] },
-    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 155 Ko ; demandé après les clients) :
-    // les corps Chef de l'UACP, leurs clips en plus de ceux des clients (anims), la citrouille-lanterne (le reste des tenues est bâti par le module).
-    // Sans les clips ou sans le corps du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
-    equipe: { clients: ['anims'], equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
+    // l'équipe de la boutique en 3D (src/equipe3d.js, le boulanger et les apprentis ; fournil/hd/equipe/, ≈ 167 Ko ; demandé après les clients) :
+    // les corps Chef de l'UACP, tous leurs clips (Idle et Walk compris : le lot ne prend rien à celui des clients, et avec ?clients=0 aucun
+    // fichier de hd/clients/ n'est demandé), la citrouille-lanterne (le reste des tenues est bâti par le module). Sans les clips ou sans le corps
+    // du boulanger, le lot échoue et les chibis restent ; l'apprentie manquante, les apprentis sont tous des hommes
+    equipe: { equipe: ['Chef_Male', 'Chef_Female', 'anims-equipe', 'p-lanterne'] },
     // la petite planète de « Ma chaîne » (src/planete.js ; fournil/hd/planete/planete.glb, 45 Ko) : son kit de modèles libres (Kenney,
     // KayKit ; cuits par outils/planete/kit.mjs), un maillage nommé par modèle ; demandé à la première ouverture de la planète en qualité haute
     planete: { planete: ['planete'] },
@@ -10776,8 +10777,8 @@ const HDM = (() => {
     }
     e.promesse = Promise.all(t).then(() => {
       if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants');
-      if (LOTS[lot].equipe) { if (!(CLI.anims && EQ['anims-equipe'] && EQ.Chef_Male)) throw new Error('équipe HD manquante'); }
-      else if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
+      if (LOTS[lot].equipe && !(EQ['anims-equipe'] && EQ.Chef_Male)) throw new Error('équipe HD manquante');
+      if (LOTS[lot].clients && !(CLI.anims && LOTS[lot].clients.some((v) => v !== 'anims' && CLI[v]))) throw new Error('clients HD manquants');
       e.pret = true; API.version++; return true;
     }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
@@ -11435,9 +11436,10 @@ if (typeof module !== 'undefined') module.exports = CLIENTS3D;
    l'adresse les garde toujours (les tests). La visite d'un copain et les boutiques de la chaîne suivent la règle de la boutique.
    · Les corps : Chef_Male et Chef_Female de l'Ultimate Animated Character Pack de Quaternius (CC0) : le pack, le rig de 23 os, le matériau
      et l'échelle des clients (HAUT = 62 × K ; le boulanger, le patron, ×1,1). Le lot « equipe » de src/hd.js (fournil/hd/equipe/, refait par
-     outils/equipe3d/faire-equipe.mjs) est demandé après celui des clients, dont il reprend les clips (Idle, Walk, Victory) ; les siens :
-     Walk_Carry (porter le plateau) et Defeat (la panne : la tête dans les mains) du même pack, Working_A (pétrir), Hammering (réparer le
-     four, la clé à la main) et Cheering (la joie du boulanger) des KayKit Character Animations de Kay Lousberg (CC0), reciblés sur ce rig.
+     outils/equipe3d/faire-equipe.mjs) est demandé après celui des clients, sans rien lui prendre (avec ?clients=0, aucun fichier des clients
+     n'est demandé) : ses clips sont à lui, Idle, Walk, Walk_Carry (porter le plateau) et Defeat (la panne : la tête dans les mains) du même
+     pack, Working_A (pétrir), Hammering (réparer le four, la clé à la main) et Cheering (la joie du boulanger) des KayKit Character
+     Animations de Kay Lousberg (CC0), reciblés sur ce rig.
    · Les tenues, pièce par pièce : GAME.tenueBoulanger(st) dit ce qu'il porte (l'id de chaque pièce, sa forme, sa collection). Chaque pièce de
      la garde-robe a son « kit » 3D, fidèle à son nom et à sa description (la toque blanche plissée, la toque d'or à l'étoile, le tablier
      brodé aux initiales de la boutique, la casquette néon qui clignote, le chapeau phosphorescent, la cape doublée qui fait « whoosh », le
@@ -12745,12 +12747,13 @@ const EQUIPE3D = (() => {
   function clignote(t) { const c = t % 3.7; return c > 3.42 && c < 3.5 ? 0.12 : c > 3.56 && c < 3.62 ? 0.25 : 0.86 + 0.14 * Math.sin(t * 9.3) * Math.sin(t * 2.1); }
 
 
-  // ═══ les clips : ceux des clients (Idle, Walk, Victory…) et ceux de l'équipe ; la joie, la réparation : le haut du corps ═══
-  const CL = {};
-  function clips(...listes) {
-    for (const l of listes) for (const c of l) CL[c.name] = c;
+  // ═══ les clips, tous dans le lot de l'équipe (anims-equipe.glb : Idle, Walk, Walk_Carry, Defeat, Working_A, Hammering, Cheering) ; la joie,
+  //     la réparation : le haut du corps ═══
+  const CL = {}, CLIPS_REQUIS = ['Idle', 'Walk']; // (sans eux, ni la mesure du corps ni la marche : le lot ne vaut rien, les chibis restent)
+  function clips(liste) {
+    for (const c of liste) CL[c.name] = c;
     const haut = (c, nom) => new T.AnimationClip(nom, c.duration, c.tracks.filter((t) => !OS.basDuCorps.test(t.name.split('.')[0])));
-    if (CL.Cheering) CL.__joie = haut(CL.Cheering, 'joie'); else if (CL.Victory) CL.__joie = haut(CL.Victory, 'joie');
+    if (CL.Cheering) CL.__joie = haut(CL.Cheering, 'joie');
     if (CL.Hammering) CL.__repare = haut(CL.Hammering, 'repare');
   }
 
@@ -12785,7 +12788,7 @@ const EQUIPE3D = (() => {
     return API.pret;
   }
   function etape() {
-    if (!clipsLus) { const a = HDM.clients('anims'), b = HDM.equipe('anims-equipe'); if (!a || !b) throw new Error('clips manquants'); clips(a.animations, b.animations); clipsLus = true; return 'clips'; }
+    if (!clipsLus) { const b = HDM.equipe('anims-equipe'); if (!b || !CLIPS_REQUIS.every((n) => b.animations.some((c) => c.name === n))) throw new Error('clips manquants'); clips(b.animations); clipsLus = true; return 'clips'; }
     if (enCours) { const r = enCours.next(); if (r.done) { PROTOS[r.value.nom] = r.value; enCours = null; } return 'cuisson ' + (r.done ? r.value.nom : r.value || ''); }
     if (iCuit < CORPS.length) { const nom = CORPS[iCuit++], g = HDM.equipe(nom); if (g) enCours = cuire(nom, g); return 'lecture ' + nom; }
     if (!PROTOS.Chef_Male) throw new Error('pas de corps pour le boulanger');

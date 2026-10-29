@@ -16,8 +16,9 @@
 // · en qualité moyenne aussi (leur jumeau MeshStandard) ; les replis : un personnage manquant (omis : cinq), l'hiver le lot réduit aux
 //   personnages à chapeau ou à crête (les clients en bonnet vont tête nue, la scène continue ; un client sans personnage possible reste un
 //   chibi, bâti une fois), les clips manquants (le lot échoue : les chibis, sans erreur), ?clients=0 et la qualité éco (aucun fichier des
-//   clients demandé, les chibis). Aucune erreur dans la page, aucun avertissement de three.js (KHR_parallel_shader_compile : compileAsync
-//   seulement si le pilote compile en parallèle).
+//   clients demandé, les chibis ; avec ?clients=0, même une fois le lot de l'équipe 3D arrivé et le boulanger en 3D : il a ses propres
+//   clips). Aucune erreur dans la page, aucun avertissement de three.js (KHR_parallel_shader_compile : compileAsync seulement si le pilote
+//   compile en parallèle).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-clients3d.cjs   (port : PORT_CLIENTS3D)
 'use strict';
 const { chromium } = require('playwright');
@@ -388,10 +389,15 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
   for (const [q, nom] of [['?qualite=haute&clients=0', '?clients=0'], ['?qualite=eco', 'la qualité éco']]) {
     console.log(`── ${nom} : les chibis, aucun fichier des clients demandé ──`);
     ({ ctx, page, erreurs, avertissements, ev } = await ouvrir(q));
+    if (q.includes('clients=0')) { // le boulanger et les apprentis 3D (src/equipe3d.js) restent le défaut en haute : leur lot vient sans celui des
+      // clients et ne lui prend rien (il a ses propres clips) ; les fichiers demandés sont comptés une fois le boulanger passé en 3D
+      const e3 = await attendre(() => ev(() => { const e = window.__fournil.SCENE.equipe3d; return HDM.pret('equipe') && !!e && !!e.boulanger; }), 180000), eq = [...new Set(demandes.filter((p) => /\/hd\/equipe\//.test(p)))];
+      check(e3 && eq.length === 4, `le lot de l'équipe 3D arrive quand même (${eq.length} fichiers de hd/equipe/), le boulanger passe en 3D`);
+    }
     for (let k = 0; k < 4; k++) await nouveau(ev);
     await sleep(6000);
-    const c = await ev(() => window.__fournil.SCENE.clients3d), n = await ev(() => VIE.clients.length);
-    check(demandes.every((p) => !/\/hd\/clients\//.test(p)) && (!c || (c.glb === 0 && c.chibis === n)) && n > 0, `${n} clients en chibis, aucun fichier des clients demandé (${demandes.length} fichiers HD demandés)`);
+    const c = await ev(() => window.__fournil.SCENE.clients3d), n = await ev(() => VIE.clients.length), cl = demandes.filter((p) => /\/hd\/clients\//.test(p));
+    check(cl.length === 0 && (!c || (c.glb === 0 && c.chibis === n)) && n > 0, `${n} clients en chibis, aucun fichier des clients demandé (${demandes.length} fichiers HD demandés${cl.length ? ', dont ' + cl.join(', ') : ''})`);
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }
