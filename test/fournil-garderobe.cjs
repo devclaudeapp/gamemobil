@@ -1,6 +1,7 @@
 // La garde-robe du Fournil dans la vraie page (fournil/ servie en local), sur un téléphone en portrait : la carte de l'onglet Boulanger,
-// la feuille (emplacements, pièces possédées, porter, améliorer en étoiles, ensembles), les bonus affichés et appliqués, le boulanger en 3D
-// qui porte ce qu'on équipe (budget d'appels de dessin tenu), la sauvegarde, 360 × 640, l'artefact Claude hors ligne. Captures dans test/shots/garderobe/.
+// la feuille (emplacements, pièces possédées, porter, améliorer en étoiles, ensembles), les bonus affichés et appliqués, le boulanger chibi
+// (?equipe=0) qui porte ce qu'on équipe (budget d'appels de dessin tenu), la sauvegarde, puis le boulanger 3D (src/equipe3d.js, le défaut en
+// haute) dans les mêmes tenues (un maillage), 360 × 640, l'artefact Claude hors ligne. Captures dans test/shots/garderobe/.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-garderobe.cjs   (PORT_GARDEROBE pour changer de port)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -17,17 +18,20 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
 const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { try { if (await fn()) return true; } catch (e) { /* la page se recharge */ } await sleep(100); } return false; };
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }); // WebGL2 : la HD en haute (le boulanger 3D de l'étape 5 bis), comme test/fournil-equipe3d.cjs
   { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const errors = [];
   const suivre = (p) => {
     p.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
     p.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_INTERNET_DISCONNECTED|ERR_FAILED|404|supabase/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text()); });
   };
-  const nouveau = async (w, h) => { const ctx = await browser.newContext({ viewport: { width: w || 390, height: h || 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' }); await ctx.route(/supabase\.co/, (r) => r.fulfill({ status: 404, contentType: 'application/json', body: '{"code":"PGRST202"}' })); const p = await ctx.newPage(); suivre(p); return { ctx, p }; }; // le classement répond « pas ouvert » : la garde-robe ne dépend pas de lui
+  const nouveau = async (w, h, dpr) => { const ctx = await browser.newContext({ viewport: { width: w || 390, height: h || 844 }, deviceScaleFactor: dpr || 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' }); await ctx.route(/supabase\.co/, (r) => r.fulfill({ status: 404, contentType: 'application/json', body: '{"code":"PGRST202"}' })); const p = await ctx.newPage(); suivre(p); return { ctx, p }; }; // le classement répond « pas ouvert » : la garde-robe ne dépend pas de lui
   const feuille = (p) => p.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
   const equipe = (p) => p.evaluate(() => window.__fournil.st.garderobe.equipe);
   const vues = (p) => p.evaluate(() => window.__fournil.SCENE.recompensesVues);
+  // la scène suit une tenue changée à sa prochaine image ; en rendu logiciel (SwiftShader, 780 × 1688 pixels), une image prend parfois plus
+  // d'une seconde : on attend qu'elle ait suivi (la toque vue des autres, 8 s au plus) avant de la contrôler
+  const suivie = (p, tenue) => attendre(async () => (await vues(p)).tenue === tenue);
   const large = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1 && (document.querySelector('#feuille').hidden || document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1));
   const installer = (p) => p.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 3; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.xp(2000); f.scene({ heure: 13, assis: true }); f.rafraichir(); });
   const zoneBoulanger = (p) => p.evaluate(() => { const b = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones().boulanger; return { x: b.left + z.x - 24, y: b.top + z.y - 16, width: z.w + 48, height: z.h + 40 }; });
@@ -36,7 +40,9 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   // ─── 1. l'onglet Boulanger : la carte de la garde-robe, tenue de toujours ───
   let { ctx, p } = await nouveau();
   await p.goto(BASE + '/vide.html'); await p.evaluate(() => localStorage.clear());
-  await p.goto(BASE + '/fournil/?qualite=haute'); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st));
+  // (?equipe=0 : le boulanger reste le chibi de src/persos.js jusqu'à l'étape 5 ; sans lui, le boulanger 3D, le défaut en haute, prendrait sa
+  // place quand son lot est prêt, à un moment qui dépend du réseau et du processeur : l'étape 5 bis le vérifie, dans les mêmes tenues)
+  await p.goto(BASE + '/fournil/?qualite=haute&equipe=0'); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st));
   await installer(p); await sleep(600);
   await p.evaluate(() => window.__fournil.page('boulanger')); await sleep(400);
   const carte = await p.evaluate(() => { const c = document.querySelector('[data-garderobe]'); return c ? { cases: [...c.querySelectorAll('.gr-case')].map((b) => [b.querySelector('small').textContent, b.querySelector('b').textContent, Math.round(b.getBoundingClientRect().height)]), bonus: c.querySelector('.gr-bonus').textContent, compte: c.querySelector('.compte').textContent, btn: c.querySelector('[data-gr-ouvrir]') ? c.querySelectorAll('[data-gr-ouvrir]').length : 0 } : null; });
@@ -75,7 +81,7 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   // ─── 3. porter, améliorer : l'état, l'affichage, la 3D ───
   await p.tap('[data-gr-porter="or-toque"]'); await sleep(500);
   check((await equipe(p)).tete === 'or-toque' && await p.evaluate(() => document.querySelector('[data-gr-porter="or-toque"]').getAttribute('aria-pressed') === 'true' && /Porté/.test(document.querySelector('[data-gr-porter="or-toque"]').innerText) && /Tous les gains \+3 %/.test(document.querySelector('.gr-tete').innerText)), 'porter la toque d’or : équipée, « Porté ✓ », le bonus en tête « Tous les gains +3 % »');
-  check((await vues(p)).tenue === 'or', 'le boulanger en 3D porte la toque d’or');
+  await suivie(p, 'or'); check((await vues(p)).tenue === 'or', 'le boulanger en 3D porte la toque d’or');
   await p.tap('[data-gr-ameliorer="or-toque"]'); await sleep(500);
   const am = await p.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, niv: window.__fournil.G.niveauVetement(window.__fournil.st, 'or-toque'), txt: document.querySelector('.gr-piece.porte').innerText, btn: document.querySelector('[data-gr-ameliorer="or-toque"]').innerText.replace(/\s+/g, ' ').trim(), tete: document.querySelector('.gr-tete').innerText }));
   check(am.etoiles === 11 && am.niv === 2 && /★★☆☆☆/.test(am.txt) && /Tous les gains \+4,5 %/.test(am.txt) && /Niveau 3 : Tous les gains \+6 %/.test(am.txt) && /1 ★/.test(am.btn) && /\+4,5 %/.test(am.tete), 'améliorer : −1 étoile, niveau 2 (★★☆☆☆), « Tous les gains +4,5 % », le niveau 3 annoncé, 11 étoiles restantes');
@@ -98,13 +104,13 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   check(await p.evaluate(() => /#FFC84A/i.test(document.querySelector('#page-boulanger .boulanger-tete svg').outerHTML)), 'le portrait de la page Boulanger porte la toque d’or');
   await p.screenshot({ path: out + '/05-carte-tenue-or.png' });
 
-  // ─── 4. le boulanger en 3D : la tenue d'or, puis celle du quartier (casquette, sweat, baskets, chaîne) ; budget d'appels de dessin ───
+  // ─── 4. le boulanger chibi (?equipe=0) : la tenue d'or, puis celle du quartier (casquette, sweat, baskets, chaîne) ; budget d'appels de dessin ───
   await p.evaluate(() => { window.__fournil.page('boutique'); window.__fournil.tiroir('ferme'); }); await sleep(900);
   const m1 = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses.boulanger);
   check((await vues(p)).tenue === 'or' && m1 === 8, `le boulanger en tenue d’or : ${m1} maillages (2 jambes chaussées, buste, tête, visage, 2 bras, sueur : 8 appels de dessin au plus, comme sans tenue)`);
   await sansClients(p); let zone = await zoneBoulanger(p);
   await p.screenshot({ path: out + '/06-3d-tenue-or.png', clip: zone });
-  await p.evaluate(() => { const f = window.__fournil; f.G.equiperCollection(f.st, 'quartier'); f.rafraichir(); }); await sleep(900);
+  await p.evaluate(() => { const f = window.__fournil; f.G.equiperCollection(f.st, 'quartier'); f.rafraichir(); }); await sleep(900); await suivie(p, null);
   const m2 = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses.boulanger);
   check((await vues(p)).tenue === null && m2 === 8 && await p.evaluate(() => window.__fournil.G.ensembleComplet(window.__fournil.st) === 'quartier'), `la tenue du quartier : pas de toque de podium, l’ensemble du quartier, toujours ${m2} maillages`);
   await sansClients(p); zone = await zoneBoulanger(p);
@@ -114,7 +120,7 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
     const b1 = await boite(); await sleep(600); const b2 = await boite();
     check(JSON.stringify(b1) === JSON.stringify(b2), `la scène ne bouge pas dans la page (${JSON.stringify(b1)} puis ${JSON.stringify(b2)})`);
     await p.screenshot({ path: out + '/08-boutique-quartier.png', clip: b2 }); }
-  await p.evaluate(() => { const f = window.__fournil; f.G.equiper(f.st, 'tete', 'bronze-toque'); f.G.equiper(f.st, 'accessoire', 'lunettes-rondes'); f.rafraichir(); }); await sleep(900);
+  await p.evaluate(() => { const f = window.__fournil; f.G.equiper(f.st, 'tete', 'bronze-toque'); f.G.equiper(f.st, 'accessoire', 'lunettes-rondes'); f.rafraichir(); }); await sleep(900); await suivie(p, 'bronze');
   const m3 = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses.boulanger);
   check((await vues(p)).tenue === 'bronze' && m3 === 8, `un mélange (toque de bronze, sweat du quartier, lunettes) : la toque vue des autres est de bronze, ${m3} maillages`);
   await sansClients(p); zone = await zoneBoulanger(p);
@@ -122,9 +128,34 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 
   // ─── 5. la sauvegarde : relancer garde la tenue et les niveaux ───
   await p.evaluate(() => window.__fournil.save());
-  await p.reload(); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st)); await sleep(1200);
+  await p.reload(); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st)); await sleep(1200); await suivie(p, 'bronze');
   const apres = await p.evaluate(() => { const f = window.__fournil; return { equipe: f.st.garderobe.equipe, niv: f.G.niveauVetement(f.st, 'or-toque'), n: Object.keys(f.st.garderobe.objets).length, etoiles: f.st.etoiles }; });
   check(JSON.stringify(apres.equipe) === JSON.stringify({ tete: 'bronze-toque', haut: 'quartier-sweat', pieds: 'quartier-baskets', accessoire: 'lunettes-rondes' }) && apres.niv === 2 && apres.n === 13 && apres.etoiles === 11 && (await vues(p)).tenue === 'bronze', 'relancé : la tenue, les 13 pièces, le niveau 2 et les 11 étoiles sont là');
+
+  // ─── 5 bis. le boulanger 3D (src/equipe3d.js, le défaut en haute) : la même partie, sans ?equipe=0 ; les mêmes tenues, un maillage ───
+  // (le mélange relu de la sauvegarde, puis la tenue d'or et celle du quartier : sa tenue est la clé de GAME.tenueBoulanger, ses formes celles
+  // des pièces portées, la toque vue des autres la même que chez le chibi ; un appel de dessin, plus l'aura s'il en portait une). La partie est
+  // recopiée dans un téléphone à l'échelle 1 : l'équipe 3D se prépare à petits pas, image après image, et en rendu logiciel une image à
+  // l'échelle 2 prend plus d'une seconde (près de 3 min pour la voir en 3D, contre moins d'une à l'échelle 1)
+  const partie = await p.evaluate(() => Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)])));
+  await ctx.close();
+  ({ ctx, p } = await nouveau(390, 844, 1));
+  await p.goto(BASE + '/vide.html'); await p.evaluate((s) => { localStorage.clear(); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); }, partie);
+  await p.goto(BASE + '/fournil/?qualite=haute'); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st));
+  await p.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); window.__fournil.page('boutique'); window.__fournil.tiroir('ferme'); });
+  const b3d = () => p.evaluate(() => { const f = window.__fournil, e = f.SCENE.equipe3d, b = e && e.boulanger; return { en3d: !!b && !e.chibiBoulanger, cle: f.G.tenueBoulanger(f.st).cle, tenue: b ? b.tenue : '', formes: b ? b.formes : null, aura: !!(b && b.aura), mailles: b ? b.mailles : 0, m: f.SCENE.maillagesRecompenses.boulanger, vue: f.SCENE.recompensesVues.tenue }; });
+  check(await attendre(async () => (await b3d()).en3d, 180000), 'sans ?equipe=0, le boulanger passe en 3D (les lots HD de la boutique, des clients, puis de l’équipe, préparés à petits pas)');
+  for (const [nom, coll, metal, formes, img] of [
+    ['le mélange relu de la sauvegarde (toque de bronze, sweat du quartier, lunettes)', null, 'bronze', { tete: 'toque', haut: 'sweat', pieds: 'baskets', acc: null, lunettes: true }, '09b-3d-equipe-melange'],
+    ['la tenue d’or', 'or', 'or', { tete: 'toque', haut: 'tablier', pieds: 'chaussures', acc: 'foulard', lunettes: false }, '09c-3d-equipe-tenue-or'],
+    ['la tenue du quartier', 'quartier', null, { tete: 'casquette', haut: 'sweat', pieds: 'baskets', acc: 'chaine', lunettes: false }, '09d-3d-equipe-tenue-quartier'],
+  ]) {
+    if (coll) await p.evaluate((c) => { const f = window.__fournil; f.G.equiperCollection(f.st, c); f.rafraichir(); }, coll);
+    let r = await b3d(); await attendre(async () => { r = await b3d(); return r.en3d && r.tenue.endsWith('|' + r.cle); });
+    check(r.en3d && r.tenue.endsWith('|' + r.cle) && JSON.stringify(r.formes) === JSON.stringify(formes) && r.vue === metal && r.mailles === 1 + (r.aura ? 1 : 0) && r.m === r.mailles, `le boulanger 3D, ${nom} : la tenue de la garde-robe (${r.tenue}), ses formes (${r.formes ? [r.formes.tete, r.formes.haut, r.formes.pieds, r.formes.acc, r.formes.lunettes ? 'lunettes' : ''].filter(Boolean).join(', ') : 'aucune'}), la toque vue des autres : ${r.vue || 'aucune de podium'} ; ${r.m} maillage(s) (un appel de dessin${r.aura ? ', plus l’aura' : ''})`);
+    await sansClients(p); zone = await zoneBoulanger(p);
+    await p.screenshot({ path: out + `/${img}.png`, clip: zone });
+  }
   await ctx.close();
 
   // ─── 6. à 360 × 640 : la feuille tient, les boutons font 44 px ───
