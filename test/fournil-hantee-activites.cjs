@@ -499,8 +499,13 @@ function faux(d) {
         await surCran(`${ou}, la liste glissée vers le bas, sa carte redessinée en route (${refait ? 'redessinée' : 'pas de carte sous le doigt'})`, 'mi'); }
       await ev(() => window.__fournil.evHantee.tiroir('haut')); await pose();
       // une feuille ouverte puis refermée (Sortilèges), le tiroir en haut : il y reste, la liste jusqu'en bas
-      { const [xs2, ys2] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs2, ys2); await attendre(() => ev(() => !document.querySelector('#feuille').hidden), 3000); await sleep(300);
-        await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
+      { const [xs2, ys2] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs2, ys2);
+        if (!await attendre(() => ev(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille [data-a="pq-retour"]')), 3000)) { // (le tiroir encore en route sur un petit écran : le toucher a pu tomber à côté)
+          await ev(() => { if (!document.querySelector('#feuille').hidden) document.querySelector('#voile').click(); }); await sleep(400); await pose();
+          const [xs3, ys3] = await centreDe('#hantee [data-pq="ameliorations"]'); await toucherA(xs3, ys3);
+          await attendre(() => ev(() => !!document.querySelector('#feuille [data-a="pq-retour"]')), 3000); }
+        await sleep(300);
+        await ev(() => { const b = document.querySelector('#feuille [data-a="pq-retour"]'); if (b) b.click(); }); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
         await surCran(`${ou}, une feuille ouverte et refermée`, 'haut'); }
       if (pwa) await ev(() => { document.querySelector('#pwa-simule').remove(); window.dispatchEvent(new Event('resize')); });
     }

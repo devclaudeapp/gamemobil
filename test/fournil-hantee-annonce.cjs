@@ -42,7 +42,7 @@ const attendre = async (fn, ms = 15000) => { for (let t = 0; t < ms; t += 150) {
   check(vd.length > 100e3 && vd.length <= 1.5 * 1024 * 1024 && vd.subarray(4, 8).toString() === 'ftyp' && vd.includes('avc1') && !vd.includes('mp4a'), `la vidéo : MP4 H.264 (avc1), muette, ${(vd.length / 1024).toFixed(0)} Ko (≤ 1,5 Mo)`);
   check(af.length > 5e3 && af.length <= 80 * 1024 && af[0] === 0xFF && af[1] === 0xD8, `l’affiche : JPEG, ${(af.length / 1024).toFixed(0)} Ko (≤ 80 Ko)`);
   const page0 = fs.readFileSync(path.join(root, 'fournil', 'index.html')), art = fs.readFileSync(path.join(root, 'dist', 'artifact.html'));
-  check(![page0, art].some((b) => b.includes('ftypisom') || b.includes('data:video') || b.includes('data:image/jpeg')) && page0.length < 3e6 && art.length < 3.5e6, `ni la page (${(page0.length / 1024).toFixed(0)} Ko) ni l’artefact (${(art.length / 1024).toFixed(0)} Ko) n’embarquent la vidéo ou l’affiche`);
+  check(![page0, art].some((b) => b.includes('ftypisom') || b.includes('data:video') || b.includes('data:image/jpeg')) && page0.length < 3.3e6 && art.length < 4e6 /* (bornes de bon sens : le boulanger 3D, 28 oct., a ajouté ~230 Ko de code à chacun) */, `ni la page (${(page0.length / 1024).toFixed(0)} Ko) ni l’artefact (${(art.length / 1024).toFixed(0)} Ko) n’embarquent la vidéo ou l’affiche`);
 
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   const errors = [];
