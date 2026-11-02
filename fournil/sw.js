@@ -24,9 +24,22 @@ self.addEventListener('fetch', (e) => {
   }
   const local = url.origin === self.location.origin;
   if (local && /[/]media[/][^/]+[.]mp4$/.test(url.pathname)) { e.respondWith(video(req, url)); return; } // la vidéo de l'annonce : en cache entière, servie par morceaux
+  if (local && /[/]img[/]carnet[/]/.test(url.pathname)) { e.respondWith(vignette(req)); return; } // une vignette du carnet : une copie par objet ; hors ligne, sans erreur
   if (local && (url.pathname.endsWith('.webmanifest') || url.pathname === new URL('./config.js', self.location).pathname)) { e.respondWith(fetch(req).then((res) => enCache(req, res)).catch(() => caches.match(req))); return; } // le manifeste et la configuration : le réseau d'abord
   if (local || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => enCache(req, res))));
 });
+// Les vignettes du carnet (fournil/img/carnet/<famille>/<id>.webp?v=<empreinte>, src/vignettes.js) : chargées à la demande, mises en cache à
+// leur première vue (jamais précachées : 1,2 Mo que tout le monde ne regarde pas). Une vignette refaite (outils/vignettes/cuire.cjs) change
+// d'empreinte, donc d'adresse : en mettant la nouvelle en cache, on retire les copies du même fichier à une autre empreinte (une seule copie
+// par vignette, sans changer CACHE). Hors ligne et pas encore en cache : la copie d'avant du même fichier s'il y en a une, sinon une réponse
+// vide (204) : l'image échoue sans erreur réseau dans la console et son repli (l'icône ou la carte d'avant, src/vignettes.js) prend sa
+// place. Un fichier absent du serveur reste une vraie 404 (une faute à voir).
+function vignette(req) {
+  return caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.delete(req, { ignoreSearch: true }).then(() => c.put(req, copy))).catch(() => {}); }
+    return res;
+  }, () => caches.match(req, { ignoreSearch: true }).then((avant) => avant || new Response(null, { status: 204, statusText: 'No Content' }))));
+}
 // La vidéo de présentation d'un événement (fournil/media/*.mp4, l'annonce de la Maison hantée) : mise en cache ENTIÈRE à sa première lecture
 // (une requête sans Range, sous l'adresse seule), puis servie depuis la copie. Les lecteurs vidéo (Safari, toujours) demandent des morceaux
 // (Range: bytes=…) : on les découpe dans la copie (206 et Content-Range), sinon iPhone refuse de la lire. Hors ligne et jamais vue : une erreur

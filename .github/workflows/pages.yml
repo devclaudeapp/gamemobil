@@ -222,7 +222,8 @@ jobs:
           PORT_MEUBLES: '8870'
   # Deux tâches de plus pour « Ma chaîne de boutiques », chacune bien sous les 25 minutes : l'écran « Ma chaîne » (entrer dans une boutique de la
   # chaîne, les jetons, les gérants, la boulangerie qui ne bouge pas) et la version d'essai (ses clés à elle, la vraie partie jamais touchée,
-  # aucun service worker ni requête au serveur) ; puis « Mes décos » (le budget d'appels de dessin avec six décos posées) et la petite planète.
+  # aucun service worker ni requête au serveur) ; puis « Mes décos » (le budget d'appels de dessin avec six décos posées ; ses vignettes : l'arrière-salle
+  # cachée tant qu'on ne l'a pas trouvée, le cache du service worker, hors ligne et fichier manquant sans erreur, le repli au style d'avant) et la petite planète.
   fournil7:
     name: Le Fournil, Ma chaîne et la version d'essai (Playwright)
     runs-on: ubuntu-latest
@@ -261,15 +262,17 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Mes décos, la petite planète
+      - name: Mes décos et ses vignettes, la petite planète
         run: |
           node build.js
           node test/fournil-decos.cjs
+          node test/fournil-vignettes.cjs
           node test/fournil-planete.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_DECOS: '8891'
+          PORT_VIGNETTES: '8893'
           PORT_PLANETE: '8878'
   # Les activités de la Maison hantée (jouées au doigt dans le Manoir, en haute puis en éco) : près de 30 minutes, seules.
   fournil9:

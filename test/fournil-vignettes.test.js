@@ -8,7 +8,7 @@
 // · toutes les familles qui ont un objet 3D ont toutes leurs vignettes ; les titres, les cartes postales et le croupier gardent leur dessin ;
 // · le budget : 1,5 Mo en tout au plus, 8 Ko en moyenne ;
 // · sans window.FOURNIL_VERSION (l'artefact, qui n'a pas les fichiers), aucune adresse : le repli dessiné, tel quel ; la page du jeu et
-//   l'artefact embarquent la table.
+//   l'artefact embarquent la table ; node build.js --essai, lancé à part, copie toutes les vignettes.
 // Lancer : node test/fournil-vignettes.test.js
 'use strict';
 const path = require('path'), fs = require('fs'), crypto = require('crypto');
@@ -70,7 +70,19 @@ const un = Object.entries(V.T)[0], idUn = un && Object.keys(un[1])[0];
 check(V.actif === false && V.src(un[0], idUn) === '' && V.img(un[0], idUn, true, '<i class="ico">x</i>') === '<i class="ico">x</i>' && V.img(un[0], idUn, false, '') === '', 'sans les fichiers (l’artefact) : aucune adresse, l’icône dessinée telle quelle');
 // la page du jeu et l'artefact embarquent la table (build.js) ; la version d'essai copie img/
 for (const f of ['fournil/index.html', 'dist/artifact.html']) { const p = path.join(JEU, f); check(fs.existsSync(p) && fs.readFileSync(p, 'utf8').includes('/* ── vignettes.js ── */'), `${f} embarque src/vignettes.js (node build.js)`); }
-check(/\['hd', 'modeles', 'sons', 'img'\]/.test(fs.readFileSync(path.join(JEU, 'build.js'), 'utf8')), 'node build.js --essai copie img/ (les vignettes) avec hd/, modeles/ et sons/');
+// la version d'essai : node build.js --essai, lancé pour de vrai, à part (un dossier temporaire : build.js et des liens vers src/, vendor/ et
+// fournil/ ; rien n'est écrit dans le dépôt, que pages.yml publie tel quel), copie img/carnet/ en entier, à l'identique
+{
+  const os = require('os'), { execFileSync } = require('child_process'), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fournil-essai-')), liens = ['src', 'vendor', 'fournil'];
+  try {
+    fs.copyFileSync(path.join(JEU, 'build.js'), path.join(tmp, 'build.js'));
+    for (const d of liens) fs.symlinkSync(path.join(JEU, d), path.join(tmp, d), 'dir');
+    execFileSync(process.execPath, [path.join(tmp, 'build.js'), '--essai'], { cwd: tmp, stdio: 'pipe' });
+    const dir = path.join(tmp, 'fournil-essai', 'img', 'carnet'), copies = fs.existsSync(dir) ? fs.readdirSync(dir).flatMap((f) => fs.readdirSync(path.join(dir, f)).map((g) => `${f}/${g}`)) : [];
+    const memes = copies.filter((k) => fs.existsSync(path.join(DOSSIER, k)) && fs.readFileSync(path.join(dir, k)).equals(fs.readFileSync(path.join(DOSSIER, k)))).length;
+    check(fs.existsSync(path.join(tmp, 'fournil-essai', 'index.html')) && copies.length === disque.length && memes === disque.length, `node build.js --essai (lancé à part) : fournil-essai/ a ses ${copies.length} vignettes, celles de fournil/img/carnet/ à l'identique`);
+  } catch (e) { check(false, `node build.js --essai (lancé à part) : ${String(e.stderr || e.message).slice(0, 300)}`); } finally { for (const d of liens) try { fs.unlinkSync(path.join(tmp, d)); } catch (e) { /* rien */ } fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 
 console.log(fails ? `\n${fails} ÉCHEC(S)` : '\ntout est vert');
 process.exit(fails ? 1 : 0);
