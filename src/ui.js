@@ -549,11 +549,12 @@ const UI = (() => {
     return v;
   }
   // un trophée de l'étagère (la boutique, l'arrière-salle) : sa vignette à gauche (le rendu de son objet, src/vignettes.js), grisée tant qu'il
-  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la coupe dessinée, dans le coin quand il est gagné (comme avant)
+  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la carte d'avant, telle quelle (la coupe dessinée dans le coin
+  // quand il est gagné, toute la largeur pour le texte) : elle prend la place de toute la carte (data-vig), pas seulement de l'image
   function trophCarte(fam, id, gagne, nom, desc, attr) {
-    const coupe = `<i class="ico">${ICONS.UI.trophee}</i>`, v = typeof VIGNETTES !== 'undefined' && VIGNETTES.src(fam, id);
-    if (!v) return `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? coupe : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
-    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}"${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, gagne ? coupe : '')}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
+    const avant = `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
+    if (typeof VIGNETTES === 'undefined' || !VIGNETTES.src(fam, id)) return avant;
+    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}" data-vig${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, avant)}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
   }
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;

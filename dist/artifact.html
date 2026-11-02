@@ -7584,12 +7584,15 @@ const ICONS = (() => {
 /* LE FOURNIL — les vignettes du carnet « Mes décos », de l'étagère des trophées et du carnet du croupier (global VIGNETTES).
    GÉNÉRÉ par outils/vignettes/cuire.cjs : ne pas éditer à la main (relancer l'outil : voir outils/vignettes/README.md).
    Chaque objet du carnet qui a un objet 3D a sa vignette : fournil/img/carnet/<famille>/<id>.webp (256 × 256, fond transparent), rendue
-   dans le même studio que toutes les autres. La table : famille → id → l'empreinte du fichier (dans l'adresse : une vignette refaite ne
-   reste pas dans le cache du service worker). src(famille, id) : son adresse, ou '' (pas de vignette : l'icône dessinée). Sans les fichiers
-   (l'artefact Claude : pas de window.FOURNIL_VERSION, que seule la page du jeu porte), aucune adresse : les icônes restent.
-   img(famille, id, gagne, repli) : le HTML d'une vignette (grisée si pas gagnée) ; repli (du HTML : l'icône, l'aperçu dessiné), gardé
-   à côté dans un <template>, prend la place de l'image si elle ne se charge pas (un seul écouteur, en capture sur le document) ; sans
-   vignette, repli tel quel. */
+   dans le même studio que toutes les autres. La table : famille → id → l'empreinte du fichier (dans l'adresse : une vignette refaite change
+   d'adresse, et le service worker ne garde que la dernière, fournil/sw.js). src(famille, id) : son adresse, ou '' (pas de vignette : l'icône
+   dessinée). Sans les fichiers (l'artefact Claude : pas de window.FOURNIL_VERSION, que seule la page du jeu porte), aucune adresse : les
+   icônes restent.
+   img(famille, id, gagne, repli) : le HTML d'une vignette (grisée si pas gagnée) ; sans vignette, le repli tel quel. Le repli (le HTML
+   d'avant : l'icône, l'aperçu dessiné, la carte de l'étagère), gardé à côté dans un <template>, reprend sa place si l'image ne se charge
+   pas (le fichier manque ; hors ligne avant sa mise en cache, le service worker répond 204, sans erreur dans la console) : il remplace
+   le bloc marqué data-vig qui la contient (la carte de l'étagère, la pastille d'un trophée du croupier, l'aperçu d'un skin : leur style
+   d'avant revient tel quel, grisé ou non), sinon l'image seule ; sans repli, l'image s'efface. Un seul écouteur, en capture sur le document. */
 const VIGNETTES = (() => {
   'use strict';
   const T = {
@@ -7607,9 +7610,10 @@ const VIGNETTES = (() => {
   const actif = typeof window !== 'undefined' && !!window.FOURNIL_VERSION;
   const src = (f, id) => { const h = actif && T[f] && T[f][id]; return h ? `img/carnet/${f}/${id}.webp?v=${h}` : ''; };
   const img = (f, id, gagne, repli) => { const s = src(f, id); if (!s) return repli || ''; return `<img class="vig${gagne ? '' : ' gris'}" src="${s}" alt="" loading="lazy" decoding="async">${repli ? `<template class="vig-repli">${repli}</template>` : ''}`; };
-  if (actif && typeof document !== 'undefined') document.addEventListener('error', (e) => { // (une image qui manque : son repli à sa place, ou rien)
+  if (actif && typeof document !== 'undefined') document.addEventListener('error', (e) => { // (une image qui manque : son repli à la place de son bloc, ou d'elle seule)
     const im = e.target; if (!im || im.tagName !== 'IMG' || !im.classList.contains('vig')) return;
-    const t = im.nextElementSibling; if (t && t.classList.contains('vig-repli')) { im.replaceWith(t.content.cloneNode(true)); t.remove(); } else im.remove();
+    const t = im.nextElementSibling, repli = t && t.classList.contains('vig-repli') ? t : null, bloc = repli && im.closest('[data-vig]');
+    if (!repli) im.remove(); else if (bloc) bloc.replaceWith(repli.content.cloneNode(true)); else { im.replaceWith(repli.content.cloneNode(true)); repli.remove(); }
   }, true);
   return { T, actif, src, img };
 })();
@@ -16705,10 +16709,11 @@ const ARRIERE = (() => {
   // ─── le carnet du croupier : les mini-objectifs du jour, les trophées du casino, les statistiques, les skins ───
   const ONGLETS = [['objectifs', 'Objectifs'], ['trophees', 'Trophées'], ['stats', 'Stats'], ['skins', 'Skins']];
   // l'aperçu d'un skin : sa vignette (src/vignettes.js : le vrai tapis en carré, le dos des cartes, les jetons, la roue à sa finition), ou
-  // l'aperçu dessiné (sans vignette, ou si elle ne se charge pas) ; le croupier, qui n'existe pas en 3D, garde son dessin
+  // l'aperçu dessiné (sans vignette, ou si elle ne se charge pas : il prend la place de tout le bloc data-vig, rien n'est grisé deux fois) ;
+  // le croupier, qui n'existe pas en 3D, garde son dessin
   function apercu(cat, id) {
     const des = apercuDessine(cat, id);
-    return cat !== 'croupier' && typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-skins', `${cat}-${id}`) ? `<span class="ap ap-img">${VIGNETTES.img('casino-skins', `${cat}-${id}`, true, des)}</span>` : des;
+    return cat !== 'croupier' && typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-skins', `${cat}-${id}`) ? `<span class="ap ap-img" data-vig>${VIGNETTES.img('casino-skins', `${cat}-${id}`, true, des)}</span>` : des;
   }
   function apercuDessine(cat, id) {
     if (cat === 'croupier') return `<span class="ap ap-croupier">${croupierSVG(id)}</span>`;
@@ -16731,7 +16736,8 @@ const ARRIERE = (() => {
         <p class="ar-petit">Trois par jour, renouvelés à minuit. Une main ou un tour compte dès que sa mise atteint 0,5 % de la caisse (1 € au moins) : inutile de miser gros. Un jeton d’or par objectif, un de plus pour les trois.</p>`;
     } else if (x === 'trophees') {
       const tr = C.trophees(s), g = tr.filter((t) => t.gagne), a = tr.filter((t) => !t.gagne);
-      const vig = (t) => (typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-trophees', t.id) ? `<span class="pic img">${VIGNETTES.img('casino-trophees', t.id, !!t.gagne, ICONS.UI.trophee)}</span>` : `<span class="pic">${ICONS.UI.trophee}</span>`); // (sa vignette, grisée tant qu'il n'est pas gagné ; sinon la coupe dessinée)
+      const coupe = `<span class="pic">${ICONS.UI.trophee}</span>`; // (la coupe dessinée : sur le gris pâli tant qu'il n'est pas gagné, sur le beurre une fois gagné)
+      const vig = (t) => (typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-trophees', t.id) ? `<span class="pic img" data-vig>${VIGNETTES.img('casino-trophees', t.id, !!t.gagne, coupe)}</span>` : coupe); // (sa vignette, grisée tant qu'il n'est pas gagné ; si elle ne se charge pas, la coupe d'avant prend la place de toute la pastille)
       const li = (t) => `<li class="${t.gagne ? 'gagne' : ''}" data-trophee="${t.id}">${vig(t)}<span><b>${esc(t.nom)}</b><small>${esc(t.desc)}</small><em>${t.gagne ? 'Débloqué' : 'Débloque'} : ${esc(nomRecompense(t.recompense))}</em></span></li>`;
       corps = `<p class="ar-petit">${g.length} sur ${tr.length}. Ils ne rapportent que des skins et un titre : jamais d’argent ni de points.</p><ul class="ar-trophs">${g.map(li).join('')}${a.map(li).join('')}</ul>`;
     } else if (x === 'stats') {
@@ -25072,11 +25078,12 @@ const UI = (() => {
     return v;
   }
   // un trophée de l'étagère (la boutique, l'arrière-salle) : sa vignette à gauche (le rendu de son objet, src/vignettes.js), grisée tant qu'il
-  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la coupe dessinée, dans le coin quand il est gagné (comme avant)
+  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la carte d'avant, telle quelle (la coupe dessinée dans le coin
+  // quand il est gagné, toute la largeur pour le texte) : elle prend la place de toute la carte (data-vig), pas seulement de l'image
   function trophCarte(fam, id, gagne, nom, desc, attr) {
-    const coupe = `<i class="ico">${ICONS.UI.trophee}</i>`, v = typeof VIGNETTES !== 'undefined' && VIGNETTES.src(fam, id);
-    if (!v) return `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? coupe : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
-    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}"${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, gagne ? coupe : '')}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
+    const avant = `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
+    if (typeof VIGNETTES === 'undefined' || !VIGNETTES.src(fam, id)) return avant;
+    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}" data-vig${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, avant)}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
   }
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;

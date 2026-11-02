@@ -83,12 +83,15 @@ function tableJs(table) {
   return `/* LE FOURNIL — les vignettes du carnet « Mes décos », de l'étagère des trophées et du carnet du croupier (global VIGNETTES).
    GÉNÉRÉ par outils/vignettes/cuire.cjs : ne pas éditer à la main (relancer l'outil : voir outils/vignettes/README.md).
    Chaque objet du carnet qui a un objet 3D a sa vignette : fournil/img/carnet/<famille>/<id>.webp (256 × 256, fond transparent), rendue
-   dans le même studio que toutes les autres. La table : famille → id → l'empreinte du fichier (dans l'adresse : une vignette refaite ne
-   reste pas dans le cache du service worker). src(famille, id) : son adresse, ou '' (pas de vignette : l'icône dessinée). Sans les fichiers
-   (l'artefact Claude : pas de window.FOURNIL_VERSION, que seule la page du jeu porte), aucune adresse : les icônes restent.
-   img(famille, id, gagne, repli) : le HTML d'une vignette (grisée si pas gagnée) ; repli (du HTML : l'icône, l'aperçu dessiné), gardé
-   à côté dans un <template>, prend la place de l'image si elle ne se charge pas (un seul écouteur, en capture sur le document) ; sans
-   vignette, repli tel quel. */
+   dans le même studio que toutes les autres. La table : famille → id → l'empreinte du fichier (dans l'adresse : une vignette refaite change
+   d'adresse, et le service worker ne garde que la dernière, fournil/sw.js). src(famille, id) : son adresse, ou '' (pas de vignette : l'icône
+   dessinée). Sans les fichiers (l'artefact Claude : pas de window.FOURNIL_VERSION, que seule la page du jeu porte), aucune adresse : les
+   icônes restent.
+   img(famille, id, gagne, repli) : le HTML d'une vignette (grisée si pas gagnée) ; sans vignette, le repli tel quel. Le repli (le HTML
+   d'avant : l'icône, l'aperçu dessiné, la carte de l'étagère), gardé à côté dans un <template>, reprend sa place si l'image ne se charge
+   pas (le fichier manque ; hors ligne avant sa mise en cache, le service worker répond 204, sans erreur dans la console) : il remplace
+   le bloc marqué data-vig qui la contient (la carte de l'étagère, la pastille d'un trophée du croupier, l'aperçu d'un skin : leur style
+   d'avant revient tel quel, grisé ou non), sinon l'image seule ; sans repli, l'image s'efface. Un seul écouteur, en capture sur le document. */
 const VIGNETTES = (() => {
   'use strict';
   const T = {
@@ -97,9 +100,10 @@ ${lignes}
   const actif = typeof window !== 'undefined' && !!window.FOURNIL_VERSION;
   const src = (f, id) => { const h = actif && T[f] && T[f][id]; return h ? \`img/carnet/\${f}/\${id}.webp?v=\${h}\` : ''; };
   const img = (f, id, gagne, repli) => { const s = src(f, id); if (!s) return repli || ''; return \`<img class="vig\${gagne ? '' : ' gris'}" src="\${s}" alt="" loading="lazy" decoding="async">\${repli ? \`<template class="vig-repli">\${repli}</template>\` : ''}\`; };
-  if (actif && typeof document !== 'undefined') document.addEventListener('error', (e) => { // (une image qui manque : son repli à sa place, ou rien)
+  if (actif && typeof document !== 'undefined') document.addEventListener('error', (e) => { // (une image qui manque : son repli à la place de son bloc, ou d'elle seule)
     const im = e.target; if (!im || im.tagName !== 'IMG' || !im.classList.contains('vig')) return;
-    const t = im.nextElementSibling; if (t && t.classList.contains('vig-repli')) { im.replaceWith(t.content.cloneNode(true)); t.remove(); } else im.remove();
+    const t = im.nextElementSibling, repli = t && t.classList.contains('vig-repli') ? t : null, bloc = repli && im.closest('[data-vig]');
+    if (!repli) im.remove(); else if (bloc) bloc.replaceWith(repli.content.cloneNode(true)); else { im.replaceWith(repli.content.cloneNode(true)); repli.remove(); }
   }, true);
   return { T, actif, src, img };
 })();
