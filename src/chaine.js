@@ -387,7 +387,8 @@
       ...OBJETS.filter((o) => o.famille === 'deco').map((o) => ({ id: o.id, nom: o.nom, place: o.id === 'chaine-statue' ? 'sol' : o.id === 'chaine-plan' ? 'mur' : 'comptoir', mesure: null, obtenir: `La boutique des jetons : ${o.prix} jetons` })),
       { id: ENSEIGNE_OR, nom: 'L’enseigne dorée', place: 'mur', mesure: null, lueur: true, obtenir: 'Ta première Boutique d’or' },
     ], possede: (st, id) => { const c = st && st.chaine; if (!c || typeof c !== 'object') return false; const k = SOUVENIRS.findIndex((s) => s.id === id); if (k >= 0) return Array.isArray(c.b) && c.b.some((b) => b.q === k); return Array.isArray(c.objets) && c.objets.includes(id); } },
-    // les collections du carnet sans objet 3D (vignettes ~256 px : images Grok plus tard, une icône dessinée en attendant)
+    // les collections du carnet qui ne se posent pas : leur vignette (src/vignettes.js, le rendu 3D de l'objet), ou une icône dessinée (les
+    // titres, les cartes postales, qui n'ont pas d'objet 3D)
     { id: 'trophees', nom: 'Les trophées de la boutique', items: G.TROPHEES.map((t) => ({ id: t.id, nom: t.nom, obtenir: t.desc })), possede: (st, id) => !!(st.trophees && st.trophees[id]) },
     { id: 'compagnons', nom: 'Les compagnons', items: [...G.COMPAGNONS.filter((x) => x.id !== 'pigeon').map((x) => ({ id: x.id, nom: x.nom, obtenir: x.prix != null ? `À acheter avec l’argent de la boutique (${x.prix} min de rythme)` : x.gagne ? `${x.gagne} (${x.verrou})` : 'Offert dès le début' })), { id: 'pigeon', nom: 'Pigeon voyageur', obtenir: 'La boutique des jetons : 120 jetons' }],
       possede: (st, id) => (id === 'pigeon' ? !!(st.chaine && Array.isArray(st.chaine.objets) && st.chaine.objets.includes('pigeon')) : G.aCompagnon(st, id)) },

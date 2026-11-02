@@ -2609,7 +2609,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '1872352c5b68';</script>
+<script>window.FOURNIL_VERSION = '49bbd630c792';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -4670,7 +4670,8 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       ...OBJETS.filter((o) => o.famille === 'deco').map((o) => ({ id: o.id, nom: o.nom, place: o.id === 'chaine-statue' ? 'sol' : o.id === 'chaine-plan' ? 'mur' : 'comptoir', mesure: null, obtenir: `La boutique des jetons : ${o.prix} jetons` })),
       { id: ENSEIGNE_OR, nom: 'L’enseigne dorée', place: 'mur', mesure: null, lueur: true, obtenir: 'Ta première Boutique d’or' },
     ], possede: (st, id) => { const c = st && st.chaine; if (!c || typeof c !== 'object') return false; const k = SOUVENIRS.findIndex((s) => s.id === id); if (k >= 0) return Array.isArray(c.b) && c.b.some((b) => b.q === k); return Array.isArray(c.objets) && c.objets.includes(id); } },
-    // les collections du carnet sans objet 3D (vignettes ~256 px : images Grok plus tard, une icône dessinée en attendant)
+    // les collections du carnet qui ne se posent pas : leur vignette (src/vignettes.js, le rendu 3D de l'objet), ou une icône dessinée (les
+    // titres, les cartes postales, qui n'ont pas d'objet 3D)
     { id: 'trophees', nom: 'Les trophées de la boutique', items: G.TROPHEES.map((t) => ({ id: t.id, nom: t.nom, obtenir: t.desc })), possede: (st, id) => !!(st.trophees && st.trophees[id]) },
     { id: 'compagnons', nom: 'Les compagnons', items: [...G.COMPAGNONS.filter((x) => x.id !== 'pigeon').map((x) => ({ id: x.id, nom: x.nom, obtenir: x.prix != null ? `À acheter avec l’argent de la boutique (${x.prix} min de rythme)` : x.gagne ? `${x.gagne} (${x.verrou})` : 'Offert dès le début' })), { id: 'pigeon', nom: 'Pigeon voyageur', obtenir: 'La boutique des jetons : 120 jetons' }],
       possede: (st, id) => (id === 'pigeon' ? !!(st.chaine && Array.isArray(st.chaine.objets) && st.chaine.objets.includes('pigeon')) : G.aCompagnon(st, id)) },
@@ -7577,7 +7578,8 @@ const ICONS = (() => {
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
   // le carnet « Mes décos » (src/chaine-ecran.js) : une icône par famille de collection, au trait de la maison ; l'écran la grise pour ce qui
-  // reste à gagner (les vignettes Grok, plus tard, la remplacent objet par objet : CHAINE_ECRAN.CARNET_IMAGES)
+  // reste à gagner. Chaque objet qui a un objet 3D montre plutôt sa vignette (src/vignettes.js, le rendu de l'objet) : l'icône reste aux
+  // titres, aux cartes postales, à l'artefact (qui n'a pas les fichiers) et à une vignette qui ne se charge pas
   const CARNET = {
     quartier: S(`<path d="M10 28c0-10 6-17 14-17s14 7 14 17z" fill="#FF6B8B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M6 28h28c5 0 8 2 7 4-3 2-8 2-14 2H6z" fill="#E1496C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="11" r="2.5" fill="#FFC84A" stroke="${L}" stroke-width="1.6"/>`),
     hantee: S(`<path d="M24 12c-2.6-2-6-2.8-9.4-2.2C9.2 10.8 6 16.4 6 24s4.4 13.6 11.2 14.4c2.4.2 4.8-.4 6.8-1.6 2 1.2 4.4 1.8 6.8 1.6C37.6 37.6 42 31.6 42 24s-3.2-13.2-8.6-14.2c-3.4-.6-6.8.2-9.4 2.2z" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><path d="M24 12c0-3 1-5 3-6" stroke="#3FB889" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M15 22l4 3-4 2zM33 22l-4 3 4 2zM16 31c4 3 12 3 16 0l-3 1-2-1.5-3 1.5-3-1.5-2 1.5z" fill="${L}"/>`),
@@ -23753,7 +23755,7 @@ const RETOURS = (() => {
 const CHAINE_ECRAN = (() => {
   'use strict';
   const CH = typeof CHAINE !== 'undefined' ? CHAINE : null;
-  const API = { actif: !!CH, ouvert: false, init() {}, ouvrir: () => false, fermer() {}, maj() {}, jetons() {}, carnet() {}, gerant() {}, CARNET_IMAGES: {} };
+  const API = { actif: !!CH, ouvert: false, init() {}, ouvrir: () => false, fermer() {}, maj() {}, jetons() {}, carnet() {}, gerant() {} };
   if (!CH || typeof document === 'undefined') return API;
   const G = GAME, L = '#4A3328';
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23772,9 +23774,9 @@ const CHAINE_ECRAN = (() => {
   const nomStanding = (s) => (G.STANDINGS && G.STANDINGS[s] ? G.STANDINGS[s].nom : '');
   // les vignettes du carnet (contrat § 4.6) : les rendus des vrais objets du jeu, cuits par outils/vignettes/cuire.cjs (src/vignettes.js,
   // VIGNETTES : famille → id → fournil/img/carnet/<famille>/<id>.webp, 256 px), chargées seulement à l'ouverture du carnet (loading="lazy") ;
-  // pas encore gagnée, la vignette grisée ; sans elle (les titres, les cartes postales ; l'artefact, qui n'a pas les fichiers ; une image qui
-  // ne se charge pas), l'icône dessinée
-  const VIG = typeof VIGNETTES !== 'undefined' ? VIGNETTES : null, CARNET_IMAGES = VIG ? VIG.T : {};
+  // pas encore gagnée, la vignette grisée (on voit ce qui attend) ; sans elle (les titres, les cartes postales ; l'artefact, qui n'a pas les
+  // fichiers ; une image qui ne se charge pas, hors ligne avant sa mise en cache), l'icône dessinée
+  const VIG = typeof VIGNETTES !== 'undefined' ? VIGNETTES : null;
 
   // ─── « Ma chaîne » : la planète et la liste ───
   let el = null, planete = false, choisie = 0, minuteur = 0, cleLignes = '';
@@ -23983,7 +23985,16 @@ const CHAINE_ECRAN = (() => {
   const A_VENIR = [['feves', 'Les fèves', 'En janvier, avec la galette'], ['rares', 'Les recettes rares', 'Le livre de recettes'], ['apprentis', 'Les apprentis rares', 'Des apprentis à rareté']];
   let carnetEtat = { cible: 0, choix: '', ouvertes: {} };
   const ext = () => (D.recompenses ? D.recompenses() : null) || { coupes: [], badge: false };
-  const casino = () => (typeof CASINO !== 'undefined' ? CASINO : null);
+  // les deux familles de l'arrière-salle (ses trophées, ses habillages) : seulement une fois la petite porte trouvée (st.arriere.trouvee),
+  // comme sur l'étagère des trophées (src/ui.js) ; avant, le carnet ne dit rien d'elle, ni en mots ni en images : pas même le titre qu'elle
+  // donne (« Main de velours », un trophée du casino, CASINO.TROPHEES … recompense.titre), dont le « comment l'obtenir » la nomme
+  const casino = () => { const s = st(); return typeof CASINO !== 'undefined' && s && s.arriere && s.arriere.trouvee ? CASINO : null; };
+  function familles(s) {
+    const C = casino(), fam = CH.carnet(s, ext(), C);
+    if (C || typeof CASINO === 'undefined') return fam;
+    const siens = new Set(CASINO.TROPHEES.map((t) => t.recompense && t.recompense.titre).filter(Boolean));
+    return fam.map((f) => { if (f.id !== 'titres') return f; const items = f.items.filter((x) => x.gagne || !siens.has(x.id)); return Object.assign({}, f, { items, total: items.length, gagnes: items.filter((x) => x.gagne).length }); });
+  }
   // les décos posées dans une boutique (null : la boulangerie au plan d'origine)
   function posesDe(cible) {
     const s = st();
@@ -24024,7 +24035,7 @@ const CHAINE_ECRAN = (() => {
     if (o) carnetEtat = { cible: o.cible || 0, choix: '', ouvertes: carnetEtat.ouvertes || {} };
     const s = st(), cible = carnetEtat.cible, b = cible ? CH.boutique(s, cible) : null;
     if (cible && !b) return;
-    const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
+    const fam = familles(s), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
     const places = new Set(liste.map((x) => x[1])), auto = placesAuto(cible), reel = effectives(origine ? [] : liste, auto); // (le plan d'origine : la scène montre les places de toujours)
     const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
     const vignette = (f, x) => { const ico = `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${VIG ? VIG.img(f.id, x.id, x.gagne, ico) : ico}</span>`; };
@@ -24210,7 +24221,7 @@ const CHAINE_ECRAN = (() => {
   }
 
   function init(deps) { D = deps; }
-  Object.assign(API, { init, ouvrir, fermer, maj, jetons: boutiqueJetons, carnet, gerant: sheetGerant, embaucherGerant, CARNET_IMAGES,
+  Object.assign(API, { init, ouvrir, fermer, maj, jetons: boutiqueJetons, carnet, gerant: sheetGerant, embaucherGerant,
     cartes: { batir: cartesBatir, rendre: cartesRendre, clic: cartesClic, el: (i) => (cartes[i] ? cartes[i].el : null), lacher() { boxCartes = null; vueCartes = null; cartes = []; } },
     bonus, meuble, renommer, bandeau, bandeauClic, posesDe });
   Object.defineProperty(API, 'planete', { get: () => planete }); Object.defineProperty(API, 'choisie', { get: () => choisie }); // (des getters : Object.assign n'en copierait que la valeur)

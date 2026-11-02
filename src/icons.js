@@ -365,7 +365,8 @@ const ICONS = (() => {
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
   // le carnet « Mes décos » (src/chaine-ecran.js) : une icône par famille de collection, au trait de la maison ; l'écran la grise pour ce qui
-  // reste à gagner (les vignettes Grok, plus tard, la remplacent objet par objet : CHAINE_ECRAN.CARNET_IMAGES)
+  // reste à gagner. Chaque objet qui a un objet 3D montre plutôt sa vignette (src/vignettes.js, le rendu de l'objet) : l'icône reste aux
+  // titres, aux cartes postales, à l'artefact (qui n'a pas les fichiers) et à une vignette qui ne se charge pas
   const CARNET = {
     quartier: S(`<path d="M10 28c0-10 6-17 14-17s14 7 14 17z" fill="#FF6B8B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M6 28h28c5 0 8 2 7 4-3 2-8 2-14 2H6z" fill="#E1496C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="11" r="2.5" fill="#FFC84A" stroke="${L}" stroke-width="1.6"/>`),
     hantee: S(`<path d="M24 12c-2.6-2-6-2.8-9.4-2.2C9.2 10.8 6 16.4 6 24s4.4 13.6 11.2 14.4c2.4.2 4.8-.4 6.8-1.6 2 1.2 4.4 1.8 6.8 1.6C37.6 37.6 42 31.6 42 24s-3.2-13.2-8.6-14.2c-3.4-.6-6.8.2-9.4 2.2z" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><path d="M24 12c0-3 1-5 3-6" stroke="#3FB889" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M15 22l4 3-4 2zM33 22l-4 3 4 2zM16 31c4 3 12 3 16 0l-3 1-2-1.5-3 1.5-3-1.5-2 1.5z" fill="${L}"/>`),
