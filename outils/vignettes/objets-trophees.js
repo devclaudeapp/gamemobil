@@ -7,7 +7,7 @@
    · les trophées de l'arrière-salle (CASINO.TROPHEES) : un objet chacun, sur un socle de feutre vert cerclé de bois ;
    · les habillages de l'arrière-salle (CASINO.SKINS) : le tapis (le feutre de sa couleur, son bourrelet de bois), le dos des cartes, la
      pile de jetons, la roue (ARRIERE.ROUE.creer : la vraie roue de la roulette, à sa finition) ; les couleurs sont celles de src/style.css ;
-   · le scooter du Quartier (peint de profil dans la boutique, src/scene.js) et le pigeon voyageur de Ma chaîne (sans modèle). */
+   · le scooter du Quartier (peint de profil dans la boutique, src/scene.js). */
 const OBJ = (() => {
   'use strict';
   const T = THREE, M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, L = '#4A3328';
@@ -156,7 +156,7 @@ const OBJ = (() => {
     'recette-boutique': (y) => [P(cyl(8.4, 8, 0.8, 26), '#FFFFFF', { y }), ...patisserie(8, 0, y + 0.8, 0, 1.3, 0.3)], // le Paris-Brest
     carte: (y) => { const pr = [P(bs(1.4, 0.3, 9), '#FFC84A', { x: 0.6, y: y + 1.9, z: 3.5 })]; for (const sx of [-1, 1]) { pr.push(P(bo(10, 1, 14, 0.3), '#B03A4E', { x: sx * 5.2, y, rz: sx * 0.1 }), P(bo(9.2, 0.8, 13, 0.3), '#FFFDF5', { x: sx * 5, y: y + 0.9, rz: sx * 0.1 })); for (let k = 0; k < 5; k++) pr.push(P(bs(k === 0 ? 5 : 7, 0.2, 0.8), k === 0 ? '#E1496C' : '#B5A49A', { x: sx * 5, y: y + 1.75 + 0.5 * 0.1 * 5, z: -4.8 + k * 2.4, rz: sx * 0.1 })); } return pr; }, // le livre de recettes ouvert
     franchise: (y) => [P(bo(15, 3.6, 12, 1.6), '#D9534F', { y }), P(sph(1, 6), '#FFC84A', { x: -7.2, y: y + 3.4, z: -5.6 }), P(sph(1, 6), '#FFC84A', { x: 7.2, y: y + 3.4, z: 5.6 }), P(tore(2.6, 0.9, TAU, 6, 16), OR[0], { x: -4.2, y: y + 4.4, z: 0, rx: HP }), P(bo(10, 1.4, 1.4, 0.4), OR[0], { x: 2.8, y: y + 3.7 }), P(bs(1.4, 1.2, 2.2), OR[0], { x: 5.4, y: y + 3.6, z: 1.2 }), P(bs(1.4, 1.2, 1.6), OR[0], { x: 7.2, y: y + 3.6, z: 0.9 })], // la clé d'or sur son coussin
-    compagnon: (y) => tourne(medaille(0, y + 11, 0, 7, ARGENT, ['#E1496C', '#C93A5A'], toque(0, y + 8.2, 1.6, 0.72)), 0.4), // la médaille du Compagnon, son ruban rouge, la toque
+    compagnon: (y) => tourne(medaille(0, y + 11, 0, 7, ARGENT, ['#E1496C', '#C93A5A'], [P(cyl(5.1, 5.1, 0.6, 22), '#2E58B8', { y: y + 11, z: 1.05, rx: HP }), ...toque(0, y + 8, 2.3, 0.78)]), 0.4), // la médaille du titre de Compagnon (le compagnonnage, pas l'animal), son ruban rouge, la toque blanche sur un émail bleu (blanche sur l'argent, elle ne se lisait pas)
     mof: (y) => tourne(medaille(0, y + 11, 0, 7, OR, ['#2B5BD7', '#E1496C'], [P(bs(3, 12, 0.7), '#FFFFFF', { y: y + 13.2, z: -0.5 }), P(etoile(3.6, 0.8), '#FFFFFF', { y: y + 11, z: 0.9 })]), 0.4), // le col bleu-blanc-rouge et sa médaille
     fidele: (y) => [P(cyl(7, 6.4, 0.8, 24), '#FFFFFF', { y }), P(cyl(4.6, 3.6, 6.4, 20), '#FF9FB2', { y: y + 0.8 }), P(cyl(3.9, 3.9, 0.4, 20), '#6B4A3A', { y: y + 6.9 }), P(tore(2.3, 0.7, Math.PI * 1.2, 6, 12), '#FF9FB2', { x: 4.6, y: y + 4, rz: -HP - 0.6 }), P(coeur(3.6, 1), '#E1496C', { y: y + 13.2 })], // la tasse de l'habitué, un cœur
     salon: (y) => [P(sph(6.6, 18), '#5FD3A4', { y: y + 5.6, sy: 0.82 }), P(cyl(3.4, 4.4, 1.6, 16), '#5FD3A4', { y: y + 9.6 }), P(sph(1.4, 8), '#FFFFFF', { y: y + 11.8 }), P(caps(1.2, 7, 8), '#5FD3A4', { x: 7.6, y: y + 7.8, rz: -0.9 }), P(tore(3.4, 0.9, Math.PI * 1.3, 6, 14), '#3FB889', { x: -6.4, y: y + 6.2, rz: HP + 0.3 }), P(cyl(5.4, 5, 0.8, 20), '#3FB889', { y }), P(sph(1.6, 8), '#FFFFFF', { x: -2.6, y: y + 7.2, z: 5.4, sx: 0.6, sy: 1.4, sz: 0.5 })], // la théière
@@ -239,16 +239,5 @@ const OBJ = (() => {
     pr.push(P(bo(20, 14, 13, 3), '#5FD3A4', { x: -26, y: 30 }), P(bs(13, 2.4, 13.4), '#FFFFFF', { x: -26, y: 36 }), P(sph(1.2, 6), '#FFC84A', { x: -31, y: 22, z: 4.5 })); // le top-case, sa bande, le feu
     const g = new T.Group(); g.add(maille(pr)); g.rotation.y = -0.4; return grp(g);
   }
-  // ═══ le pigeon voyageur (comme les oiseaux de PERSOS : un corps rond, une tête, les ailes, les yeux et les joues ; la gorge irisée) ═══
-  function pigeon() {
-    const gris = '#A3ACBC', aile = '#7D879A', pr = [P(sph(6, 14), gris, { y: 6.6, sx: 0.92, sy: 0.9, sz: 1.2 }), P(sph(4.3, 12), '#C7CDD8', { y: 5.2, z: 2.6, sz: 0.85 })];
-    for (const sx of [-1, 1]) pr.push(P(sph(3.6, 10), aile, { x: sx * 4.6, y: 7, z: -1, sx: 0.38, sy: 0.8, sz: 1.35, rx: -0.15 }), P(bs(2.2, 0.5, 2), '#3A3440', { x: sx * 4.6, y: 8.4, z: -2.6, sx: 0.4 }), P(bs(2.2, 0.5, 2), '#3A3440', { x: sx * 4.7, y: 7.2, z: -2.2, sx: 0.4 }));
-    pr.push(P(cyl(3.1, 3.5, 3, 14), '#6FB89A', { y: 10.6, z: 3.6, rx: 0.35 }), P(cyl(3.15, 3.2, 1.2, 14), '#9A84F0', { y: 11.8, z: 4, rx: 0.35 })); // la gorge irisée
-    pr.push(P(sph(3.3, 12), '#8E97A8', { y: 14.4, z: 4.6 }), P(cone(0.9, 2.6, 6), '#E8B07A', { y: 13.8, z: 7.8, rx: HP }), P(sph(0.75, 6), '#FFFFFF', { y: 14.3, z: 7.4, sy: 0.6 }));
-    for (const sx of [-1, 1]) pr.push(P(sph(0.72, 8), '#3A2A22', { x: sx * 1.55, y: 15.1, z: 7.25 }), P(sph(0.3, 6), '#FFFFFF', { x: sx * 1.45, y: 15.35, z: 7.85 }), P(sph(0.8, 8), '#FFB3B3', { x: sx * 2.4, y: 13.8, z: 6.9, sy: 0.7, sz: 0.5 }));
-    for (const rz of [-0.4, 0, 0.4]) pr.push(P(caps(0.95, 4.6, 6), '#6B7486', { y: 6.2, z: -6.4, rz, rx: -1.15, sz: 0.55 }));
-    for (const sx of [-1, 1]) pr.push(P(cyl(0.45, 0.45, 2.4, 6), '#E8897A', { x: sx * 2, y: 0.6 }), P(sph(1.2, 8), '#E8897A', { x: sx * 2, y: 0.3, z: 0.6, sy: 0.3, sz: 1.4 }));
-    const g = new T.Group(); g.add(maille(pr)); return g;
-  }
-  return { trophee, tropheeCasino, skin, scooter, pigeon, socle, TB, TIERS };
+  return { trophee, tropheeCasino, skin, scooter, socle, TB, TIERS };
 })();

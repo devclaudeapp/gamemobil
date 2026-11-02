@@ -2,11 +2,11 @@
    seul avec le vrai code du jeu, et comment il se pose dans le studio (src : outils/vignettes/studio.js).
    · les décos (le Quartier, la Maison hantée, le classement, Ma chaîne) : MEUBLES.DECOS[id].faire puis MEUBLES.fusion, comme la scène ; la
      vitrine des coupes : MEUBLES.trophees ; le scooter, peint en 2D dans la boutique (src/scene.js), bâti ici en volumes de la même façon ;
-   · les compagnons : PERSOS.compagnon, assis ; le pigeon voyageur, qui n'a pas de modèle dans le jeu, bâti ici à la manière des oiseaux de
-     PERSOS (la poule, le canard) ;
+   · les compagnons : PERSOS.compagnon (le pigeon voyageur compris), assis, tous tournés vers nous de la même façon ;
    · les recettes de saison : PERSOS.patisserieSaison ;
    · la garde-robe : le boulanger 3D (src/equipe3d.js, le lot HD « equipe ») habillé de la pièce, dont on ne garde que la pièce (ses kits, et
-     le tissu du corps qu'elle recolore : le sweat, la veste, la robe sous la cape ; les chaussures) ; l'aura : le boulanger entier ;
+     le tissu du corps qu'elle recolore : le sweat, la veste, la robe sous la cape ; les chaussures) ; l'aura : le buste du boulanger dans
+     son halo, plus vif qu'en boutique (sinon, à 44 px et grisé, il ne se voit plus) ;
    · les trophées de la boutique et de l'arrière-salle : un petit objet chacun, en primitives de src/modeles.js (objets-trophees.js) ;
    · les habillages de l'arrière-salle : le tapis, le dos des cartes, les jetons (objets-trophees.js), la roue (ARRIERE.ROUE.creer, la vraie).
    Les titres, les cartes postales et le croupier n'ont pas d'objet 3D : ils gardent leur icône (le croupier, son dessin SVG). */
@@ -31,13 +31,16 @@ const VIG = (() => {
     const place = id === 'toiles' ? LAY.decos.find((p) => p.id === 'r1') : null; // (la toile : une seule, tendue dans le coin de sa place ; sans place, la boutique en tend deux, aux deux bouts du mur)
     const d = x.faire(ctx, place, {}), f = MEUBLES.fusion([{ d, place: null }]), mur = x.type === 'mur' || id === 'toiles', g = grp(f.petits, f.lueurs);
     if (mur) g.rotation.y = MUR_LACET; // (ce qui s'accroche au mur se tourne un peu vers nous : vu presque de face, comme dans la boutique)
-    return { g, appui: PEINTES.has(id) ? 'aucun' : mur ? 'mur' : 'sol', apres: () => f.anime(E) };
+    // le tag : cadré sur ses lettres (ses trois gouttes, aux coins de la toile, élargissaient le cadre : « LF » ne faisait que 26 px de large à 44)
+    return { g, appui: PEINTES.has(id) ? 'aucun' : mur ? 'mur' : 'sol', apres: () => f.anime(E), recadre: id === 'graffiti' ? RECADRE_TAG : null };
   }
-  // ═══ les compagnons ═══
+  const RECADRE_TAG = { x: [0.25, 0.75], y: [0.14, 0.86] };
+  // ═══ les compagnons : le modèle de la boutique, assis, tourné vers nous de trois quarts ; la chauve-souris vole en rond (sa racine tourne
+  //     avec son cercle) : on retire ce lacet, elle nous fait face comme les autres ═══
   function compagnon(id) {
-    const g = id === 'pigeon' ? OBJ.pigeon() : PERSOS.compagnon(id);
-    if (id !== 'pigeon') PERSOS.animerCompagnon(g, { etat: 'assis', phase: 0, t: 0.4 });
-    g.rotation.y = -0.2; return { g: grp(g), appui: 'sol' };
+    const g = PERSOS.compagnon(id); PERSOS.animerCompagnon(g, { etat: 'assis', phase: 0, t: 0.4 });
+    const P = g.userData.parts; g.rotation.y = -0.2 - (P && P.esp ? P.racine.rotation.y : 0);
+    return { g: grp(g), appui: 'sol' };
   }
   // ═══ les recettes de saison ═══
   function saison(id) { const m = PERSOS.patisserieSaison(id); m.rotation.y = 0.35; return { g: grp(m), appui: 'sol' }; }
@@ -82,10 +85,13 @@ const VIG = (() => {
     geo.setIndex(new T.BufferAttribute(n > 65535 ? new Uint32Array(tris) : new Uint16Array(tris), 1));
     if (a.aura) a.aura.userData.horsCadre = true; // (l'aura : un halo autour de lui, pas dans le cadre ni dans l'ombre)
     const g = grp(a.g); g.rotation.y = v && v.piece === 'pieds' ? -0.55 : 0.1; // (presque de face : ce qui se porte devant se lit ; les chaussures, de trois quarts profil)
-    // sans le corps, le vêtement se voit aussi de l'intérieur (l'encolure, les pans du foulard de biais) : ses faces des deux côtés
-    const apres = () => { a.S.material.side = T.DoubleSide; };
-    return { g, appui: 'sol', marge: aura ? 0.14 : undefined, apres, fin: () => { geo.setIndex(avant); a.S.material.side = T.FrontSide; g.remove(a.g); } };
+    // sans le corps, le vêtement se voit aussi de l'intérieur (l'encolure, les pans du foulard de biais) : ses faces des deux côtés ; l'aura :
+    // son halo plus dense qu'en boutique (0,44 : à 44 px, grisé, il disparaissait), autour du buste (le cadre garde le haut du corps)
+    const halo = a.aura ? a.aura.material.opacity : 0;
+    const apres = () => { a.S.material.side = T.DoubleSide; if (aura && a.aura) a.aura.material.opacity = AURA_VIG; };
+    return { g, appui: aura ? 'aucun' : 'sol', marge: aura ? 0.1 : undefined, recadre: aura ? BUSTE : null, apres, fin: () => { geo.setIndex(avant); a.S.material.side = T.FrontSide; if (a.aura) a.aura.material.opacity = halo; g.remove(a.g); } };
   }
+  const AURA_VIG = 0.85, BUSTE = { y: [0.44, 1] }; // (l'aura en vignette : la densité de son halo ; le buste, la part du boulanger que garde le cadre)
 
   // ═══ le catalogue : les familles du carnet (src/chaine.js, avec celles de l'arrière-salle), ce qui a une vignette, et comment la bâtir ═══
   const FAB = {
@@ -109,7 +115,7 @@ const VIG = (() => {
     const fab = FAB[famille]; if (!fab) throw new Error('famille sans vignette : ' + famille);
     const x = fab(id); if (!x) throw new Error(`objet inconnu : ${famille}/${id}`);
     try {
-      return STUDIO.rendre(x.g, Object.assign({ appui: x.appui, apres: x.apres }, x.marge != null ? { marge: x.marge } : {}, o || {}));
+      return STUDIO.rendre(x.g, Object.assign({ appui: x.appui, apres: x.apres }, x.marge != null ? { marge: x.marge } : {}, x.recadre ? { recadre: x.recadre } : {}, o || {}));
     } finally {
       if (x.fin) x.fin();
       x.g.traverse((m) => { if (m.isMesh && m.geometry && !m.geometry.userData.cache && !m.isSkinnedMesh && !m.geometry.userData.partagee) m.geometry.dispose(); });

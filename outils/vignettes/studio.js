@@ -138,7 +138,10 @@ const STUDIO = (() => {
   });
 
   // ─── une vignette : l'objet posé dans le studio, cadré, éclairé, son ombre, la passe d'effets ; rend l'image (PNG, data URL) et ses mesures ───
-  // o : { appui: 'sol' | 'mur' | 'aucun' (le mur : perpendiculaire au lacet du groupe racine), marge, apres (après les matériaux), az, el (une mise au point seulement) }
+  // o : { appui: 'sol' | 'mur' | 'aucun' (le mur : perpendiculaire au lacet du groupe racine), marge, apres (après les matériaux),
+  //       recadre: { x: [a, b], y: [c, d] } (le cadre ne garde que cette part de l'objet vu de la caméra, de 0 à 1, de gauche à droite et de
+  //       bas en haut ; ce qui dépasse sort de l'image, fondu au bord : le tag sans ses gouttes, le buste du boulanger dans son aura),
+  //       az, el (une mise au point seulement) }
   function rendre(racine, o) {
     o = o || {};
     habiller(racine); if (typeof o.apres === 'function') o.apres(racine); // (après le changement de matériaux : la greffe des parties vives se repose sur les jumeaux)
@@ -149,10 +152,12 @@ const STUDIO = (() => {
     // le cadre : les sommets dans le repère de la caméra ; un carré centré sur leur boîte, la marge autour
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity; const inv = camera.matrixWorldInverse;
     sommets(racine, (x, y, z) => { _v.set(x, y, z).applyMatrix4(inv); if (_v.x < x0) x0 = _v.x; if (_v.x > x1) x1 = _v.x; if (_v.y < y0) y0 = _v.y; if (_v.y > y1) y1 = _v.y; if (_v.z < z0) z0 = _v.z; if (_v.z > z1) z1 = _v.z; });
+    const etendue = Math.max(x1 - x0, y1 - y0); // (la taille de tout l'objet : le contour s'y règle, recadré ou non)
+    if (o.recadre) { const rx = o.recadre.x || [0, 1], ry = o.recadre.y || [0, 1], w = x1 - x0, h = y1 - y0; x1 = x0 + w * rx[1]; x0 += w * rx[0]; y1 = y0 + h * ry[1]; y0 += h * ry[0]; }
     const marge = o.marge != null ? o.marge : MARGE, cote = Math.max(x1 - x0, y1 - y0) / (1 - 2 * marge), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     camera.left = cx - cote / 2; camera.right = cx + cote / 2; camera.top = cy + cote / 2; camera.bottom = cy - cote / 2;
     const prof = z1 - z0 + 1; camera.near = Math.max(0.01, -z1 - prof * 0.6); camera.far = -z0 + prof * 2.5; camera.updateProjectionMatrix();
-    post.uniforms.seuil.value = Math.max(0.0005, (0.09 * Math.max(x1 - x0, y1 - y0)) / (camera.far - camera.near)); // (le contour : un écart de 9 % de la taille de l'objet ; la boutique : ≈ 6 px pour des meubles de 20 à 60)
+    post.uniforms.seuil.value = Math.max(0.0005, (0.09 * etendue) / (camera.far - camera.near)); // (le contour : un écart de 9 % de la taille de l'objet ; la boutique : ≈ 6 px pour des meubles de 20 à 60)
     // l'ombre de contact, puis le rendu dans la cible MSAA, puis la passe d'effets sur le canevas
     if (o.appui !== 'aucun') ombre(racine, b, o.appui === 'mur' ? 'mur' : 'sol', racine.rotation.y); else plan.visible = false;
     renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
