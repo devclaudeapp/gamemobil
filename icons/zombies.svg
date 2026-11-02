@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#CFEAC0"/>
+  <g id="dessin">
+    <circle cx="256" cy="250" r="196" fill="#E4F4D8"/>
+    <!-- la tête de zombie, carrée, low-poly -->
+    <g transform="rotate(-6 256 230)">
+      <rect x="150" y="96" width="212" height="196" rx="26" fill="#8DBF6A" stroke="#1F2533" stroke-width="16"/>
+      <path d="M150 150l60-54h70l-30 40 60-40h52v40z" fill="#5B4630" stroke="#1F2533" stroke-width="14" stroke-linejoin="round"/>
+      <rect x="186" y="170" width="46" height="40" rx="8" fill="#FFF4A0" stroke="#1F2533" stroke-width="12"/>
+      <rect x="282" y="176" width="40" height="34" rx="8" fill="#FFF4A0" stroke="#1F2533" stroke-width="12"/>
+      <rect x="204" y="184" width="14" height="14" rx="3" fill="#1F2533"/>
+      <rect x="296" y="188" width="12" height="12" rx="3" fill="#1F2533"/>
+      <path d="M200 246h112l-10 26h-92z" fill="#5A2A2A" stroke="#1F2533" stroke-width="12" stroke-linejoin="round"/>
+      <path d="M226 246v14M256 246v16M284 246v12" stroke="#F2F2F2" stroke-width="10" stroke-linecap="round"/>
+      <rect x="320" y="226" width="22" height="22" rx="4" fill="#6F9A38"/>
+    </g>
+    <!-- le rempart de pierre devant -->
+    <g stroke="#1F2533" stroke-width="14" stroke-linejoin="round">
+      <rect x="70" y="318" width="124" height="74" rx="10" fill="#E6DABD"/>
+      <rect x="194" y="318" width="124" height="74" rx="10" fill="#D9CBA8"/>
+      <rect x="318" y="318" width="124" height="74" rx="10" fill="#E6DABD"/>
+      <rect x="128" y="392" width="124" height="66" rx="10" fill="#D9CBA8"/>
+      <rect x="252" y="392" width="124" height="66" rx="10" fill="#E6DABD"/>
+    </g>
+    <!-- un écrou de ferraille -->
+    <path d="M412 112l26 15v30l-26 15-26-15v-30z" fill="#B8C2CC" stroke="#1F2533" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="412" cy="142" r="9" fill="#1F2533"/>
+    <circle cx="98" cy="150" r="16" fill="#FFD84A" stroke="#1F2533" stroke-width="9"/>
+  </g>
+</svg>

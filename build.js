@@ -166,3 +166,54 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   fs.writeFileSync(path.join(__dirname, 'poncin', 'index.html'), pageP);
   console.log(`poncin/index.html ${(pageP.length / 1024).toFixed(0)} Ko · ${jsP.split('\n').length} lignes de JS · carte ${carteV || '(absente)'}`);
 }
+
+// ─── Dernier Rempart (zombies/index.html) : survie par vagues vue de dessus ; sources dans src-zombies/ (données séparées de la logique) ───
+// Repris tels quels d'Opération Poncin : la navigation A*/JPS (src-poncin/nav.js) et les sons synthétisés (src-poncin/sons.js).
+// Three.js est un fichier à part (vendor/), mis en cache par le service worker du jeu (zombies/sw.js) : le jeu marche hors ligne.
+const ZOMBIES = ['../src-poncin/nav.js', '../src-poncin/sons.js', 'donnees.js', 'monde.js', 'jeu.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'ui.js'];
+if (fs.existsSync(path.join(__dirname, 'src-zombies', 'ui.js'))) {
+  const lireZ = (f) => fs.readFileSync(path.join(__dirname, 'src-zombies', f), 'utf8');
+  const jsZ = ZOMBIES.map((f) => `/* ── ${f.startsWith('../') ? f.slice(3) : 'src-zombies/' + f} ── */\n${lireZ(f)}`).join('\n');
+  const pageZ = `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1F2533">
+<meta name="description" content="Dernier Rempart : tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles et tes barricades, et tire !">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rempart">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="../icons/zombies.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/zombies-180.png">
+<script>
+// la page du jeu vit dans zombies/ : servie ailleurs (une vieille copie en cache), ses chemins relatifs casseraient
+(function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]zombies[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'zombies/'); } catch (e) { /* rien */ } })();
+</script>
+<title>Dernier Rempart</title>
+${fonts}
+<style>
+${lireZ('style.css')}</style>
+</head>
+<body>
+${lireZ('page.html')}
+<script>window.ZOMBIES_ACCUEIL = '../';</script>
+<script src="../vendor/three.min.js"></script>
+<script>
+${jsZ}
+</script>
+<script>
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  let top = false; try { top = window.self === window.top; } catch (e) { top = false; }
+  if (top) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
+`;
+  fs.mkdirSync(path.join(__dirname, 'zombies'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, 'zombies', 'index.html'), pageZ);
+  console.log(`zombies/index.html ${(pageZ.length / 1024).toFixed(0)} Ko · ${jsZ.split('\n').length} lignes de JS`);
+}

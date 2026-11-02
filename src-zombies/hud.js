@@ -1,0 +1,189 @@
+/* DERNIER REMPART — le HUD de la partie, en DOM par-dessus la 3D. En haut à gauche la vie et la mini-carte ; en haut au centre les
+   zombies tués, la ferraille, la vague (« V3 · 42 restants »), le score et la série (×2, ×3, ×4) ; en haut à droite la pause ; à droite
+   l'atelier repliable (défenses à poser : prix et « posées / permises » ; améliorations : crans et prix) ; en bas au centre les deux
+   emplacements d'armes (le pistolet sans fin, l'arme trouvée et ses munitions) ; au milieu les annonces (vague, boss, série), le compte
+   à rebours de la pause et son bouton « Lancer la vague » ; la barre du Mastodonte ; l'écran qui rougit quand on est touché.
+   Rien n'est réécrit si la valeur n'a pas changé (les écritures DOM coûtent cher sur un téléphone).
+   API : ZHUD.init(racine, { construire(type), ameliorer(type), arme(i), pause(), passer() }), maj(jeu, idMoi, dt, evs), annonce(texte, sous), toast(texte) */
+const ZHUD = (() => {
+  'use strict';
+  const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null;
+  const J = typeof ZJEU !== 'undefined' ? ZJEU : null;
+  const ICO = {
+    tourelle: '<svg viewBox="0 0 40 40"><rect x="9" y="27" width="22" height="7" rx="2" fill="#5D6470"/><rect x="18" y="19" width="4" height="9" fill="#4A505A"/><rect x="10" y="12" width="16" height="10" rx="2" fill="#9AA3B2" stroke="#2B2A33" stroke-width="2"/><rect x="25" y="14" width="11" height="3" fill="#2B2A33"/><rect x="25" y="18" width="11" height="3" fill="#2B2A33"/></svg>',
+    barricade: '<svg viewBox="0 0 40 40"><rect x="5" y="10" width="30" height="6" rx="1.5" fill="#C99B62" stroke="#5A3D22" stroke-width="2"/><rect x="5" y="19" width="30" height="6" rx="1.5" fill="#B98E5A" stroke="#5A3D22" stroke-width="2"/><rect x="5" y="28" width="30" height="6" rx="1.5" fill="#C99B62" stroke="#5A3D22" stroke-width="2"/></svg>',
+    mine: '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="27" rx="14" ry="6" fill="#5E6347" stroke="#2B2A33" stroke-width="2"/><rect x="16" y="18" width="8" height="7" rx="2" fill="#3B3E2E"/><circle cx="20" cy="16" r="3" fill="#FF4A3A"/></svg>',
+    mortier: '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="31" rx="13" ry="4.5" fill="#6B6F57"/><rect x="15" y="8" width="9" height="22" rx="3" transform="rotate(28 20 20)" fill="#4B5040" stroke="#2B2A33" stroke-width="2"/></svg>',
+    epouvantail: '<svg viewBox="0 0 40 40"><rect x="18.5" y="8" width="3" height="28" fill="#7A5634"/><rect x="6" y="15" width="28" height="3" fill="#7A5634"/><rect x="13" y="16" width="14" height="12" rx="2" fill="#C94F3D"/><circle cx="20" cy="10" r="5" fill="#E9D18C"/><path d="M12 7h16l-3-5h-10z" fill="#C9A24E"/></svg>',
+    degats: '<svg viewBox="0 0 40 40"><path d="M12 30l14-14 4 4-14 14z" fill="#E8C547" stroke="#2B2A33" stroke-width="2" stroke-linejoin="round"/><path d="M26 16l4-8 2 2-2 10z" fill="#F2F2F2" stroke="#2B2A33" stroke-width="2" stroke-linejoin="round"/></svg>',
+    cadence: '<svg viewBox="0 0 40 40"><path d="M23 4L9 23h9l-3 13 15-20h-9z" fill="#FFD84A" stroke="#2B2A33" stroke-width="2" stroke-linejoin="round"/></svg>',
+    vie: '<svg viewBox="0 0 40 40"><path d="M20 34S5 25 5 15a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 10-15 19-15 19z" fill="#E5533D" stroke="#2B2A33" stroke-width="2"/></svg>',
+    aimant: '<svg viewBox="0 0 40 40"><path d="M9 8h7v13a4 4 0 0 0 8 0V8h7v13a11 11 0 0 1-22 0z" fill="#D9534F" stroke="#2B2A33" stroke-width="2"/><rect x="9" y="8" width="7" height="5" fill="#E8E8E8"/><rect x="24" y="8" width="7" height="5" fill="#E8E8E8"/></svg>',
+    defense: '<svg viewBox="0 0 40 40"><path d="M27 5a8 8 0 0 0-8 10L6 28l6 6 13-13a8 8 0 0 0 10-8l-5 3-5-3v-5z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2" stroke-linejoin="round"/></svg>',
+    ecrou: '<svg viewBox="0 0 24 24"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/><circle cx="12" cy="12" r="3.6" fill="#2B2A33"/></svg>',
+    crane: '<svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 3 5.8 3 10.5c0 2.8 1.3 4.6 3 5.6V20h3v-2h2v2h2v-2h2v2h3v-3.9c1.7-1 3-2.8 3-5.6C21 5.8 17.5 2 12 2z" fill="#F2F2F2" stroke="#2B2A33" stroke-width="1.6"/><circle cx="8.5" cy="11" r="2.2" fill="#2B2A33"/><circle cx="15.5" cy="11" r="2.2" fill="#2B2A33"/></svg>',
+    coeur: '<svg viewBox="0 0 40 40"><path d="M20 35S4 25.5 4 14.5A8 8 0 0 1 20 12a8 8 0 0 1 16 2.5C36 25.5 20 35 20 35z" fill="#E5533D" stroke="#2B2A33" stroke-width="2.5"/><path d="M10 13a4 4 0 0 1 4-3" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".7"/></svg>',
+    pause: '<svg viewBox="0 0 40 40"><rect x="11" y="9" width="6" height="22" rx="1.5" fill="#fff"/><rect x="23" y="9" width="6" height="22" rx="1.5" fill="#fff"/></svg>',
+    cadenas: '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="#9AA0A8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#9AA0A8" stroke-width="2.4" fill="none"/></svg>',
+  };
+  // les armes en silhouette (vues de côté)
+  const ARME_ICO = {
+    pistolet: '<svg viewBox="0 0 64 32"><path d="M10 8h40v8H30l-3 4h-6l-2 9h-8l3-13h-4z" fill="#5B8BD9" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/></svg>',
+    revolver: '<svg viewBox="0 0 64 32"><path d="M6 9h36l2 3h12v5H38l-4 3h-7l-3 10h-9l4-12h-4l-2-3h-5z" fill="#9AA0A8" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><circle cx="32" cy="14" r="4" fill="#5C6068"/></svg>',
+    pompe: '<svg viewBox="0 0 64 32"><path d="M2 14l12-4h40v6H40v3H26l-2 8h-8l1-8-15 2z" fill="#8A5A2B" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="30" y="16" width="14" height="5" rx="2" fill="#5A3D22" stroke="#1F2533" stroke-width="2"/></svg>',
+    mitraillette: '<svg viewBox="0 0 64 32"><path d="M8 9h42v8H36v12h-7V17h-5l-2 6h-7l2-6h-9z" fill="#3E9C6B" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/></svg>',
+    fusil: '<svg viewBox="0 0 64 32"><path d="M2 12l14-3h44v5H44l-2 4h-6v9h-7v-9h-6l-3 5h-7l2-6H2z" fill="#6C6F7D" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/></svg>',
+    precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
+  };
+  const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
+  const $ = (s) => R.querySelector(s);
+  const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
+
+  function init(racine, actions) {
+    R = racine; A = actions || {};
+    R.innerHTML = `
+      <div class="h-vie"><span class="h-coeur">${ICO.coeur}</span><div class="h-barre"><i></i></div><b class="h-vie-n contour">100</b></div>
+      <canvas class="h-carte" width="132" height="132" aria-label="Mini-carte"></canvas>
+      <div class="h-centre">
+        <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
+        <div class="h-vague"><span class="h-v">V1</span><span class="h-rest contour">—</span></div>
+        <div class="h-serie" hidden>SÉRIE ×2</div>
+      </div>
+      <div class="h-score contour">SCORE <b>0</b></div>
+      <button class="h-pause" type="button" aria-label="Pause">${ICO.pause}</button>
+      <div class="h-atelier ouvert">
+        <button class="h-poignee" type="button" aria-label="Replier l’atelier"><span>‹</span></button>
+        <div class="h-cols">
+          <div class="h-col">${AMS.map((k) => `<button type="button" class="h-btn am" data-am="${k}"><span class="ico">${ICO[k]}</span><small class="niv"></small><b class="prix"></b></button>`).join('')}</div>
+          <div class="h-col">${DEFS.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>
+        </div>
+        <div class="h-info" hidden></div>
+      </div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button></div></div>
+      <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
+      <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
+      <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
+      <div class="h-toast" hidden></div>
+      <div class="h-rouge"></div>`;
+    el = {
+      vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
+      score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
+      annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
+      defs: {}, ams: {},
+    };
+    for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
+    for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
+    const sur = (e, f) => e.addEventListener('click', (ev) => { ev.preventDefault(); f(ev); });
+    for (const k of DEFS) sur(el.defs[k], () => { if (A.construire) A.construire(k); info(k, 'def'); });
+    for (const k of AMS) sur(el.ams[k], () => { if (A.ameliorer) A.ameliorer(k); info(k, 'am'); });
+    el.slots.forEach((b, i) => sur(b, () => A.arme && A.arme(i)));
+    sur($('.h-pause'), () => A.pause && A.pause());
+    sur($('.h-lancer'), () => A.passer && A.passer());
+    sur($('.h-poignee'), () => replier(!ouvert));
+    try { ouvert = localStorage.getItem('zombies.atelier') !== 'ferme'; } catch (e) { /* rien */ }
+    replier(!ouvert ? false : true, true);
+    vu = {};
+  }
+  function replier(o, silence) { ouvert = o; el.atelier.classList.toggle('ouvert', o); $('.h-poignee').setAttribute('aria-label', o ? 'Replier l’atelier' : 'Ouvrir l’atelier'); if (!silence) try { localStorage.setItem('zombies.atelier', o ? 'ouvert' : 'ferme'); } catch (e) { /* rien */ } }
+  let infoT = 0;
+  function info(k, quoi) {
+    const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
+    el.info.innerHTML = `<b>${d.nom}</b> ${d.desc}`; el.info.hidden = false; infoT = 2.2;
+  }
+  function toast(t) { el.toast.textContent = t; el.toast.hidden = false; el.toast.classList.remove('vu'); void el.toast.offsetWidth; el.toast.classList.add('vu'); toastT = 1.8; }
+  function annonce(t, s, duree) { el.annB.textContent = t; el.annS.textContent = s || ''; el.annonce.hidden = false; el.annonce.classList.remove('vu'); void el.annonce.offsetWidth; el.annonce.classList.add('vu'); annonceT = duree || 2.2; }
+
+  // la mini-carte : le fond (obstacles) dessiné une fois par arène ; par-dessus, toutes les 3 images, les zombies, les défenses, les caisses, le survivant
+  function fondCarte(jeu) {
+    const c = document.createElement('canvas'); c.width = c.height = 132; const g = c.getContext('2d'), k = 132 / jeu.A.taille, h = jeu.A.taille / 2;
+    g.fillStyle = '#16202B'; g.fillRect(0, 0, 132, 132);
+    g.fillStyle = '#5E6E80';
+    for (const r of jeu.monde.rects) g.fillRect((r.x0 + h) * k, (r.z0 + h) * k, Math.max(2, (r.x1 - r.x0) * k), Math.max(2, (r.z1 - r.z0) * k));
+    for (const o of jeu.monde.cercles) { g.beginPath(); g.arc((o.x + h) * k, (o.z + h) * k, Math.max(1.5, o.r * k), 0, Math.PI * 2); g.fill(); }
+    carteFond = c; carteJeu = jeu.A;
+  }
+  function dessinerCarte(jeu, idMoi) {
+    if (carteJeu !== jeu.A) fondCarte(jeu);
+    const g = el.carte.getContext('2d'), k = 132 / jeu.A.taille, h = jeu.A.taille / 2;
+    g.drawImage(carteFond, 0, 0);
+    g.fillStyle = '#F2C230'; for (const o of jeu.objets) if (o.type === 'caisse') g.fillRect((o.x + h) * k - 3, (o.z + h) * k - 3, 6, 6);
+    g.fillStyle = '#7FD3FF'; for (const d of jeu.defenses) g.fillRect((d.x + h) * k - 2, (d.z + h) * k - 2, 4, 4);
+    g.fillStyle = '#FF5A4A'; for (const z of jeu.zombies) { const s = z.type === 'mastodonte' ? 6 : 3; g.fillRect((z.x + h) * k - s / 2, (z.z + h) * k - s / 2, s, s); }
+    for (const j of jeu.joueurs) { if (!j.vivant) continue; g.fillStyle = j.id === idMoi ? '#FFFFFF' : '#9AD0FF'; g.fillRect((j.x + h) * k - 3, (j.z + h) * k - 3, 6, 6); }
+  }
+
+  function maj(jeu, idMoi, dt, evs) {
+    const j = jeu.joueurs.find((x) => x.id === idMoi) || jeu.joueurs[0]; if (!j) return;
+    // la vie
+    const f = Math.max(0, j.vie / j.vieMax);
+    const w = `${(f * 100).toFixed(1)}%`;
+    if (vu.vie !== w) { vu.vie = w; el.vie.style.width = w; el.vie.style.background = f > 0.5 ? '' : f > 0.25 ? '#F2C230' : '#E5533D'; }
+    ecrire('vieN', el.vieN, String(Math.ceil(j.vie)));
+    ecrire('tues', el.tues, String(j.tues));
+    ecrire('fer', el.fer, String(j.ferraille));
+    ecrire('score', el.score, String(j.score));
+    ecrire('v', el.v, `V${Math.max(1, jeu.vague)}`);
+    ecrire('rest', el.rest, jeu.phase === 'vague' ? `${J.restants(jeu)} RESTANTS` : jeu.vague ? 'VAGUE FINIE' : 'PRÉPARE-TOI');
+    // la série
+    const m = jeu.serie.mult > 1 && jeu.t - jeu.serie.t <= D.SERIE.fenetre ? jeu.serie.mult : 1;
+    if (vu.serie !== m) { vu.serie = m; el.serie.hidden = m <= 1; el.serie.textContent = `SÉRIE ×${m}`; el.serie.dataset.m = m; }
+    // la pause entre deux vagues
+    const entre = jeu.phase === 'pause' && !jeu.fini;
+    if (vu.entre !== entre) { vu.entre = entre; el.entre.hidden = !entre; }
+    if (entre) ecrire('entreT', el.entreT, `Vague ${jeu.vague + 1} dans ${Math.max(0, Math.ceil(jeu.chrono))}`);
+    // l'atelier : prix, nombre posé / permis, grisé si trop cher ou verrouillé
+    for (const k of DEFS) {
+      const T = D.DEFENSES[k], b = el.defs[k], verrou = Math.max(1, jeu.vague) < T.depuis, mx = J.maxDefenses(jeu, k), n = J.compteDefenses(jeu, k);
+      const etat = verrou ? 'verrou' : n >= mx ? 'max' : j.ferraille >= T.prix ? 'ok' : 'cher';
+      const cle = `${etat}|${n}/${mx}`;
+      if (vu['d' + k] !== cle) {
+        vu['d' + k] = cle; b.dataset.etat = etat;
+        b.querySelector('.prix').innerHTML = verrou ? `V${T.depuis}` : `<span class="ico">${ICO.ecrou}</span>${T.prix}`;
+        b.querySelector('.nb').textContent = verrou ? '' : `${n}/${mx}`;
+        b.setAttribute('aria-label', `${T.nom} : ${verrou ? `à partir de la vague ${T.depuis}` : `${T.prix} ferraille, ${n} sur ${mx}`}`);
+      }
+    }
+    for (const k of AMS) {
+      const a = D.AMELIORATIONS[k], b = el.ams[k], n = j.niveaux[k] || 0, p = J.prixAmelioration(j, k), etat = p === Infinity ? 'max' : j.ferraille >= p ? 'ok' : 'cher';
+      const cle = `${etat}|${n}|${p}`;
+      if (vu['a' + k] !== cle) {
+        vu['a' + k] = cle; b.dataset.etat = etat;
+        b.querySelector('.prix').innerHTML = p === Infinity ? 'MAX' : `<span class="ico">${ICO.ecrou}</span>${p}`;
+        b.querySelector('.niv').textContent = n ? `${n}/${a.crans}` : '';
+        b.setAttribute('aria-label', `${a.nom} : ${a.desc}, cran ${n} sur ${a.crans}${p === Infinity ? '' : `, ${p} ferraille`}`);
+      }
+    }
+    if (infoT > 0) { infoT -= dt; if (infoT <= 0) el.info.hidden = true; }
+    // les armes
+    for (let i = 0; i < 2; i++) {
+      const s = j.armes[i], b = el.slots[i], cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}` : 'vide';
+      if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
+      b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
+      b.innerHTML = s ? `${ARME_ICO[s.id] || ''}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
+      b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
+    }
+    const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
+    // le boss
+    const boss = jeu.zombies.find((z) => z.type === 'mastodonte');
+    if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
+    if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
+    // les événements : rougeur, annonces, messages
+    if (evs) for (const e of evs) {
+      if (e.t === 'blesse' && e.id === idMoi) rougeur = Math.min(1, rougeur + 0.35 + e.degats / 60);
+      else if (e.t === 'vague') annonce(`VAGUE ${e.n}`, e.boss ? 'Un Mastodonte arrive !' : `${e.total} zombies`, 2.4);
+      else if (e.t === 'vagueFinie') annonce('VAGUE TERMINÉE', `+${e.prime} points · construis, améliore`, 2.4);
+      else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet') toast(`${D.ARMES[e.arme].nom} !`);
+      else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');
+      else if (e.t === 'serie' && e.mult >= 3) el.serie.classList.remove('pulse'), void el.serie.offsetWidth, el.serie.classList.add('pulse');
+      else if (e.t === 'casse') toast(`${D.DEFENSES[e.type].nom} détruite`);
+    }
+    rougeur = Math.max(f < 0.3 ? 0.25 + Math.sin(performance.now() / 260) * 0.12 : 0, rougeur - dt * 1.8);
+    el.rouge.style.opacity = rougeur.toFixed(2);
+    if (toastT > 0) { toastT -= dt; if (toastT <= 0) el.toast.hidden = true; }
+    if (annonceT > 0) { annonceT -= dt; if (annonceT <= 0) el.annonce.hidden = true; }
+    if (++carteT % 3 === 0) dessinerCarte(jeu, idMoi);
+  }
+  function reinit() { vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
+  return { init, maj, annonce, toast, reinit, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+})();

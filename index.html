@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFF7EC">
-<meta name="description" content="Des petits jeux pour le téléphone : Le Fournil, la boulangerie en 3D, et d’autres à venir.">
+<meta name="description" content="Des petits jeux pour le téléphone : Le Fournil, la boulangerie en 3D, Opération Poncin et Dernier Rempart.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -22,7 +22,7 @@
   try {
     const seul = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
     const dossier = location.pathname.replace(/[^/]*$/, '');
-    if (seul && !/[?&]app=accueil/.test(location.search) && !/\/(fournil|poncin)\/$/.test(dossier)) location.replace(dossier + 'fournil/');
+    if (seul && !/[?&]app=accueil/.test(location.search) && !/\/(fournil|poncin|zombies)\/$/.test(dossier)) location.replace(dossier + 'fournil/');
   } catch (e) { /* rien */ }
 })();
 </script>
@@ -90,7 +90,7 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
   const JEUX = [
     { id: 'fournil', nom: 'Le Fournil', genre: 'Boulangerie en 3D', pitch: 'Cuis, vends, embauche des apprentis : ta boulangerie tourne même quand tu n’es pas là.', url: 'fournil/', icone: 'icons/icon.svg', fond: '#FFF1D6', progres: progresFournil, sw: 'fournil/sw.js' },
     { id: 'poncin', nom: 'Opération Poncin', genre: 'FPS en 3D · 1 à 4 joueurs', pitch: 'Blasters à peinture et robots dans le vrai village de Poncin : arène, butin et base à défendre, seul ou avec les copains.', url: 'poncin/', icone: 'icons/poncin.svg', fond: '#E3F1FF', progres: progresPoncin, sw: 'poncin/sw.js' },
-    { bientot: true, nom: 'Bientôt un nouveau jeu', pitch: 'Il s’installera ici, à côté des autres.' },
+    { id: 'zombies', nom: 'Dernier Rempart', genre: 'Survie en 3D · vagues de zombies', pitch: 'Tiens bon face aux vagues de zombies : ramasse la ferraille, pose tourelles et barricades, et tire sans t’arrêter.', url: 'zombies/', icone: 'icons/zombies.svg', fond: '#E4F4D8', progres: progresZombies, sw: 'zombies/sw.js' },
   ];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 120 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
@@ -161,6 +161,19 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
       const a = (s.records && s.records.arene) || {}, n = a.parties || 0;
       if (!n) return null;
       return { titre: `Record Arène : ${a.meilleur || 0} points`, sous: `${n} partie${n > 1 ? 's' : ''} · ${a.eliminations || 0} adversaires repeints${s.derniere ? ` · ${ilYA(s.derniere)}` : ''}` };
+    } catch (e) { return null; }
+  }
+  // Dernier Rempart : son meilleur record (la vague la plus loin, toutes arènes), lu dans sa sauvegarde (lecture seule)
+  function progresZombies() {
+    try {
+      const s = JSON.parse(localStorage.getItem('zombies.v1') || 'null');
+      if (!s || s.v !== 1 || !s.records) return null;
+      const noms = { jardin: 'le Jardin', parking: 'le Parking', ferme: 'la Ferme' };
+      let best = null, cle = '';
+      for (const k of Object.keys(s.records)) { const r = s.records[k]; if (r && (r.vague | 0) > 0 && (!best || r.vague > best.vague || (r.vague === best.vague && (r.score | 0) > (best.score | 0)))) { best = r; cle = k; } }
+      if (!best) return null;
+      const n = (s.total && s.total.parties) | 0, t = (s.total && s.total.tues) | 0;
+      return { titre: `Record : vague ${best.vague | 0}${noms[cle] ? ` dans ${noms[cle]}` : ''}`, sous: `${best.score | 0} points · ${n} partie${n > 1 ? 's' : ''} · ${t} zombies${s.derniere ? ` · ${ilYA(s.derniere)}` : ''}` };
     } catch (e) { return null; }
   }
   const box = document.getElementById('jeux');

@@ -1,0 +1,17 @@
+Dernier Rempart — la 3D
+
+Aucun modèle 3D n'est chargé : le décor, les survivants, les zombies, les défenses et les objets sont construits par le code
+(src-zombies/rendu.js) à partir de boîtes, de cylindres et d'icosaèdres à facettes, avec des couleurs de sommets.
+
+Le style (formes trapues et cubiques, couleurs franches, facettes plates, ombres nettes) est adapté des packs de Kenney
+(www.kenney.nl), publiés sous licence Creative Commons Zero (CC0 1.0, domaine public) : Mini Characters, Furniture Kit, Food Kit,
+Mini Market. Leurs fichiers et leurs licences sont déjà dans le dépôt pour Le Fournil (fournil/hd/mini/LICENCE-kenney-mini-characters.txt,
+fournil/modeles/LICENCE.txt). Aucun de leurs fichiers n'est repris ici ; le crédit n'est pas exigé par la licence, on le donne quand même.
+
+	License: (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+	You can use this content for personal, educational, and commercial purposes.
+	Support by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)
+
+Three.js r158 (vendor/three.min.js) : licence MIT, vendor/LICENSE.three.
+La navigation (src-poncin/nav.js) et les sons synthétisés (src-poncin/sons.js) viennent d'Opération Poncin, dans ce même dépôt.
