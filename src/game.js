@@ -142,7 +142,7 @@
   const STANDING_PAS = 5; // un palier toutes les cinq boutiques
   const standingDe = (n) => Math.max(0, Math.min(STANDINGS.length - 1, Math.floor((Math.max(1, Math.floor(n) || 1) - 1) / STANDING_PAS)));
   const standing = (st) => { const f = st && st.standingFixe; return Number.isInteger(f) && f >= 0 && f < STANDINGS.length ? f : standingDe(st && st.boutiques || 1); };
-  function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
+  function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; if (n) noterNom(st, 'boutique'); return nomBoutique(st); }
 
   // ─── le parcours du boulanger : une récompense à chaque boutique jusqu'à la n°30, et, dès la n°6, un défi de passage pour ouvrir la suivante ───
   // Les récompenses (recompenseBoutique) : n°2 à 9, une recette (PRODUITS, boutique) ; n°10, 15, 20, 25 et 30, un quartier (QUARTIERS,
@@ -182,6 +182,16 @@
     if (st.quartierFixe == null) st.quartierFixe = (Math.max(1, st.boutiques || 1) - 1) % QUARTIERS_BASE;
     if (st.defi === undefined) st.defi = null; // la boutique en cours n'a pas de défi de passage si elle a été ouverte avant cette version
     recettesBoutique(st);
+    // le lot « progression » (lire l'appelle à chaque chargement) : les paliers, les secrets, les trophées dorés remis d'aplomb, sans rien donner
+    paliers(st); secrets(st);
+    if (!st.dores || typeof st.dores !== 'object' || Array.isArray(st.dores)) st.dores = {};
+    for (const k of Object.keys(st.dores)) if (!(st.trophees && st.trophees[k]) || !Number.isFinite(st.dores[k])) delete st.dores[k]; // un doré sans son trophée, une date abîmée
+    // une sauvegarde déjà dans le régime du pas (n°20 et plus) avant ce lot : le pas est figé maintenant (10 % de ses étoiles d'alors), et un
+    // défi « N % de tes étoiles » de sa boutique en cours est abaissé à deux pas s'il demandait plus (assouplir n'enlève rien à personne)
+    if ((st.boutiques || 1) >= PAS.depuis) {
+      const pas = pasEtoiles(st), d = st.defi;
+      if (d && typeof d === 'object' && d.type === 'etoiles' && d.pct && !d.pas && !(d.cible <= 2 * pas)) st.defi = Object.assign({}, d, { pas: 2, cible: 2 * pas });
+    }
     return p;
   }
   function donnerRecompense(st, n) { // la récompense de la boutique n, une seule fois ; rend { n, r, texte } ou null
@@ -220,26 +230,54 @@
   // les événements qui comptent comme « réussis », une seule liste : le défi de passage (evenementsReussis) et le défi de la semaine (noterSemaine)
   const EVENEMENTS_REUSSIS = ['commandes', 'critiques', 'petrissages', 'pannes', 'pourboires'];
   const evenementsReussis = (st) => { const x = st.stats || {}; return EVENEMENTS_REUSSIS.reduce((a, k) => a + (x[k] || 0), 0); };
-  const defiDe = (n) => (n >= DEFI_DEBUT ? DEFIS_PASSAGE[Math.min(n, 29)] || null : null);
+  const defiParcours = (n) => (n >= DEFI_DEBUT ? DEFIS_PASSAGE[Math.min(n, 29)] || null : null); // le tableau d'avant le lot « progression »
+  // le défi pour ouvrir la boutique suivante, depuis le lot « progression » (contrat, § 1.1) :
+  //   · la boutique 39, 49, 59… (celle qui OUVRE un palier) : un défi de palier (defiPalier), varié ;
+  //   · toute autre boutique dès la n°30 : « récolte un pas d'étoiles d'un coup » ;
+  //   · avant : le tableau d'avant, sauf ses défis d'étoiles dès la n°20 (n°20, 25, 29), qui deviennent « récolte 2 pas d'un coup ».
+  function defiDe(n) {
+    if (n >= PALIER_PREMIER - 1 && (n + 1) % PALIER_PAS === 0) return defiPalier(rangPalier(n + 1));
+    if (n >= PARCOURS_FIN) return { type: 'etoiles', pas: 1 };
+    const d = defiParcours(n);
+    return d && d.type === 'etoiles' && n >= PAS.depuis ? { type: 'etoiles', pas: 2 } : d;
+  }
+  const STAT_NOMS = { commandes: 'commandes spéciales livrées', petrissages: 'concours de pétrissage gagnés', pourboires: 'pourboires du client mystère', pannes: 'fours réparés', critiques: 'critiques conquis' };
   function texteDefi(d, cible) { // « Une recette au niveau 300 »…
     if (!d) return '';
     if (d.type === 'palier') return `Une recette au niveau ${d.niv}`;
     if (d.type === 'meubles') return `${d.n} meubles au cran maximum`;
     if (d.type === 'recette') return `Débloque ${PRODUITS[d.i] ? PRODUITS[d.i].nom : 'la recette'} dans cette boutique`;
+    if (d.type === 'etoiles' && d.pas && !cible) return d.pas > 1 ? `Récolte ${d.pas} pas d’étoiles d’un coup` : 'Récolte un pas d’étoiles d’un coup';
     if (d.type === 'etoiles') return cible ? `Récolte +${fmt(cible)} étoiles d’un coup` : `Récolte d’un coup ${d.pct} % de tes étoiles`;
     if (d.type === 'grades') return `${d.n} apprentis au grade ${d.g}`;
     if (d.type === 'evenements') return `Réussis ${d.n} événements dans cette boutique`;
+    if (d.type === 'stat') return `${d.n} ${STAT_NOMS[d.cle] || d.cle} ${d.depuis ? `depuis la boutique n°${d.depuis}` : 'dans cette boutique'}`;
+    if (d.type === 'carte') return d.niv ? `Toutes tes recettes au niveau ${d.niv} dans cette boutique` : 'Débloque toutes tes recettes dans cette boutique';
+    if (d.type === 'bonus') return `${d.n} bonus achetés dans cette boutique`;
     return '';
   }
+  const statDe = (st, k) => (st.stats && st.stats[k]) || 0;
   function creerDefi(st, n) { // le défi de la boutique n, posé à son ouverture (les compteurs partent de là)
+    // l'ouverture d'une boutique 30, 40, 50… : le début d'une décennie, les compteurs des défis de palier partent d'ici (COMPTEURS)
+    if (n >= PARCOURS_FIN && n % PALIER_PAS === 0) { const p = paliers(st); p.decennie = { n, stats: {} }; for (const k of COMPTEURS) p.decennie.stats[k] = statDe(st, k); }
     const d = defiDe(n); if (!d) return null;
     const o = Object.assign({ n }, d);
     if (d.type === 'evenements') o.base = evenementsReussis(st);
-    if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
+    if (d.type === 'etoiles' && d.pas) o.cible = d.pas * pasEtoiles(st); // « récolte +N étoiles d'un coup » : N = un pas (deux et plus)
+    else if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
+    if (d.type === 'stat') { // un compteur de défi de palier : depuis le début de la décennie (la boutique n − 9), sinon depuis l'ouverture
+      const dec = paliers(st).decennie, ok = dec && dec.n === n - (PALIER_PAS - 1) && Number.isFinite(dec.stats[d.cle]);
+      o.base = ok ? dec.stats[d.cle] : statDe(st, d.cle); if (ok) o.depuis = dec.n;
+    }
     return o;
   }
-  function defiPassage(st) { // le défi de la boutique en cours : { d, txt, progres, cible, part, fait } ; null s'il n'y en a pas
+  const TYPES_DEFI = ['palier', 'meubles', 'recette', 'etoiles', 'grades', 'evenements', 'stat', 'carte', 'bonus'];
+  // le défi de la boutique en cours : { d, txt, progres, cible, part, fait, soupape, soupapeCible } ; null s'il n'y en a pas.
+  // Un défi d'un type inconnu (une sauvegarde d'une version future relue par celle-ci) est fait : jamais bloquant.
+  // La soupape (défi de palier seulement) : il est fait aussi quand on peut récolter SOUPAPE pas d'étoiles d'un coup (soupape: true).
+  function defiPassage(st) {
     const d = st.defi; if (!d || typeof d !== 'object' || !d.type) return null;
+    if (!TYPES_DEFI.includes(d.type)) return { d, txt: '', progres: 1, cible: 1, part: 1, fait: true, soupape: false, inconnu: true };
     let progres = 0, cible = 1;
     if (d.type === 'palier') { cible = d.niv; for (const s of st.stations) progres = Math.max(progres, s.niv); }
     else if (d.type === 'meubles') { cible = d.n; progres = MOBILIER.filter((m) => mobilierCran(st, m.id) >= m.max).length; }
@@ -247,16 +285,26 @@
     else if (d.type === 'etoiles') { cible = d.cible || 1; progres = etoilesGagnables(st); }
     else if (d.type === 'evenements') { cible = d.n; progres = Math.max(0, evenementsReussis(st) - (d.base || 0)); }
     else if (d.type === 'grades') { cible = d.n; progres = PRODUITS.filter((p, i) => gradeApprenti(st, i) >= d.g).length; }
+    else if (d.type === 'stat') { cible = d.n; progres = Math.max(0, statDe(st, d.cle) - (d.base || 0)); }
+    else if (d.type === 'carte') { cible = recettesConnues(st); progres = st.stations.filter((s, i) => i < cible && s.niv >= Math.max(1, d.niv || 0)).length; } // toutes les recettes gagnées, débloquées ici (au niveau d.niv)
+    else if (d.type === 'bonus') { cible = d.n; progres = Object.keys(st.ameliorations || {}).length; }
     progres = Math.min(progres, cible);
-    return { d, txt: texteDefi(d, d.cible), progres, cible, part: cible > 0 ? progres / cible : 1, fait: progres >= cible };
+    let fait = progres >= cible, soupape = false;
+    const pas = d.palier && st.paliers && st.paliers.pas > 0 ? st.paliers.pas : 0;
+    if (!fait && pas && etoilesGagnables(st) >= SOUPAPE * pas) { fait = true; soupape = true; }
+    const txt = texteDefi(d, d.cible) + (d.palier && d.type !== 'etoiles' && pas ? ` — ou récolte ${SOUPAPE} pas d’étoiles d’un coup (+${fmt(SOUPAPE * pas)})` : '');
+    return { d, txt, progres, cible, part: fait ? 1 : cible > 0 ? progres / cible : 1, fait, soupape, soupapeCible: pas ? SOUPAPE * pas : 0 };
   }
   const passageOk = (st) => { const x = defiPassage(st); return !x || x.fait; };
   // le but affiché : la boutique suivante, sa récompense, son défi, et la progression (la moitié pour les étoiles, la moitié pour le défi)
-  const ETOILES_CONSEIL = 0.25; // repartir vaut le coup quand on récolte au moins un quart de ses étoiles (le joueur simulé fait pareil)
+  const ETOILES_CONSEIL = 0.25; // avant la n°20 : repartir vaut le coup quand on récolte au moins un quart de ses étoiles (le joueur simulé fait pareil)
+  // dès la n°20 : un pas d'étoiles (conseilEtoiles). Après la n°30 : le prochain palier, et combien de boutiques avant lui
   function butParcours(st) {
-    const n = (st.boutiques || 1) + 1, defi = defiPassage(st), gain = etoilesGagnables(st), conseil = Math.max(1, Math.ceil(st.etoiles * ETOILES_CONSEIL));
+    const n = (st.boutiques || 1) + 1, defi = defiPassage(st), gain = etoilesGagnables(st), conseil = conseilEtoiles(st);
     const pe = Math.min(1, gain / conseil), part = defi ? (pe + defi.part) / 2 : pe;
-    return { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
+    const o = { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
+    if (o.fini) { const k = Math.max(1, rangPalier(n - 1) + 1), r = recompensePalier(k); o.palier = { k, n: r.n, titre: r.titre, rare: r.rare }; o.avant = r.n - n; }
+    return o;
   }
   function parcoursListe(st) { // les boutiques du parcours (PARCOURS_FIN) : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
     // la boutique en cours : seulement le défi réellement posé (st.defi) ; une boutique ouverte avant le parcours n'en a pas
@@ -264,6 +312,131 @@
     for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = n === b ? st.defi || null : defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: d ? texteDefi(d, d.cible) : '' }); }
     return out;
   }
+  // ─── les paliers au-delà de la n°30 : n°40, 50, 60… sans fin (lot « progression », contrat § 1) ───
+  // rangPalier(n) : 0 avant la n°40, 1 de la n°40 à la n°49, 2 de la n°50 à la n°59… Le palier k s'ouvre à la boutique 30 + 10 k.
+  // Chaque palier : un titre, une finition du standing (cumulée, sans effet sur les gains), une récompense rare (cosmétique) et un boost ×5
+  // d'une heure en réserve. Son défi de passage (celui de la boutique 39, 49…) est tiré d'une liste variée, avec une soupape.
+  const PALIER_PAS = 10, PALIER_PREMIER = 40;
+  const ROMAINS = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+  const romain = (n) => { let s = ''; n = Math.floor(n); for (const [v, r] of ROMAINS) while (n >= v) { s += r; n -= v; } return s; };
+  const estPalier = (n) => Number.isInteger(n) && n >= PALIER_PREMIER && n % PALIER_PAS === 0;
+  const rangPalier = (n) => (n >= PALIER_PREMIER ? Math.floor((Math.floor(n) - PARCOURS_FIN) / PALIER_PAS) : 0);
+  const boutiqueDuPalier = (k) => PARCOURS_FIN + PALIER_PAS * k;
+  // les titres (décision du joueur, 2 nov.) : tous au-dessus de « Légende du Fournil » (n°30), aucun ne reprend un titre de niveau
+  // (TITRES : « Maître boulanger » est le niveau 19, d'où « Grand Maître boulanger ») ; au-delà de la liste, le dernier, numéroté (II, III…)
+  const TITRES_PALIER = ['Boulanger étoilé', 'Légende de la farine', 'Seigneur du levain', 'Prince de la mie', 'Grand Maître boulanger', 'Gardien des fournils', 'Empereur de la baguette'];
+  function titrePalier(k) {
+    k = Math.floor(k); if (!(k >= 1)) return '';
+    const L = TITRES_PALIER.length; return k <= L ? TITRES_PALIER[k - 1] : `${TITRES_PALIER[L - 1]} ${romain(k - L + 1)}`;
+  }
+  // le standing au-delà du « Palais du goût » (standing 5 dès la n°26) : des finitions cumulées palier après palier (le palier 3 a l'enseigne
+  // dorée, le noyer et l'onyx). Au-delà de la liste : la dernière, et k étoiles à l'enseigne. La scène lit finitionDe (src/vie.js).
+  const FINITIONS = [
+    { id: 'enseigne-or', nom: 'Enseigne dorée', phrase: 'Les lettres de l’enseigne à la feuille d’or, une lanterne de fer forgé à la porte.' },
+    { id: 'noyer', nom: 'Boiseries de noyer', phrase: 'Des boiseries sombres et cirées, des poignées de laiton.' },
+    { id: 'onyx', nom: 'Comptoir d’onyx', phrase: 'Un comptoir de pierre de miel qui laisse passer la lumière.' },
+    { id: 'cristal', nom: 'Lustres de cristal', phrase: 'Deux lustres qui tintent quand la porte s’ouvre.' },
+    { id: 'vitraux', nom: 'Vitraux', phrase: 'Des épis de blé en vitrail au-dessus de la vitrine.' },
+    { id: 'nacre', nom: 'Nacre et platine', phrase: 'Des incrustations de nacre au sol, des filets de platine aux murs.' },
+    { id: 'eclat', nom: 'Palais d’éclat', phrase: 'Une coupole de verre, la lumière du jour sur le comptoir.' },
+  ];
+  const finitionDe = (n) => rangPalier(n); // 0 : aucune ; la scène lit min(k, FINITIONS.length) et dessine k étoiles à l'enseigne
+  const finitionsDe = (k) => FINITIONS.slice(0, Math.max(0, Math.min(Math.floor(k) || 0, FINITIONS.length)));
+  // la récompense rare de chaque palier : tour à tour une pièce de tenue, un compagnon, une déco (cosmétiques, sans bonus de gains : décision
+  // du lot chaîne, « les objets rares n'accélèrent pas la boulangerie »). Au-delà des douze : les mêmes dans une teinte nouvelle
+  // (« Toque étoilée — rubis », id « etoile-toque~1 ») : toujours rare, jamais deux fois la même. Possédées : st.paliers.objets (rarePossede).
+  const RARES_PALIER = [
+    { type: 'tenue', id: 'etoile-toque', nom: 'Toque étoilée', piece: 'tete' }, { type: 'compagnon', id: 'paon', nom: 'Paon' }, { type: 'deco', id: 'horloge', nom: 'Horloge comtoise' },
+    { type: 'tenue', id: 'etoile-tablier', nom: 'Tablier étoilé', piece: 'haut' }, { type: 'compagnon', id: 'renard', nom: 'Renard argenté' }, { type: 'deco', id: 'piano', nom: 'Piano à queue' },
+    { type: 'tenue', id: 'etoile-souliers', nom: 'Souliers étoilés', piece: 'pieds' }, { type: 'compagnon', id: 'hibou', nom: 'Hibou savant' }, { type: 'deco', id: 'fontaine-chocolat', nom: 'Fontaine de chocolat' },
+    { type: 'tenue', id: 'etoile-foulard', nom: 'Foulard étoilé', piece: 'accessoire' }, { type: 'compagnon', id: 'licorne', nom: 'Petite licorne' }, { type: 'deco', id: 'orgue', nom: 'Orgue de Barbarie' },
+  ];
+  const TEINTES = ['rubis', 'émeraude', 'saphir', 'améthyste', 'nacre', 'or rose', 'obsidienne', 'opale'];
+  const BOOST_PALIER = { mult: 5, secs: 3600 };
+  function recompensePalier(k) { // { k, n, titre, finition, rare: { type, id, nom, teinte?, tour }, boost } ; null avant le palier 1
+    k = Math.floor(k); if (!(k >= 1)) return null;
+    const L = RARES_PALIER.length, base = RARES_PALIER[(k - 1) % L], tour = Math.floor((k - 1) / L);
+    const teinte = tour ? TEINTES[(tour - 1) % TEINTES.length] + (tour > TEINTES.length ? ' ' + romain(Math.ceil(tour / TEINTES.length)) : '') : null;
+    const rare = Object.assign({}, base, { tour }, teinte ? { teinte, id: `${base.id}~${tour}`, nom: `${base.nom} — ${teinte}` } : {});
+    return { k, n: boutiqueDuPalier(k), titre: titrePalier(k), finition: FINITIONS[Math.min(k, FINITIONS.length) - 1], etoilesEnseigne: k > FINITIONS.length ? k : 0, rare, boost: Object.assign({}, BOOST_PALIER) };
+  }
+  // st.paliers = { recus: [k…], titre: '' (le plus haut titre de palier gagné), objets: [id…] (les récompenses rares possédées),
+  //   pas (le pas d'étoiles, figé dès la n°20 : pasEtoiles), decennie: { n, stats } (les compteurs au début de la décennie : creerDefi) }
+  const objetSimple = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+  function paliers(st) { // remis d'aplomb ; ne donne rien
+    let p = st.paliers;
+    if (!objetSimple(p)) p = st.paliers = { recus: [], titre: '', objets: [] };
+    p.recus = (Array.isArray(p.recus) ? p.recus : []).filter((k, i, a) => Number.isInteger(k) && k >= 1 && k <= 1e4 && a.indexOf(k) === i);
+    p.titre = p.recus.length ? titrePalier(Math.max(...p.recus)) : '';
+    p.objets = (Array.isArray(p.objets) ? p.objets : []).filter((id, i, a) => typeof id === 'string' && id.length <= 40 && a.indexOf(id) === i).slice(0, 1e4);
+    if (!(Number.isInteger(p.pas) && p.pas >= 1)) delete p.pas;
+    const dec = p.decennie;
+    if (!(objetSimple(dec) && Number.isInteger(dec.n) && dec.n >= PARCOURS_FIN && objetSimple(dec.stats))) delete p.decennie;
+    else for (const k of Object.keys(dec.stats)) if (!COMPTEURS.includes(k) || !Number.isFinite(dec.stats[k])) delete dec.stats[k];
+    return p;
+  }
+  const rarePossede = (st, id) => !!(st && st.paliers && Array.isArray(st.paliers.objets) && st.paliers.objets.includes(id));
+  // une pièce de tenue rare va dans la garde-robe dès que GARDEROBE la connaît (une mise à jour qui apporte son modèle : rattraperPaliers
+  // la donne alors, une fois) ; les compagnons et les décos se lisent dans st.paliers.objets (rarePossede)
+  function livrerRare(st, rare) { if (rare && rare.type === 'tenue' && vetement(rare.id) && !possede(st, rare.id)) donnerVetement(st, rare.id); }
+  function donnerPalier(st, k) { // la récompense du palier k, une seule fois ; rend { k, n, titre, finition, rare, boost } ou null
+    const p = paliers(st); if (p.recus.includes(k)) return null;
+    const r = recompensePalier(k); if (!r) return null;
+    p.recus.push(k); p.titre = titrePalier(Math.max(...p.recus));
+    if (!p.objets.includes(r.rare.id)) p.objets.push(r.rare.id);
+    livrerRare(st, r.rare);
+    donnerBoostReserve(st, r.boost.mult, r.boost.secs);
+    return r;
+  }
+  function rattraperPaliers(st) { // les paliers déjà franchis, pas encore donnés (une sauvegarde déjà à la n°47 : le palier 1) ; rend leur liste
+    const p = paliers(st), out = [];
+    for (let k = 1; k <= rangPalier(st.boutiques || 1); k++) { const r = donnerPalier(st, k); if (r) out.push(r); }
+    for (const k of p.recus) { const r = recompensePalier(k); if (r) livrerRare(st, r.rare); } // ce qu'une mise à jour vient d'apporter
+    return out;
+  }
+  const titreBoulanger = (st) => (st.paliers && st.paliers.titre) || titreParcours(st); // le plus haut titre gagné
+  // les défis de palier : pour OUVRIR le palier k (le défi de la boutique 30 + 10 k − 1), dans un ordre fixe qui alterne événements,
+  // argent et équipe ; la liste parcourue, elle recommence un cran plus dure (c : le tour). Réglés sur sim.js (contrat § 1.1, § 11 A).
+  const DEFIS_PALIER = [
+    { id: 'commandes', f: (c) => ({ type: 'stat', cle: 'commandes', n: Math.round(12 * (1 + 0.2 * c)) }) },
+    { id: 'meubles', f: (c) => ({ type: 'meubles', n: Math.min(9, 7 + c) }) },
+    { id: 'petrissages', f: (c) => ({ type: 'stat', cle: 'petrissages', n: Math.round(10 * (1 + 0.2 * c)) }) },
+    { id: 'carte', f: (c) => ({ type: 'carte', niv: 100 * c }) },
+    { id: 'pourboires', f: (c) => ({ type: 'stat', cle: 'pourboires', n: Math.round(100 * (1 + 0.2 * c)) }) },
+    { id: 'palier', f: (c) => ({ type: 'palier', niv: 550 + 50 * c }) }, // 800 était hors d'atteinte dans une boutique courte (sim.js : bloqué 300 jours)
+    { id: 'bonus', f: (c) => ({ type: 'bonus', n: Math.min(AMELIORATIONS.length, 18 + 2 * c) }) },
+    { id: 'pannes', f: (c) => ({ type: 'stat', cle: 'pannes', n: Math.round(10 * (1 + 0.2 * c)) }) },
+    { id: 'etoiles', f: (c) => ({ type: 'etoiles', pas: 2 + Math.min(c, 3) }) }, // récolter 2 pas d'étoiles d'un coup (3, 4, 5 aux tours suivants)
+    { id: 'critiques', f: (c) => ({ type: 'stat', cle: 'critiques', n: Math.round(12 * (1 + 0.2 * c)) }) },
+  ];
+  // les compteurs se comptent sur toute la DÉCENNIE (depuis l'ouverture de la boutique 30, 40, 50… : st.paliers.decennie) : l'occasionnel
+  // (~0,4 commande par jour) attendait 17 jours dans une seule boutique ; sur dix, il les fait en route
+  const COMPTEURS = ['commandes', 'petrissages', 'pourboires', 'pannes', 'critiques'];
+  // la soupape : un défi de palier n'est jamais un mur, il est aussi fait quand on peut récolter SOUPAPE pas d'étoiles d'un coup
+  const SOUPAPE = 4;
+  function defiPalier(k) { // le défi pour ouvrir le palier k
+    k = Math.floor(k); if (!(k >= 1)) return null; const L = DEFIS_PALIER.length, x = DEFIS_PALIER[(k - 1) % L];
+    return Object.assign({ palier: k, id: x.id }, x.f(Math.floor((k - 1) / L)));
+  }
+  function paliersListe(st, combien = 3) { // les paliers passés et les `combien` suivants : { k, n, titre, finition, rare, boost, defi, defiTxt, etat, recu }
+    const K = rangPalier(st.boutiques || 1), recus = (st.paliers && Array.isArray(st.paliers.recus)) ? st.paliers.recus : [], out = [];
+    for (let k = 1; k <= K + Math.max(0, Math.floor(combien) || 0); k++) {
+      const r = recompensePalier(k), d = defiPalier(k);
+      out.push({ k, n: r.n, titre: r.titre, finition: r.finition, rare: r.rare, boost: r.boost, defi: d, defiTxt: texteDefi(d), etat: k <= K ? 'passe' : k === K + 1 ? 'prochain' : 'avenir', recu: recus.includes(k) });
+    }
+    return out;
+  }
+  // le rythme (contrat § 1.1, § 11 A) : avec « repartir à 25 % de ses étoiles » et les défis « N % des étoiles », chaque boutique durait ~×1,3
+  // de plus que la précédente dès la n°20 (un mur : la n°40 ne venait jamais). Dès la boutique PAS.depuis, un PAS d'étoiles figé (PAS.pct des
+  // étoiles d'alors, 5 au moins) : chaque boutique ordinaire (≥ n°30) demande de récolter un pas d'un coup, les défis d'étoiles du parcours
+  // (n°20, 25, 29) deux pas, ceux de palier deux et plus. Les étoiles montent d'un pas par boutique : une boutique dure à peu près le même temps.
+  const PAS = { depuis: 20, pct: 0.1 }; // décision du joueur (2 nov.) : dès la n°20, 10 % (essayés : n°30 à 5 %, trop tard ; n°20 à 5 %, deux fois trop vite)
+  function pasEtoiles(st) { // le pas, figé à la première demande depuis la boutique PAS.depuis (son ouverture : creerDefi) ; null avant
+    const p = paliers(st); if (p.pas) return p.pas;
+    if ((st.boutiques || 1) < PAS.depuis) return null;
+    p.pas = Math.max(5, Math.ceil(PAS.pct * (st.etoiles || 0))); return p.pas;
+  }
+  const conseilEtoiles = (st) => ((st.boutiques || 1) >= PAS.depuis ? pasEtoiles(st) : Math.max(1, Math.ceil((st.etoiles || 0) * ETOILES_CONSEIL))); // « repartir vaut le coup » (butParcours.conseil)
   function saison(ms) {
     const d = paris(ms), m = d.getUTCMonth() + 1, j = d.getUTCDate(), tags = [];
     if (m === 12 || m <= 2) tags.push('neige');
@@ -359,10 +532,10 @@
     return { ok: true, chat: st.chat, compagnon: c };
   }
   function refuserChat(st) { st.chatRefuse = dayKey(st.now); st.chatAttente = CHAT.apparition; }
-  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom, compagnon(compagnonActif(st)).nomDefaut); return st.chat.nom; }
+  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom, compagnon(compagnonActif(st)).nomDefaut); if (String(nom || '').trim()) noterNom(st, 'chat'); return st.chat.nom; }
   function caresser(st) { // une caresse ; au plus une fois par minute, il porte chance : le client mystère arrive 20 % plus tôt
     if (!st.chat) return { ok: false };
-    st.chat.caresses++; let chance = false;
+    st.chat.caresses++; let chance = false; noterCaresse(st, st.now); // (le trophée secret « Câlin express »)
     if (st.now - (st.chat.dernier || 0) >= CHAT.attente) { st.chat.dernier = st.now; st.mystereTimer *= 1 - CHAT.chance; gagnerXp(st, 1); chance = true; }
     return { ok: true, chance, caresses: st.chat.caresses };
   }
@@ -764,6 +937,9 @@
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
       // « Ma chaîne de boutiques » (src/chaine.js, CHAINE.etat la remet d'aplomb et, une seule fois, y rouvre les anciennes boutiques : cree)
       chaine: { v: 1, cree: 0, jetons: 0, gagnes: 0, objets: [], bj: '', bn: 0, b: [] },
+      // le lot « progression » : les paliers au-delà de la n°30 (et le pas d'étoiles), les trophées dorés, les compteurs des trophées secrets
+      // (st.second, st.rivales, st.projets : src/progression.js, PROGRESSION.etat les crée et les remet d'aplomb)
+      paliers: { recus: [], titre: '', objets: [] }, dores: {}, secrets: {},
     };
   }
 
@@ -809,7 +985,7 @@
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * accessoiresMult(st, i) * gainsParcours(st); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * accessoiresMult(st, i) * gainsParcours(st) * tropheesMult(st); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -1115,11 +1291,168 @@
     { id: 'ronron', nom: 'Ronron', desc: 'Caresser le compagnon 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
     { id: 'saison1', nom: 'Recette de saison', desc: 'Maîtriser une recette de saison', xp: 30, cond: (st) => Object.values(st.collection || {}).some((c) => c.maitrisee) },
     { id: 'saisons4', nom: 'Quatre saisons', desc: 'Maîtriser quatre recettes de saison', xp: 80, cond: (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 4 },
+    // lot « progression » (contrat § 3) : les nouveaux, EN FIN de liste (test/econ.test.js lit l'ordre des anciens). « Tous ensemble » : le
+    // concours des rivales (st.rivales) et les chantiers du quartier (st.projets), écrits par src/progression.js ; puis les huit secrets
+    // (secret: true : l'écran les montre « ??? » tant qu'ils ne sont pas gagnés), lus dans st.secrets (noterOuverture, noterCaresse…).
+    { id: 'medaille', nom: 'Sur le podium', desc: 'Une médaille au concours des boulangeries', xp: 30, cond: (st) => medailles(st) >= 1 },
+    { id: 'medaille-or', nom: 'Médaille d’or', desc: 'Gagner le concours d’une semaine', xp: 50, cond: (st) => medailles(st, 'or') >= 1 },
+    { id: 'batisseur', nom: 'Bâtisseur', desc: 'Aider à finir un chantier du quartier', xp: 40, cond: (st) => projetsAides(st) >= 1 },
+    { id: 'caresses', secret: true, nom: 'Câlin express', desc: '50 caresses au chat en moins d’une minute', xp: 20, cond: (st) => sec(st).caressesMax >= 50 },
+    { id: 'aube', secret: true, nom: 'Lève-tôt', desc: 'Ouvrir la boutique entre 5 h et 6 h du matin', xp: 20, cond: (st) => sec(st).aube >= 1 },
+    { id: 'nouvel-an', secret: true, nom: 'Bonne année !', desc: 'Jouer un 1er janvier', xp: 20, cond: (st) => sec(st).nouvelAn >= 1 },
+    { id: 'vendredi13', secret: true, nom: 'Porte-bonheur', desc: 'Jouer un vendredi 13', xp: 20, cond: (st) => sec(st).vendredi13 >= 1 },
+    { id: 'retour', secret: true, nom: 'Le retour du boulanger', desc: 'Revenir après une semaine d’absence', xp: 20, cond: (st) => sec(st).retours >= 1 },
+    { id: 'petrin', secret: true, nom: 'Pétrin de feu', desc: 'Gagner un pétrissage en moins de 6 s', xp: 30, cond: (st) => st.stats.petrissageRecord > 0 && st.stats.petrissageRecord < 6 },
+    { id: 'bapteme', secret: true, nom: 'Baptême', desc: 'Donner un nom à sa boutique et à son chat', xp: 20, cond: (st) => sec(st).nomsBoutique >= 1 && sec(st).nomChat >= 1 },
+    { id: 'curieux', secret: true, nom: 'Curieux', desc: 'Visiter 10 boutiques de copains', xp: 20, cond: (st) => sec(st).visites >= 10 },
   ];
-  function verifierTrophees(st) {
+  const TROPHEES_ANCIENS = TROPHEES.findIndex((t) => t.id === 'medaille'); // 37 : les trophées d'avant le lot « progression » (vérifiés à chaque pas de jeu, les autres toutes les 10 s)
+  // ─── les trophées qui rapportent : familles, dorés, secrets (lot « progression », contrat § 3) ───
+  // +0,1 % de gains par trophée, +0,1 % par trophée doré, +0,3 % par famille complète, +0,3 % par famille complète en or (décision du joueur,
+  // 2 nov. : recalibré de 1 / 1 / 3 / 3 à 0,1 / 0,1 / 0,3 / 0,3 pour garder test/longevite.js --test dans ses bornes, contrat § 3.4) ;
+  // au plus +17,4 % (48 trophées, 48 dorés, 13 familles). Un facteur de revenuBase (comme gainsParcours), calculé une fois par changement.
+  const TROPHEES_BONUS = { trophee: 0.1, dore: 0.1, famille: 0.3, familleDoree: 0.3 };
+  const FAMILLES = {
+    fournees: { nom: 'Les fournées', ids: ['premiere', 'cent', 'dixmille', 'million'] },
+    equipe: { nom: 'L’équipe', ids: ['equipe', 'grande-equipe', 'grade', 'brigade'] },
+    clients: { nom: 'Les clients', ids: ['livreur', 'traiteur', 'presse', 'etoile', 'mystere', 'genereux'] },
+    mains: { nom: 'Les mains', ids: ['bras', 'eclair', 'bricoleur'] },
+    etoiles: { nom: 'Les étoiles', ids: ['etoiles10', 'etoiles100', 'etoiles1000'] },
+    boutiques: { nom: 'Les boutiques', ids: ['boutique2', 'boutique5', 'boutique10'] },
+    carte: { nom: 'La carte', ids: ['piece', 'recette-boutique', 'carte', 'franchise'] },
+    fidelite: { nom: 'La fidélité', ids: ['semaine', 'defi', 'fidele'] },
+    savoir: { nom: 'Le savoir-faire', ids: ['compagnon', 'mof'] },
+    maison: { nom: 'La maison', ids: ['salon', 'decorateur', 'ronron'] },
+    saisons: { nom: 'Les saisons', ids: ['saison1', 'saisons4'] },
+    ensemble: { nom: 'Tous ensemble', ids: ['medaille', 'medaille-or', 'batisseur'] },
+    secrets: { nom: 'Les secrets', ids: ['caresses', 'aube', 'nouvel-an', 'vendredi13', 'retour', 'petrin', 'bapteme', 'curieux'] },
+  };
+  const FAMILLE_DE = new Map(); for (const [f, x] of Object.entries(FAMILLES)) for (const id of x.ids) FAMILLE_DE.set(id, f);
+  for (const t of TROPHEES) t.fam = FAMILLE_DE.get(t.id); // la famille de chaque trophée (l'écran les range par famille)
+  const statT = (st, k) => (st.stats && st.stats[k]) || 0;
+  const gradesAu = (st, g) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= g).length;
+  const recettesAu = (st, niv, n) => st.stations.length >= n && st.stations.slice(0, n).every((s) => s.niv >= niv);
+  // la version dorée de chaque trophée : plus dure, gagnée seulement APRÈS le trophée, même savoir-faire. Réglée sur sim.js (contrat § 11 C).
+  const DORES = {
+    premiere: ['Vendre 100 000 fournées', (st) => statT(st, 'ventes') >= 1e5],
+    cent: ['Vendre 300 000 fournées', (st) => statT(st, 'ventes') >= 3e5],
+    dixmille: ['Vendre 2 millions de fournées', (st) => statT(st, 'ventes') >= 2e6],
+    million: ['Vendre 10 millions de fournées', (st) => statT(st, 'ventes') >= 1e7],
+    equipe: ['Embaucher 100 apprentis en tout', (st) => statT(st, 'embauches') >= 100],
+    'grande-equipe': ['Embaucher 400 apprentis en tout', (st) => statT(st, 'embauches') >= 400],
+    grade: ['Seize apprentis au grade 3', (st) => gradesAu(st, 3) >= 16],
+    brigade: ['Seize apprentis au grade 5', (st) => gradesAu(st, 5) >= 16],
+    livreur: ['Livrer 250 commandes spéciales', (st) => statT(st, 'commandes') >= 250],
+    traiteur: ['Livrer 1 000 commandes spéciales', (st) => statT(st, 'commandes') >= 1000],
+    presse: ['Conquérir 50 critiques', (st) => statT(st, 'critiques') >= 50],
+    etoile: ['Conquérir 250 critiques', (st) => statT(st, 'critiques') >= 250],
+    mystere: ['200 pourboires du client mystère', (st) => statT(st, 'pourboires') >= 200],
+    genereux: ['1 000 pourboires du client mystère', (st) => statT(st, 'pourboires') >= 1000],
+    bras: ['Gagner 200 concours de pétrissage', (st) => statT(st, 'petrissages') >= 200],
+    eclair: ['Un pétrissage en moins de 7 s', (st) => statT(st, 'petrissageRecord') > 0 && statT(st, 'petrissageRecord') < 7],
+    bricoleur: ['Réparer 200 fours', (st) => statT(st, 'pannes') >= 200],
+    etoiles10: ['Posséder 5 000 étoiles', (st) => st.etoiles >= 5000],
+    etoiles100: ['Posséder 20 000 étoiles', (st) => st.etoiles >= 2e4],
+    etoiles1000: ['Posséder 100 000 étoiles', (st) => st.etoiles >= 1e5],
+    boutique2: ['Ouvrir 20 boutiques', (st) => st.boutiques >= 20],
+    boutique5: ['Ouvrir 40 boutiques', (st) => st.boutiques >= 40],
+    boutique10: ['Ouvrir 60 boutiques', (st) => st.boutiques >= 60],
+    piece: ['Les huit recettes de base au niveau 500 dans une boutique', (st) => recettesAu(st, 500, 8)],
+    'recette-boutique': ['Les seize recettes au niveau 300 dans une boutique', (st) => recettesAu(st, 300, 16)],
+    carte: ['Les seize recettes au niveau 800 dans une boutique', (st) => recettesAu(st, 800, 16)],
+    franchise: ['Tous les bonus dans une boutique', (st) => AMELIORATIONS.every((a) => st.ameliorations && st.ameliorations[a.id])],
+    semaine: ['Les trois objectifs du jour 30 jours d’affilée', (st) => statT(st, 'serieMax') >= 30],
+    defi: ['Réussir 12 défis de la semaine', (st) => statT(st, 'semaines') >= 12],
+    fidele: ['Servir un habitué 30 jours de suite', (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 30)],
+    compagnon: ['Atteindre le niveau 35', (st) => niveau(st) >= 35],
+    mof: ['Atteindre le niveau 50', (st) => niveau(st) >= 50],
+    salon: ['Tous les meubles au maximum dans une boutique', (st) => MOBILIER.every((m) => mobilierCran(st, m.id) >= m.max)],
+    decorateur: ['Améliorer 1 000 meubles en tout', (st) => statT(st, 'meubles') >= 1000],
+    ronron: ['Caresser le compagnon 2 000 fois', (st) => !!st.chat && st.chat.caresses >= 2000],
+    saison1: ['Maîtriser six recettes de saison', (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 6],
+    saisons4: ['Maîtriser toutes les recettes de saison', (st) => RECETTES_SAISON.every((r) => st.collection && st.collection[r.id] && st.collection[r.id].maitrisee)],
+    medaille: ['20 médailles au concours', (st) => medailles(st) >= 20],
+    'medaille-or': ['10 médailles d’or', (st) => medailles(st, 'or') >= 10],
+    batisseur: ['Aider à finir 5 chantiers du quartier', (st) => projetsAides(st) >= 5],
+    caresses: ['100 caresses au chat en moins d’une minute', (st) => sec(st).caressesMax >= 100],
+    aube: ['Ouvrir à l’aube sept matins différents', (st) => sec(st).aube >= 7],
+    'nouvel-an': ['Jouer trois 1er janvier', (st) => sec(st).nouvelAn >= 3],
+    vendredi13: ['Jouer trois vendredis 13', (st) => sec(st).vendredi13 >= 3],
+    retour: ['Revenir trois fois après une semaine d’absence', (st) => sec(st).retours >= 3],
+    petrin: ['Gagner un pétrissage en moins de 5 s', (st) => statT(st, 'petrissageRecord') > 0 && statT(st, 'petrissageRecord') < 5],
+    bapteme: ['Donner un nom à dix boutiques', (st) => sec(st).nomsBoutique >= 10],
+    curieux: ['Visiter 100 boutiques de copains', (st) => sec(st).visites >= 100],
+  };
+  // ce que lisent les trophées « Tous ensemble » (écrit par src/progression.js, lu ici sans le charger)
+  const medailles = (st, m) => { const r = st && st.rivales && st.rivales.medailles; if (!r || typeof r !== 'object') return 0; const v = (k) => (Number.isFinite(r[k]) ? r[k] : 0); return m ? v(m) : v('or') + v('argent') + v('bronze'); };
+  const projetsAides = (st) => { const p = st && st.projets; return p && Number.isFinite(p.aides) ? p.aides : 0; };
+  // st.secrets : les compteurs des secrets, écrits par les gestes de l'interface (noterOuverture, noterCaresse, noterNom, noterVisite)
+  const SECRETS_N = ['caressesMax', 'aube', 'nouvelAn', 'vendredi13', 'retours', 'nomsBoutique', 'nomChat', 'visites', 'boutiqueNommee'];
+  const SECRETS_VIDE = Object.freeze({});
+  const sec = (st) => (st.secrets && typeof st.secrets === 'object' ? st.secrets : SECRETS_VIDE); // (lu à chaque vérification : sans rien réparer ni allouer)
+  const entierBorne = (v, min, max, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : def; };
+  function secrets(st) { // remis d'aplomb (une vieille sauvegarde n'en a pas) ; ne donne rien
+    let s = st.secrets; if (!s || typeof s !== 'object' || Array.isArray(s)) s = st.secrets = {};
+    for (const k of SECRETS_N) s[k] = entierBorne(s[k], 0, 1e6, 0);
+    s.caresses = Array.isArray(s.caresses) ? s.caresses.filter((t) => Number.isFinite(t)).slice(-100) : []; // les dernières (« en moins d'une minute »)
+    for (const k of ['jourAube', 'jourAn', 'jour13']) if (typeof s[k] !== 'string' || s[k].length > 10) s[k] = '';
+    return s;
+  }
+  function noterOuverture(st, nowMs, sortieMs) { // au démarrage et au retour d'une sortie (ui.js : boot, reprendre) ; sortieMs : la durée de l'absence
+    const s = secrets(st), d = paris(nowMs), jour = dayKey(nowMs);
+    if (d.getUTCHours() === 5 && s.jourAube !== jour) { s.jourAube = jour; s.aube++; }
+    if (d.getUTCMonth() === 0 && d.getUTCDate() === 1 && s.jourAn !== jour) { s.jourAn = jour; s.nouvelAn++; }
+    if (d.getUTCDay() === 5 && d.getUTCDate() === 13 && s.jour13 !== jour) { s.jour13 = jour; s.vendredi13++; }
+    if (sortieMs >= 7 * 864e5) s.retours++;
+    return s;
+  }
+  function noterCaresse(st, nowMs) { const s = secrets(st); s.caresses.push(nowMs); s.caresses = s.caresses.filter((t) => nowMs - t < 60e3 && t <= nowMs).slice(-100); s.caressesMax = Math.max(s.caressesMax, s.caresses.length); return s.caresses.length; }
+  function noterNom(st, quoi) { // un nom donné (non vide) : au chat, ou à la boutique (une fois par boutique : « dix boutiques nommées »)
+    const s = secrets(st);
+    if (quoi === 'chat') s.nomChat++;
+    else if (s.boutiqueNommee !== (st.boutiques || 1)) { s.boutiqueNommee = st.boutiques || 1; s.nomsBoutique++; }
+    return s;
+  }
+  function noterVisite(st) { const s = secrets(st); s.visites++; return s.visites; }
+  // vérifier les trophées : les nouveaux, gagnés, et les dorés (seulement après leur trophée). Rend la liste des neufs : les trophées
+  // eux-mêmes, puis les dorés sous la forme { id, nom, desc (la condition dorée), xp, fam, dore: true, t (le trophée) }.
+  // o.lent (le pas de jeu, tick) : les 37 anciens à chaque pas, les nouveaux et les dorés toutes les 10 s de jeu (leurs conditions sont plus
+  // longues ; c'est aussi le rythme mesuré par le banc du contrat, § 3.4) ; sans o.lent (les tests, l'interface) : tout, tout de suite.
+  const VERIF_LENTE = new WeakMap(), VERIF_PAS = 10e3;
+  function verifierTrophees(st, o) {
     st.trophees = st.trophees || {}; const neufs = [];
-    for (const t of TROPHEES) if (!st.trophees[t.id] && t.cond(st)) { st.trophees[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée : ${t.nom}`); neufs.push(t); }
+    let tout = true;
+    if (o && o.lent) { const t = VERIF_LENTE.get(st); tout = t === undefined || st.now - t >= VERIF_PAS || st.now < t; if (tout) VERIF_LENTE.set(st, st.now); }
+    const n = tout ? TROPHEES.length : TROPHEES_ANCIENS;
+    for (let k = 0; k < n; k++) { const t = TROPHEES[k]; if (!st.trophees[t.id] && t.cond(st)) { st.trophees[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée : ${t.nom}`); neufs.push(t); } }
+    if (tout) {
+      if (!st.dores || typeof st.dores !== 'object' || Array.isArray(st.dores)) st.dores = {};
+      for (const t of TROPHEES) {
+        if (st.dores[t.id] || !st.trophees[t.id]) continue; // le doré vient après le trophée
+        const x = DORES[t.id]; if (x && x[1](st)) { st.dores[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée doré : ${t.nom}`); neufs.push({ id: t.id, nom: t.nom, desc: x[0], xp: t.xp, fam: t.fam, secret: !!t.secret, dore: true, t }); }
+      }
+    }
+    if (neufs.length) TM_V.set(st, (TM_V.get(st) || 0) + 1); // (le bonus des trophées sera recompté)
     return neufs;
+  }
+  function bilanTrophees(st) { // { trophees, dores, familles, famillesDorees, pct (le bonus, en %), mult, max (le bonus au maximum, en %) }
+    const tr = st.trophees || {}, dr = st.dores || {};
+    let t = 0, d = 0, f = 0, fd = 0;
+    for (const x of TROPHEES) { if (tr[x.id]) t++; if (tr[x.id] && dr[x.id]) d++; }
+    for (const x of Object.values(FAMILLES)) { if (x.ids.every((id) => tr[id])) f++; if (x.ids.every((id) => tr[id] && dr[id])) fd++; }
+    const B = TROPHEES_BONUS, pct = t * B.trophee + d * B.dore + f * B.famille + fd * B.familleDoree;
+    return { trophees: t, dores: d, familles: f, famillesDorees: fd, total: TROPHEES.length, pct, mult: 1 + pct / 100, max: TROPHEES.length * (B.trophee + B.dore) + Object.keys(FAMILLES).length * (B.famille + B.familleDoree) };
+  }
+  // le multiplicateur, lu par revenuBase à chaque fournée : recalculé seulement quand le nombre de trophées ou de dorés change (ou leurs
+  // objets). Le chemin court, sans rien compter : même heure de jeu (st.now) et aucun trophée gagné depuis (TM_V : verifierTrophees le
+  // marque) ; sinon les clés sont recomptées (une sauvegarde relue, un trophée posé à la main).
+  const TM_CACHE = new WeakMap(), TM_V = new WeakMap();
+  function tropheesMult(st) {
+    const tr = st.trophees, dr = st.dores, c = TM_CACHE.get(st), v = TM_V.get(st) || 0;
+    if (c && c.now === st.now && c.v === v && c.tr === tr && c.dr === dr) return c.m;
+    const a = tr ? Object.keys(tr).length : 0, b = dr ? Object.keys(dr).length : 0;
+    if (c && c.a === a && c.b === b && c.tr === tr && c.dr === dr) { c.now = st.now; c.v = v; return c.m; }
+    const m = bilanTrophees(st).mult; TM_CACHE.set(st, { a, b, tr, dr, m, now: st.now, v }); return m;
   }
   function donnerBoost(st, mult, secs) { st.boost = { mult, debut: st.now, fin: st.now + secs * 1000 }; } // debut : l'heure sûre qui recule le ramène à l'heure (ui.js, reculer)
   // ─── la réserve de boosts : des ×2 et des ×5 gagnés aux paliers de l'événement « Le Quartier » (src/quartier.js), à lancer quand on veut ───
@@ -1483,17 +1816,23 @@
 
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
-  function acheter(st, i) {
-    const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
+  // o (facultatif) : { n } un nombre de niveaux imposé (sans toucher au mode d'achat du joueur, st.mode) ; { second: true } un achat du second
+  // (src/progression.js) : il ne débloque rien, et ne compte ni pour le classement (aucun point) ni pour les objectifs du jour (rien de noté) ;
+  // le savoir-faire des paliers franchis reste (8 par doublement), comme pour un achat du joueur
+  function acheter(st, i, o) {
+    const second = !!(o && o.second), s = st.stations[i];
+    if (!s) return { ok: false, prix: 0 };
+    const n = s.niv === 0 ? 1 : o && o.n >= 1 ? Math.floor(o.n) : quantite(st, i), prix = prixNiveaux(st, i, n);
+    if (s.niv === 0 && second) return { ok: false, prix, second: true }; // débloquer une recette est un choix du joueur
     if (s.niv === 0 && !recetteGagnee(st, i)) return { ok: false, prix, verrou: true, boutique: PRODUITS[i].boutique }; // une recette de boutique pas encore gagnée
     if (st.coins < prix) return { ok: false, prix };
-    const r0 = rythme(st), paliers = s.niv === 0 ? 0 : expoPalier(s.niv + n) - expoPalier(s.niv); // en doublements : un palier intercalé en compte une part
+    const r0 = second ? 0 : rythme(st), paliers = s.niv === 0 ? 0 : expoPalier(s.niv + n) - expoPalier(s.niv); // en doublements : un palier intercalé en compte une part
     st.coins -= prix;
     let xp = 0;
-    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { noter(st, 'niveaux', n); xp = Math.round(8 * paliers); }
+    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { if (!second) noter(st, 'niveaux', n); xp = Math.round(8 * paliers); }
     s.niv += n;
     if (xp) gagnerXp(st, xp);
-    const points = marquerAmelioration(st, prix, r0, paliers);
+    const points = second ? 0 : marquerAmelioration(st, prix, r0, paliers);
     return { ok: true, n, prix, xp, points };
   }
   function embaucher(st, i) {
@@ -1532,6 +1871,8 @@
     recettesBoutique(st); const recette = recettesConnues(st) > avant ? PRODUITS[recettesConnues(st) - 1] : null; // la recette que cette boutique apporte (à vie), sinon null
     const recompenses = rattraperParcours(st); // la récompense de cette boutique (et celles qui manqueraient)
     for (const x of recompenses) note(st, `Boutique n°${x.n} : ${x.texte}`);
+    const paliersRecus = rattraperPaliers(st); // un palier franchi (n°40, 50…) : son titre, sa finition, sa récompense rare, son boost
+    for (const x of paliersRecus) note(st, `Palier n°${x.n} : ${x.titre}`);
     // les objectifs du jour réussis mais pas réclamés : réclamés ici, une fois (le savoir-faire, l'étoile du 3e) ; leur prime tombe dans la caisse, qui repart à zéro
     const reclames = []; if (st.jour) st.jour.objectifs.forEach((o, k) => { if (o.fait && !o.reclame) { const r = reclamer(st, k); if (r.ok) reclames.push({ k, prime: r.prime, etoile: r.etoile }); } });
     const main = annulerMainArriere(st); // une main de BlackJack en cours : annulée, sa mise rendue à la caisse qui part avec la boutique (jamais dans la suivante)
@@ -1541,7 +1882,7 @@
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réussis sont retirés à la taille de la nouvelle boutique (les réussis, réclamés plus haut, restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
-    return { ok: true, gain, recette, recompenses, reclames, main };
+    return { ok: true, gain, recette, recompenses, paliers: paliersRecus, reclames, main };
   }
   // la main de BlackJack laissée ouverte dans l'arrière-salle (src/blackjack.js, st.arriere) : à la nouvelle boutique, elle est annulée et sa
   // mise (doublée comprise) rendue à la caisse d'avant, qui repart à zéro juste après : la mise est perdue comme le reste de la caisse, ni
@@ -1559,6 +1900,7 @@
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
   // pause : l'événement est en pause sous un écran (la Planque, l'Atelier, une visite : ui.js) ; comme pendant une courte sortie (absence),
   // une panne en pause n'arrête pas son four : le poste cuit et vend, seule l'échéance de la prime attend
+  const LENT = Object.freeze({ lent: true });
   function tick(st, dt, nowMs, rnd, pause) {
     st.now = nowMs; rnd = rnd || Math.random;
     const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [], grades: [], chat: false, saison: null, venteSaison: null, maitrise: null };
@@ -1593,7 +1935,7 @@
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
     if (hb && rnd() < dt / 25 * habituesVite(st)) { st.habitues[hb.id] = st.habitues[hb.id] || { jours: 0, dernier: '', vuLe: '' }; st.habitues[hb.id].vuLe = dayKey(nowMs); out.habitue = hb; }
-    out.trophees = verifierTrophees(st);
+    out.trophees = verifierTrophees(st, LENT);
     return out;
   }
   // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ; pas d'événement sans toi ───
@@ -1648,7 +1990,7 @@
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, rattraperParcours, titreParcours, DEFIS_PASSAGE, defiDe, texteDefi, creerDefi, defiPassage, passageOk, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, rattraperParcours, titreParcours, DEFIS_PASSAGE, defiParcours, defiDe, texteDefi, creerDefi, defiPassage, passageOk, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
@@ -1658,5 +2000,9 @@
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
     POINTS, BAREME_DEPUIS, baremeDe, pointsAtelier, pointsSemaine, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration, marquerObjectif, marquerPresence, marquerPalierEvt, degressif, bandeDuJour,
     GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
-    AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
+    AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction,
+    // le lot « progression » : les paliers au-delà de la n°30, le pas d'étoiles, les trophées qui rapportent (familles, dorés, secrets)
+    PALIER_PAS, PALIER_PREMIER, estPalier, rangPalier, boutiqueDuPalier, TITRES_PALIER, titrePalier, FINITIONS, finitionDe, finitionsDe, RARES_PALIER, TEINTES, BOOST_PALIER, recompensePalier,
+    paliers, rarePossede, donnerPalier, rattraperPaliers, titreBoulanger, DEFIS_PALIER, defiPalier, paliersListe, COMPTEURS, SOUPAPE, STAT_NOMS, PAS, pasEtoiles, conseilEtoiles, ETOILES_CONSEIL, romain,
+    TROPHEES_BONUS, FAMILLES, FAMILLE_DE, DORES, secrets, noterOuverture, noterCaresse, noterNom, noterVisite, bilanTrophees, tropheesMult, medailles, projetsAides };
 });
