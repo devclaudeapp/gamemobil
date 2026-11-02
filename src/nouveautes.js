@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-11-02-a', date: '2026-11-02', titre: 'De vraies images dans Mes décos',
+      points: [
+        'Le carnet « Mes décos » montre maintenant chaque objet en vrai : tes décos, tes compagnons, tes tenues, tes recettes de saison et tes trophées, tels qu’ils sont dans ta boutique, dans la même lumière.',
+        'Ce que tu n’as pas encore gagné est là aussi, en gris : tu vois ce qui t’attend.',
+        'L’étagère des trophées (onglet Boulanger) a ses images : une coupe, une médaille, le chat endormi de « Ronron »… un objet par trophée.',
+        'Dans l’arrière-salle, le carnet du croupier montre ses trophées et les vrais habillages : le tapis, le dos des cartes, les jetons et la roulette dans chaque finition.',
+      ],
+    },
+    {
       id: '2026-10-28-b', date: '2026-10-28', titre: 'Ton boulanger et tes apprentis en 3D',
       points: [
         'En qualité Haute et Moyenne, ton boulanger et tes apprentis sont maintenant de vrais personnages animés : ils pétrissent au four, portent les plateaux jusqu’au comptoir, réparent le four en panne, et ton boulanger se réjouit de tes belles ventes.',
