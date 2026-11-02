@@ -2,7 +2,7 @@
    zombies tués, la ferraille, la vague (« V3 · 42 restants »), le score et la série (×2, ×3, ×4) ; en haut à droite la pause ; à droite
    l'atelier repliable (défenses à poser : prix et « posées / permises » ; améliorations : crans et prix) ; en bas au centre les deux
    emplacements d'armes (le pistolet sans fin, l'arme trouvée et ses munitions) ; au milieu les annonces (vague, boss, série), le compte
-   à rebours de la pause et son bouton « Lancer la vague » ; la barre du Mastodonte ; l'écran qui rougit quand on est touché.
+   à rebours de la pause et son bouton « Lancer la vague » ; la barre du boss (son nom) ; l'écran qui rougit quand on est touché.
    Rien n'est réécrit si la valeur n'a pas changé (les écritures DOM coûtent cher sur un téléphone).
    API : ZHUD.init(racine, { construire(type), ameliorer(type), arme(i), pause(), passer() }), maj(jeu, idMoi, dt, evs), annonce(texte, sous), toast(texte) */
 const ZHUD = (() => {
@@ -109,7 +109,7 @@ const ZHUD = (() => {
     g.drawImage(carteFond, 0, 0);
     g.fillStyle = '#F2C230'; for (const o of jeu.objets) if (o.type === 'caisse') g.fillRect((o.x + h) * k - 3, (o.z + h) * k - 3, 6, 6);
     g.fillStyle = '#7FD3FF'; for (const d of jeu.defenses) g.fillRect((d.x + h) * k - 2, (d.z + h) * k - 2, 4, 4);
-    g.fillStyle = '#FF5A4A'; for (const z of jeu.zombies) { const s = z.type === 'mastodonte' ? 6 : 3; g.fillRect((z.x + h) * k - s / 2, (z.z + h) * k - s / 2, s, s); }
+    g.fillStyle = '#FF5A4A'; for (const z of jeu.zombies) { const s = D.ZOMBIES[z.type].boss ? 6 : 3; g.fillRect((z.x + h) * k - s / 2, (z.z + h) * k - s / 2, s, s); }
     for (const j of jeu.joueurs) { if (!j.vivant) continue; g.fillStyle = j.id === idMoi ? '#FFFFFF' : '#9AD0FF'; g.fillRect((j.x + h) * k - 3, (j.z + h) * k - 3, 6, 6); }
   }
 
@@ -165,13 +165,14 @@ const ZHUD = (() => {
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
     // le boss
-    const boss = jeu.zombies.find((z) => z.type === 'mastodonte');
+    const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss);
     if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
+    if (boss && vu.bossNom !== boss.type) { vu.bossNom = boss.type; el.bossN.textContent = D.ZOMBIES[boss.type].nom.toUpperCase(); }
     if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
     // les événements : rougeur, annonces, messages
     if (evs) for (const e of evs) {
       if (e.t === 'blesse' && e.id === idMoi) rougeur = Math.min(1, rougeur + 0.35 + e.degats / 60);
-      else if (e.t === 'vague') annonce(`VAGUE ${e.n}`, e.boss ? 'Un Mastodonte arrive !' : `${e.total} zombies`, 2.4);
+      else if (e.t === 'vague') annonce(`VAGUE ${e.n}`, e.boss ? `${D.ZOMBIES[e.boss] ? D.ZOMBIES[e.boss].nom : 'Un boss'} arrive !` : `${e.total} zombies`, 2.4);
       else if (e.t === 'vagueFinie') annonce('VAGUE TERMINÉE', `+${e.prime} points · construis, améliore`, 2.4);
       else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet') toast(`${D.ARMES[e.arme].nom} !`);
       else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');

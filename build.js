@@ -169,8 +169,9 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 
 // ─── Dernier Rempart (zombies/index.html) : survie par vagues vue de dessus ; sources dans src-zombies/ (données séparées de la logique) ───
 // Repris tels quels d'Opération Poncin : la navigation A*/JPS (src-poncin/nav.js) et les sons synthétisés (src-poncin/sons.js).
-// Three.js est un fichier à part (vendor/), mis en cache par le service worker du jeu (zombies/sw.js) : le jeu marche hors ligne.
-const ZOMBIES = ['../src-poncin/nav.js', '../src-poncin/sons.js', 'donnees.js', 'monde.js', 'jeu.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'ui.js'];
+// Three.js et ses outils (vendor/fournil-hd.min.js : GLTFLoader, SkeletonUtils, MeshoptDecoder) sont des fichiers à part, comme les modèles
+// (zombies/modeles/, faits par outils/zombies/faire-modeles.mjs), mis en cache par le service worker du jeu (zombies/sw.js) : le jeu marche hors ligne.
+const ZOMBIES = ['../src-poncin/nav.js', '../src-poncin/sons.js', 'donnees.js', 'monde.js', 'jeu.js', 'modeles.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'ui.js'];
 if (fs.existsSync(path.join(__dirname, 'src-zombies', 'ui.js'))) {
   const lireZ = (f) => fs.readFileSync(path.join(__dirname, 'src-zombies', f), 'utf8');
   const jsZ = ZOMBIES.map((f) => `/* ── ${f.startsWith('../') ? f.slice(3) : 'src-zombies/' + f} ── */\n${lireZ(f)}`).join('\n');
@@ -201,6 +202,7 @@ ${lireZ('style.css')}</style>
 ${lireZ('page.html')}
 <script>window.ZOMBIES_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
+<script src="../vendor/fournil-hd.min.js"></script>
 <script>
 ${jsZ}
 </script>

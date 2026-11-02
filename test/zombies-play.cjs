@@ -8,7 +8,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.css': 'text/css' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.css': 'text/css', '.glb': 'model/gltf-binary' };
 const PORT = +process.env.PORT_ZOMBIES || 8894;
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
@@ -45,6 +45,9 @@ const BASE = `http://localhost:${PORT}/`;
   const titre = await P(() => ({ texte: document.body.innerText, stats: window.__zombies.stats(), demo: !!window.__zombies.demo, arenes: [...document.querySelectorAll('.arene')].map((b) => [b.dataset.arene, b.disabled, b.getAttribute('aria-checked')].join(':')) }));
   check(/DERNIER/.test(titre.texte) && /REMPART/.test(titre.texte) && /Jouer/.test(titre.texte), 'l’écran titre s’affiche');
   check(titre.stats.rendu.webgl && titre.stats.rendu.calls > 0 && titre.demo, `la partie de démonstration tourne en 3D derrière le titre (${titre.stats.rendu.calls} appels de dessin)`);
+  await page.waitForFunction(() => window.__zombies.stats().rendu.modeles === 'pret', null, { timeout: 30000 }).catch(() => {});
+  const mod = await P(() => window.__zombies.stats().rendu);
+  check(mod.modeles === 'pret' && mod.horde === 'kenney' && mod.survivant === 'kenney' && mod.defenses >= 1, `les modèles 3D sont chargés : horde et survivant Kenney, la tourelle de la démonstration en modèle Kenney (${mod.modeles}, ${mod.horde}, ${mod.defenses} défense)`);
   check(titre.arenes.join(',') === 'jardin:false:true,parking:true:false,ferme:true:false', `le Jardin est ouvert et choisi, le Parking et la Ferme verrouillés (${titre.arenes.join(', ')})`);
   await page.screenshot({ path: out + '/01-titre.png' });
 
@@ -102,6 +105,17 @@ const BASE = `http://localhost:${PORT}/`;
   const carte = await P(() => document.querySelector('[data-jeu="zombies"]').innerText);
   check(/Record : vague 1 dans le Jardin/.test(carte) && /1 partie/.test(carte) && /Continuer/.test(carte), 'la Salle de jeux relit le record (« Record : vague 1 dans le Jardin », « Continuer »)');
 
+  // ─── une partie à part : la vague 5 : le premier boss, le Golem squelette (KayKit), son nom dans la barre du boss
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && window.__zombies.stats().rendu.modeles === 'pret', null, { timeout: 30000 }).catch(() => {});
+  await P(() => { const j = window.__zombies.demarrer('jardin', 7); j.joueurs[0].vie = j.joueurs[0].vieMax = 1e6; j.vague = 4; j.phase = 'vague'; j.aSortir = 0; });
+  await page.waitForFunction(() => window.__zombies.jeu.phase === 'pause', null, { timeout: 10000 }).catch(() => {});
+  await page.tap('.h-lancer'); await sleep(300);
+  await page.waitForFunction(() => window.__zombies.stats().rendu.boss.includes('golem'), null, { timeout: 40000 }).catch(() => {});
+  await sleep(600);
+  const boss = await P(() => ({ v: window.__zombies.jeu.vague, rendu: window.__zombies.stats().rendu, barre: !document.querySelector('.h-boss').hidden, nom: document.querySelector('.h-boss span').textContent }));
+  check(boss.v === 5 && boss.rendu.boss.includes('golem') && boss.barre && boss.nom === 'GOLEM SQUELETTE', `vague 5 : le Golem squelette arrive en modèle KayKit, sa barre de vie porte son nom (« ${boss.nom} »)`);
+  check(boss.rendu.calls <= 70, `${boss.rendu.calls} appels de dessin avec le boss et la horde (≤ 70)`);
+  await page.screenshot({ path: out + '/02b-boss.png' });
   // ─── en portrait ───
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
@@ -120,6 +134,16 @@ const BASE = `http://localhost:${PORT}/`;
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.slice(0, 3).join(' | ') : ''}`);
   await context.close();
 
+  // ─── sans les modèles (fichiers absents) : le jeu garde ses formes faites main, sans erreur ───
+  const ctx3 = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, locale: 'fr-FR', serviceWorkers: 'block' });
+  await ctx3.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort()); await ctx3.route(/\/modeles\//, (r) => r.fulfill({ status: 404, body: '' }));
+  const p3 = await ctx3.newPage(); const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
+  await p3.goto(BASE + 'zombies/'); await p3.waitForFunction(() => window.__zombies && window.__zombies.stats().rendu.modeles === 'erreur', null, { timeout: 20000 }).catch(() => {});
+  await p3.evaluate(() => { const j = window.__zombies.demarrer('jardin', 2); j.chrono = 0.1; }); await sleep(4000);
+  const repli = await p3.evaluate(() => ({ r: window.__zombies.stats().rendu, z: window.__zombies.jeu.zombies.length }));
+  check(repli.r.modeles === 'erreur' && repli.r.horde === 'faite-main' && repli.r.survivant === 'fait-main' && repli.z > 0 && repli.r.calls > 0 && !err3.length, `sans les modèles, la partie tourne avec les formes faites main (${repli.z} zombies, aucune erreur)`);
+  await ctx3.close();
+
   // ─── hors ligne : le service worker garde le jeu ───
   const ctx2 = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, locale: 'fr-FR' });
   await ctx2.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
@@ -128,12 +152,13 @@ const BASE = `http://localhost:${PORT}/`;
   const pret = await p2.evaluate(async () => { const r = await Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise((res) => setTimeout(() => res(false), 15000))]); return r; });
   await sleep(800);
   const cache = await p2.evaluate(async () => { const ks = await caches.keys(), c = ks.find((k) => k.startsWith('zombies-jeu-')); if (!c) return []; return (await (await caches.open(c)).keys()).map((r) => new URL(r.url).pathname); });
-  check(pret && cache.some((u) => /vendor\/three\.min\.js$/.test(u)) && cache.some((u) => /zombies\/(index\.html)?$/.test(u)), `le service worker du jeu met la page et Three.js en cache (${cache.length} fichiers)`);
+  check(pret && cache.some((u) => /vendor\/three\.min\.js$/.test(u)) && cache.some((u) => /vendor\/fournil-hd\.min\.js$/.test(u)) && cache.some((u) => /modeles\/kenney\/zombie\.glb$/.test(u)) && cache.some((u) => /modeles\/kaykit\/golem\.glb$/.test(u)) && cache.some((u) => /zombies\/(index\.html)?$/.test(u)), `le service worker du jeu met la page, Three.js et les modèles 3D en cache (${cache.length} fichiers)`);
   await ctx2.setOffline(true);
   await p2.reload(); await p2.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
   await sleep(800);
-  const horsLigne = await p2.evaluate(() => ({ titre: document.body.dataset.ecran, three: typeof THREE !== 'undefined', calls: window.__zombies ? window.__zombies.stats().rendu.calls : 0 }));
-  check(horsLigne.titre === 'titre' && horsLigne.three && horsLigne.calls > 0, 'hors ligne, le jeu s’ouvre encore (page et Three.js servis par le cache, la 3D tourne)');
+  await p2.waitForFunction(() => window.__zombies.stats().rendu.modeles !== 'charge', null, { timeout: 20000 }).catch(() => {});
+  const horsLigne = await p2.evaluate(() => ({ titre: document.body.dataset.ecran, three: typeof THREE !== 'undefined', calls: window.__zombies ? window.__zombies.stats().rendu.calls : 0, modeles: window.__zombies.stats().rendu.modeles }));
+  check(horsLigne.titre === 'titre' && horsLigne.three && horsLigne.calls > 0 && horsLigne.modeles === 'pret', 'hors ligne, le jeu s’ouvre encore (page, Three.js et modèles 3D servis par le cache)');
   await p2.evaluate(() => window.__zombies.demarrer('jardin', 1)); await sleep(1500);
   check(await p2.evaluate(() => window.__zombies.jeu && window.__zombies.jeu.t > 0.5), 'et on peut y jouer');
   await ctx2.close();

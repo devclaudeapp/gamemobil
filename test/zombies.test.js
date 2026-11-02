@@ -20,7 +20,10 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(Object.values(D.ARMES).every((a) => a.nom && a.degats > 0 && a.cadence > 0 && a.portee > 0 && a.balles >= 1 && nombre(a.munitions) && a.munitions > 0 && ['pistolet', 'mitraillette', 'pompe', 'fusil', 'sniper'].includes(a.classe)), 'chaque arme a ses dégâts, sa cadence, sa portée, ses munitions et un son connu de PSONS');
   check(D.ARMES[D.ARME_DE_BASE].munitions === Infinity && D.ARMES[D.ARME_DE_BASE].rarete === 0, 'l’arme de base (le pistolet) a des munitions sans fin et ne sort jamais d’une caisse');
   check(Object.values(D.ZOMBIES).every((z) => z.vie > 0 && z.vitesse > 0 && z.degats > 0 && z.rayon > 0 && z.ferraille >= 1 && z.points > 0 && /^#[0-9A-F]{6}$/i.test(z.peau)), 'chaque zombie a sa vie, sa vitesse, ses coups, sa ferraille, ses points et ses couleurs');
-  check(Object.values(D.ZOMBIES).some((z) => z.boss) && D.VAGUES.boss(5) && !D.VAGUES.boss(4), 'un boss (le Mastodonte) toutes les cinq vagues');
+  check(Object.values(D.ZOMBIES).some((z) => z.boss) && D.VAGUES.boss(5) && !D.VAGUES.boss(4), 'un boss toutes les cinq vagues');
+  const tour = [5, 10, 15, 20, 25].map(D.VAGUES.boss);
+  check(tour.join() === 'golem,loupgarou,golemglace,vampire,golem' && tour.every((k) => D.ZOMBIES[k] && D.ZOMBIES[k].boss && D.ZOMBIES[k].modele && ['large', 'medium'].includes(D.ZOMBIES[k].rig)), `les boss à tour de rôle, chacun avec son modèle KayKit (${tour.map((k) => D.ZOMBIES[k].nom).join(', ')})`);
+  check(['trainard', 'coureur', 'costaud', 'cracheur'].every((k) => /^#[0-9A-F]{6}$/i.test(D.ZOMBIES[k].teinte)), 'chaque zombie de la horde a sa teinte (le zombie Kenney recoloré)');
   check(Object.values(D.DEFENSES).every((d) => d.prix > 0 && d.vie > 0 && d.rayon > 0 && d.max >= 1 && d.plus >= 1 && d.depuis >= 1 && d.desc), 'chaque défense a son prix, sa vie, son nombre permis et sa description');
   check(Object.values(D.AMELIORATIONS).every((a) => a.prix > 0 && a.facteur > 1 && a.crans >= 1 && a.desc), 'chaque amélioration a son prix (qui monte) et ses crans');
   let vaguesOk = true; for (let n = 1; n < 30; n++) if (!(D.VAGUES.nombre(n + 1) > D.VAGUES.nombre(n) && D.VAGUES.simultanes(n) <= 42 && D.VAGUES.vie(n + 1) >= D.VAGUES.vie(n))) vaguesOk = false;
@@ -31,6 +34,19 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     check(A.nom && A.taille >= 30 && !m.bloque(A.depart[0], A.depart[1], D.JOUEUR.rayon) && dedans && A.sorties.length >= 6, `${A.nom} : le départ est libre, ses ${A.sorties.length} sorties sont dans l’arène et dégagées`);
   }
   check(D.DEBLOCAGE.jardin === 0 && D.DEBLOCAGE.parking > 0 && D.DEBLOCAGE.ferme > D.DEBLOCAGE.parking, 'le Jardin est ouvert, le Parking puis la Ferme se débloquent');
+}
+
+// ─── les modèles 3D (zombies/modeles/) : chaque fichier que src-zombies/modeles.js lit existe, avec sa licence, et le tout reste léger ───
+{
+  const fs = require('fs'), dir = path.join(__dirname, '..', 'zombies', 'modeles');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'modeles.js'), 'utf8'), fichiers = (src.match(/'(kenney|kaykit)\/[a-z-]+\.glb'/g) || []).map((x) => x.slice(1, -1));
+  const manquants = fichiers.filter((f) => !fs.existsSync(path.join(dir, f)));
+  const total = fichiers.filter((f) => fs.existsSync(path.join(dir, f))).reduce((t, f) => t + fs.statSync(path.join(dir, f)).size, 0);
+  check(fichiers.length >= 20 && !manquants.length, `les ${fichiers.length} modèles lus par le jeu sont dans zombies/modeles/${manquants.length ? ' (manquent : ' + manquants.join(', ') + ')' : ''}`);
+  check(total < 2.5 * 1024 * 1024, `ils pèsent ${(total / 1024 / 1024).toFixed(1)} Mo en tout (≤ 2,5 Mo, compressés en meshopt)`);
+  const lic = (d) => fs.readdirSync(path.join(dir, d)).filter((f) => /^LICENCE.*\.txt$/.test(f)).map((f) => fs.readFileSync(path.join(dir, d, f), 'utf8'));
+  check(lic('kenney').length === 3 && lic('kenney').every((t) => /CC0|Creative Commons Zero/i.test(t)) && lic('kaykit').length === 4 && lic('kaykit').every((t) => /CC0/i.test(t)), 'leurs licences (Kenney : 3 packs, KayKit : 4) sont rangées à côté, toutes CC0');
+  check(Object.keys(D.ZOMBIES).filter((k) => D.ZOMBIES[k].boss).every((k) => fichiers.includes(`kaykit/${D.ZOMBIES[k].modele}.glb`)), 'chaque boss a son modèle KayKit');
 }
 
 // ─── le monde ───
@@ -130,7 +146,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   const evs = avancer(jeu, 2), a = p.armes[1];
   check(a && D.ARMES[a.id] && a.id !== 'pistolet' && p.main === 1 && evs.some((e) => e.t === 'arme'), `la caisse donne une arme (${a ? D.ARMES[a.id].nom : '—'}) et la met en main`);
   a.mun = 1;
-  jeu.zombies.push({ id: 5002, type: 'mastodonte', x: p.x + 3, z: p.z, vie: 9999, vieMax: 9999, vitesse: 0, rayon: 1.05, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
+  jeu.zombies.push({ id: 5002, type: 'golem', x: p.x + 3, z: p.z, vie: 9999, vieMax: 9999, vitesse: 0, rayon: 1.05, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
   const e2 = avancer(jeu, 30);
   check(p.armes[1] === null && p.main === 0 && e2.some((e) => e.t === 'vide'), 'plus de munitions : l’arme disparaît, retour au pistolet');
   check(J.changerArme(jeu, 'moi', 1) === false, 'on ne prend pas un emplacement vide');
@@ -139,7 +155,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   // le zombie coincé ressort ailleurs ; la fin de partie
   const jeu = J.creer({ arene: 'parking', graine: 8, attente: 0.01 }), p = jeu.joueurs[0];
   avancer(jeu, 2);
-  jeu.zombies.push({ id: 6000, type: 'mastodonte', x: 8.2, z: -6.2, vie: 9999, vieMax: 9999, vitesse: 1, rayon: 1.05, angle: 0, chemin: null, ci: 0, repense: 0, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 8.2, cz: -6.2 });
+  jeu.zombies.push({ id: 6000, type: 'golem', x: 8.2, z: -6.2, vie: 9999, vieMax: 9999, vitesse: 1, rayon: 1.05, angle: 0, chemin: null, ci: 0, repense: 0, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 8.2, cz: -6.2 });
   p.x = 8.2; p.z = -14; // de l'autre côté des voitures, derrière le muret
   let ressort = false; for (let i = 0; i < 60 * 12 && !ressort; i++) { p.vie = p.vieMax; ressort = J.pas(jeu, null, PAS).some((e) => e.t === 'ressort' && e.id === 6000) || Math.hypot(jeu.zombies.find((z) => z.id === 6000).x - 8.2, jeu.zombies.find((z) => z.id === 6000).z + 6.2) > 3; }
   check(ressort, 'un gros zombie coincé finit par passer ou par ressortir de terre ailleurs (aucune vague bloquée)');

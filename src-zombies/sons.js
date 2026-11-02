@@ -51,6 +51,7 @@ const ZSONS = (() => {
     const ctx = sortie(); if (!ctx || !SONS[nom]) return;
     try { SONS[nom](ctx, pan(ctx, p), ctx.currentTime + 0.01, v == null ? 1 : v, h || 1); } catch (e) { /* un nœud refusé ne coupe pas le jeu */ }
   }
+  const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
   let piecesT = 0, toucheT = 0;
@@ -60,7 +61,7 @@ const ZSONS = (() => {
     grogneT -= dt || 0;
     if (grogneT <= 0 && jeu.zombies.length && moi) {
       const z = jeu.zombies[Math.floor(Math.random() * jeu.zombies.length)], [k, p] = ecoute(z.x, z.z, 22);
-      if (k > 0.03) jouer('grogne', 0.4 + 0.6 * k, p, z.type === 'mastodonte' ? 0.55 : z.type === 'coureur' ? 1.35 : z.type === 'costaud' ? 0.75 : 1);
+      if (k > 0.03) jouer('grogne', 0.4 + 0.6 * k, p, estBoss(z.type) ? 0.55 : z.type === 'coureur' ? 1.35 : z.type === 'costaud' ? 0.75 : 1);
       grogneT = 0.6 + Math.random() * 2.5 / Math.sqrt(jeu.zombies.length);
     }
     if (!evs || !evs.length || !P) return;
@@ -74,7 +75,7 @@ const ZSONS = (() => {
           break;
         }
         case 'touche': { const t = performance.now(); if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
-        case 'mort': { const [k, p] = ecoute(e.x, e.z, 24); if (k > 0.03) { jouer('splat', 0.6 * k + 0.2, p); if (e.type === 'mastodonte') jouer('boum', 0.8, p); } break; }
+        case 'mort': { const [k, p] = ecoute(e.x, e.z, 24); if (k > 0.03) { jouer('splat', 0.6 * k + 0.2, p); if (e.boss) jouer('boum', 0.8, p); } break; }
         case 'blesse': if (e.id === idMoi) { P.jouer('blesse', 0.8); P.vibrer(e.degats >= 20 ? 40 : 20); } break;
         case 'tombe': if (e.id === idMoi) { P.jouer('mort', 0.9); P.vibrer([70, 40, 90]); } break;
         case 'ramasse':

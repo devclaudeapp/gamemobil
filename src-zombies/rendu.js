@@ -1,13 +1,16 @@
 /* DERNIER REMPART — le rendu Three.js (r158, vendor/three.min.js), vu de dessus par une caméra inclinée qui suit le survivant.
-   Style low-poly à facettes, adapté des packs CC0 de Kenney (formes trapues, couleurs franches, ombres nettes ; voir zombies/LICENCE.txt) :
-   rien n'est chargé, tout est construit ici à partir de boîtes, de cylindres et d'icosaèdres, avec des couleurs de sommets.
-   Budget d'appels de dessin, pour un téléphone : le décor entier (obstacles, bordure, touffes) en deux maillages fusionnés ; tous les
-   zombies en cinq maillages instanciés (torse, tête, yeux, bras, jambes ; une couleur par instance) ; la ferraille et les flaques
-   instanciées ; les défenses, les caisses, les traçantes et les explosions en petites réserves d'objets réutilisés (aucune allocation par image).
+   Les personnages et quelques objets sont des modèles CC0 (src-zombies/modeles.js, zombies/LICENCE.txt) : la horde et le survivant Kenney,
+   la tourelle, le mortier et les voitures Kenney, les boss KayKit. Le décor des arènes, la barricade, la mine, l'épouvantail, la ferraille et
+   les effets sont construits ici en low-poly à facettes (boîtes, cylindres, icosaèdres, couleurs de sommets), dans le même style ; tant que
+   les modèles ne sont pas chargés (ou s'ils manquent), les personnages et les défenses gardent aussi leurs formes faites main.
+   Budget d'appels de dessin, pour un téléphone : le décor entier en deux maillages fusionnés (les voitures en un troisième) ; toute la horde
+   en six maillages instanciés (une pièce du zombie Kenney chacun, posée avec ses matrices d'animation précalculées, une teinte par type) ;
+   un boss à squelette à la fois ; la ferraille et les flaques instanciées ; les défenses, les caisses, les traçantes et les explosions en
+   petites réserves d'objets réutilisés.
    API : ZRENDU.creer(canvas, { qualite: 'haute' | 'eco' }) → r
      r.charger(jeu)                  construit l'arène de la partie (et oublie l'ancienne)
      r.image(jeu, idMoi, dt, evs)    une image : suit l'état, joue les effets des événements du pas
-     r.taille(w, h), r.qualite(q), r.stats() → { webgl, calls, triangles }, r.ecranDe(x, z) → [px, py] (pour le HUD) */
+     r.taille(w, h), r.qualite(q), r.stats() → { webgl, calls, triangles, modeles, horde, boss, survivant, defenses }, r.ecranDe(x, z) → [px, py] */
 const ZRENDU = (() => {
   'use strict';
   const T = typeof THREE !== 'undefined' ? THREE : null;
@@ -163,6 +166,24 @@ const ZRENDU = (() => {
     return { jambe, bras, torse, tete, yeux };
   }
 
+  // des objets Kenney texturés (même palette) → une seule géométrie (position, normale, uv), dans le repère du monde
+  function fusionner(objs) {
+    const lst = []; let n = 0;
+    for (const o of objs) o.traverse((m) => { if (m.isMesh) { const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry; lst.push([g, m.matrixWorld.clone()]); n += g.attributes.position.count; } });
+    const P = new Float32Array(n * 3), N = new Float32Array(n * 3), U = new Float32Array(n * 2), v = new T.Vector3(), nm = new T.Matrix3(); let o = 0;
+    for (const [g, mw] of lst) {
+      const pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv; nm.getNormalMatrix(mw);
+      for (let i = 0; i < pa.count; i++, o++) {
+        v.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(mw); P[o * 3] = v.x; P[o * 3 + 1] = v.y; P[o * 3 + 2] = v.z;
+        if (na) { v.set(na.getX(i), na.getY(i), na.getZ(i)).applyMatrix3(nm).normalize(); N[o * 3] = v.x; N[o * 3 + 1] = v.y; N[o * 3 + 2] = v.z; }
+        if (ua) { U[o * 2] = ua.getX(i); U[o * 2 + 1] = ua.getY(i); }
+      }
+    }
+    const out = new T.BufferGeometry(); out.setAttribute('position', new T.BufferAttribute(P, 3)); out.setAttribute('normal', new T.BufferAttribute(N, 3)); out.setAttribute('uv', new T.BufferAttribute(U, 2)); out.computeBoundingSphere();
+    return out;
+  }
+  const premierMap = (sc) => { let m = null; sc.traverse((o) => { if (!m && o.isMesh && o.material && o.material.map) m = o.material.map; }); return m; };
+
   function creer(canvas, opts) {
     if (!T) return null;
     opts = opts || {};
@@ -201,7 +222,7 @@ const ZRENDU = (() => {
       let n = 0; const temps = performance.now() / 1000;
       const dessiner = (type, x, y, z, a, marche, attaque, flash, chute, id, naissance) => {
         if (n >= MAX_Z) return;
-        const Zd = D.ZOMBIES[type], k = Zd.taille * ECHELLE, large = type === 'costaud' || type === 'mastodonte' ? 1.25 : type === 'coureur' ? 0.85 : 1, C = couleurs[type];
+        const Zd = D.ZOMBIES[type], k = Zd.taille * ECHELLE, large = type === 'costaud' || Zd.boss ? 1.25 : type === 'coureur' ? 0.85 : 1, C = couleurs[type];
         _q.setFromEuler(_e.set(0, -a, 0)); _v.set(x, y, z); _s.set(k * large, k, k * large);
         _base.compose(_v, _q, _s);
         if (chute) { _r.makeRotationZ(-chute * 1.45); _base.multiply(_r); } // il tombe en arrière
@@ -219,22 +240,94 @@ const ZRENDU = (() => {
         poser(Z.jambe, 2 * n + 1, _base, 0, 0.52, -0.12, -sw, bas);
         n++;
       };
+      let nk = 0;
       for (const zb of jeu.zombies) {
+        const Zd = D.ZOMBIES[zb.type];
+        if (Zd.boss && bossPret(zb.type)) continue; // un boss KayKit : majBoss s'en charge
         const r = rendusZ.get(zb.id) || nouveauRZ(zb);
         r.vu = true; r.ph += dt * zb.vitesse * 3.2 * (zb.bouge ? 1 : 0.15);
         // sortir de terre : les 0,7 premières secondes
-        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * D.ZOMBIES[zb.type].taille * (1 - age / 0.7) : 0;
-        dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
+        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0;
+        if (KZ && !Zd.boss) {
+          // le zombie Kenney : marche (sprint pour le Coureur), le geste d'attraper quand il frappe, l'immobilité sinon
+          const course = zb.type === 'coureur' && zb.bouge, clip = zb.attaque > 0 ? 'pick-up' : !zb.bouge ? 'idle' : course ? 'sprint' : 'walk';
+          if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
+          r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, clip, r.t, zb.flash > 0);
+        } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
       for (let i = corps.length - 1; i >= 0; i--) {
-        const c = corps[i]; c.t += dt; if (c.t > 1.6) { corps.splice(i, 1); continue; }
-        const chute = Math.min(1, c.t / 0.35), y = c.t > 0.9 ? -(c.t - 0.9) * 0.9 : 0;
-        dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, chute, 0);
+        const c = corps[i]; c.t += dt; if (c.t > 1.8) { corps.splice(i, 1); continue; }
+        if (D.ZOMBIES[c.type].boss && bossPret(c.type)) { corps.splice(i, 1); continue; }
+        const y = c.t > 1.1 ? -(c.t - 1.1) * 0.9 : 0;
+        if (KZ && !D.ZOMBIES[c.type].boss) { if (nk < MAX_Z) poserKenney(nk++, c.type, c.x, y, c.z, c.a, 'die', c.t * 1.3, false); }
+        else dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, Math.min(1, c.t / 0.35), 0);
       }
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+      if (KZ) for (const m of KZ.inst) { m.count = nk; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     }
-    const rendusZ = new Map(); const nouveauRZ = (zb) => { const r = { ph: Math.random() * 6, vu: false }; rendusZ.set(zb.id, r); return r; };
+
+    // ─── la horde en modèles Kenney (ZMODELES) : six maillages instanciés, une pièce chacun, posés avec les matrices cuites ───
+    const MOD = typeof ZMODELES !== 'undefined' ? ZMODELES : null, HD = typeof FOURNIL_HD !== 'undefined' ? FOURNIL_HD : null;
+    let KZ = null;
+    const teintes = {}; if (D) for (const k in D.ZOMBIES) teintes[k] = new T.Color(D.ZOMBIES[k].teinte || '#FFFFFF');
+    const _m2 = new T.Matrix4();
+    function brancherHorde() {
+      const Mz = MOD.M.zombie;
+      KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
+    }
+    function poserKenney(i, type, x, y, z, a, clip, t, flash) {
+      const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille, large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
+      _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
+      const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
+      let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
+      const couleur = flash ? FLASH : teintes[type];
+      for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
+    }
+
+    // ─── les boss en modèles KayKit : de vrais personnages à squelette, un seul à la fois à l'écran ───
+    const bossVus = new Map(); // id du zombie → { o, mixer, actions, act, mats, type, mort, coup }
+    const bossPret = (type) => !!(MOD && MOD.pret && HD && MOD.M.boss[type]);
+    function nouveauBoss(zb) {
+      const B = MOD.M.boss[zb.type], Zd = D.ZOMBIES[zb.type], o = HD.SkeletonUtils.clone(B.scene), mats = [];
+      o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); mats.push(m.material); m.castShadow = true; m.frustumCulled = false; } });
+      const k = (1.6 * ECHELLE * Zd.taille) / B.hauteur; o.scale.setScalar(k);
+      const mixer = new T.AnimationMixer(o), A = MOD.M.anims[Zd.rig], trouver = (re) => A.find((c) => re.test(c.name));
+      const actions = {};
+      for (const [nom, re] of [['marche', /^Walking_A$/], ['course', /^Running_A$/], ['repos', /^Idle_A$/], ['touche', /^Hit_A$/], ['mort', /^Death_A$/], ['coup', /Unarmed_Smash|Unarmed_Attack_Punch_A|Unarmed_Punch|2H_Slam|Chop/]]) {
+        const c = trouver(re); if (!c) continue; const act = mixer.clipAction(c); if (nom === 'mort' || nom === 'coup' || nom === 'touche') { act.setLoop(T.LoopOnce, 1); act.clampWhenFinished = nom === 'mort'; } actions[nom] = act;
+      }
+      scene.add(o);
+      const b = { o, mixer, actions, act: '', mats, type: zb.type, mort: 0, coup: 0, sol: B.sol * k, vu: true };
+      bossVus.set(zb.id, b); return b;
+    }
+    function jouerBoss(b, nom, fondu) {
+      const a = b.actions[nom]; if (!a || b.act === nom) return;
+      const prec = b.actions[b.act]; a.reset(); a.play(); if (prec) a.crossFadeFrom(prec, fondu == null ? 0.2 : fondu, false); b.act = nom;
+    }
+    function majBoss(jeu, dt) {
+      for (const [, b] of bossVus) b.vu = false;
+      for (const zb of jeu.zombies) {
+        const Zd = D.ZOMBIES[zb.type]; if (!Zd.boss || !bossPret(zb.type)) continue;
+        const b = bossVus.get(zb.id) || nouveauBoss(zb); b.vu = true;
+        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0;
+        b.o.position.set(zb.x, y - b.sol, zb.z); b.o.rotation.set(0, Math.PI / 2 - zb.angle, 0);
+        b.coup = Math.max(0, b.coup - dt);
+        if (zb.attaque > 0.22 && b.coup <= 0 && b.actions.coup) { b.act = ''; jouerBoss(b, 'coup', 0.1); b.coup = b.actions.coup.getClip().duration * 0.8; }
+        else if (b.coup <= 0) { const v = zb.bouge ? (zb.vitesse > 1.8 ? 'course' : 'marche') : 'repos'; jouerBoss(b, v); if (b.actions[v]) b.actions[v].timeScale = v === 'marche' ? Math.max(0.6, zb.vitesse / 1.1) : 1; }
+        const rouge = zb.flash > 0 ? 0.35 : 0; for (const m of b.mats) if (m.emissive) m.emissive.setRGB(rouge, rouge * 0.15, rouge * 0.1);
+        b.mixer.update(dt);
+      }
+      for (const [id, b] of bossVus) {
+        if (b.vu) continue;
+        if (!b.mort) { b.mort = 0.0001; b.act = ''; jouerBoss(b, 'mort', 0.1); for (const m of b.mats) if (m.emissive) m.emissive.setRGB(0, 0, 0); }
+        b.mort += dt; b.mixer.update(dt);
+        if (b.mort > 2.2) b.o.position.y -= dt * 1.2;
+        if (b.mort > 3.4) { scene.remove(b.o); b.mixer.stopAllAction(); bossVus.delete(id); }
+      }
+    }
+    const rendusZ = new Map(); const nouveauRZ = (zb) => { const r = { ph: Math.random() * 6, t: Math.random() * 3, clip: '', vu: false }; rendusZ.set(zb.id, r); return r; }; // t : le temps dans le clip Kenney
 
     // ─── le survivant (et ses copains) : des maillages simples, animés ───
     function nouveauSurvivant(couleur) {
@@ -258,14 +351,45 @@ const ZRENDU = (() => {
       scene.add(g);
       return { g, jg, jd, bg, bd, arme, anneau, ph: 0, armeId: '' };
     }
+    // le survivant Kenney (le fossoyeur du Graveyard Kit) : les jambes jouent la marche ou le repos, le haut du corps tient l'arme ou tire
+    // (deux demi-clips : les pistes des jambes d'un côté, celles du torse, des bras et de la tête de l'autre) ; l'arme est accrochée au torse
+    function nouveauSurvivantK() {
+      const S = MOD.M.survivant, g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
+      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
+      const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o);
+      const mixer = new T.AnimationMixer(o), clip = (n) => S.gltf.animations.find((c) => c.name === n);
+      const moitie = (n, re) => { const c = clip(n); return c ? mixer.clipAction(new T.AnimationClip(n + (re === JAMBES ? '-jambes' : '-haut'), c.duration, c.tracks.filter((t) => re.test(t.name.split('.')[0])))) : null; };
+      const act = { marche: moitie('walk', JAMBES), repos: moitie('idle', JAMBES), tir: moitie('holding-both-shoot', HAUT), tenir: moitie('holding-both', HAUT), mort: clip('die') ? mixer.clipAction(clip('die')) : null };
+      if (act.mort) { act.mort.setLoop(T.LoopOnce, 1); act.mort.clampWhenFinished = true; }
+      const torse = o.getObjectByName('torso') || o;
+      const arme = new T.Mesh(BOITE, new T.MeshLambertMaterial({ color: '#3A3D44', flatShading: true })); arme.castShadow = true; torse.add(arme);
+      const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
+      const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
+      scene.add(g);
+      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false };
+    }
+    const JAMBES = /^(leg-left|leg-right|root)$/, HAUT = /^(torso|arm-left|arm-right|head)$/;
+    const changer = (s, cote, nom) => { if (s[cote] === nom) return; const a = s.act[nom], p = s.act[s[cote]]; if (a) { a.reset(); a.play(); if (p) a.crossFadeFrom(p, 0.15, false); } s[cote] = nom; };
+    function majSurvivantK(s, j, dt) {
+      s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, Math.PI / 2 - j.angle, 0);
+      if (!j.vivant) { if (!s.mort && s.act.mort) { s.mort = true; s.mixer.stopAllAction(); s.act.mort.reset().play(); s.jambes = s.haut = ''; } s.mixer.update(dt); return; }
+      if (s.mort) { s.mort = false; s.mixer.stopAllAction(); s.jambes = s.haut = ''; }
+      changer(s, 'jambes', j.bouge > 0.05 ? 'marche' : 'repos'); if (s.act.marche) s.act.marche.timeScale = 0.6 + j.bouge * 0.9;
+      changer(s, 'haut', j.visee ? 'tir' : 'tenir');
+      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
+      if (id !== s.armeId) { s.armeId = id; const L = (LONGUEUR[id] || 0.4) * 1.2; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
+      s.mixer.update(dt);
+      s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
+    }
     const survivants = new Map();
     const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95 };
     function majSurvivants(jeu, idMoi, dt) {
       const vus = new Set();
       for (const j of jeu.joueurs) {
         vus.add(j.id);
-        let s = survivants.get(j.id); if (!s) { s = nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); }
+        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); }
         s.g.visible = true; s.anneau.visible = j.id === idMoi && j.vivant;
+        if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
         if (!j.vivant) { s.g.rotation.z = Math.min(Math.PI / 2, (s.g.rotation.z || 0) + dt * 5); s.g.position.y = 0.1; continue; }
         s.g.rotation.z = 0;
@@ -360,15 +484,22 @@ const ZRENDU = (() => {
       for (const d of jeu.defenses) {
         vus.add(d.id); let r = defs.get(d.id);
         if (!r) {
-          const G = geoDef(d.type), g = new T.Group(); const base = new T.Mesh(G.base, matVC); base.castShadow = true; g.add(base);
-          let tete = null; if (G.tete) { tete = new T.Mesh(G.tete, d.type === 'mine' ? new T.MeshBasicMaterial({ vertexColors: true }) : matVC); tete.castShadow = true; g.add(tete); }
+          const g = new T.Group(); let base = null, tete = null, modele = false;
+          const O = MOD && MOD.pret && (d.type === 'tourelle' || d.type === 'mortier') ? MOD.M[d.type] : null;
+          if (O) { // le modèle Kenney (Tower Defense Kit) : le socle, et le canon (« barrel ») qui pivote
+            base = O.scene.clone(true); const tx = O.boite.max.x - O.boite.min.x, tz = O.boite.max.z - O.boite.min.z, k = (d.type === 'tourelle' ? 1.35 : 1.5) / Math.max(tx, tz);
+            base.scale.setScalar(k); base.position.y = -O.boite.min.y * k; g.add(base); tete = base.getObjectByName('barrel'); modele = !!tete;
+          } else {
+            const G = geoDef(d.type); base = new T.Mesh(G.base, matVC); base.castShadow = true; g.add(base);
+            if (G.tete) { tete = new T.Mesh(G.tete, d.type === 'mine' ? new T.MeshBasicMaterial({ vertexColors: true }) : matVC); tete.castShadow = true; g.add(tete); }
+          }
           const fond = new T.Mesh(geoPlan, matBarre), barre = new T.Mesh(geoPlan, matBarreV.clone()); fond.renderOrder = 5; barre.renderOrder = 6;
           const bar = new T.Group(); bar.add(fond); bar.add(barre); barre.position.z = 0.001; bar.position.y = d.type === 'epouvantail' ? 2.4 : 1.5; g.add(bar);
-          g.position.set(d.x, 0, d.z); scene.add(g); r = { g, base, tete, bar, barre, pose: 0 }; defs.set(d.id, r);
+          g.position.set(d.x, 0, d.z); scene.add(g); r = { g, base, tete, bar, barre, pose: 0, modele }; defs.set(d.id, r);
           if (d.type === 'barricade') g.rotation.y = -d.angle;
         }
         r.pose = Math.min(1, r.pose + dt * 5); const k = 0.4 + 0.6 * r.pose; r.g.scale.set(k, k, k);
-        if (r.tete && d.type !== 'mine') r.tete.rotation.y = -d.angle;
+        if (r.tete && d.type !== 'mine') r.tete.rotation.y = r.modele ? Math.PI / 2 - d.angle : -d.angle;
         if (d.type === 'mine') r.tete.visible = Math.floor(t * 3 + d.id) % 2 === 0;
         const f = d.vie / d.vieMax; r.bar.visible = f < 0.999 && d.type !== 'mine';
         if (r.bar.visible) { r.bar.quaternion.copy(camera.quaternion); r.bar.children[0].scale.set(1.0, 0.13, 1); r.barre.scale.set(Math.max(0.01, f) * 0.96, 0.09, 1); r.barre.position.x = -(1 - f) * 0.48; r.barre.material.color.set(f > 0.5 ? '#6BD36B' : f > 0.25 ? '#F2C230' : '#E5533D'); }
@@ -445,7 +576,8 @@ const ZRENDU = (() => {
       const bordure = (x, z, w, d) => F.add(BOITE, A.bord, mat(x, 0.45, z, 0, w, 0.9, d), 0.06, 11);
       bordure(0, -demi - 0.4, A.taille + 1.6, 0.8); bordure(0, demi + 0.4, A.taille + 1.6, 0.8); bordure(-demi - 0.4, 0, 0.8, A.taille); bordure(demi + 0.4, 0, 0.8, A.taille);
       for (let i = -demi; i <= demi; i += 4) for (const [x, z] of [[i, -demi - 0.4], [i, demi + 0.4], [-demi - 0.4, i], [demi + 0.4, i]]) F.add(BOITE, '#8A7458', mat(x, 0.6, z, 0, 0.3, 1.2, 0.3));
-      A.obstacles.forEach((o, k) => obstacle(F, o, k));
+      const avecVoitures = !!(MOD && MOD.pret), voitures = [];
+      A.obstacles.forEach((o, k) => { if (avecVoitures && o.type === 'voiture') voitures.push(o); else obstacle(F, o, k); });
       let g2 = 4242; const alea = () => { g2 = (g2 * 16807) % 2147483647; return g2 / 2147483647; };
       for (let i = 0; i < 70; i++) { // le paysage : une couronne d'arbres et de rochers autour de l'arène
         const a = alea() * Math.PI * 2, r = demi + 4 + alea() * 18, x = Math.cos(a) * r, z = Math.sin(a) * r;
@@ -465,6 +597,16 @@ const ZRENDU = (() => {
         for (let i = -4; i <= 4; i++) for (const z of [-9, 13.5]) H.add(BOITE, '#E8E8E8', mat(i * 3.5, 0.012, z, 0, 0.14, 0.02, 4));
       }
       if (H.l.length) { const herbe = new T.Mesh(H.geo(), matVC); herbe.receiveShadow = true; scene.add(herbe); enArene.push(herbe); }
+      // les voitures du Parking : des modèles Kenney (Car Kit), à la taille de leur rectangle, fusionnés en un seul maillage (une palette)
+      if (voitures.length) {
+        const objs = voitures.map((o, k) => {
+          const O = MOD.M.voitures[k % MOD.M.voitures.length], [x, z, w, d] = o.r, c = O.scene.clone(true);
+          const long = O.boite.max.z - O.boite.min.z, sc = Math.max(w, d) / long * 1.02;
+          c.scale.setScalar(sc); c.rotation.y = (w > d ? Math.PI / 2 : 0) + (k % 2 ? Math.PI : 0); c.position.set(x, -O.boite.min.y * sc, z); c.updateMatrixWorld(true);
+          return c;
+        });
+        const m = new T.Mesh(fusionner(objs), new T.MeshLambertMaterial({ map: premierMap(MOD.M.voitures[0].scene) })); m.castShadow = true; m.receiveShadow = true; scene.add(m); enArene.push(m);
+      }
       cam.init = false;
     }
 
@@ -500,6 +642,7 @@ const ZRENDU = (() => {
       }
       majSurvivants(jeu, idMoi, dt);
       majZombies(jeu, dt);
+      majBoss(jeu, dt);
       majObjets(jeu);
       majDefenses(jeu, dt);
       majProjectiles(jeu);
@@ -519,7 +662,15 @@ const ZRENDU = (() => {
     }
     const _p = T ? new T.Vector3() : null;
     function ecranDe(x, z, y) { _p.set(x, y || 0, z).project(camera); return [(_p.x + 1) / 2 * W, (1 - _p.y) / 2 * H]; }
-    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT }; }
+    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length }; }
+    // les modèles 3D arrivent : la horde passe en Kenney, le survivant, les défenses et l'arène (ses voitures) sont refaits avec eux
+    if (MOD) MOD.charger().then((ok) => {
+      if (!ok) return;
+      brancherHorde();
+      for (const [, x] of survivants) scene.remove(x.g); survivants.clear();
+      for (const [, r] of defs) scene.remove(r.g); defs.clear();
+      arene = null;
+    });
     return { charger, image, taille, qualite: regler, ecranDe, stats, renderer, scene, camera };
   }
   return { creer };

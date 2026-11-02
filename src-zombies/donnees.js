@@ -28,11 +28,15 @@
   // vie, vitesse (m/s), degats par coup et coups/s, rayon, ferraille laissée, points, taille (rendu), couleurs : peau, haut, bas ;
   // crache : attaque à distance (portee, cadence, degats, vitesse du crachat) ; depuis : la première vague où il paraît ; poids : sa part dans une vague
   const ZOMBIES = {
-    trainard:   { nom: 'Traînard',   vie: 34,   vitesse: 1.55, degats: 9,  cadence: 1.0, rayon: 0.42, ferraille: 1,  points: 10,  taille: 1.0,  peau: '#8DBF6A', haut: '#7C6A9E', bas: '#4D5A7A', depuis: 1, poids: 10 },
-    coureur:    { nom: 'Coureur',    vie: 22,   vitesse: 3.6,  degats: 6,  cadence: 1.6, rayon: 0.36, ferraille: 1,  points: 15,  taille: 0.88, peau: '#A6C97A', haut: '#D9824B', bas: '#3F3F4A', depuis: 2, poids: 5 },
-    costaud:    { nom: 'Costaud',    vie: 180,  vitesse: 1.1,  degats: 22, cadence: 0.7, rayon: 0.7,  ferraille: 4,  points: 40,  taille: 1.45, peau: '#6FA35A', haut: '#5A6E8C', bas: '#3B3B3B', depuis: 3, poids: 2 },
-    cracheur:   { nom: 'Cracheur',   vie: 46,   vitesse: 1.35, degats: 7,  cadence: 1.0, rayon: 0.42, ferraille: 2,  points: 25,  taille: 1.0,  peau: '#B7D35A', haut: '#4E8A6E', bas: '#5C4A3A', depuis: 4, poids: 2, crache: { portee: 7.5, cadence: 0.45, degats: 10, vitesse: 7 } },
-    mastodonte: { nom: 'Mastodonte', vie: 1400, vitesse: 1.0,  degats: 35, cadence: 0.6, rayon: 1.05, ferraille: 25, points: 400, taille: 2.2,  peau: '#5F8F4E', haut: '#8C3B3B', bas: '#2F2F36', depuis: 5, poids: 0, boss: true },
+    trainard:   { nom: 'Traînard',   vie: 34,   vitesse: 1.55, degats: 9,  cadence: 1.0, rayon: 0.42, ferraille: 1,  points: 10,  taille: 1.0,  peau: '#8DBF6A', haut: '#7C6A9E', bas: '#4D5A7A', depuis: 1, poids: 10, teinte: '#FFFFFF' },
+    coureur:    { nom: 'Coureur',    vie: 22,   vitesse: 3.6,  degats: 6,  cadence: 1.6, rayon: 0.36, ferraille: 1,  points: 15,  taille: 0.88, peau: '#A6C97A', haut: '#D9824B', bas: '#3F3F4A', depuis: 2, poids: 5, teinte: '#F2E2A0' },
+    costaud:    { nom: 'Costaud',    vie: 180,  vitesse: 1.1,  degats: 22, cadence: 0.7, rayon: 0.7,  ferraille: 4,  points: 40,  taille: 1.45, peau: '#6FA35A', haut: '#5A6E8C', bas: '#3B3B3B', depuis: 3, poids: 2, teinte: '#9FB0C8' },
+    cracheur:   { nom: 'Cracheur',   vie: 46,   vitesse: 1.35, degats: 7,  cadence: 1.0, rayon: 0.42, ferraille: 2,  points: 25,  taille: 1.0,  peau: '#B7D35A', haut: '#4E8A6E', bas: '#5C4A3A', depuis: 4, poids: 2, crache: { portee: 7.5, cadence: 0.45, degats: 10, vitesse: 7 }, teinte: '#C8F07A' },
+    // les boss : un toutes les cinq vagues, à tour de rôle (VAGUES.boss) ; modèles KayKit (src-zombies/modeles.js), squelette « large » ou « medium »
+    golem:      { nom: 'Golem squelette', vie: 1400, vitesse: 1.0,  degats: 35, cadence: 0.6, rayon: 1.05, ferraille: 25, points: 400, taille: 2.2,  peau: '#C9C2B0', haut: '#5A6070', bas: '#3B3B44', depuis: 5, poids: 0, boss: true, modele: 'golem', rig: 'large' },
+    loupgarou:  { nom: 'Loup-garou',      vie: 1000, vitesse: 2.3,  degats: 24, cadence: 1.1, rayon: 0.9,  ferraille: 25, points: 450, taille: 1.9,  peau: '#8A7560', haut: '#C0392B', bas: '#3B4A6B', depuis: 10, poids: 0, boss: true, modele: 'loup-garou', rig: 'medium' },
+    golemglace: { nom: 'Golem de glace',  vie: 2300, vitesse: 0.85, degats: 45, cadence: 0.5, rayon: 1.15, ferraille: 30, points: 550, taille: 2.4,  peau: '#CFE6F5', haut: '#7FB3D9', bas: '#5A87B0', depuis: 15, poids: 0, boss: true, modele: 'golem-glace', rig: 'large' },
+    vampire:    { nom: 'Vampire',         vie: 1700, vitesse: 1.7,  degats: 30, cadence: 0.9, rayon: 0.9,  ferraille: 30, points: 600, taille: 2.0,  peau: '#E8D9C8', haut: '#8C1C2C', bas: '#2B2230', depuis: 20, poids: 0, boss: true, modele: 'vampire', rig: 'medium' },
   };
 
   // ─── les défenses (achetées avec la ferraille, posées aux pieds du survivant) ───
@@ -55,6 +59,7 @@
   };
 
   // ─── les vagues ───
+  const BOSS = ['golem', 'loupgarou', 'golemglace', 'vampire'];
   // nombre de zombies de la vague n, combien peuvent être debout en même temps, la pause avant la suivante, le renfort de vie et de vitesse
   const VAGUES = {
     nombre: (n) => Math.round(12 + n * 7 + n * n * 0.6),
@@ -63,7 +68,7 @@
     pause: 9,           // secondes entre deux vagues (on peut passer)
     vie: (n) => 1 + Math.max(0, n - 1) * 0.11,
     vitesse: (n) => 1 + Math.min(0.35, Math.max(0, n - 1) * 0.025),
-    boss: (n) => n % 5 === 0, // un Mastodonte toutes les cinq vagues
+    boss: (n) => (n % 5 === 0 ? BOSS[(n / 5 - 1) % BOSS.length] : null), // un boss toutes les cinq vagues, à tour de rôle, puis on recommence
     caisse: (n) => (n === 1 ? 1 : n % 2 === 0 ? 2 : 1), // caisses d'armes posées au début de la vague
     prime: (n) => 20 + n * 10, // points de fin de vague
   };
@@ -123,5 +128,5 @@
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
   const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
 
-  return { JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { BOSS, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

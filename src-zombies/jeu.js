@@ -31,7 +31,7 @@
     o = o || {};
     const id = D.ARENES[o.arene] ? o.arene : D.ORDRE_ARENES[0], A = D.ARENES[id];
     const monde = M.creer(A);
-    // deux grilles de navigation : les zombies ordinaires, et les gros (Costaud, Mastodonte), qui ne passent pas entre deux voitures
+    // deux grilles de navigation : les zombies ordinaires, et les gros (Costaud, boss), qui ne passent pas entre deux voitures
     const nav = PNAV ? PNAV.creer(monde, { pas: 0.75, marge: 0.5, reperes: 4 }) : null;
     const navGros = PNAV ? PNAV.creer(monde, { pas: 0.75, marge: 1.1, reperes: 4 }) : null;
     const rnd = mulberry32((o.graine >>> 0) || 1);
@@ -179,7 +179,7 @@
     }
     if (rnd() < (Z.boss ? 1 : 0.035) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'soin', x: zb.x + 0.4, z: zb.z, valeur: 30, age: 0, vole: false });
     if (Z.boss) poserCaisse(jeu);
-    ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de });
+    ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss });
   }
   function explosion(jeu, x, z, r, degats, de) {
     for (const zb of jeu.zombies) {
@@ -205,9 +205,9 @@
         jeu.sortieT += V.cadence(jeu.vague) * dt;
         let vivants = 0; for (const zb of jeu.zombies) if (zb.vie > 0) vivants++;
         while (jeu.sortieT >= 1 && jeu.aSortir > 0 && vivants < V.simultanes(jeu.vague)) {
-          const type = jeu.bossAVenir && jeu.aSortir <= Math.ceil(jeu.totalVague * 0.6) ? 'mastodonte' : tirerType(jeu);
+          const type = jeu.bossAVenir && jeu.aSortir <= Math.ceil(jeu.totalVague * 0.6) ? jeu.bossAVenir : tirerType(jeu);
           if (!fairesortir(jeu, type)) break;
-          if (type === 'mastodonte') jeu.bossAVenir = false;
+          if (D.ZOMBIES[type].boss) jeu.bossAVenir = null;
           jeu.sortieT -= 1; jeu.aSortir--; vivants++;
         }
         if (jeu.sortieT > 3) jeu.sortieT = 3;
