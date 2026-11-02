@@ -3,7 +3,9 @@
 // farine du mini-dragon), passer d'un animal à l'autre sans fuite (les géométries et textures du rendu restent stables, l'animation
 // n'alloue rien), recharger la page (le choix est gardé), la garde-robe qui mène à la feuille. La chauve-souris (gagnée au bestiaire de la
 // Maison hantée) : verrouillée, puis gagnée, choisie ; elle vole en petits cercles près du plafond, se pose pour dormir, et sa zone de caresse
-// la suit. Captures 390×844 dans test/shots/compagnons/ (et dans SHOTS_BESTIAIRE, préfixées « bestiaire- », celles de la chauve-souris).
+// la suit. Le pigeon voyageur (« Ma chaîne », la boutique des jetons) : son propre modèle et son portrait, pas ceux du chat roux ; chaque
+// compagnon bâti est bien celui qu'on a choisi. Captures 390×844 dans test/shots/compagnons/ (et dans SHOTS_BESTIAIRE, préfixées
+// « bestiaire- », celles de la chauve-souris).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-compagnons.cjs
 'use strict';
 const { chromium } = require('playwright');
@@ -99,18 +101,18 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'cha
   await ev(() => window.__fournil.scene({ chat: 'assis' }));
   const tour = async () => { const res = []; for (const id of TOUS) { await ev((i) => window.__fournil.choisirCompagnon(i), id); await sleep(260); res.push(await vu()); } return res; };
   const vus1 = await tour(), st1 = await ev(() => window.__fournil.stats()), cache1 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length); // seulement les géométries des animaux (les clients qui passent en ajoutent d'autres)
-  check(vus1.every((v, k) => v && v.id === TOUS[k] && v.appels <= 5), `chacun bâti à son tour, 5 appels de dessin au plus (${vus1.map((v) => `${v.id} ${v.appels}`).join(', ')})`);
+  check(vus1.every((v, k) => v && v.id === TOUS[k] && v.espece === TOUS[k] && v.appels <= 5), `chacun bâti à son tour, son propre modèle (aucun ne retombe sur le chat roux), 5 appels de dessin au plus (${vus1.map((v) => `${v.id} ${v.appels}`).join(', ')})`);
   const vus2 = await tour(); await tour(); const st2 = await ev(() => window.__fournil.stats()), cache2 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length);
   check(vus2.every((v, k) => v && v.id === TOUS[k]) && cache2 === cache1, `deux tours de plus : aucune géométrie nouvelle en cache (${cache1} → ${cache2}), tout est repris`);
   // les clients qui entrent et sortent pendant ces tours ajoutent ou retirent leurs maillages (jusqu'à 4 ou 5 sur une machine lente : 106 → 110 en CI) ;
   // la fuite d'un animal se voit plus haut, au cache des géométries (cache1 === cache2)
   check(st2.geometries <= st1.geometries + 6 && st2.textures === st1.textures, `et les géométries (${st1.geometries} → ${st2.geometries}, les clients vont et viennent) et textures (${st1.textures} → ${st2.textures}) du rendu ne grandissent pas`);
   check(st2.calls <= 160, `le budget d’appels de dessin de la boutique tient (${st2.calls})`);
-  { // l'animation n'alloue rien : le profileur d'allocations de Chromium, objets ramassés compris, sur 13 animaux × 5 états
+  { // l'animation n'alloue rien : le profileur d'allocations de Chromium, objets ramassés compris, sur 16 animaux × 5 états
     const cdp = await ctx.newCDPSession(page);
-    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'chauve-souris', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % cs.length]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(60000); });
+    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'chauve-souris', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon', 'pigeon'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % cs.length]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(60000); });
     await cdp.send('HeapProfiler.enable');
-    // jusqu'à cinq mesures (quinze animaux, une machine chargée : l'optimiseur peut tarder), la plus basse compte : une allocation par appel se verrait à chaque fois (65 000 appels × quelques octets = des
+    // jusqu'à cinq mesures (seize animaux, une machine chargée : l'optimiseur peut tarder), la plus basse compte : une allocation par appel se verrait à chaque fois (65 000 appels × quelques octets = des
     // centaines de Ko), alors qu'un coût unique du moteur (une fonction réoptimisée, ses vecteurs de rétroaction) ne tombe que dans une mesure
     const mesures = [];
     for (let k = 0; k < 5 && !(mesures.length && Math.min(...mesures) < 4096); k++) {
@@ -120,7 +122,7 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'cha
       let octets = 0; const parcourir = (nd, dedans) => { const d = dedans || /^(animerCompagnon|animerChat|tourner)$/.test(nd.callFrame.functionName); if (d) octets += nd.selfSize; for (const c of nd.children || []) parcourir(c, d); }; parcourir(profile.head, false);
       mesures.push(octets);
     }
-    check(Math.min(...mesures) < 4096, `l’animation des compagnons n’alloue rien : ${mesures.join(' puis ')} octets échantillonnés sur 65 000 appels (15 animaux × 5 états, la chauve-souris en vol comprise)`);
+    check(Math.min(...mesures) < 4096, `l’animation des compagnons n’alloue rien : ${mesures.join(' puis ')} octets échantillonnés sur 65 000 appels (16 animaux × 5 états, la chauve-souris en vol comprise)`);
     await ev(() => { for (const g of window.__comps) PERSOS.libererChat(g); window.__comps = null; });
   }
 
@@ -158,6 +160,15 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'cha
   const pose = await vu();
   check(pose && pose.vol === 0, 'endormie, elle se pose sur le comptoir, les ailes repliées');
   { const zc = await zone(); if (zc) { const f = path.join(out, '13-zoom-chauve-souris-posee.png'); await page.screenshot({ path: f, clip: { x: Math.max(0, zc.x - 70), y: Math.max(0, zc.y - 55), width: 140, height: 100 } }); if (out2) fs.copyFileSync(f, path.join(out2, 'bestiaire-chauve-souris-posee.png')); } }
+
+  console.log('── le pigeon voyageur (« Ma chaîne ») : un vrai pigeon dans la boutique, pas le chat roux ──');
+  await ev(() => { const f = window.__fournil, c = f.st.chaine; c.objets = [...new Set([...(c.objets || []), 'pigeon'])]; f.save(); f.choisirCompagnon('pigeon'); f.page('boutique'); f.tiroir('ferme'); f.scene({ chat: 'assis' }); }); await sleep(1100);
+  check(await attendre(async () => { const v = await vu(); return v && v.id === 'pigeon' && v.espece === 'pigeon' && v.appels <= 5; }), `pris à la boutique des jetons et choisi : un pigeon en 3D dans la boutique, pas le chat roux (${JSON.stringify(await vu())})`);
+  check(await ev(() => ICONS.compagnon('pigeon') !== ICONS.compagnon('chat-roux') && /#6FB89A/i.test(ICONS.compagnon('pigeon'))), 'son portrait aussi (la feuille des compagnons, le carnet) : la gorge irisée, pas le chat');
+  for (const e of ['marche', 'dort']) { await ev((e) => window.__fournil.scene({ chat: e }), e); await sleep(500); }
+  check(await ev(() => window.__fournil.SCENE.compagnonVu.espece === 'pigeon'), 'il marche (en hochant la tête) et s’endort sans changer de modèle');
+  await ev(() => window.__fournil.scene({ chat: 'assis' })); await sleep(600);
+  { const zc = await zone(); if (zc) await page.screenshot({ path: path.join(out, '14-zoom-pigeon.png'), clip: { x: Math.max(0, zc.x - 70), y: Math.max(0, zc.y - 55), width: 140, height: 100 } }); }
 
   console.log('── la garde-robe y mène ──');
   await ev(() => window.__fournil.choisirCompagnon('pingouin')); await sleep(300);

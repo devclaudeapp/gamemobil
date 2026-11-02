@@ -348,7 +348,7 @@ const CHAINE_ECRAN = (() => {
   function iconeFamille(id) { const C = typeof ICONS !== 'undefined' && ICONS.CARNET; return (C && (C[id] || C.avenir)) || ''; }
   function iconeCarnet(fam, id) {
     try {
-      if (fam === 'compagnons' && id !== 'pigeon' && ICONS.compagnon) return ICONS.compagnon(id);
+      if (fam === 'compagnons' && ICONS.compagnon) return ICONS.compagnon(id);
       if (fam === 'podium' && id === 'vitrine-coupes' && ICONS.coupe) return ICONS.coupe('or');
       if (fam === 'casino-skins' && /^croupier-/.test(id) && typeof ARRIERE !== 'undefined' && ARRIERE.croupierSVG) return ARRIERE.croupierSVG(id.slice(9));
     } catch (e) { /* rien */ }

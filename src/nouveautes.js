@@ -22,6 +22,7 @@
         'Ce que tu n’as pas encore gagné est là aussi, en gris : tu vois ce qui t’attend.',
         'L’étagère des trophées (onglet Boulanger) a ses images : une coupe, une médaille, le chat endormi de « Ronron »… un objet par trophée.',
         'Dans l’arrière-salle, le carnet du croupier montre ses trophées et les vrais habillages : le tapis, le dos des cartes, les jetons et la roulette dans chaque finition.',
+        'Le pigeon voyageur de « Ma chaîne » est enfin un pigeon dans ta boutique : il y prenait l’allure du chat roux. Il hoche la tête en marchant.',
       ],
     },
     {

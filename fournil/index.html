@@ -2609,7 +2609,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '14a67662c8ae';</script>
+<script>window.FOURNIL_VERSION = 'dab15cd3c450';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -7575,6 +7575,8 @@ const ICONS = (() => {
     // la chauve-souris (gagnée au bestiaire du Manoir) : prune, ventre lavande, grandes oreilles roses dedans, deux petits crocs
     'chauve-souris': S(`<path d="M14 25C9.5 17 3.5 16 1 20c2 1 3 3 2 5 2-1 4 0 4.5 2 2-1 4 0 5.5 2z" fill="#46386E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M34 25c4.5-8 10.5-9 13-5-2 1-3 3-2 5-2-1-4 0-4.5 2-2-1-4 0-5.5 2z" fill="#46386E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M14.5 19l1.5-12 7.5 7.5M33.5 19l-1.5-12-7.5 7.5" fill="#5B4A86" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M17 15.5l.8-5 3.4 3.4zM31 15.5l-.8-5-3.4 3.4z" fill="#F2A7C3"/><ellipse cx="24" cy="27" rx="12" ry="11.5" fill="#5B4A86" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="31.5" rx="6" ry="4.2" fill="#7A68A6"/><circle cx="19" cy="25" r="3.3" fill="#FFE7A3"/><circle cx="29" cy="25" r="3.3" fill="#FFE7A3"/>${yx(19, 25.3, 1.7)}${yx(29, 25.3, 1.7)}<ellipse cx="24" cy="29.6" rx="1.3" ry=".9" fill="${L}"/><path d="M21.6 32.4l.9 2.3.9-2.3zM24.6 32.4l.9 2.3.9-2.3z" fill="#fff" stroke="${L}" stroke-width=".8" stroke-linejoin="round"/><circle cx="15.6" cy="30" r="1.8" fill="#F2A7C3"/><circle cx="32.4" cy="30" r="1.8" fill="#F2A7C3"/>`),
     dragon: S(`<path d="M8 22c-5-2-7-8-5-12 4 2 8 3 10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 22c5-2 7-8 5-12-4 2-8 3-10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 15l-2-8 6 5M33 15l2-8-6 5" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="14" ry="13" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="33" rx="8" ry="5.5" fill="#86E0BC"/>${yx(18.5, 23)}${yx(29.5, 23)}<circle cx="21.5" cy="32" r="1" fill="#3FB889"/><circle cx="26.5" cy="32" r="1" fill="#3FB889"/><circle cx="38" cy="38" r="3.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="42.5" cy="35.5" r="2.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="43" cy="41" r="2" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/>`),
+    // le pigeon voyageur (« Ma chaîne », la boutique des jetons) : la tête gris ardoise, le petit bec clair et sa cire blanche, la gorge irisée
+    pigeon: S(`<path d="M6 45c0-9 8-14 18-14s18 5 18 14z" fill="#A3ACBC" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M12.5 36c3-3.6 7.2-5.2 11.5-5.2s8.5 1.6 11.5 5.2c-3.2 2.4-7.4 3.4-11.5 3.4s-8.3-1-11.5-3.4z" fill="#6FB89A" stroke="${L}" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 35.2c2.6-2 5.4-2.8 8-2.8s5.4.8 8 2.8" stroke="#9A84F0" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="24" cy="19.5" r="12.5" fill="#8E97A8" stroke="${L}" stroke-width="2"/>${yx(19, 18.5)}${yx(29, 18.5)}<path d="M21.3 23h5.4l-2.7 4.8z" fill="#E8B07A" stroke="${L}" stroke-width="1.5" stroke-linejoin="round"/><ellipse cx="24" cy="22.4" rx="2.4" ry="1.15" fill="#fff"/><circle cx="14.8" cy="23.4" r="1.9" fill="#FFB3B3"/><circle cx="33.2" cy="23.4" r="1.9" fill="#FFB3B3"/>`),
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
   // le carnet « Mes décos » (src/chaine-ecran.js) : une icône par famille de collection, au trait de la maison ; l'écran la grise pour ce qui
@@ -10237,8 +10239,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // seul le tampon d'instances est propre à chaque modèle (libererChat le rend). animerCompagnon(g, { etat, phase, t }) : les états de
   // animerChat ('dort', 'assis', 'marche', 'saut', le reste : debout), chacun avec sa touche : la poule picore, le pingouin se dandine (et
   // dort debout), l'escargot glisse sans pattes, le mini-dragon bat des ailes, le croissant rebondit, le lapin sautille, le chien et le
-  // teckel remuent la queue, le raton laveur se frotte les mains. Sans allocation, comme animerChat : poses en tables calculées une fois par
-  // espèce (fromArray), mouvement écrit dans les champs (position.y, scale.y, rotation._x… puis tourner()).
+  // teckel remuent la queue, le raton laveur se frotte les mains, le pigeon hoche la tête et roucoule. Sans allocation, comme animerChat :
+  // poses en tables calculées une fois par espèce (fromArray), mouvement écrit dans les champs (position.y, scale.y, rotation._x… puis
+  // tourner()).
   const BLANC_C = '#FFFFFF';
   function yeux(p, x, y, z, r, fermes, o) { // deux yeux : billes sombres (o.pastille : une pastille claire derrière), ou deux arcs fermés
     o = o || {};
@@ -10305,6 +10308,19 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       tete: (f) => { const p = [M.part(M.sphere(3.4, 12), BLANC_C), M.part(M.boite(3.2, 1.2, 3.8, 0.5), '#FF9F2E', { y: -1.9, z: 3.5 })]; yeux(p, 1.5, 0.9, 2.8, 0.7, f); joues(p, 2.4, -0.6, 2.2, 0.7); return p; },
       q1: () => [M.part(M.cone(1.8, 3, 6), BLANC_C, { sz: 0.5 })], q2: null,
       patte: () => [M.part(pendu(0.55, 4, 0.2), '#FF9F2E'), M.part(M.sphere(1.6, 8), '#FF9F2E', { y: 0.15 - 5, z: 0.9, sx: 1.1, sy: 0.25, sz: 1.4 })], // la palme
+    },
+    // le pigeon voyageur (un objet rare de « Ma chaîne », pris à la boutique des jetons) : gris ardoise, le poitrail clair, la gorge irisée vert
+    // et lavande, deux barres sombres sur chaque aile, le petit bec clair et sa cire blanche, la queue en éventail ; il hoche la tête en
+    // marchant et roucoule sur place (animerCompagnon). Sa vignette du carnet est ce modèle (outils/vignettes).
+    pigeon: {
+      lp: 3.4, py: -3.2, hanches: [[-2, 0.6], [2, 0.6]], tp: [7.8, 4.6], queue: [-0.4, -5.6, -1.2], lq1: 0, q2r: null, demiH: 5.4, assis: 'debout', dort: 'couche',
+      corps: () => { const aile = '#7D879A', p = [M.part(M.sphere(6, 14), '#A3ACBC', { sx: 0.92, sy: 0.9, sz: 1.2 }), M.part(M.sphere(4.3, 12), '#C7CDD8', { y: -1.4, z: 2.6, sz: 0.85 }),
+        M.part(M.cylindre(3.1, 3.5, 3, 14), '#6FB89A', { y: 4, z: 3.6, rx: 0.35 }), M.part(M.cylindre(3.15, 3.2, 1.2, 14), '#9A84F0', { y: 5.2, z: 4, rx: 0.35 })]; // la gorge irisée
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(3.6, 10), aile, { x: sx * 4.6, y: 0.4, z: -1, sx: 0.38, sy: 0.8, sz: 1.35, rx: -0.15 }), M.part(M.boiteSimple(2.2, 0.5, 2), '#3A3440', { x: sx * 4.6, y: 1.8, z: -2.6, sx: 0.4 }), M.part(M.boiteSimple(2.2, 0.5, 2), '#3A3440', { x: sx * 4.7, y: 0.6, z: -2.2, sx: 0.4 })); // les ailes, leurs deux barres
+        return p; },
+      tete: (f) => { const p = [M.part(M.sphere(3.3, 12), '#8E97A8'), M.part(M.cone(0.9, 2.6, 6), '#E8B07A', { y: -0.6, z: 3.2, rx: HP }), M.part(M.sphere(0.75, 6), BLANC_C, { y: -0.1, z: 2.8, sy: 0.6 })]; yeux(p, 1.55, 0.7, 2.65, 0.72, f); joues(p, 2.4, -0.6, 2.3, 0.8); return p; },
+      q1: () => [-0.4, 0, 0.4].map((rz) => M.part(M.capsule(0.95, 4.6, 6), '#6B7486', { y: 2.3, rz, sz: 0.55 })), q2: null, // la queue en éventail
+      patte: () => [M.part(pendu(0.45, 2.6, 0.2), '#E8897A'), M.part(M.sphere(1.2, 8), '#E8897A', { y: 0.25 - 3.4, z: 0.6, sy: 0.3, sz: 1.4 })],
     },
     herisson: {
       lp: 3.5, py: -3, hanches: [[-3.2, 3.6], [3.2, 3.6], [-3.2, -3.6], [3.2, -3.6]], tp: [0.6, 7.4], queue: null, lq1: 0, q2r: null, demiH: 4.8, assis: 'couche', dort: 'boule',
@@ -10512,6 +10528,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       else if (id === 'lapin') { h.rotation._z = Math.sin(t * 9) * 0.07 * Math.max(0, Math.sin(t * 0.6)); tourner(h); } // les oreilles frémissent
       else if (id === 'herisson') { h.rotation._x = -0.15 + Math.sin(t * 6) * 0.06; tourner(h); } // il renifle
       else if (id === 'dragon' && ai) { const k = Math.sin(t * 0.8); ai.scale.y = k > 0.6 ? 0.3 + 0.35 * (1 + Math.cos(t * 14)) : 1; } // de temps en temps, un battement d'ailes
+      else if (id === 'pigeon') { let k = Math.max(0, Math.sin(t * 1.9)); k *= k; c.scale.x = c.scale.z = 1 + 0.06 * k; h.position.y += 0.7 * k; h.rotation._x = -0.25 * k; tourner(h); } // il roucoule : la gorge se gonfle, la tête se rengorge
     } else if (e === 'saut') { // en l'air : la queue pour l'équilibre, les ailes battent
       q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
       if (ai) ai.scale.y = 0.3 + 0.35 * (1 + Math.cos(t * 16));
@@ -10523,7 +10540,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         for (let k = 0; k < 4; k++) { pa[k].rotation._x = k < 2 ? -v : v; tourner(pa[k]); }
       } else for (let k = 0; k < n; k++) { pa[k].rotation._x = n === 2 ? (k === 0 ? s : -s) : (k === 0 || k === 3 ? s : -s); tourner(pa[k]); }
       q1.rotation._z = Math.sin(t * (chien ? 9 : 2.6)) * (chien ? 0.4 : 0.22); tourner(q1); q2.rotation._z = Math.sin(t * 2.6 - 0.9) * 0.3; tourner(q2);
-      if (id === 'poule') h.position.z += Math.sin(ph * 2) * 1.2; // la tête qui avance à chaque pas
+      if (id === 'poule' || id === 'pigeon') h.position.z += Math.sin(ph * 2) * 1.2; // la tête qui avance à chaque pas
       else if (id === 'canard' || id === 'pingouin') { r.rotation._z = Math.sin(ph) * (id === 'canard' ? 0.12 : 0.2); tourner(r); } // il se dandine
       else if (id === 'escargot') { const u = Math.sin(ph * 0.5); c.scale.z = 1 + 0.06 * u; h.position.z += 0.8 * u; h.rotation._z = Math.sin(t * 1.7) * 0.08; tourner(h); } // il glisse : le pied s'étire et se ramasse
       else if (id === 'croissant') { r.position.y += Math.abs(Math.sin(ph)) * 3.2; c.scale.y = 1 - 0.07 * Math.cos(ph * 2); } // il rebondit à chaque pas
@@ -16057,7 +16074,7 @@ const SCENE = (() => {
     get deplacerDecos() { return deplacerDecos; }, get glisseDeco() { return glisseDeco; },
     get teinteBocaux() { const k = FUS.teinte || ''; return k === '1' ? 'bronze' : k || null; }, // l'étagère du bestiaire posée : 'bronze', 'argent', 'or' (null : pas posée ; pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
-    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
+    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, espece: chatG.userData.espece || null, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique (id : celui qu'on a choisi ; espece : le modèle vraiment bâti) et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
     precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite
       if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false;
       if (lot === 'hantee' && BH() && BH().demande()) { HDM.charger('hantee3').then((ok) => { if (ok) setTimeout(() => BH().HD.preparer(), 400); }); return true; }
@@ -24089,7 +24106,7 @@ const CHAINE_ECRAN = (() => {
   function iconeFamille(id) { const C = typeof ICONS !== 'undefined' && ICONS.CARNET; return (C && (C[id] || C.avenir)) || ''; }
   function iconeCarnet(fam, id) {
     try {
-      if (fam === 'compagnons' && id !== 'pigeon' && ICONS.compagnon) return ICONS.compagnon(id);
+      if (fam === 'compagnons' && ICONS.compagnon) return ICONS.compagnon(id);
       if (fam === 'podium' && id === 'vitrine-coupes' && ICONS.coupe) return ICONS.coupe('or');
       if (fam === 'casino-skins' && /^croupier-/.test(id) && typeof ARRIERE !== 'undefined' && ARRIERE.croupierSVG) return ARRIERE.croupierSVG(id.slice(9));
     } catch (e) { /* rien */ }
@@ -24253,6 +24270,7 @@ const CHAINE_ECRAN = (() => {
         'Ce que tu n’as pas encore gagné est là aussi, en gris : tu vois ce qui t’attend.',
         'L’étagère des trophées (onglet Boulanger) a ses images : une coupe, une médaille, le chat endormi de « Ronron »… un objet par trophée.',
         'Dans l’arrière-salle, le carnet du croupier montre ses trophées et les vrais habillages : le tapis, le dos des cartes, les jetons et la roulette dans chaque finition.',
+        'Le pigeon voyageur de « Ma chaîne » est enfin un pigeon dans ta boutique : il y prenait l’allure du chat roux. Il hoche la tête en marchant.',
       ],
     },
     {
