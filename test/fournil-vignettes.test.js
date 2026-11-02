@@ -6,7 +6,7 @@
 //   ne garde pas l'ancienne) ;
 // · la table ne nomme que des objets du carnet (ou les habillages par défaut, que montre le carnet du croupier) ; pas de fichier orphelin ;
 // · toutes les familles qui ont un objet 3D ont toutes leurs vignettes ; les titres, les cartes postales et le croupier gardent leur dessin ;
-// · le budget : 1,5 Mo en tout au plus, 8 Ko en moyenne ;
+// · le budget : 1,5 Mo en tout au plus, 8 Ko en moyenne, 12 Ko chacune au plus ;
 // · sans window.FOURNIL_VERSION (l'artefact, qui n'a pas les fichiers), aucune adresse : le repli dessiné, tel quel ; la page du jeu et
 //   l'artefact embarquent la table ; node build.js --essai, lancé à part, copie toutes les vignettes.
 // Lancer : node test/fournil-vignettes.test.js
@@ -35,7 +35,7 @@ const SANS = new Set(['titres', 'cartes']); // (pas d'objet 3D : leur icône)
 check(familles.length >= 12 && familles.some((f) => f.id === 'casino-skins'), `le carnet : ${familles.length} familles, l'arrière-salle comprise`);
 
 // 1. chaque objet du carnet qui a une entrée : son fichier, 256 × 256, transparent, son empreinte
-let n = 0, total = 0; const fautes = [], manquent = [];
+let n = 0, total = 0; const fautes = [], manquent = [], poids = [];
 for (const f of familles) {
   const items = f.id === 'casino-skins' ? [...DEFAUTS.map((id) => ({ id })), ...f.items] : f.items;
   for (const x of items) {
@@ -43,7 +43,7 @@ for (const f of familles) {
     if (!h) { if (!SANS.has(f.id) && !(f.id === 'casino-skins' && /^croupier-/.test(x.id))) manquent.push(`${f.id}/${x.id}`); continue; }
     const fichier = path.join(DOSSIER, f.id, x.id + '.webp');
     if (!fs.existsSync(fichier)) { fautes.push(`${f.id}/${x.id} : pas de fichier`); continue; }
-    const b = fs.readFileSync(fichier), d = webp(b); n++; total += b.length;
+    const b = fs.readFileSync(fichier), d = webp(b); n++; total += b.length; poids.push([`${f.id}/${x.id}`, b.length]);
     if (!d) fautes.push(`${f.id}/${x.id} : pas un webp`); else if (d.w !== 256 || d.h !== 256) fautes.push(`${f.id}/${x.id} : ${d.w} × ${d.h}`); else if (!d.alpha) fautes.push(`${f.id}/${x.id} : sans transparence`);
     if (empreinte(b) !== h) fautes.push(`${f.id}/${x.id} : empreinte ${empreinte(b)} ≠ ${h} (la table n'est plus celle des fichiers : relancer outils/vignettes/cuire.cjs)`);
   }
@@ -64,6 +64,8 @@ check(!orphelins.length && disque.length === n, `${disque.length} fichiers dans 
 const Mo = 1024 * 1024;
 check(total <= 1.5 * Mo, `le poids : ${(total / 1024).toFixed(0)} Ko en tout (≤ 1 536 Ko)`);
 check(total / Math.max(1, n) <= 8 * 1024, `en moyenne ${(total / Math.max(1, n) / 1024).toFixed(1)} Ko par vignette (≤ 8 Ko)`);
+const lourdes = poids.filter(([, o]) => o > 12 * 1024), plus = poids.slice().sort((a, b) => b[1] - a[1]).slice(0, 2);
+check(poids.length === n && !lourdes.length, `chacune 12 Ko au plus (les plus lourdes : ${plus.map(([k, o]) => `${k} ${o} octets`).join(', ')})${lourdes.length ? ' — au-delà : ' + lourdes.map(([k, o]) => `${k} ${o}`).join(', ') : ''}`);
 
 // 4. sans la page du jeu (pas de window.FOURNIL_VERSION : l'artefact), aucune adresse ; le repli dessiné tel quel
 const un = Object.entries(V.T)[0], idUn = un && Object.keys(un[1])[0];

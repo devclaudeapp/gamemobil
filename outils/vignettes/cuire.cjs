@@ -18,6 +18,8 @@ const SORTIE = path.join(ROOT, 'fournil', 'img', 'carnet'), TABLE = path.join(RO
 const BRUT = path.resolve(val('--brut', path.join(os.tmpdir(), 'vignettes-brut'))); fs.mkdirSync(BRUT, { recursive: true });
 const PLANCHE = path.resolve(val('--planche', path.join(BRUT, 'planche.png')));
 const COTE = 256, QUALITE = +val('--qualite', 70), QUALITE_ALPHA = 80; // (le côté final ; la qualité webp, réglée pour la lisibilité à 44 et 64 px : voir le README)
+const PLAFOND = 12 * 1024; // (12 Ko par vignette au plus : au-delà, l'alpha descend d'un cran à la fois, puis la qualité, jusqu'au premier réglage qui tient)
+const encoder = (png, q, a) => sharp(png).resize(COTE, COTE, { kernel: 'lanczos3' }).webp({ quality: q, alphaQuality: a, effort: 6, smartSubsample: true }).toBuffer();
 const filtre = val('--seulement') ? val('--seulement').split(',').map((s) => s.trim()).filter(Boolean) : null;
 const pris = (fam, id) => !filtre || filtre.some((f) => { const [a, b] = f.split('/'); return a === fam && (!b || b === '*' || b === id); });
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp' };
@@ -50,10 +52,13 @@ const empreinte = (buf) => crypto.createHash('sha1').update(buf).digest('hex').s
     if (r.erreur) { console.log('ÉCHEC', x.famille, x.id, r.erreur.split('\n').slice(0, 3).join(' | ')); erreurs.push(`${x.famille}/${x.id} : ${r.erreur.split('\n')[0]}`); continue; }
     const png = Buffer.from(r.png.split(',')[1], 'base64'), dir = path.join(SORTIE, x.famille); fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(path.join(BRUT, x.famille), { recursive: true });
     fs.writeFileSync(path.join(BRUT, x.famille, x.id + '.png'), png);
-    const webp = await sharp(png).resize(COTE, COTE, { kernel: 'lanczos3' }).webp({ quality: QUALITE, alphaQuality: QUALITE_ALPHA, effort: 6, smartSubsample: true }).toBuffer();
+    // (une lueur, une toile fine : c'est l'alpha qui pèse ; quelques crans de moins ne se voient pas, même à 256 px)
+    let q = QUALITE, a = QUALITE_ALPHA, webp = await encoder(png, q, a);
+    while (webp.length > PLAFOND && (a > 60 || q > 50)) { if (a > 60) a--; else q--; webp = await encoder(png, q, a); }
+    if (webp.length > PLAFOND) erreurs.push(`${x.famille}/${x.id} : ${webp.length} octets, plus de 12 Ko même à la qualité ${q}, alpha ${a}`);
     fs.writeFileSync(path.join(dir, x.id + '.webp'), webp);
-    mesures.push({ famille: x.famille, id: x.id, octets: webp.length, cadre: r.cadre });
-    process.stdout.write(`${x.famille}/${x.id} ${(webp.length / 1024).toFixed(1)} Ko · `);
+    mesures.push({ famille: x.famille, id: x.id, octets: webp.length, qualite: q, alpha: a, cadre: r.cadre });
+    process.stdout.write(`${x.famille}/${x.id} ${(webp.length / 1024).toFixed(1)} Ko${q !== QUALITE || a !== QUALITE_ALPHA ? ` (qualité ${q}, alpha ${a})` : ''} · `);
   }
   console.log('');
   // les fichiers qui ne sont plus au catalogue (un objet retiré du jeu) : effacés, au tour complet seulement
