@@ -110,7 +110,7 @@ const TAILLE_NEON = fs.statSync(path.join(root, 'fournil', 'img', 'carnet', 'qua
 
   // ─── 2. le cache du service worker : une copie par vignette ───
   console.log('── le service worker : une seule copie par vignette ──');
-  await sleep(600);
+  await attendre(async () => (await enCache()).some((x) => /^quartier\/neon\.webp\?/.test(x)), 8000); // (la mise en cache suit la réponse, sans l'attendre)
   let cache = await enCache(); const neon = cache.filter((x) => /^quartier\/neon\.webp\?/.test(x));
   const parChemin = new Map(); for (const x of cache) { const p = x.split('?')[0]; parChemin.set(p, (parChemin.get(p) || 0) + 1); }
   check(cache.length > 0 && neon.length === 1 && [...parChemin.values()].every((n) => n === 1), `les vignettes vues sont en cache, une copie chacune (${cache.length} : ${cache.slice(0, 3).join(', ')}…)`);
@@ -139,7 +139,7 @@ const TAILLE_NEON = fs.statSync(path.join(root, 'fournil', 'img', 'carnet', 'qua
   const k1r = k1v.filter((x) => !vueSkin(x)), k1ko = k1v.filter((x) => (vueSkin(x) ? !(x.ok && x.aps === 1) : !repliSkin(x)));
   check(k1r.length >= 4 && k1r.some((x) => x.verrou) && !k1ko.length, `ses skins hors ligne : ${k1r.length} aperçus dessinés, un seul .ap chacun, grisés une fois (0,6) s’ils sont verrouillés${k1ko.length ? ' — ' + k1ko.slice(0, 3).map((x) => JSON.stringify(x)).join(' ') : ''}`);
   await page.screenshot({ path: path.join(out, 'hors-ligne-croupier-skins.png') });
-  await ouvrir(); await gagner(true); await carnet(false); // (rechargée hors ligne : la page vient du cache ; le Quartier écarté ne garde pas ses décos au chargement, on les redonne)
+  await ouvrir(); await gagner(true); await carnet(false); // (rechargée hors ligne, la page vient du cache du service worker ; l'état du test est redonné, comme au début)
   const m1 = await ev(() => { const im = [...document.querySelectorAll('#feuille img.vig')], neon = im.find((x) => /quartier\/neon\.webp/.test(x.src)); return { neon: !!(neon && neon.complete && neon.naturalWidth === 256), charges: im.filter((i) => i.complete && i.naturalWidth === 256).length }; });
   check(m1.neon && m1.charges > 1, `Mes décos hors ligne : les vignettes déjà vues s’affichent (${m1.charges}), le néon recuit par sa copie d'avant ; les autres ont leur icône`);
   check(!J.reseau.length, `aucune erreur réseau des vignettes dans la console, hors ligne${J.reseau.length ? ' — ' + J.reseau.slice(0, 3).join(' | ') : ''}`);
