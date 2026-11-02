@@ -17292,7 +17292,7 @@ const ARRIERE = (() => {
       roulette: { phase: rPhase, mises: rMises.map((m) => ({ cle: R.cle(m), mise: m.mise })), total: totalR(), jeton: jetonPart, vueTapis, numero: montre ? montre.tour.numero : null,
         rendu: rendu ? (rendu.sans ? '2d' : 'webgl') : null, tris: rendu && rendu.objets ? rendu.objets.tris : 0, bille: rendu ? rendu.bille : null, anime: !!(rendu && rendu.raf), finition: rendu && !rendu.sans ? rendu.finition : null, bord: rendu && !rendu.sans ? bordProjete() : null } };
   };
-  const ROUE = Object.freeze({ T_CALE, T_FIN, plan, etatBille, caseSous, FINITIONS });
+  const ROUE = Object.freeze({ T_CALE, T_FIN, plan, etatBille, caseSous, FINITIONS, creer: creerRoue }); // (creer : la roue d'une finition, pour les vignettes du carnet, outils/vignettes)
   return { init, ouvrir, fermer, maj, get ouvert() { return ouvert(); }, etat, carteEl, ROUE, croupierSVG };
 })();
 
