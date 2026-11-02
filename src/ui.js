@@ -548,6 +548,13 @@ const UI = (() => {
     if (st.chat) v.caresses = G.fmt(st.chat.caresses);
     return v;
   }
+  // un trophée de l'étagère (la boutique, l'arrière-salle) : sa vignette à gauche (le rendu de son objet, src/vignettes.js), grisée tant qu'il
+  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la coupe dessinée, dans le coin quand il est gagné (comme avant)
+  function trophCarte(fam, id, gagne, nom, desc, attr) {
+    const coupe = `<i class="ico">${ICONS.UI.trophee}</i>`, v = typeof VIGNETTES !== 'undefined' && VIGNETTES.src(fam, id);
+    if (!v) return `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? coupe : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
+    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}"${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, gagne ? coupe : '')}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
+  }
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
@@ -555,7 +562,7 @@ const UI = (() => {
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
-      const troph = (t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}">${tr[t.id] ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`;
+      const troph = (t) => trophCarte('trophees', t.id, !!tr[t.id], t.nom, t.desc, '');
       const aGagner = G.TROPHEES.filter((t) => !tr[t.id]);
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
@@ -570,7 +577,7 @@ const UI = (() => {
         <div class="card"><div class="c-tete"><span class="pic or">${ICONS.UI.trophee}</span><h3>Trophées</h3><span class="compte ${gagnes ? 'or' : ''}">${gagnes}/${G.TROPHEES.length}</span></div>
           ${gagnes ? `<div class="trophees">${G.TROPHEES.filter((t) => tr[t.id]).map(troph).join('')}</div>` : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
           ${aGagner.length ? `<details class="repli"><summary><span>${aGagner.length === 1 ? 'Le dernier à gagner' : `Les ${aGagner.length} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><div class="trophees">${aGagner.map(troph).join('')}</div></details>` : ''}
-          ${st.arriere && st.arriere.trouvee && typeof CASINO !== 'undefined' ? (() => { const ct = CASINO.trophees(st), cg = ct.filter((t) => t.gagne), ca = ct.filter((t) => !t.gagne), trC = (t) => `<div class="troph ${t.gagne ? 'gagne' : ''}" data-trophee-ar="${t.id}">${t.gagne ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`; // l'arrière-salle : ses trophées, une fois la petite porte trouvée (le compte de la boutique ne change pas)
+          ${st.arriere && st.arriere.trouvee && typeof CASINO !== 'undefined' ? (() => { const ct = CASINO.trophees(st), cg = ct.filter((t) => t.gagne), ca = ct.filter((t) => !t.gagne), trC = (t) => trophCarte('casino-trophees', t.id, !!t.gagne, t.nom, t.desc, ` data-trophee-ar="${t.id}"`); // l'arrière-salle : ses trophées, une fois la petite porte trouvée (le compte de la boutique ne change pas)
             return `<h4 class="sous-titre troph-ar">L’arrière-salle · ${cg.length}/${ct.length}</h4>${cg.length ? `<div class="trophees">${cg.map(trC).join('')}</div>` : '<p class="note">Aucun pour l’instant : ils se gagnent au BlackJack et à la roulette, et ne rapportent que des skins.</p>'}${ca.length ? `<details class="repli"><summary><span>${ca.length === 1 ? 'Le dernier à gagner' : `Les ${ca.length} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><div class="trophees">${ca.map(trC).join('')}</div></details>` : ''}`; })() : ''}</div>
         <div class="card stats"><div class="c-tete"><span class="pic menthe">${ICONS.UI.stats}</span><h3>Statistiques</h3></div>
           ${stat('ventes', 'Fournées vendues')}${stat('clients', 'Clients servis')}${stat('gagne', 'Gagné depuis le début')}${stat('boutiques', 'Boutique')}${st.chat ? stat('caresses', `Caresses à ${esc(st.chat.nom)}`) : ''}

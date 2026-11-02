@@ -224,7 +224,13 @@ const ARRIERE = (() => {
 
   // ─── le carnet du croupier : les mini-objectifs du jour, les trophées du casino, les statistiques, les skins ───
   const ONGLETS = [['objectifs', 'Objectifs'], ['trophees', 'Trophées'], ['stats', 'Stats'], ['skins', 'Skins']];
+  // l'aperçu d'un skin : sa vignette (src/vignettes.js : le vrai tapis en carré, le dos des cartes, les jetons, la roue à sa finition), ou
+  // l'aperçu dessiné (sans vignette, ou si elle ne se charge pas) ; le croupier, qui n'existe pas en 3D, garde son dessin
   function apercu(cat, id) {
+    const des = apercuDessine(cat, id);
+    return cat !== 'croupier' && typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-skins', `${cat}-${id}`) ? `<span class="ap ap-img">${VIGNETTES.img('casino-skins', `${cat}-${id}`, true, des)}</span>` : des;
+  }
+  function apercuDessine(cat, id) {
     if (cat === 'croupier') return `<span class="ap ap-croupier">${croupierSVG(id)}</span>`;
     if (cat === 'roue') { const f = FINITIONS[id] || FINITIONS.classique; return `<span class="ap ap-roue" style="--r:${f.rouge};--n:${f.noir};--v:${f.vert};--b:${f.bois};--m:${f.metal}"></span>`; }
     if (cat === 'tapis') return `<span class="ap ap-tapis" data-tapis="${id}"></span>`;
@@ -245,7 +251,8 @@ const ARRIERE = (() => {
         <p class="ar-petit">Trois par jour, renouvelés à minuit. Une main ou un tour compte dès que sa mise atteint 0,5 % de la caisse (1 € au moins) : inutile de miser gros. Un jeton d’or par objectif, un de plus pour les trois.</p>`;
     } else if (x === 'trophees') {
       const tr = C.trophees(s), g = tr.filter((t) => t.gagne), a = tr.filter((t) => !t.gagne);
-      const li = (t) => `<li class="${t.gagne ? 'gagne' : ''}" data-trophee="${t.id}"><span class="pic">${ICONS.UI.trophee}</span><span><b>${esc(t.nom)}</b><small>${esc(t.desc)}</small><em>${t.gagne ? 'Débloqué' : 'Débloque'} : ${esc(nomRecompense(t.recompense))}</em></span></li>`;
+      const vig = (t) => (typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-trophees', t.id) ? `<span class="pic img">${VIGNETTES.img('casino-trophees', t.id, !!t.gagne, ICONS.UI.trophee)}</span>` : `<span class="pic">${ICONS.UI.trophee}</span>`); // (sa vignette, grisée tant qu'il n'est pas gagné ; sinon la coupe dessinée)
+      const li = (t) => `<li class="${t.gagne ? 'gagne' : ''}" data-trophee="${t.id}">${vig(t)}<span><b>${esc(t.nom)}</b><small>${esc(t.desc)}</small><em>${t.gagne ? 'Débloqué' : 'Débloque'} : ${esc(nomRecompense(t.recompense))}</em></span></li>`;
       corps = `<p class="ar-petit">${g.length} sur ${tr.length}. Ils ne rapportent que des skins et un titre : jamais d’argent ni de points.</p><ul class="ar-trophs">${g.map(li).join('')}${a.map(li).join('')}</ul>`;
     } else if (x === 'stats') {
       const S = C.stats(s), b = S.blackjack, r = S.roulette;

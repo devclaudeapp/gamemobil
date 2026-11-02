@@ -465,6 +465,13 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .troph .ico svg { width: 18px; height: 18px; }
 .troph b { display: block; font: 700 13px/1.2 var(--titre); margin-bottom: 2px; }
 .troph span { display: block; font-size: 11.5px; line-height: 1.3; }
+/* l'étagère des trophées : la vignette de l'objet à gauche (sans vignette : la coupe dans le coin, ci-dessus) */
+.troph.avec-vig { display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 4px; }
+.troph.avec-vig.gagne { padding-right: 10px; }
+.troph .troph-vig { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; }
+.troph .troph-vig img { width: 100%; height: 100%; }
+.troph .troph-vig .ico { position: static; }
+.troph .troph-t { flex: 1 1 0; min-width: 0; font-size: inherit; }
 /* un repli : ce qui sert moins, sous une ligne qu'on ouvre */
 .repli { margin-top: 10px; }
 .repli summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 4px; border-top: 1px solid var(--ligne); font: 700 14px/1.2 var(--titre); color: var(--texte-2); cursor: pointer; list-style: none; }
@@ -1687,6 +1694,8 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ar-trophs li .pic svg { width: 22px; height: 22px; }
 .ar-trophs li.gagne { background: var(--or-clair); color: var(--texte); }
 .ar-trophs li.gagne .pic { background: var(--beurre); opacity: 1; }
+.ar-trophs li .pic.img, .ar-trophs li.gagne .pic.img { width: 46px; height: 46px; background: none; opacity: 1; } /* (la vignette du trophée : grisée elle-même tant qu'il n'est pas gagné) */
+.ar-trophs li .pic.img img { width: 100%; height: 100%; }
 .ar-trophs li b { display: block; font: 700 14.5px/1.2 var(--titre); }
 .ar-trophs li small { display: block; font-size: 12.5px; line-height: 1.3; }
 .ar-trophs li em { display: block; margin-top: 3px; font: 700 12px/1.3 var(--texte-font); font-style: normal; color: var(--lavande-sombre); }
@@ -1706,6 +1715,8 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ap-jeton i { position: absolute; inset: 3px; border-radius: 50%; border: 3.5px dashed var(--bord, rgba(255, 255, 255, .95)); background: radial-gradient(circle, var(--c) 0 50%, rgba(255, 255, 255, .5) 52% 56%, var(--c) 58%); box-shadow: 0 3px 0 var(--c2); }
 .ap-roue { border-radius: 50%; background: radial-gradient(circle, var(--b) 0 28%, var(--m) 29% 32%, transparent 33%), conic-gradient(var(--v) 0 10deg, var(--r) 0 30deg, var(--n) 0 50deg, var(--r) 0 70deg, var(--n) 0 90deg, var(--r) 0 110deg, var(--n) 0 130deg, var(--r) 0 150deg, var(--n) 0 170deg, var(--r) 0 190deg, var(--n) 0 210deg, var(--r) 0 230deg, var(--n) 0 250deg, var(--r) 0 270deg, var(--n) 0 290deg, var(--r) 0 310deg, var(--n) 0 330deg, var(--r) 0 350deg, var(--n) 0); box-shadow: 0 0 0 4px var(--b); }
 .ap-croupier { border-radius: 50%; background: #34413A; overflow: hidden; }
+.ap.ap-img { width: 52px; height: 52px; border-radius: 0; } /* (la vignette du skin : le vrai tapis, le dos, les jetons, la roue) */
+.ap.ap-img img { width: 100%; height: 100%; }
 .ap-croupier svg { width: 100%; height: 100%; display: block; }
 @media (max-height: 760px) { .ar-roul.vue-numeros:not(.tourne) .ar-roue { height: 0; } .ar-grille.numeros { gap: 4px; grid-auto-rows: minmax(26px, 1fr); } .ar-roue { height: clamp(90px, 17vh, 130px); } .ar-grille.chances { grid-auto-rows: minmax(42px, 1fr); } }
 @media (max-height: 700px) { .ar-act small { font-size: 12px; letter-spacing: -.01em; } .ar-conseil { min-height: 40px; padding: 3px 10px; } .ar-conseil:not(.on) small { display: none; } .ar-conseil .ico svg { width: 20px; height: 20px; } .ar-roue { height: clamp(64px, 12vh, 84px); } .ar-perso.grand { width: 30px; height: 30px; } .ar-grille.chances { grid-auto-rows: minmax(38px, 1fr); } .ar-grille.numeros { grid-auto-rows: minmax(26px, 1fr); } .ar-onglets-mise button { min-height: 32px; } .ar-histo li { min-width: 24px; height: 24px; font-size: 12px; } .ar-histo { min-height: 24px; } .ar-mains.deux .ar-boite-main { padding-top: 12px; } }
@@ -2373,6 +2384,9 @@ body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; }
 .cn-vig img { width: 100%; height: 100%; object-fit: cover; }
 .cn-vig .ico svg { width: 32px; height: 32px; }
 .cn-vig.gris .ico svg { filter: grayscale(1); opacity: .4; }
+/* les vignettes (src/vignettes.js : les rendus des objets du jeu) : pas encore gagnée, grisée et pâlie */
+img.vig { display: block; }
+img.vig.gris { filter: grayscale(.85) brightness(.95); opacity: .55; } /* (comme un skin pas encore débloqué : .ar-skin.verrou) */
 .cn-btn { flex: 0 0 auto; min-width: 84px; min-height: 44px; }
 .cn-places { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 2px 54px; }
 .cn-place { min-height: 44px; padding: 0 12px; border-radius: 999px; background: var(--menthe); color: #fff; font: 700 13px/1.1 var(--titre); box-shadow: 0 3px 0 var(--menthe-sombre); }
@@ -2595,7 +2609,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'fb6cfe942678';</script>
+<script>window.FOURNIL_VERSION = '4c6c890379a0';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -7581,6 +7595,41 @@ const ICONS = (() => {
   };
   return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER, CARNET };
 })();
+
+/* ── vignettes.js ── */
+/* LE FOURNIL — les vignettes du carnet « Mes décos », de l'étagère des trophées et du carnet du croupier (global VIGNETTES).
+   GÉNÉRÉ par outils/vignettes/cuire.cjs : ne pas éditer à la main (relancer l'outil : voir outils/vignettes/README.md).
+   Chaque objet du carnet qui a un objet 3D a sa vignette : fournil/img/carnet/<famille>/<id>.webp (256 × 256, fond transparent), rendue
+   dans le même studio que toutes les autres. La table : famille → id → l'empreinte du fichier (dans l'adresse : une vignette refaite ne
+   reste pas dans le cache du service worker). src(famille, id) : son adresse, ou '' (pas de vignette : l'icône dessinée). Sans les fichiers
+   (l'artefact Claude : pas de window.FOURNIL_VERSION, que seule la page du jeu porte), aucune adresse : les icônes restent.
+   img(famille, id, gagne, repli) : le HTML d'une vignette (grisée si pas gagnée) ; repli (du HTML : l'icône, l'aperçu dessiné), gardé
+   à côté dans un <template>, prend la place de l'image si elle ne se charge pas (un seul écouteur, en capture sur le document) ; sans
+   vignette, repli tel quel. */
+const VIGNETTES = (() => {
+  'use strict';
+  const T = {
+    'quartier': { 'graffiti': '204adb6c', 'neon': 'b9712f82', 'scooter': 'a4659cf4', 'chien': 'b1e71408', 'toque-or': 'cea4e22b' },
+    'hantee': { 'citrouilles': 'b4d25e84', 'toiles': '209f78f1', 'chaudron': '4067d6c9', 'bestiaire': 'abf28d8d', 'legende': '300873e0', 'toque-citrouille': 'a7bf5e2a' },
+    'podium': { 'vitrine-coupes': '67f60a02', 'rosette': '9ecc9235' },
+    'chaine': { 'souvenir-village': '7f739796', 'souvenir-paris': '926007d0', 'souvenir-mer': '8ef68485', 'souvenir-montagne': 'df19220e', 'souvenir-ville': 'ff6a95b8', 'souvenir-gare': '8594d05d', 'souvenir-ile': 'bd45bbd0', 'souvenir-chateau': '54ed3497', 'souvenir-cimes': '65c42c45', 'souvenir-capitale': '46946c78', 'chaine-plan': '4ca36770', 'chaine-cloche': '838d5410', 'chaine-globe': 'fa16278d', 'chaine-statue': '74c18e03', 'chaine-enseigne': '18be9f9c' },
+    'trophees': { 'premiere': 'b1938048', 'cent': 'cc7c28b1', 'dixmille': '28d54c4e', 'million': '5dff0429', 'equipe': 'd89568b5', 'grande-equipe': 'ba19805a', 'livreur': '10c27988', 'traiteur': '35227a9a', 'presse': 'e7f8744c', 'etoile': 'ebb02d56', 'bras': '7b67a67f', 'eclair': 'b9cce6e3', 'bricoleur': '4ce33bfd', 'mystere': 'cc126607', 'genereux': '13ee6b0a', 'etoiles10': '51a14b3e', 'etoiles100': '3e3c4b8b', 'etoiles1000': '853901db', 'boutique2': 'f6e25c33', 'boutique5': '99e42eae', 'boutique10': '741c6a36', 'semaine': 'a4802b7d', 'defi': '8c4554b2', 'piece': '355a92e6', 'recette-boutique': 'b7847c97', 'carte': '5cc431c3', 'franchise': '945f9278', 'compagnon': 'e3423c62', 'mof': '4a613cea', 'fidele': 'a6ab6036', 'salon': '4869f50d', 'decorateur': 'c9dbaec3', 'grade': '0f6b6e03', 'brigade': '4b7a7fb2', 'ronron': '01c56c37', 'saison1': '29890ace', 'saisons4': '0577e409' },
+    'compagnons': { 'chat-roux': '283c3b8a', 'chien': 'f8571904', 'lapin': '186dd477', 'chat-noir': '0c960187', 'chien-quartier': '36eb1d7b', 'chauve-souris': '296a911d', 'poule': '52da9a29', 'canard': '266aa0d6', 'herisson': 'a98e39e2', 'pingouin': '22cba57e', 'raton': 'c49f471b', 'escargot': '880cac22', 'teckel': 'e1f35a48', 'croissant': 'fdd95fe4', 'dragon': '02e3373c', 'pigeon': '39b9bf17' },
+    'tenues': { 'toque-blanche': '3b34b1bb', 'tablier-blanc': 'a89a084d', 'sabots': 'a80a9470', 'lunettes-rondes': '02cd41be', 'or-toque': '152d1977', 'or-tablier': 'a95f9489', 'or-chaussures': 'c9ebd706', 'or-foulard': 'ecbf206a', 'argent-toque': '427f7e1b', 'argent-tablier': '63b8a5de', 'argent-chaussures': '3d2627db', 'argent-foulard': '8622bc90', 'bronze-toque': '10ccfab9', 'bronze-tablier': '1bc77011', 'bronze-chaussures': '8f4d5e2c', 'bronze-foulard': 'b90362ea', 'quartier-casquette': '0b051e2d', 'quartier-sweat': '0d6534aa', 'quartier-baskets': '99a3c53e', 'quartier-chaine': 'a6a62381', 'quartier-or-casquette': 'd4650e22', 'quartier-or-sweat': 'c75e0b8d', 'quartier-or-baskets': '64d3ad95', 'quartier-or-chaine': '5105afc9', 'quartier-neon-casquette': 'ff42edb3', 'parcours-toque': 'bbdbe07e', 'parcours-tablier': '22acbfbf', 'parcours-chaussures': '91b11989', 'parcours-foulard': '36d43ffe', 'hantee-chapeau': '1421e1d8', 'hantee-cape': '2569951f', 'hantee-bottes': '03ea5fc1', 'hantee-lanterne': 'e803667d', 'hantee-or-chapeau': '1be67222', 'hantee-or-cape': '3c0bd9fb', 'hantee-or-bottes': '37591731', 'hantee-or-lanterne': 'c861c534', 'hantee-lueur-chapeau': '98b3832f', 'chaine-toque': '99f7a60c', 'chaine-veste': '7285f43e', 'chaine-souliers': 'e8411715', 'chaine-cles': '652eac6b', 'aura-lueur': 'b1ea84de' },
+    'saison': { 'galette': '6bd1fe0b', 'crepe': '755aa47c', 'paques': 'fe3a41a0', 'glace': '41695689', 'citrouille': 'c29d1edc', 'buche': 'eba5896a' },
+    'casino-trophees': { 'premiere-main': 'cf8b27f3', 'blackjack': '5a5b9971', 'cinq-cartes': '083aa871', 'partage': 'eb173bf7', 'double': '94a58c33', 'paire-parfaite': '797cdbc0', 'plein': '01d46418', 'zero': 'd76979e2', 'habitue': 'c06088c5', 'serie-10': '3390949d', 'assidu': 'cc5436fd' },
+    'casino-skins': { 'tapis-vert': 'ce401871', 'dos-classique': 'a924d400', 'jetons-classique': '7e039fe7', 'roue-classique': '774e34dd', 'tapis-bordeaux': '86b2812d', 'tapis-bleu-nuit': '9f6801f9', 'tapis-noir-or': '071f8d4f', 'tapis-prune': '0d808304', 'dos-or': '849ae83c', 'dos-fournil': '5427395f', 'dos-damier': 'a4e64cd4', 'jetons-nacre': '50c5d695', 'jetons-pastel': '1f34eccb', 'roue-fournil': '4eabf509', 'roue-ebene': 'ed2465a8', 'roue-or': 'e2a7b2cd' },
+  };
+  const actif = typeof window !== 'undefined' && !!window.FOURNIL_VERSION;
+  const src = (f, id) => { const h = actif && T[f] && T[f][id]; return h ? `img/carnet/${f}/${id}.webp?v=${h}` : ''; };
+  const img = (f, id, gagne, repli) => { const s = src(f, id); if (!s) return repli || ''; return `<img class="vig${gagne ? '' : ' gris'}" src="${s}" alt="" loading="lazy" decoding="async">${repli ? `<template class="vig-repli">${repli}</template>` : ''}`; };
+  if (actif && typeof document !== 'undefined') document.addEventListener('error', (e) => { // (une image qui manque : son repli à sa place, ou rien)
+    const im = e.target; if (!im || im.tagName !== 'IMG' || !im.classList.contains('vig')) return;
+    const t = im.nextElementSibling; if (t && t.classList.contains('vig-repli')) { im.replaceWith(t.content.cloneNode(true)); t.remove(); } else im.remove();
+  }, true);
+  return { T, actif, src, img };
+})();
+if (typeof module !== 'undefined') module.exports = VIGNETTES;
 
 /* ── vie.js ── */
 /* LE FOURNIL — la vie de la boutique, sans dessin : le plan (LAY), les clients qui entrent, font la queue, s'attablent et repartent,
@@ -16671,7 +16720,13 @@ const ARRIERE = (() => {
 
   // ─── le carnet du croupier : les mini-objectifs du jour, les trophées du casino, les statistiques, les skins ───
   const ONGLETS = [['objectifs', 'Objectifs'], ['trophees', 'Trophées'], ['stats', 'Stats'], ['skins', 'Skins']];
+  // l'aperçu d'un skin : sa vignette (src/vignettes.js : le vrai tapis en carré, le dos des cartes, les jetons, la roue à sa finition), ou
+  // l'aperçu dessiné (sans vignette, ou si elle ne se charge pas) ; le croupier, qui n'existe pas en 3D, garde son dessin
   function apercu(cat, id) {
+    const des = apercuDessine(cat, id);
+    return cat !== 'croupier' && typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-skins', `${cat}-${id}`) ? `<span class="ap ap-img">${VIGNETTES.img('casino-skins', `${cat}-${id}`, true, des)}</span>` : des;
+  }
+  function apercuDessine(cat, id) {
     if (cat === 'croupier') return `<span class="ap ap-croupier">${croupierSVG(id)}</span>`;
     if (cat === 'roue') { const f = FINITIONS[id] || FINITIONS.classique; return `<span class="ap ap-roue" style="--r:${f.rouge};--n:${f.noir};--v:${f.vert};--b:${f.bois};--m:${f.metal}"></span>`; }
     if (cat === 'tapis') return `<span class="ap ap-tapis" data-tapis="${id}"></span>`;
@@ -16692,7 +16747,8 @@ const ARRIERE = (() => {
         <p class="ar-petit">Trois par jour, renouvelés à minuit. Une main ou un tour compte dès que sa mise atteint 0,5 % de la caisse (1 € au moins) : inutile de miser gros. Un jeton d’or par objectif, un de plus pour les trois.</p>`;
     } else if (x === 'trophees') {
       const tr = C.trophees(s), g = tr.filter((t) => t.gagne), a = tr.filter((t) => !t.gagne);
-      const li = (t) => `<li class="${t.gagne ? 'gagne' : ''}" data-trophee="${t.id}"><span class="pic">${ICONS.UI.trophee}</span><span><b>${esc(t.nom)}</b><small>${esc(t.desc)}</small><em>${t.gagne ? 'Débloqué' : 'Débloque'} : ${esc(nomRecompense(t.recompense))}</em></span></li>`;
+      const vig = (t) => (typeof VIGNETTES !== 'undefined' && VIGNETTES.src('casino-trophees', t.id) ? `<span class="pic img">${VIGNETTES.img('casino-trophees', t.id, !!t.gagne, ICONS.UI.trophee)}</span>` : `<span class="pic">${ICONS.UI.trophee}</span>`); // (sa vignette, grisée tant qu'il n'est pas gagné ; sinon la coupe dessinée)
+      const li = (t) => `<li class="${t.gagne ? 'gagne' : ''}" data-trophee="${t.id}">${vig(t)}<span><b>${esc(t.nom)}</b><small>${esc(t.desc)}</small><em>${t.gagne ? 'Débloqué' : 'Débloque'} : ${esc(nomRecompense(t.recompense))}</em></span></li>`;
       corps = `<p class="ar-petit">${g.length} sur ${tr.length}. Ils ne rapportent que des skins et un titre : jamais d’argent ni de points.</p><ul class="ar-trophs">${g.map(li).join('')}${a.map(li).join('')}</ul>`;
     } else if (x === 'stats') {
       const S = C.stats(s), b = S.blackjack, r = S.roulette;
@@ -23683,7 +23739,8 @@ const RETOURS = (() => {
      l'enseigne), « Prendre N jetons », son gérant (niveau, part, heures, « encore X h ») ou « Embaucher », sa caisse et ce qui attend.
    - La boutique des jetons : trois rayons (les gérants, les objets rares, les boosts : un par semaine).
    - Le carnet « Mes décos » : toutes les familles de collection avec leur compteur ; les décos posables se posent ou se rangent dans la
-     boutique où l'on est (6 au plus) ; ce qui manque est grisé, avec comment l'obtenir. CARNET_IMAGES : les vignettes (fournil/img/carnet/).
+     boutique où l'on est (6 au plus) ; ce qui manque est grisé, avec comment l'obtenir. Chaque objet a sa vignette (src/vignettes.js, les
+     rendus de fournil/img/carnet/), ou son icône dessinée.
    - Dans une boutique de la chaîne : ses cartes de recettes (sa caisse, ses niveaux, ses apprentis), ses bonus et ses meubles, son bandeau.
      Tout s'écrit par CHAINE (la vue v et la boutique compacte v.b) : jamais par GAME.acheter & co., jamais dans st à la place de la vue.
    src/ui.js le branche par init(deps) : l'état (st), l'heure du jeu, la sauvegarde, les sons, les feuilles, entrer dans une boutique. */
@@ -23707,9 +23764,11 @@ const CHAINE_ECRAN = (() => {
   const accent = (q, s) => { try { const d = typeof VIE !== 'undefined' && VIE.decor ? VIE.decor(G.QUARTIERS[q], s) : null; if (d && d.accent) return d.accent; } catch (e) { /* rien */ } return '#FF6B8B'; };
   const clair = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return true; const v = parseInt(m[1], 16), r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55; };
   const nomStanding = (s) => (G.STANDINGS && G.STANDINGS[s] ? G.STANDINGS[s].nom : '');
-  // les vignettes du carnet (contrat § 4.6) : id → chemin d'une image (fournil/img/carnet/<famille>/<id>.webp, 256 px), chargée seulement à
-  // l'ouverture du carnet (loading="lazy") ; sans elle, l'icône dessinée de sa famille. Ajouter une image : un fichier et une ligne ici.
-  const CARNET_IMAGES = {};
+  // les vignettes du carnet (contrat § 4.6) : les rendus des vrais objets du jeu, cuits par outils/vignettes/cuire.cjs (src/vignettes.js,
+  // VIGNETTES : famille → id → fournil/img/carnet/<famille>/<id>.webp, 256 px), chargées seulement à l'ouverture du carnet (loading="lazy") ;
+  // pas encore gagnée, la vignette grisée ; sans elle (les titres, les cartes postales ; l'artefact, qui n'a pas les fichiers ; une image qui
+  // ne se charge pas), l'icône dessinée
+  const VIG = typeof VIGNETTES !== 'undefined' ? VIGNETTES : null, CARNET_IMAGES = VIG ? VIG.T : {};
 
   // ─── « Ma chaîne » : la planète et la liste ───
   let el = null, planete = false, choisie = 0, minuteur = 0, cleLignes = '';
@@ -23962,7 +24021,7 @@ const CHAINE_ECRAN = (() => {
     const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
     const places = new Set(liste.map((x) => x[1])), auto = placesAuto(cible), reel = effectives(origine ? [] : liste, auto); // (le plan d'origine : la scène montre les places de toujours)
     const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
-    const vignette = (f, x) => { const src = CARNET_IMAGES[x.id]; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${src && x.gagne ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`}</span>`; };
+    const vignette = (f, x) => { const ico = `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${VIG ? VIG.img(f.id, x.id, x.gagne, ico) : ico}</span>`; };
     const objet = (f, x) => {
       if (!f.posable || !x.place) return `<li class="cn-objet${x.gagne ? '' : ' gris'}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b>${x.gagne ? '' : `<small>${esc(x.obtenir)}</small>`}</span></li>`;
       const pose = liste.find((p) => p[0] === x.id), ici = TYPES[x.place] || '';
@@ -24008,12 +24067,14 @@ const CHAINE_ECRAN = (() => {
       poserListe(cible, [...liste, [id, p]]); D.son.achat(); garderPlace(() => carnet());
     });
   }
-  // une icône par famille (src/icons.js, ICONS.CARNET) ; pour quelques objets, celle qui existe déjà (un compagnon, une coupe)
+  // une icône par famille (src/icons.js, ICONS.CARNET) ; pour quelques objets, celle qui existe déjà (un compagnon, une coupe, le croupier en
+  // tenue : son dessin de l'arrière-salle, il n'a pas de vignette)
   function iconeFamille(id) { const C = typeof ICONS !== 'undefined' && ICONS.CARNET; return (C && (C[id] || C.avenir)) || ''; }
   function iconeCarnet(fam, id) {
     try {
       if (fam === 'compagnons' && id !== 'pigeon' && ICONS.compagnon) return ICONS.compagnon(id);
       if (fam === 'podium' && id === 'vitrine-coupes' && ICONS.coupe) return ICONS.coupe('or');
+      if (fam === 'casino-skins' && /^croupier-/.test(id) && typeof ARRIERE !== 'undefined' && ARRIERE.croupierSVG) return ARRIERE.croupierSVG(id.slice(9));
     } catch (e) { /* rien */ }
     return iconeFamille(fam);
   }
@@ -25017,6 +25078,13 @@ const UI = (() => {
     if (st.chat) v.caresses = G.fmt(st.chat.caresses);
     return v;
   }
+  // un trophée de l'étagère (la boutique, l'arrière-salle) : sa vignette à gauche (le rendu de son objet, src/vignettes.js), grisée tant qu'il
+  // n'est pas gagné ; sans vignette (l'artefact) ou si elle ne se charge pas, la coupe dessinée, dans le coin quand il est gagné (comme avant)
+  function trophCarte(fam, id, gagne, nom, desc, attr) {
+    const coupe = `<i class="ico">${ICONS.UI.trophee}</i>`, v = typeof VIGNETTES !== 'undefined' && VIGNETTES.src(fam, id);
+    if (!v) return `<div class="troph ${gagne ? 'gagne' : ''}"${attr}>${gagne ? coupe : ''}<b>${esc(nom)}</b><span>${esc(desc)}</span></div>`;
+    return `<div class="troph avec-vig ${gagne ? 'gagne' : ''}"${attr}><span class="troph-vig">${VIGNETTES.img(fam, id, gagne, gagne ? coupe : '')}</span><span class="troph-t"><b>${esc(nom)}</b><span>${esc(desc)}</span></span></div>`;
+  }
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
@@ -25024,7 +25092,7 @@ const UI = (() => {
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
-      const troph = (t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}">${tr[t.id] ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`;
+      const troph = (t) => trophCarte('trophees', t.id, !!tr[t.id], t.nom, t.desc, '');
       const aGagner = G.TROPHEES.filter((t) => !tr[t.id]);
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
@@ -25039,7 +25107,7 @@ const UI = (() => {
         <div class="card"><div class="c-tete"><span class="pic or">${ICONS.UI.trophee}</span><h3>Trophées</h3><span class="compte ${gagnes ? 'or' : ''}">${gagnes}/${G.TROPHEES.length}</span></div>
           ${gagnes ? `<div class="trophees">${G.TROPHEES.filter((t) => tr[t.id]).map(troph).join('')}</div>` : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
           ${aGagner.length ? `<details class="repli"><summary><span>${aGagner.length === 1 ? 'Le dernier à gagner' : `Les ${aGagner.length} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><div class="trophees">${aGagner.map(troph).join('')}</div></details>` : ''}
-          ${st.arriere && st.arriere.trouvee && typeof CASINO !== 'undefined' ? (() => { const ct = CASINO.trophees(st), cg = ct.filter((t) => t.gagne), ca = ct.filter((t) => !t.gagne), trC = (t) => `<div class="troph ${t.gagne ? 'gagne' : ''}" data-trophee-ar="${t.id}">${t.gagne ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`; // l'arrière-salle : ses trophées, une fois la petite porte trouvée (le compte de la boutique ne change pas)
+          ${st.arriere && st.arriere.trouvee && typeof CASINO !== 'undefined' ? (() => { const ct = CASINO.trophees(st), cg = ct.filter((t) => t.gagne), ca = ct.filter((t) => !t.gagne), trC = (t) => trophCarte('casino-trophees', t.id, !!t.gagne, t.nom, t.desc, ` data-trophee-ar="${t.id}"`); // l'arrière-salle : ses trophées, une fois la petite porte trouvée (le compte de la boutique ne change pas)
             return `<h4 class="sous-titre troph-ar">L’arrière-salle · ${cg.length}/${ct.length}</h4>${cg.length ? `<div class="trophees">${cg.map(trC).join('')}</div>` : '<p class="note">Aucun pour l’instant : ils se gagnent au BlackJack et à la roulette, et ne rapportent que des skins.</p>'}${ca.length ? `<details class="repli"><summary><span>${ca.length === 1 ? 'Le dernier à gagner' : `Les ${ca.length} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><div class="trophees">${ca.map(trC).join('')}</div></details>` : ''}`; })() : ''}</div>
         <div class="card stats"><div class="c-tete"><span class="pic menthe">${ICONS.UI.stats}</span><h3>Statistiques</h3></div>
           ${stat('ventes', 'Fournées vendues')}${stat('clients', 'Clients servis')}${stat('gagne', 'Gagné depuis le début')}${stat('boutiques', 'Boutique')}${st.chat ? stat('caresses', `Caresses à ${esc(st.chat.nom)}`) : ''}

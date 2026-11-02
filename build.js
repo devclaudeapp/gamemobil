@@ -5,7 +5,7 @@
 // l'artefact n'a pas de configuration, le classement s'y cache.
 // L'écran d'accueil (index.html à la racine) n'est pas généré : on l'édite à la main.
 // `node build.js --essai` écrit SEULEMENT la version d'essai, fournil-essai/index.html et fournil-essai/version.json, et y copie fournil/hd/,
-// fournil/modeles/ et fournil/sons/ (les chemins relatifs du jeu marchent sans rien toucher). Pas suivie par git (.gitignore) ; déployée à
+// fournil/modeles/, fournil/sons/ et fournil/img/ (les chemins relatifs du jeu marchent sans rien toucher). Pas suivie par git (.gitignore) ; déployée à
 // côté du vrai jeu depuis la branche du lot (.github/workflows/pages.yml et essai.yml). Elle ne s'installe pas (ni manifeste, ni service
 // worker), n'a pas de config.js (rien ne part vers le vrai serveur) et préfixe toutes ses clés de stockage (FOURNIL_CLE, FOURNIL_ESSAI).
 'use strict';
@@ -13,8 +13,9 @@ const fs = require('fs'), path = require('path');
 const ESSAI = process.argv.includes('--essai');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
+// vignettes.js (la table des vignettes du carnet, générée par outils/vignettes/cuire.cjs) après icons.js, avant ce qui les montre (arriere.js, chaine-ecran.js, ui.js) ;
 // equipe3d.js (le boulanger et les apprentis en 3D) juste après clients3d.js, dont il suit la règle ; « Ma chaîne de boutiques » : chaine.js (les règles) juste après game.js, planete.js (la petite planète) avant scene.js, chaine-ecran.js (les feuilles) avant nouveautes.js et ui.js (nouveautes.js reste juste avant ui.js : test/fournil-nouveautes.cjs)
-const js = ['game.js', 'chaine.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'equipe3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'tiroir.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'chaine-ecran.js', 'nouveautes.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const js = ['game.js', 'chaine.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vignettes.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'equipe3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'boutiquehantee.js', 'hanteeactivites.js', 'tiroir.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'chaine-ecran.js', 'nouveautes.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -95,13 +96,13 @@ if (ESSAI) { // la version d'essai, seule : rien d'autre n'est écrit
   if (fautes.length) { console.error(`version d'essai refusée : des clés du vrai jeu ne passent pas par FOURNIL_CLE / FOURNIL_ESSAI\n  ${fautes.join('\n  ')}`); process.exit(1); }
   const dir = path.join(__dirname, 'fournil-essai');
   fs.mkdirSync(dir, { recursive: true });
-  for (const d of ['hd', 'modeles', 'sons']) { // les ressources du jeu, copiées (les chemins relatifs du jeu marchent sans rien toucher)
+  for (const d of ['hd', 'modeles', 'sons', 'img']) { // les ressources du jeu, copiées (les chemins relatifs du jeu marchent sans rien toucher ; img/ : les vignettes du carnet)
     fs.rmSync(path.join(dir, d), { recursive: true, force: true });
     if (fs.existsSync(path.join(__dirname, 'fournil', d))) fs.cpSync(path.join(__dirname, 'fournil', d), path.join(dir, d), { recursive: true });
   }
   fs.writeFileSync(path.join(dir, 'index.html'), page);
   fs.writeFileSync(path.join(dir, 'version.json'), JSON.stringify({ v: version }) + '\n');
-  console.log(`fournil-essai/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · hd/, modeles/ et sons/ copiés · ${js.split('\n').length} lignes de JS`);
+  console.log(`fournil-essai/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · hd/, modeles/, sons/ et img/ copiés · ${js.split('\n').length} lignes de JS`);
   process.exit(0);
 }
 fs.mkdirSync(path.join(__dirname, 'fournil'), { recursive: true });

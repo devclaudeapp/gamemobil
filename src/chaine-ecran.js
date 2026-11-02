@@ -6,7 +6,8 @@
      l'enseigne), « Prendre N jetons », son gérant (niveau, part, heures, « encore X h ») ou « Embaucher », sa caisse et ce qui attend.
    - La boutique des jetons : trois rayons (les gérants, les objets rares, les boosts : un par semaine).
    - Le carnet « Mes décos » : toutes les familles de collection avec leur compteur ; les décos posables se posent ou se rangent dans la
-     boutique où l'on est (6 au plus) ; ce qui manque est grisé, avec comment l'obtenir. CARNET_IMAGES : les vignettes (fournil/img/carnet/).
+     boutique où l'on est (6 au plus) ; ce qui manque est grisé, avec comment l'obtenir. Chaque objet a sa vignette (src/vignettes.js, les
+     rendus de fournil/img/carnet/), ou son icône dessinée.
    - Dans une boutique de la chaîne : ses cartes de recettes (sa caisse, ses niveaux, ses apprentis), ses bonus et ses meubles, son bandeau.
      Tout s'écrit par CHAINE (la vue v et la boutique compacte v.b) : jamais par GAME.acheter & co., jamais dans st à la place de la vue.
    src/ui.js le branche par init(deps) : l'état (st), l'heure du jeu, la sauvegarde, les sons, les feuilles, entrer dans une boutique. */
@@ -30,9 +31,11 @@ const CHAINE_ECRAN = (() => {
   const accent = (q, s) => { try { const d = typeof VIE !== 'undefined' && VIE.decor ? VIE.decor(G.QUARTIERS[q], s) : null; if (d && d.accent) return d.accent; } catch (e) { /* rien */ } return '#FF6B8B'; };
   const clair = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return true; const v = parseInt(m[1], 16), r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55; };
   const nomStanding = (s) => (G.STANDINGS && G.STANDINGS[s] ? G.STANDINGS[s].nom : '');
-  // les vignettes du carnet (contrat § 4.6) : id → chemin d'une image (fournil/img/carnet/<famille>/<id>.webp, 256 px), chargée seulement à
-  // l'ouverture du carnet (loading="lazy") ; sans elle, l'icône dessinée de sa famille. Ajouter une image : un fichier et une ligne ici.
-  const CARNET_IMAGES = {};
+  // les vignettes du carnet (contrat § 4.6) : les rendus des vrais objets du jeu, cuits par outils/vignettes/cuire.cjs (src/vignettes.js,
+  // VIGNETTES : famille → id → fournil/img/carnet/<famille>/<id>.webp, 256 px), chargées seulement à l'ouverture du carnet (loading="lazy") ;
+  // pas encore gagnée, la vignette grisée ; sans elle (les titres, les cartes postales ; l'artefact, qui n'a pas les fichiers ; une image qui
+  // ne se charge pas), l'icône dessinée
+  const VIG = typeof VIGNETTES !== 'undefined' ? VIGNETTES : null, CARNET_IMAGES = VIG ? VIG.T : {};
 
   // ─── « Ma chaîne » : la planète et la liste ───
   let el = null, planete = false, choisie = 0, minuteur = 0, cleLignes = '';
@@ -285,7 +288,7 @@ const CHAINE_ECRAN = (() => {
     const fam = CH.carnet(s, ext(), casino()), poses = posesDe(cible), liste = poses || depuisOrigine(fam), origine = !poses && !cible;
     const places = new Set(liste.map((x) => x[1])), auto = placesAuto(cible), reel = effectives(origine ? [] : liste, auto); // (le plan d'origine : la scène montre les places de toujours)
     const total = fam.reduce((k, f) => k + f.total, 0), gagnes = fam.reduce((k, f) => k + f.gagnes, 0);
-    const vignette = (f, x) => { const src = CARNET_IMAGES[x.id]; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${src && x.gagne ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`}</span>`; };
+    const vignette = (f, x) => { const ico = `<i class="ico">${iconeCarnet(f.id, x.id)}</i>`; return `<span class="cn-vig cn-${f.id}${x.gagne ? '' : ' gris'}">${VIG ? VIG.img(f.id, x.id, x.gagne, ico) : ico}</span>`; };
     const objet = (f, x) => {
       if (!f.posable || !x.place) return `<li class="cn-objet${x.gagne ? '' : ' gris'}">${vignette(f, x)}<span class="t"><b>${esc(x.nom)}</b>${x.gagne ? '' : `<small>${esc(x.obtenir)}</small>`}</span></li>`;
       const pose = liste.find((p) => p[0] === x.id), ici = TYPES[x.place] || '';
@@ -331,12 +334,14 @@ const CHAINE_ECRAN = (() => {
       poserListe(cible, [...liste, [id, p]]); D.son.achat(); garderPlace(() => carnet());
     });
   }
-  // une icône par famille (src/icons.js, ICONS.CARNET) ; pour quelques objets, celle qui existe déjà (un compagnon, une coupe)
+  // une icône par famille (src/icons.js, ICONS.CARNET) ; pour quelques objets, celle qui existe déjà (un compagnon, une coupe, le croupier en
+  // tenue : son dessin de l'arrière-salle, il n'a pas de vignette)
   function iconeFamille(id) { const C = typeof ICONS !== 'undefined' && ICONS.CARNET; return (C && (C[id] || C.avenir)) || ''; }
   function iconeCarnet(fam, id) {
     try {
       if (fam === 'compagnons' && id !== 'pigeon' && ICONS.compagnon) return ICONS.compagnon(id);
       if (fam === 'podium' && id === 'vitrine-coupes' && ICONS.coupe) return ICONS.coupe('or');
+      if (fam === 'casino-skins' && /^croupier-/.test(id) && typeof ARRIERE !== 'undefined' && ARRIERE.croupierSVG) return ARRIERE.croupierSVG(id.slice(9));
     } catch (e) { /* rien */ }
     return iconeFamille(fam);
   }
