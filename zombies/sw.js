@@ -3,8 +3,8 @@
 // La page et le manifeste passent par le réseau d'abord (une mise à jour arrive tout de suite, et hors ligne la copie en cache sert) ;
 // le reste (Three.js et ses outils, les modèles 3D, les icônes, les polices) est servi tout de suite depuis le cache et rafraîchi en arrière-plan.
 // Changer un fichier de SHELL : l'ajouter ici et passer CACHE à la version suivante.
-const CACHE = 'zombies-jeu-v2';
-const SHELL = ['./', './index.html', './manifest.webmanifest', '../vendor/three.min.js', '../vendor/fournil-hd.min.js', '../icons/zombies.svg', '../icons/zombies-180.png', '../icons/zombies-192.png', '../icons/zombies-512.png'];
+const CACHE = 'zombies-jeu-v3';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', '../vendor/three.min.js', '../vendor/fournil-hd.min.js', '../vendor/supabase.min.js', '../icons/zombies.svg', '../icons/zombies-180.png', '../icons/zombies-192.png', '../icons/zombies-512.png'];
 // les modèles 3D (Kenney, KayKit) : mis en cache à l'installation, sans bloquer si l'un manque (le jeu garde alors ses formes faites main)
 const OPTIONNELS = [...['zombie', 'survivant', 'tourelle', 'mortier', 'voiture-sedan', 'voiture-police', 'voiture-suv', 'voiture-taxi', 'voiture-van', 'voiture-hatchback-sports'].map((n) => `./modeles/kenney/${n}.glb`),
   ...['golem', 'golem-glace', 'loup-garou', 'vampire', 'anims-large-marche', 'anims-large-general', 'anims-large-coups', 'anims-medium-marche', 'anims-medium-general', 'anims-medium-coups'].map((n) => `./modeles/kaykit/${n}.glb`)];
@@ -20,7 +20,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (req.mode === 'navigate') { e.respondWith(fetch(req).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./index.html', copy)); } return res; }).catch(() => caches.match('./index.html'))); return; }
   const local = url.origin === self.location.origin;
-  if (local && url.pathname.endsWith('.webmanifest')) { e.respondWith(fetch(req).then((res) => enCache(req, res)).catch(() => caches.match(req))); return; }
+  if (local && /(\.webmanifest|\/config\.js)$/.test(url.pathname)) { e.respondWith(fetch(req).then((res) => enCache(req, res)).catch(() => caches.match(req))); return; }
   if (local || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) {
     e.respondWith(caches.match(req).then((hit) => {
       const reseau = fetch(req).then((res) => enCache(req, res)); if (hit) { reseau.catch(() => {}); return hit; }

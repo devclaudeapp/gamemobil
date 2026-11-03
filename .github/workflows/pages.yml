@@ -346,7 +346,7 @@ jobs:
           PORT_PROGRESSION: '8894'
   # Dernier Rempart (zombies/) : ses règles pures dans Node (données, monde, vagues, atelier, armes, la navigation de Poncin réutilisée, un
   # joueur automatique sur chaque arène), puis de bout en bout sur un iPhone simulé (carte de la Salle de jeux, titre, joystick, vague,
-  # tourelle, pause, fin et record, portrait, hors ligne par le service worker). Une tâche à part : quelques minutes.
+  # tourelle, pause, fin et record, portrait, hors ligne par le service worker), puis la coop à deux pages (salon local). Une tâche à part.
   zombies:
     name: Dernier Rempart (Node et Playwright)
     runs-on: ubuntu-latest
@@ -365,10 +365,12 @@ jobs:
           node build.js
           node test/zombies.test.js
           node test/zombies-play.cjs
+          node test/zombies-coop.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_ZOMBIES: '8894'
+          PORT_ZOMBIES_COOP: '8895'
   deploy:
     needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, zombies]
     runs-on: ubuntu-latest

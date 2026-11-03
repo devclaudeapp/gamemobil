@@ -6,7 +6,7 @@
    - 'local'        : BroadcastChannel seul, entre onglets du même navigateur (tests Playwright, démonstrations) ;
    - 'webrtc-local' : présence et signalisation par BroadcastChannel, données par le vrai WebRTC (candidats « host », sans STUN) : sert à éprouver le code WebRTC.
    API (voir src-poncin/ARCHITECTURE.md, « Le jeu en ligne ») :
-     PRESEAU.salon({ via, code, creer, moi: { id, pseudo, couleur }, config, relais }) → Promise<salon>
+     PRESEAU.salon({ via, code, creer, moi: { id, pseudo, couleur }, config, relais, prefixe }) → Promise<salon>   (prefixe : celui des canaux, 'poncin' par défaut)
        sans code (ou creer: true) on crée le salon : le créateur est l'hôte tant qu'il est là, puis le plus ancien arrivé ;
        avec un code, on le rejoint : la promesse attend d'avoir vu le créateur (8 s au plus) pour ne jamais se croire hôte à tort ;
        via : 'supabase' | 'local' | 'webrtc-local' ; ?reseau=local (ou webrtc-local) dans l'adresse de la page l'impose ;
@@ -39,6 +39,8 @@ const PRESEAU = (() => {
   const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
   const attendreQue = async (f, ms) => { const t = Date.now(); while (!f()) { if (Date.now() - t > ms) return false; await attendre(50); } return true; };
   const param = (k) => { try { return new URLSearchParams(location.search).get(k); } catch (e) { return null; } };
+  // le préfixe des canaux (o.prefixe, 'poncin' par défaut) : un autre jeu du dépôt (Dernier Rempart : 'rempart') a ses salons à lui
+  const prefixe = (o) => (o && typeof o.prefixe === 'string' && /^[a-z]{2,16}$/.test(o.prefixe) ? o.prefixe : 'poncin');
   const sur = (f) => function () { try { return f.apply(this, arguments); } catch (e) { console.warn('[Poncin réseau]', e); } }; // jamais d'exception qui remonte d'un rappel réseau
 
   // ─── le socle commun : abonnés, liste des joueurs, élection de l'hôte (le plus ancien arrivé) ───
@@ -67,7 +69,7 @@ const PRESEAU = (() => {
   // ─── voie 'local' : BroadcastChannel (même navigateur) ───
   async function salonLocal(o) {
     if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
-    const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel('poncin-salle-' + code);
+    const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel(prefixe(o) + '-salle-' + code);
     const depuis = Date.now() + Math.random() / 1000, vus = new Map(); // id → dernier signe de vie
     const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, v: VERSION });
     const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, eq: chaine(j.eq, 24), am: chaine(j.am, 8), depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
@@ -111,9 +113,9 @@ const PRESEAU = (() => {
   // rappels : { presence(liste [{ id, pseudo, couleur, pret, depuis, v, i }]), signal(payload), relais(payload) }
 
   // BroadcastChannel (voie 'webrtc-local') : un signe de vie par seconde, muet 4 s = parti
-  function transportBC(code, id, rappels) {
+  function transportBC(code, id, rappels, pre) {
     if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
-    const bc = new BroadcastChannel('poncin-rtc-' + code), vus = new Map(); let moiP = null, ferme = false;
+    const bc = new BroadcastChannel((pre || 'poncin') + '-rtc-' + code), vus = new Map(); let moiP = null, ferme = false;
     const poster = (m) => { try { bc.postMessage(JSON.stringify(m)); } catch (e) { /* fermé */ } };
     const liste = () => Array.from(vus.values()).map((x) => x.j);
     bc.onmessage = sur((ev) => {
@@ -156,7 +158,7 @@ const PRESEAU = (() => {
     const suivreMaintenant = (c) => { if (moiP && c === canal && joint) c.track(moiP).catch(() => { /* reprise au prochain SUBSCRIBED */ }); };
     function ouvrir() {
       if (!client) client = creerClient();
-      const c = client.channel('poncin:' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: id } } });
+      const c = client.channel(prefixe(o) + ':' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: id } } });
       canal = c; joint = false; perdu = Date.now(); syncs = 0;
       c.on('presence', { event: 'sync' }, sur(() => { if (canal !== c || ferme) return; syncs++; const l = liste(); noter('présence ' + l.length); rappels.presence(l); }));
       c.on('broadcast', { event: 'signal' }, sur((m) => { if (canal === c && !ferme) rappels.signal(m && m.payload); }));
@@ -205,7 +207,7 @@ const PRESEAU = (() => {
     const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
     const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
     const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
-    const transport = local ? transportBC(code, s.moi.id, rappels) : transportSupabase(code, s.moi.id, o, rappels);
+    const transport = local ? transportBC(code, s.moi.id, rappels, prefixe(o)) : transportSupabase(code, s.moi.id, o, rappels);
     s.via = via;
 
     // ── présence → joueurs → hôte → liens ──
