@@ -1765,6 +1765,12 @@ const PRESEAU = (() => {
     mine:      { nom: 'Mine',      prix: 12,  vie: 1,   rayon: 0.4,  max: 2, plus: 2, souffle: 3.2, degats: 160,           depuis: 2, desc: 'Explose quand un zombie marche dessus.' },
     mortier:   { nom: 'Mortier',   prix: 40,  vie: 120, rayon: 0.6,  max: 1, plus: 5, portee: 14, cadence: 0.45, degats: 70, souffle: 2.6, minimum: 3, depuis: 4, desc: 'Lance des obus sur les groupes, de loin.' },
     epouvantail: { nom: 'Épouvantail', prix: 120, vie: 500, rayon: 0.6, max: 1, plus: 99, attire: 9,                  depuis: 6, desc: 'Attire les zombies proches pendant que tu tires.' },
+    // la deuxième colonne de l'atelier
+    tourellefeu:   { nom: 'Tourelle à flammes', prix: 45, vie: 170, rayon: 0.55, max: 1, plus: 4, portee: 4.6, cadence: 8, degats: 5, cone: 0.42, feu: { dps: 12, duree: 2 }, depuis: 5, desc: 'Arrose de flammes ce qui s’approche.' },
+    tourelletesla: { nom: 'Tourelle Tesla', prix: 60, vie: 150, rayon: 0.55, max: 1, plus: 5, portee: 7.5, cadence: 1.2, degats: 32, rebonds: 3, saut: 3.2, depuis: 8, desc: 'Un éclair qui saute de zombie en zombie.' },
+    claymore:      { nom: 'Claymore', prix: 18, vie: 1, rayon: 0.4, max: 2, plus: 3, souffle: 4.8, cone: 0.75, declenche: 3.2, degats: 230, depuis: 3, desc: 'Explose vers l’avant quand un zombie passe devant.' },
+    baril:         { nom: 'Baril explosif', prix: 8, vie: 40, rayon: 0.45, max: 3, plus: 2, souffle: 3.4, degats: 180, depuis: 2, desc: 'Une balle, un coup de griffe, une explosion : il saute.' },
+    radio:         { nom: 'Poste radio', prix: 35, vie: 220, rayon: 0.45, max: 1, plus: 99, attire: 13, duree: 8, souffle: 3.2, degats: 200, depuis: 7, desc: 'Sa musique attire les zombies, puis il explose.' },
   };
 
   // ─── les améliorations (permanentes pour la partie ; le prix monte à chaque cran) ───
@@ -2181,6 +2187,11 @@ const PRESEAU = (() => {
         _touches.push([t, zb]);
       }
       _touches.sort((p, q) => p[0] - q[0]);
+      if (estJoueur) for (const d of jeu.defenses) { // un baril sur le trajet de la balle, avant le premier zombie : il prend
+        if (d.type !== 'baril' || d.vie <= 0) continue;
+        const fx = d.x - x, fz = d.z - z, t = fx * dx + fz * dz; if (t < 0 || t > portee || (_touches.length && t > _touches[0][0])) continue;
+        const px = fx - t * dx, pz = fz - t * dz; if (px * px + pz * pz < 0.45 * 0.45) { d.vie -= arme.degats * mult; d.flash = 0.1; }
+      }
       let l = portee, n = 0;
       for (const [t, zb] of _touches) {
         if (n > arme.perce) break;
@@ -2353,6 +2364,7 @@ const PRESEAU = (() => {
       const k = 1 - Math.min(1, d / (r + zb.rayon)) * 0.6, n = d > 1e-3 ? 1 / d : 0;
       blesserZombie(jeu, zb, degats * k, (zb.x - x) * n * 1.5, (zb.z - z) * n * 1.5, de, false, true);
     }
+    if (!petite) for (const d of jeu.defenses) if (d.type === 'baril' && d.vie > 0 && Math.hypot(d.x - x, d.z - z) < r + 0.4) { d.vie = 0; d.de = de; }
     ev(jeu, { t: 'boum', x, z, r, petite: !!petite });
   }
 
@@ -2492,7 +2504,7 @@ const PRESEAU = (() => {
 
   function majZombies(jeu, dt) {
     const Zs = jeu.zombies, monde = jeu.monde, vivants = jeu.joueurs.filter((j) => j.vivant);
-    const epouvantails = jeu.defenses.filter((d) => d.type === 'epouvantail');
+    const epouvantails = jeu.defenses.filter((d) => D.DEFENSES[d.type].attire); // (l'épouvantail, le poste radio)
     for (let i = 0; i < Zs.length; i++) {
       const zb = Zs[i]; if (zb.vie <= 0) continue;
       const Z = D.ZOMBIES[zb.type];
@@ -2504,7 +2516,7 @@ const PRESEAU = (() => {
       // la proie : le survivant le plus proche, ou un épouvantail tout près
       let cx = 0, cz = 0, proie = null, best = Infinity;
       for (const j of vivants) { const d = (j.x - zb.x) ** 2 + (j.z - zb.z) ** 2; if (d < best) { best = d; proie = j; } }
-      for (const d of epouvantails) { const r = D.DEFENSES.epouvantail.attire, dd = (d.x - zb.x) ** 2 + (d.z - zb.z) ** 2; if (dd < r * r && dd < best * 1.6) { best = dd; proie = d; } }
+      for (const d of epouvantails) { const r = D.DEFENSES[d.type].attire, dd = (d.x - zb.x) ** 2 + (d.z - zb.z) ** 2; if (dd < r * r && dd < best * (d.type === 'radio' ? 4 : 1.6)) { best = dd; proie = d; } }
       if (!proie) { zb.bouge = 0; continue; }
       cx = proie.x; cz = proie.z;
       const dist = Math.sqrt(best);
@@ -2533,10 +2545,10 @@ const PRESEAU = (() => {
         if (zb.ci >= zb.chemin.length - 1) { tx = cx; tz = cz; }
       }
       const dx = tx - zb.x, dz = tz - zb.z, l = Math.hypot(dx, dz) || 1;
-      const contact = dist < zb.rayon + (proie.rayon || D.DEFENSES.epouvantail.rayon) + 0.25;
+      const contact = dist < zb.rayon + (proie.rayon || D.DEFENSES[proie.type].rayon) + 0.25;
       // ─── les talents ───
       const estJ = proie.vivant !== undefined;
-      if (Z.kamikaze && dist < zb.rayon + (proie.rayon || 0.6) + 0.45) { zb.vie = 0; zb.dernier = { px: 0, pz: 0, fort: true }; ev(jeu, { t: 'detone', id: zb.id, x: zb.x, z: zb.z }); detoner(jeu, zb, 'kamikaze'); continue; }
+      if (Z.kamikaze && dist < zb.rayon + (proie.rayon || D.DEFENSES[proie.type].rayon) + 0.45) { zb.vie = 0; zb.dernier = { px: 0, pz: 0, fort: true }; ev(jeu, { t: 'detone', id: zb.id, x: zb.x, z: zb.z }); detoner(jeu, zb, 'kamikaze'); continue; }
       if (Z.saut) {
         if (zb.saut > 0) { // en l'air : il file vers son point de chute, par-dessus tout
           zb.saut -= dt; const k = 1 - Math.max(0, zb.saut) / Z.saut.duree;
@@ -2636,10 +2648,15 @@ const PRESEAU = (() => {
     const km = multDefense(jeu), monde = jeu.monde;
     for (const d of jeu.defenses) {
       const T = D.DEFENSES[d.type]; if (d.flash > 0) d.flash -= dt;
-      if (d.type === 'tourelle' || d.type === 'mortier') {
+      if (d.type === 'claymore') { // un zombie devant, assez près : elle souffle vers l'avant
+        if (jeu.zombies.some((zb) => zb.vie > 0 && Math.hypot(zb.x - d.x, zb.z - d.z) < T.declenche && ecartAngle(d.angle, Math.atan2(zb.z - d.z, zb.x - d.x)) < T.cone)) d.vie = 0;
+        continue;
+      }
+      if (d.type === 'radio') { d.t = (d.t || 0) + dt; if (d.t >= T.duree) d.vie = 0; continue; }
+      if (d.type === 'tourelle' || d.type === 'mortier' || d.type === 'tourellefeu' || d.type === 'tourelletesla') {
         d.attente -= dt;
         let cible = null, best = T.portee * T.portee;
-        if (d.type === 'tourelle') {
+        if (d.type !== 'mortier') {
           for (const zb of jeu.zombies) { if (zb.vie <= 0) continue; const d2 = (zb.x - d.x) ** 2 + (zb.z - d.z) ** 2; if (d2 < best && monde.vue(d.x, d.z, zb.x, zb.z)) { best = d2; cible = zb; } }
         } else { // le mortier vise le zombie qui a le plus de voisins, hors de sa distance minimale
           let score = -1; const mn = T.minimum * T.minimum, s2 = T.souffle * T.souffle;
@@ -2653,7 +2670,10 @@ const PRESEAU = (() => {
           const a = Math.atan2(cible.z - d.z, cible.x - d.x); d.angle = angleVers(d.angle, a, 9 * dt);
           if (d.attente <= 0 && ecartAngle(d.angle, a) < 0.25) {
             d.attente = 1 / T.cadence;
-            if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, remplir(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
+            const bx = d.x + Math.cos(d.angle) * 0.5, bz = d.z + Math.sin(d.angle) * 0.5;
+            if (d.type === 'tourellefeu') souffler(jeu, 'def' + d.id, bx, bz, d.angle, remplir(_armeTir, { degats: T.degats, portee: T.portee, cone: T.cone, feu: T.feu, recul: 0.05, classe: 'flamme', cle: 'tourellefeu' }), km);
+            else if (d.type === 'tourelletesla') eclair(jeu, 'def' + d.id, d.x, d.z, d.angle, remplir(_armeTir, { degats: T.degats, portee: T.portee + 1, rebonds: T.rebonds, saut: T.saut, classe: 'tesla', cle: 'tourelletesla' }), km, null, cible);
+            else if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, remplir(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
             else { const duree = 0.9 + Math.hypot(cible.x - d.x, cible.z - d.z) * 0.04; jeu.obus.push({ x0: d.x, z0: d.z, x1: cible.x + (jeu.rnd() - 0.5), z1: cible.z + (jeu.rnd() - 0.5), t: 0, duree, degats: T.degats * km, souffle: T.souffle }); ev(jeu, { t: 'mortier', x: d.x, z: d.z }); }
           }
         } else if (d.attente < 0) d.attente = 0;
@@ -2662,8 +2682,15 @@ const PRESEAU = (() => {
     for (let i = jeu.defenses.length - 1; i >= 0; i--) {
       const d = jeu.defenses[i]; if (d.vie > 0) continue;
       jeu.defenses.splice(i, 1);
-      if (d.type === 'mine') explosion(jeu, d.x, d.z, D.DEFENSES.mine.souffle, D.DEFENSES.mine.degats * km, 'def' + d.id);
-      else ev(jeu, { t: 'casse', type: d.type, x: d.x, z: d.z });
+      const T = D.DEFENSES[d.type];
+      if (d.type === 'mine') explosion(jeu, d.x, d.z, T.souffle, T.degats * km, 'def' + d.id);
+      else if (d.type === 'claymore') { // le souffle en cône, vers l'avant
+        for (const zb of jeu.zombies) { if (zb.vie <= 0) continue; const ex = zb.x - d.x, ez = zb.z - d.z, dd = Math.hypot(ex, ez); if (dd > T.souffle + zb.rayon || ecartAngle(d.angle, Math.atan2(ez, ex)) > T.cone + 0.15) continue; blesserZombie(jeu, zb, T.degats * km * (1 - Math.min(1, dd / T.souffle) * 0.5), ex / (dd || 1) * 2, ez / (dd || 1) * 2, 'def' + d.id, false, true); }
+        ev(jeu, { t: 'boum', x: d.x + Math.cos(d.angle) * 1.2, z: d.z + Math.sin(d.angle) * 1.2, r: 2.2, cone: d.angle });
+      } else if (d.type === 'baril' || d.type === 'radio') {
+        explosion(jeu, d.x, d.z, T.souffle, T.degats * km, d.de || 'def' + d.id);
+        for (const j of jeu.joueurs) { if (!j.vivant) continue; const dd = Math.hypot(j.x - d.x, j.z - d.z); if (dd < T.souffle * 0.8) blesserJoueur(jeu, j, 25 * (1 - dd / T.souffle)); }
+      } else ev(jeu, { t: 'casse', type: d.type, x: d.x, z: d.z });
     }
   }
 
@@ -3483,6 +3510,21 @@ const ZRENDU = (() => {
           F.add(cyl(0.32, 0.36, 0.1, 10), '#5E6347', mat(0, 0.05, 0)); F.add(cyl(0.12, 0.12, 0.06, 8), '#3B3E2E', mat(0, 0.12, 0)); G.base = F.geo();
           F.add(BOITE, '#FF4A3A', mat(0, 0.16, 0, 0, 0.06, 0.04, 0.06)); G.tete = F.geo();
           break;
+        case 'tourellefeu':
+          F.add(cyl(0.45, 0.55, 0.3, 8), '#5D6470', mat(0, 0.15, 0)); F.add(cyl(0.12, 0.16, 0.5, 6), '#4A505A', mat(0, 0.5, 0)); G.base = F.geo();
+          F.add(BOITE, '#D9824B', mat(0, 0.85, 0, 0, 0.5, 0.34, 0.46), 0.04, 5); F.add(cyl(0.09, 0.12, 0.55, 8), '#2F343C', mat(0.42, 0.88, 0, 0, 1, 1, 1, 0, Math.PI / 2)); F.add(cyl(0.16, 0.16, 0.42, 8), '#C0392B', mat(-0.18, 0.95, 0.2, 0, 1, 1, 1, Math.PI / 2)); G.tete = F.geo();
+          break;
+        case 'tourelletesla':
+          F.add(cyl(0.45, 0.55, 0.3, 8), '#5D6470', mat(0, 0.15, 0)); F.add(cyl(0.1, 0.18, 1.0, 6), '#7C8696', mat(0, 0.8, 0)); for (const y of [0.55, 0.8, 1.05]) F.add(cyl(0.22, 0.22, 0.06, 10), '#B87333', mat(0, y, 0)); G.base = F.geo();
+          F.add(new T.IcosahedronGeometry(0.26, 1), '#6FD3FF', mat(0, 1.45, 0)); G.tete = F.geo();
+          break;
+        case 'claymore':
+          F.add(BOITE, '#6B7A3A', mat(0.02, 0.2, 0, 0, 0.12, 0.3, 0.6), 0.04, 6); for (const s of [-0.22, 0.22]) F.add(BOITE, '#2F343C', mat(-0.05, 0.06, s, 0, 0.04, 0.14, 0.04)); F.add(BOITE, '#FF4A3A', mat(0.09, 0.3, 0, 0, 0.02, 0.05, 0.05)); G.base = F.geo(); break;
+        case 'baril':
+          F.add(cyl(0.36, 0.36, 0.9, 10), '#D64534', mat(0, 0.45, 0)); for (const y of [0.2, 0.7]) F.add(cyl(0.375, 0.375, 0.06, 10), '#8C2A1E', mat(0, y, 0)); F.add(cyl(0.12, 0.12, 0.03, 8), '#FFE07A', mat(0, 0.91, 0)); G.base = F.geo(); break;
+        case 'radio':
+          F.add(BOITE, '#5B8BD9', mat(0, 0.3, 0, 0, 0.5, 0.45, 0.8), 0.05, 7); F.add(cyl(0.14, 0.14, 0.04, 10), '#2B2A33', mat(0.26, 0.3, -0.18, 0, 1, 1, 1, 0, Math.PI / 2)); F.add(BOITE, '#FFE07A', mat(0.26, 0.38, 0.18, 0, 0.02, 0.08, 0.25));
+          F.add(BOITE, '#2B2A33', mat(0, 0.8, 0.2, 0, 0.03, 0.6, 0.03, 0.4)); G.base = F.geo(); break;
         case 'epouvantail':
           F.add(BOITE, '#7A5634', mat(0, 0.9, 0, 0, 0.12, 1.8, 0.12)); F.add(BOITE, '#7A5634', mat(0, 1.35, 0, 0, 0.1, 0.1, 1.4));
           F.add(BOITE, '#C94F3D', mat(0, 1.2, 0, 0, 0.3, 0.55, 0.6), 0.06, 4); F.add(BOITE, '#E9D18C', mat(0, 1.68, 0, 0, 0.34, 0.34, 0.34));
@@ -3512,10 +3554,12 @@ const ZRENDU = (() => {
           const fond = new T.Mesh(geoPlan, matBarre), barre = new T.Mesh(geoPlan, matBarreV.clone()); fond.renderOrder = 5; barre.renderOrder = 6;
           const bar = new T.Group(); bar.add(fond); bar.add(barre); barre.position.z = 0.001; bar.position.y = d.type === 'epouvantail' ? 2.4 : 1.5; g.add(bar);
           g.position.set(d.x, 0, d.z); scene.add(g); r = { g, base, tete, bar, barre, pose: 0, modele }; defs.set(d.id, r);
-          if (d.type === 'barricade') g.rotation.y = -d.angle;
+          if (d.type === 'barricade' || d.type === 'claymore' || d.type === 'radio') g.rotation.y = -d.angle;
         }
         r.pose = Math.min(1, r.pose + dt * 5); const k = 0.4 + 0.6 * r.pose; r.g.scale.set(k, k, k);
-        if (r.tete && d.type !== 'mine') r.tete.rotation.y = r.modele ? Math.PI / 2 - d.angle : -d.angle;
+        if (r.tete && d.type !== 'mine' && d.type !== 'tourelletesla') r.tete.rotation.y = r.modele ? Math.PI / 2 - d.angle : -d.angle;
+        if (d.type === 'tourelletesla') { const p = 1 + Math.sin(t * 8 + d.id) * 0.08; r.tete.scale.set(p, p, p); }
+        if (d.type === 'radio') { r.base.position.y = Math.abs(Math.sin(t * 12)) * 0.04; if (Math.random() < dt * 4) particule(d.x, 1.0, d.z, (Math.random() - 0.5), 1.4, (Math.random() - 0.5), 0.9, 0.12, Math.random() < 0.5 ? '#FFE07A' : '#FFFFFF', 0); }
         if (d.type === 'mine') r.tete.visible = Math.floor(t * 3 + d.id) % 2 === 0;
         const f = d.vie / d.vieMax; r.bar.visible = f < 0.999 && d.type !== 'mine';
         if (r.bar.visible) { r.bar.quaternion.copy(camera.quaternion); r.bar.children[0].scale.set(1.0, 0.13, 1); r.barre.scale.set(Math.max(0.01, f) * 0.96, 0.09, 1); r.barre.position.x = -(1 - f) * 0.48; r.barre.material.color.set(f > 0.5 ? '#6BD36B' : f > 0.25 ? '#F2C230' : '#E5533D'); }
@@ -4028,7 +4072,14 @@ const ZHUD = (() => {
     flamme: '<svg viewBox="0 0 64 32"><path d="M4 12h30l8-3h10v14H42l-8-3h-4l-2 9h-8l2-9H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="8" y="18" width="12" height="8" rx="3" fill="#C0392B" stroke="#1F2533" stroke-width="2"/></svg>',
   };
   const iconeArme = (id) => { const A = ZDONNEES.ARMES[id]; if (ARME_ICO[id]) return ARME_ICO[id]; if (!A) return ''; return `<span class="ico-arme" style="color:${A.couleur}">${FAMILLE_ICO[A.famille] || FAMILLE_ICO.pistolet}</span>`; };
-  const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  const DEFS1 = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], DEFS2 = ['tourellefeu', 'tourelletesla', 'claymore', 'baril', 'radio'], DEFS = DEFS1.concat(DEFS2), AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  Object.assign(ICO, {
+    tourellefeu: '<svg viewBox="0 0 40 40"><rect x="9" y="27" width="22" height="7" rx="2" fill="#5D6470"/><rect x="18" y="19" width="4" height="9" fill="#4A505A"/><rect x="10" y="12" width="16" height="10" rx="2" fill="#D9824B" stroke="#2B2A33" stroke-width="2"/><path d="M26 17h5c4-3 6 1 3 3 3 1 1 5-3 3h-5z" fill="#FFB347" stroke="#C0392B" stroke-width="1.5"/></svg>',
+    tourelletesla: '<svg viewBox="0 0 40 40"><rect x="10" y="29" width="20" height="6" rx="2" fill="#5D6470"/><rect x="17" y="14" width="6" height="16" fill="#7C8696" stroke="#2B2A33" stroke-width="2"/><circle cx="20" cy="10" r="6" fill="#6FD3FF" stroke="#2B2A33" stroke-width="2"/><path d="M27 6l4 2-3 2 4 2" stroke="#BFF0FF" stroke-width="2" fill="none"/></svg>',
+    claymore: '<svg viewBox="0 0 40 40"><path d="M7 14q13-6 26 0v11q-13-5-26 0z" fill="#6B7A3A" stroke="#2B2A33" stroke-width="2.2"/><path d="M12 30l-3 5M28 30l3 5" stroke="#2B2A33" stroke-width="2.2"/><circle cx="20" cy="18" r="2" fill="#FF4A3A"/></svg>',
+    baril: '<svg viewBox="0 0 40 40"><rect x="10" y="7" width="20" height="27" rx="4" fill="#D64534" stroke="#2B2A33" stroke-width="2.2"/><path d="M10 14h20M10 27h20" stroke="#8C2A1E" stroke-width="2"/><path d="M20 15l-3 6h4l-3 6" stroke="#FFE07A" stroke-width="2" fill="none"/></svg>',
+    radio: '<svg viewBox="0 0 40 40"><path d="M24 6l-8 9" stroke="#2B2A33" stroke-width="2"/><rect x="6" y="15" width="28" height="18" rx="4" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.2"/><circle cx="14" cy="24" r="5" fill="#2B2A33"/><rect x="22" y="20" width="8" height="3" fill="#FFE07A"/><rect x="22" y="25" width="8" height="3" fill="#FFE07A"/></svg>',
+  });
   const NB_CHIFFRES = 40, chiffres = [], derniers = [], cumul = new Map(); let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
@@ -4051,7 +4102,7 @@ const ZHUD = (() => {
         <button class="h-poignee" type="button" aria-label="Replier l’atelier"><span>‹</span></button>
         <div class="h-cols">
           <div class="h-col">${AMS.map((k) => `<button type="button" class="h-btn am" data-am="${k}"><span class="ico">${ICO[k]}</span><small class="niv"></small><b class="prix"></b></button>`).join('')}</div>
-          <div class="h-col">${DEFS.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>
+          ${[DEFS1, DEFS2].map((L) => `<div class="h-col">${L.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>`).join('')}
         </div>
         <div class="h-info" hidden></div>
       </div>

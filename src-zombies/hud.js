@@ -53,7 +53,14 @@ const ZHUD = (() => {
     flamme: '<svg viewBox="0 0 64 32"><path d="M4 12h30l8-3h10v14H42l-8-3h-4l-2 9h-8l2-9H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="8" y="18" width="12" height="8" rx="3" fill="#C0392B" stroke="#1F2533" stroke-width="2"/></svg>',
   };
   const iconeArme = (id) => { const A = ZDONNEES.ARMES[id]; if (ARME_ICO[id]) return ARME_ICO[id]; if (!A) return ''; return `<span class="ico-arme" style="color:${A.couleur}">${FAMILLE_ICO[A.famille] || FAMILLE_ICO.pistolet}</span>`; };
-  const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  const DEFS1 = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], DEFS2 = ['tourellefeu', 'tourelletesla', 'claymore', 'baril', 'radio'], DEFS = DEFS1.concat(DEFS2), AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  Object.assign(ICO, {
+    tourellefeu: '<svg viewBox="0 0 40 40"><rect x="9" y="27" width="22" height="7" rx="2" fill="#5D6470"/><rect x="18" y="19" width="4" height="9" fill="#4A505A"/><rect x="10" y="12" width="16" height="10" rx="2" fill="#D9824B" stroke="#2B2A33" stroke-width="2"/><path d="M26 17h5c4-3 6 1 3 3 3 1 1 5-3 3h-5z" fill="#FFB347" stroke="#C0392B" stroke-width="1.5"/></svg>',
+    tourelletesla: '<svg viewBox="0 0 40 40"><rect x="10" y="29" width="20" height="6" rx="2" fill="#5D6470"/><rect x="17" y="14" width="6" height="16" fill="#7C8696" stroke="#2B2A33" stroke-width="2"/><circle cx="20" cy="10" r="6" fill="#6FD3FF" stroke="#2B2A33" stroke-width="2"/><path d="M27 6l4 2-3 2 4 2" stroke="#BFF0FF" stroke-width="2" fill="none"/></svg>',
+    claymore: '<svg viewBox="0 0 40 40"><path d="M7 14q13-6 26 0v11q-13-5-26 0z" fill="#6B7A3A" stroke="#2B2A33" stroke-width="2.2"/><path d="M12 30l-3 5M28 30l3 5" stroke="#2B2A33" stroke-width="2.2"/><circle cx="20" cy="18" r="2" fill="#FF4A3A"/></svg>',
+    baril: '<svg viewBox="0 0 40 40"><rect x="10" y="7" width="20" height="27" rx="4" fill="#D64534" stroke="#2B2A33" stroke-width="2.2"/><path d="M10 14h20M10 27h20" stroke="#8C2A1E" stroke-width="2"/><path d="M20 15l-3 6h4l-3 6" stroke="#FFE07A" stroke-width="2" fill="none"/></svg>',
+    radio: '<svg viewBox="0 0 40 40"><path d="M24 6l-8 9" stroke="#2B2A33" stroke-width="2"/><rect x="6" y="15" width="28" height="18" rx="4" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.2"/><circle cx="14" cy="24" r="5" fill="#2B2A33"/><rect x="22" y="20" width="8" height="3" fill="#FFE07A"/><rect x="22" y="25" width="8" height="3" fill="#FFE07A"/></svg>',
+  });
   const NB_CHIFFRES = 40, chiffres = [], derniers = [], cumul = new Map(); let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
@@ -76,7 +83,7 @@ const ZHUD = (() => {
         <button class="h-poignee" type="button" aria-label="Replier l’atelier"><span>‹</span></button>
         <div class="h-cols">
           <div class="h-col">${AMS.map((k) => `<button type="button" class="h-btn am" data-am="${k}"><span class="ico">${ICO[k]}</span><small class="niv"></small><b class="prix"></b></button>`).join('')}</div>
-          <div class="h-col">${DEFS.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>
+          ${[DEFS1, DEFS2].map((L) => `<div class="h-col">${L.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>`).join('')}
         </div>
         <div class="h-info" hidden></div>
       </div>

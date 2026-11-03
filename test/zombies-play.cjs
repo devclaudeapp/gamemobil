@@ -55,7 +55,7 @@ const BASE = `http://localhost:${PORT}/`;
   // ─── jouer ───
   await page.tap('#b-jouer'); await sleep(600);
   const hud = await P(() => ({ ecran: window.__zombies.ecran, hud: !document.querySelector('#hud').hidden, vie: document.querySelector('.h-vie-n').textContent, v: document.querySelector('.h-v').textContent, arme: document.querySelector('.h-arme-nom').textContent, slots: document.querySelectorAll('.h-slot').length, defs: document.querySelectorAll('.h-btn.def').length, ams: document.querySelectorAll('.h-btn.am').length }));
-  check(hud.ecran === 'jeu' && hud.hud && hud.vie === '100' && hud.v === 'V1' && hud.arme === 'PISTOLET' && hud.slots === 2 && hud.defs === 5 && hud.ams === 5, `Jouer : le HUD (vie ${hud.vie}, ${hud.v}, ${hud.arme}, 2 armes, atelier de 5 défenses et 5 améliorations)`);
+  check(hud.ecran === 'jeu' && hud.hud && hud.vie === '100' && hud.v === 'V1' && hud.arme === 'PISTOLET' && hud.slots === 2 && hud.defs === 10 && hud.ams === 5, `Jouer : le HUD (vie ${hud.vie}, ${hud.v}, ${hud.arme}, 2 armes, atelier de 10 équipements et 5 améliorations)`);
   // le joystick : un doigt posé à gauche glisse vers la gauche, le survivant court vers l'ouest
   const x0 = await P(() => window.__zombies.jeu.joueurs[0].x);
   await toucher('touchStart', [[200, 250]]);

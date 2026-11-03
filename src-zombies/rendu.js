@@ -556,6 +556,21 @@ const ZRENDU = (() => {
           F.add(cyl(0.32, 0.36, 0.1, 10), '#5E6347', mat(0, 0.05, 0)); F.add(cyl(0.12, 0.12, 0.06, 8), '#3B3E2E', mat(0, 0.12, 0)); G.base = F.geo();
           F.add(BOITE, '#FF4A3A', mat(0, 0.16, 0, 0, 0.06, 0.04, 0.06)); G.tete = F.geo();
           break;
+        case 'tourellefeu':
+          F.add(cyl(0.45, 0.55, 0.3, 8), '#5D6470', mat(0, 0.15, 0)); F.add(cyl(0.12, 0.16, 0.5, 6), '#4A505A', mat(0, 0.5, 0)); G.base = F.geo();
+          F.add(BOITE, '#D9824B', mat(0, 0.85, 0, 0, 0.5, 0.34, 0.46), 0.04, 5); F.add(cyl(0.09, 0.12, 0.55, 8), '#2F343C', mat(0.42, 0.88, 0, 0, 1, 1, 1, 0, Math.PI / 2)); F.add(cyl(0.16, 0.16, 0.42, 8), '#C0392B', mat(-0.18, 0.95, 0.2, 0, 1, 1, 1, Math.PI / 2)); G.tete = F.geo();
+          break;
+        case 'tourelletesla':
+          F.add(cyl(0.45, 0.55, 0.3, 8), '#5D6470', mat(0, 0.15, 0)); F.add(cyl(0.1, 0.18, 1.0, 6), '#7C8696', mat(0, 0.8, 0)); for (const y of [0.55, 0.8, 1.05]) F.add(cyl(0.22, 0.22, 0.06, 10), '#B87333', mat(0, y, 0)); G.base = F.geo();
+          F.add(new T.IcosahedronGeometry(0.26, 1), '#6FD3FF', mat(0, 1.45, 0)); G.tete = F.geo();
+          break;
+        case 'claymore':
+          F.add(BOITE, '#6B7A3A', mat(0.02, 0.2, 0, 0, 0.12, 0.3, 0.6), 0.04, 6); for (const s of [-0.22, 0.22]) F.add(BOITE, '#2F343C', mat(-0.05, 0.06, s, 0, 0.04, 0.14, 0.04)); F.add(BOITE, '#FF4A3A', mat(0.09, 0.3, 0, 0, 0.02, 0.05, 0.05)); G.base = F.geo(); break;
+        case 'baril':
+          F.add(cyl(0.36, 0.36, 0.9, 10), '#D64534', mat(0, 0.45, 0)); for (const y of [0.2, 0.7]) F.add(cyl(0.375, 0.375, 0.06, 10), '#8C2A1E', mat(0, y, 0)); F.add(cyl(0.12, 0.12, 0.03, 8), '#FFE07A', mat(0, 0.91, 0)); G.base = F.geo(); break;
+        case 'radio':
+          F.add(BOITE, '#5B8BD9', mat(0, 0.3, 0, 0, 0.5, 0.45, 0.8), 0.05, 7); F.add(cyl(0.14, 0.14, 0.04, 10), '#2B2A33', mat(0.26, 0.3, -0.18, 0, 1, 1, 1, 0, Math.PI / 2)); F.add(BOITE, '#FFE07A', mat(0.26, 0.38, 0.18, 0, 0.02, 0.08, 0.25));
+          F.add(BOITE, '#2B2A33', mat(0, 0.8, 0.2, 0, 0.03, 0.6, 0.03, 0.4)); G.base = F.geo(); break;
         case 'epouvantail':
           F.add(BOITE, '#7A5634', mat(0, 0.9, 0, 0, 0.12, 1.8, 0.12)); F.add(BOITE, '#7A5634', mat(0, 1.35, 0, 0, 0.1, 0.1, 1.4));
           F.add(BOITE, '#C94F3D', mat(0, 1.2, 0, 0, 0.3, 0.55, 0.6), 0.06, 4); F.add(BOITE, '#E9D18C', mat(0, 1.68, 0, 0, 0.34, 0.34, 0.34));
@@ -585,10 +600,12 @@ const ZRENDU = (() => {
           const fond = new T.Mesh(geoPlan, matBarre), barre = new T.Mesh(geoPlan, matBarreV.clone()); fond.renderOrder = 5; barre.renderOrder = 6;
           const bar = new T.Group(); bar.add(fond); bar.add(barre); barre.position.z = 0.001; bar.position.y = d.type === 'epouvantail' ? 2.4 : 1.5; g.add(bar);
           g.position.set(d.x, 0, d.z); scene.add(g); r = { g, base, tete, bar, barre, pose: 0, modele }; defs.set(d.id, r);
-          if (d.type === 'barricade') g.rotation.y = -d.angle;
+          if (d.type === 'barricade' || d.type === 'claymore' || d.type === 'radio') g.rotation.y = -d.angle;
         }
         r.pose = Math.min(1, r.pose + dt * 5); const k = 0.4 + 0.6 * r.pose; r.g.scale.set(k, k, k);
-        if (r.tete && d.type !== 'mine') r.tete.rotation.y = r.modele ? Math.PI / 2 - d.angle : -d.angle;
+        if (r.tete && d.type !== 'mine' && d.type !== 'tourelletesla') r.tete.rotation.y = r.modele ? Math.PI / 2 - d.angle : -d.angle;
+        if (d.type === 'tourelletesla') { const p = 1 + Math.sin(t * 8 + d.id) * 0.08; r.tete.scale.set(p, p, p); }
+        if (d.type === 'radio') { r.base.position.y = Math.abs(Math.sin(t * 12)) * 0.04; if (Math.random() < dt * 4) particule(d.x, 1.0, d.z, (Math.random() - 0.5), 1.4, (Math.random() - 0.5), 0.9, 0.12, Math.random() < 0.5 ? '#FFE07A' : '#FFFFFF', 0); }
         if (d.type === 'mine') r.tete.visible = Math.floor(t * 3 + d.id) % 2 === 0;
         const f = d.vie / d.vieMax; r.bar.visible = f < 0.999 && d.type !== 'mine';
         if (r.bar.visible) { r.bar.quaternion.copy(camera.quaternion); r.bar.children[0].scale.set(1.0, 0.13, 1); r.barre.scale.set(Math.max(0.01, f) * 0.96, 0.09, 1); r.barre.position.x = -(1 - f) * 0.48; r.barre.material.color.set(f > 0.5 ? '#6BD36B' : f > 0.25 ? '#F2C230' : '#E5533D'); }

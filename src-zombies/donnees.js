@@ -81,6 +81,12 @@
     mine:      { nom: 'Mine',      prix: 12,  vie: 1,   rayon: 0.4,  max: 2, plus: 2, souffle: 3.2, degats: 160,           depuis: 2, desc: 'Explose quand un zombie marche dessus.' },
     mortier:   { nom: 'Mortier',   prix: 40,  vie: 120, rayon: 0.6,  max: 1, plus: 5, portee: 14, cadence: 0.45, degats: 70, souffle: 2.6, minimum: 3, depuis: 4, desc: 'Lance des obus sur les groupes, de loin.' },
     epouvantail: { nom: 'Épouvantail', prix: 120, vie: 500, rayon: 0.6, max: 1, plus: 99, attire: 9,                  depuis: 6, desc: 'Attire les zombies proches pendant que tu tires.' },
+    // la deuxième colonne de l'atelier
+    tourellefeu:   { nom: 'Tourelle à flammes', prix: 45, vie: 170, rayon: 0.55, max: 1, plus: 4, portee: 4.6, cadence: 8, degats: 5, cone: 0.42, feu: { dps: 12, duree: 2 }, depuis: 5, desc: 'Arrose de flammes ce qui s’approche.' },
+    tourelletesla: { nom: 'Tourelle Tesla', prix: 60, vie: 150, rayon: 0.55, max: 1, plus: 5, portee: 7.5, cadence: 1.2, degats: 32, rebonds: 3, saut: 3.2, depuis: 8, desc: 'Un éclair qui saute de zombie en zombie.' },
+    claymore:      { nom: 'Claymore', prix: 18, vie: 1, rayon: 0.4, max: 2, plus: 3, souffle: 4.8, cone: 0.75, declenche: 3.2, degats: 230, depuis: 3, desc: 'Explose vers l’avant quand un zombie passe devant.' },
+    baril:         { nom: 'Baril explosif', prix: 8, vie: 40, rayon: 0.45, max: 3, plus: 2, souffle: 3.4, degats: 180, depuis: 2, desc: 'Une balle, un coup de griffe, une explosion : il saute.' },
+    radio:         { nom: 'Poste radio', prix: 35, vie: 220, rayon: 0.45, max: 1, plus: 99, attire: 13, duree: 8, souffle: 3.2, degats: 200, depuis: 7, desc: 'Sa musique attire les zombies, puis il explose.' },
   };
 
   // ─── les améliorations (permanentes pour la partie ; le prix monte à chaque cran) ───
