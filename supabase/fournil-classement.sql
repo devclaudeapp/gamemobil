@@ -7,6 +7,17 @@
 --  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
 --
+--  Version 6.8 (3 nov. 2026) : LES PROJETS DE QUARTIER, des chantiers financés par les points de boulanger de tous (le même code que
+--  le patch supabase/fournil-projets-v68.sql, collé par-dessus la v6.7.1). Rien d'autre ne change : ni fournil_publier, ni fournil_figer,
+--  ni l'objectif commun ; les téléphones n'envoient rien de nouveau (les points sont déjà plafonnés par joueur).
+--    · la table fermée fournil_projets (une ligne par chantier : rang, prix, actifs, semaine d'ouverture, points déjà versés au chantier
+--      d'avant cette semaine-là, fin) ;
+--    · fournil_projets() (lisible par tous) : fige la semaine passée, verse dans le chantier en cours le total des points de chaque
+--      semaine depuis son ouverture (figées : fournil_objectif.total ; en cours : la somme vivante), finit un chantier rempli une seule
+--      fois (verrou), ouvre le suivant avec le reste ; prix fixé à l'ouverture : fournil_projet_base(rang) (1 200, +8 % par chantier)
+--      × les joueurs actifs bornés de 5 à 60 ;
+--    · trois fonctions internes : fournil_projet_base, fournil_projet_actifs, fournil_projet_total.
+--
 --  Version 6.7.1 (22 oct. 2026) : LE NOUVEAU BARÈME ET LA SÉRIE DÉMARRENT ENSEMBLE LE LUNDI 26 OCTOBRE 2026 À 0 H (heure de Paris ;
 --  le même code que le patch supabase/fournil-classement-v671.sql, collé par-dessus la v6.7). La semaine du 19 au 25 octobre finit avec
 --  les règles d'avant, comme le jeu (src/game.js, BAREME_DEPUIS) :
@@ -454,6 +465,19 @@ create index if not exists fournil_portes_empreinte on public.fournil_portes (em
 comment on table public.fournil_portes is
   'Le Fournil : les inscriptions des dernières 24 h par source (empreinte seulement). Accès uniquement par fournil_publier.';
 
+-- version 6.8 : les projets de quartier, des chantiers financés par les points de boulanger de tous (une ligne par chantier : son prix,
+-- la semaine où il a ouvert, ce que cette semaine-là avait déjà versé au chantier d'avant, et quand il a été fini)
+create table if not exists public.fournil_projets (
+  rang        integer primary key check (rang >= 1),
+  cout        integer not null check (cout > 0),     -- base(rang) × actifs bornés de 5 à 60, fixé à l'ouverture
+  actifs      integer not null check (actifs >= 0),  -- les joueurs actifs comptés à l'ouverture (pour l'affichage)
+  debut       date not null,                          -- le lundi de la semaine où il a ouvert
+  deja        integer not null default 0 check (deja >= 0), -- les points de la semaine « debut » déjà versés aux chantiers d'avant
+  fini        timestamptz,                            -- null tant qu'il n'est pas rempli
+  semaine_fin date                                    -- le lundi de la semaine où il s'est rempli
+);
+comment on table public.fournil_projets is
+  'Le Fournil : les chantiers du quartier, financés par les points de tous. Accès uniquement par les fonctions du jeu.';
 -- la sécurité ligne par ligne est activée SANS aucune règle : personne ne voit ni ne touche ces tables par l'API.
 -- On enlève les règles qui auraient pu être ajoutées à la main, pour que ce soit toujours vrai.
 alter table public.fournil_joueurs enable row level security;
@@ -472,6 +496,7 @@ alter table public.fournil_abonnements enable row level security;
 alter table public.fournil_notif_prefs enable row level security;
 alter table public.fournil_notifs enable row level security;
 alter table public.fournil_annonces enable row level security;
+alter table public.fournil_projets enable row level security; -- version 6.8
 do $$
 declare
   r record;
@@ -480,7 +505,8 @@ begin
             where schemaname = 'public'
               and tablename in ('fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements',
                                 'fournil_evt_scores', 'fournil_evt_podium', 'fournil_photos', 'fournil_pourboires', 'fournil_objectif',
-                                'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces') loop
+                                'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces',
+                                'fournil_projets') loop
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 end
@@ -491,7 +517,7 @@ $$;
 revoke all on table public.fournil_joueurs, public.fournil_palmares, public.fournil_semaines, public.fournil_portes,
   public.fournil_quartier_podium, public.fournil_evenements, public.fournil_evt_scores, public.fournil_evt_podium,
   public.fournil_photos, public.fournil_pourboires, public.fournil_objectif, public.fournil_objectif_gagnants,
-  public.fournil_abonnements, public.fournil_notif_prefs, public.fournil_notifs, public.fournil_annonces
+  public.fournil_abonnements, public.fournil_notif_prefs, public.fournil_notifs, public.fournil_annonces, public.fournil_projets
   from public, anon, authenticated;
 revoke all on sequence public.fournil_notifs_id_seq from public, anon, authenticated;
 
@@ -2051,6 +2077,114 @@ begin
 end
 $$;
 
+-- ─── 9 ter h. Les projets de quartier (version 6.8) : des chantiers financés par les points de boulanger de tous ───
+-- les petites fonctions internes (ni anon ni authenticated)
+-- la base du prix du chantier n°rang, par joueur actif (en points de boulanger) : 1 200, puis +8 % par chantier (réglé sur sim.js : un chantier toutes les 2 à 4 semaines)
+create or replace function public.fournil_projet_base(p_rang integer)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select round(1200 * power(1.08, greatest(0, p_rang - 1)))::integer
+$$;
+
+-- les joueurs actifs à l'ouverture d'un chantier : le plus grand de ceux de la semaine d'avant (figée : fournil_objectif.joueurs) et de
+-- ceux qui ont déjà des points cette semaine (la première semaine du patch, la semaine d'avant figée peut être vide)
+create or replace function public.fournil_projet_actifs(p_lundi date)
+returns integer
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_avant integer;
+  v_cette integer;
+begin
+  select o.joueurs into v_avant from public.fournil_objectif o where o.semaine = p_lundi - 7 and o.joueurs is not null;
+  select count(*)::integer into v_cette from public.fournil_joueurs j where j.semaine = p_lundi and j.points > 0;
+  return greatest(coalesce(v_avant, 0), coalesce(v_cette, 0));
+end
+$$;
+
+-- le total des points d'une semaine : figé (fournil_objectif.total) pour une semaine passée, la somme vivante pour la semaine en cours
+create or replace function public.fournil_projet_total(p_semaine date, p_lundi date)
+returns integer
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_t integer;
+begin
+  if p_semaine >= p_lundi then
+    select coalesce(sum(j.points), 0)::integer into v_t from public.fournil_joueurs j where j.semaine = p_lundi;
+  else
+    select coalesce(o.total, 0) into v_t from public.fournil_objectif o where o.semaine = p_semaine and o.fige is not null;
+  end if;
+  return greatest(0, coalesce(v_t, 0));
+end
+$$;
+
+-- fournil_projets : le chantier en cours et ceux qui sont finis, lisible par tous. Réponse : { version: 1, semaine, cette_semaine,
+-- en_cours: { rang, cout, total, pourcent: 0 à 99, actifs, depuis }, finis: [{ rang, semaine, fini }] (les 200 derniers) }
+create or replace function public.fournil_projets()
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_lundi      date := public.fournil_lundi(v_maintenant);
+  p            public.fournil_projets%rowtype;
+  v_w          date;
+  v_acc        bigint;
+  v_dispo      bigint;
+  v_fin        date;
+  v_actifs     integer;
+  v_tours      integer := 0;
+begin
+  perform public.fournil_figer(v_lundi);                         -- la semaine passée figée (son total compte pour les chantiers)
+  perform pg_catalog.pg_advisory_xact_lock(7231068);             -- un seul appel à la fois finit un chantier
+  if not exists (select 1 from public.fournil_projets) then
+    v_actifs := public.fournil_projet_actifs(v_lundi);
+    insert into public.fournil_projets (rang, cout, actifs, debut, deja)
+    values (1, public.fournil_projet_base(1) * greatest(5, least(60, v_actifs)), v_actifs, v_lundi, 0)
+    on conflict (rang) do nothing;
+  end if;
+  loop
+    select * into p from public.fournil_projets where fini is null order by rang limit 1;
+    if not found then exit; end if;
+    v_acc := 0; v_w := p.debut; v_fin := null;
+    while v_w <= v_lundi loop
+      v_dispo := greatest(0, public.fournil_projet_total(v_w, v_lundi) - case when v_w = p.debut then p.deja else 0 end);
+      if v_acc + v_dispo >= p.cout then v_fin := v_w; exit; end if;
+      v_acc := v_acc + v_dispo; v_w := v_w + 7;
+    end loop;
+    exit when v_fin is null or v_tours >= 20;                    -- pas rempli (ou 20 chantiers finis d'un coup : la suite au prochain appel)
+    update public.fournil_projets set fini = v_maintenant, semaine_fin = v_fin where rang = p.rang and fini is null;
+    v_actifs := public.fournil_projet_actifs(v_lundi);
+    insert into public.fournil_projets (rang, cout, actifs, debut, deja)
+    values (p.rang + 1, public.fournil_projet_base(p.rang + 1) * greatest(5, least(60, v_actifs)), v_actifs, v_fin,
+            least(2000000000, (case when v_fin = p.debut then p.deja else 0 end) + (p.cout - v_acc)))
+    on conflict (rang) do nothing;
+    v_tours := v_tours + 1;
+  end loop;
+  return json_build_object(
+    'version', 1,
+    'semaine', to_char(v_lundi, 'YYYY-MM-DD'),
+    'cette_semaine', public.fournil_projet_total(v_lundi, v_lundi),
+    'en_cours', (case when p.rang is null then null else json_build_object(
+      'rang', p.rang, 'cout', p.cout, 'total', least(v_acc, p.cout), 'pourcent', least(99, floor(100.0 * v_acc / p.cout))::integer,
+      'actifs', p.actifs, 'depuis', to_char(p.debut, 'YYYY-MM-DD')) end),
+    'finis', coalesce((select json_agg(json_build_object('rang', f.rang, 'semaine', to_char(f.semaine_fin, 'YYYY-MM-DD'), 'fini', public.fournil_iso(f.fini)) order by f.rang)
+                         from (select * from public.fournil_projets where fini is not null order by rang desc limit 200) f), '[]'::json)
+  );
+end
+$$;
+
 -- ─── 9 ter e. fournil_abonner / fournil_desabonner : les notifications de cet appareil ───
 -- p_sub : l'abonnement du navigateur (PushSubscription.toJSON()) : { endpoint, keys: { p256dh, auth } }, 2 Ko au plus ; l'endpoint en
 -- https, 1 000 caractères au plus, chez un service de notifications de navigateur (fournil_endpoint_valable). 5 appareils au plus par
@@ -2300,6 +2434,10 @@ revoke all on function public.fournil_objectif_but(date) from public, anon, auth
 revoke all on function public.fournil_objectif_figer(date, timestamptz, boolean) from public, anon, authenticated;
 revoke all on function public.fournil_annoncer(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_joueur_verifie(uuid, text) from public, anon, authenticated;
+-- version 6.8 : les projets de quartier
+revoke all on function public.fournil_projet_base(integer) from public, anon, authenticated;
+revoke all on function public.fournil_projet_actifs(date) from public, anon, authenticated;
+revoke all on function public.fournil_projet_total(date, date) from public, anon, authenticated;
 
 revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision, jsonb) from public;
 revoke all on function public.fournil_classement(text, uuid, integer) from public;
@@ -2332,6 +2470,9 @@ grant execute on function public.fournil_abonner(uuid, text, jsonb, jsonb) to an
 grant execute on function public.fournil_desabonner(uuid, text, text) to anon, authenticated;
 grant execute on function public.fournil_planifier(uuid, text, timestamptz) to anon, authenticated;
 grant execute on function public.fournil_notif_essai(uuid, text) to anon, authenticated;
+-- version 6.8 : les projets de quartier, lisibles par tous
+revoke all on function public.fournil_projets() from public;
+grant execute on function public.fournil_projets() to anon, authenticated;
 -- la fonction d'envoi seulement : jamais anon ni authenticated
 revoke all on function public.fournil_notifs_dues(integer) from public, anon, authenticated;
 revoke all on function public.fournil_notifs_faites(bigint[], text[]) from public, anon, authenticated;

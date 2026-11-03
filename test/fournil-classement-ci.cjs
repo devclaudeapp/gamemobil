@@ -8,6 +8,12 @@
 //     À PARTIR du 26, serie 1 (1er jour), serie_auj true, serie_bonus 0, et la nouvelle formule (137 × jours + 50, 989 au plus). Un deuxième
 //     envoi le même jour ne change ni la série ni ses points. Une réponse sans serie : « v6.7 pas encore collée » ; avant le 26, une série
 //     déjà à 1 : « v6.7.1 pas encore collée » ; l'un comme l'autre, le test échoue en le disant clairement (colle tel fichier) ;
+//  0 quinquies. version 6.8, les projets de quartier (supabase/fournil-projets-v68.sql) : si elle est collée, fournil_projets() répond au
+//     contrat (version 1, le lundi de Paris, le chantier en cours : rang, prix, avancement de 0 à 99 %, les chantiers finis avant lui) et
+//     un deuxième appel ne recule pas ; la table fournil_projets et ses trois fonctions internes sont refusées à la clé publique. Pas encore
+//     collée : le test le dit clairement (« v6.8 pas encore collée : colle supabase/fournil-projets-v68.sql ») SANS échouer (le jeu marche
+//     sans : la feuille du classement dit « bientôt ») ; elle est appelée AVANT d'inscrire les joueurs de test (leurs points ne comptent pas
+//     dans le prix du premier chantier) ;
 //  0 ter. version 6.6, les acharnés de la Maison hantée (supabase/fournil-classement-v66.sql) : si elle est collée, chaque ligne du classement
 //     porte titre (null, ou le titre que montre la photo de sa boutique : A envoie ti = 'legende-manoir', sa ligne le rend), et la forme des
 //     places de l'événement est vérifiée quand il est figé (evenements.hantee = { rang 1 à 15 | null, joueurs, podium : trois premiers au
@@ -140,6 +146,8 @@ let V66 = false; // version 6.6 : les lignes du classement portent titre (les ac
 const V67_MANQUE = '**v6.7 pas encore collée** : colle `supabase/fournil-classement-v67.sql`, puis `supabase/fournil-classement-v671.sql`, dans le SQL Editor (le barème du lot 7 et la série de jours de suite, qui démarrent le lundi 26 octobre 2026).';
 const V671_MANQUE = '**v6.7.1 pas encore collée** : colle `supabase/fournil-classement-v671.sql` dans le SQL Editor (le nouveau barème et la série démarrent ensemble le lundi 26 octobre 2026 ; avec la v6.7 seule, la série compte déjà et le plafond est déjà relevé).';
 const DEPART_LOT7 = '2026-10-26'; // le lundi (heure de Paris) où démarrent le barème du lot 7 et la série (src/game.js, BAREME_DEPUIS ; SQL v6.7.1)
+const V68_MANQUE = '**v6.8 pas encore collée** : colle `supabase/fournil-projets-v68.sql` dans le SQL Editor (les projets de quartier : une table fermée et la fonction fournil_projets ; rien d’autre ne change). Le jeu marche sans (« Les chantiers du quartier ouvrent bientôt ») ; le reste est vérifié.';
+let V68 = false; // version 6.8 : fournil_projets répond (les projets de quartier)
 let V67 = false; // version 6.7 : la réponse de fournil_publier porte la série (serie, serie_auj, serie_bonus)
 let VERSION = 0, V6 = false, V65 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications ; V65 : les places et les accusés (6.5)
 async function appel(methode, chemin, corps, h = entetes) {
@@ -281,6 +289,24 @@ function arreter(message, conclusion) {
       log('  ATTENTION v6.6 pas encore collée (les lignes du classement ne portent pas titre) : colle supabase/fournil-classement-v66.sql'); }
     else if (!V66) log('  (le classement de la semaine est vide : la v6.6 se vérifie après l’envoi de la photo de A)'); }
 
+  // version 6.8 : les projets de quartier (lisible par tous, sans pseudo). Appelée avant d'inscrire les joueurs de test : le premier chantier
+  // s'ouvre au premier appel, avec les joueurs actifs de ce moment-là
+  { const pj = await rpc('fournil_projets', {}), d = pj.data || {}, e = d.en_cours, l0 = lundiParis();
+    if (pj.statut === 404 || code(pj) === 'PGRST202' || code(pj) === '42883') {
+      versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V68_MANQUE;
+      log(`  ATTENTION v6.8 pas encore collée (fournil_projets : ${resume(pj)}) : colle supabase/fournil-projets-v68.sql dans le SQL Editor ; le jeu marche sans (« bientôt »), le reste est vérifié`);
+    } else {
+      V68 = true;
+      const jour = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+      check(pj.statut === 200 && d.version === 1 && (d.semaine === l0 || d.semaine === lundiParis(Date.now() - 60e3)) && Number.isInteger(d.cette_semaine) && d.cette_semaine >= 0
+        && e && Number.isInteger(e.rang) && e.rang >= 1 && Number.isInteger(e.cout) && e.cout >= 6000 && Number.isInteger(e.total) && e.total >= 0 && e.total <= e.cout && Number.isInteger(e.pourcent) && e.pourcent >= 0 && e.pourcent <= 99
+        && Number.isInteger(e.actifs) && e.actifs >= 0 && jour(e.depuis) && e.depuis <= d.semaine && Array.isArray(d.finis) && d.finis.length <= 200
+        && d.finis.every((f) => Number.isInteger(f.rang) && f.rang >= 1 && f.rang < e.rang && jour(f.semaine) && !isNaN(Date.parse(f.fini))),
+        `la v6.8 est collée : fournil_projets répond au contrat (chantier n°${e && e.rang} : ${e && e.total} / ${e && e.cout}, ${e && e.pourcent} %, ouvert la semaine du ${e && e.depuis} ; ${Array.isArray(d.finis) ? d.finis.length : '?'} fini(s) ; ${d.cette_semaine} points cette semaine)`);
+      const pj2 = await rpc('fournil_projets', {}), e2 = pj2.data && pj2.data.en_cours;
+      check(pj2.statut === 200 && e2 && e && (e2.rang > e.rang || (e2.rang === e.rang && e2.cout === e.cout && e2.total >= e.total)), `un deuxième appel ne recule pas : le même chantier au même prix (ou le suivant), l’avancement jamais plus bas (${e2 && e2.total} / ${e2 && e2.cout})`);
+    } }
+
   // ─── 3. l'heure du serveur ───
   log('\n── l’heure du serveur ──');
   const ms = h.data && h.data.ms, milieu = (tHeure + tRetour) / 2, ecart = Number.isFinite(ms) ? ms - milieu : NaN;
@@ -301,6 +327,9 @@ function arreter(message, conclusion) {
     ['écrire dans le palmarès', 'POST', '/rest/v1/fournil_palmares', { semaine: lundi, rang: 1, id: crypto.randomUUID(), pseudo: 'Intrus', valeur: 1 }],
     ['lire les semaines figées', 'GET', '/rest/v1/fournil_semaines?select=*&limit=1'],
     ['lire les portes', 'GET', '/rest/v1/fournil_portes?select=*&limit=1'],
+    ['lire les chantiers du quartier (v6.8)', 'GET', '/rest/v1/fournil_projets?select=*&limit=1'],
+    ['ouvrir un chantier à 1 point (v6.8)', 'POST', '/rest/v1/fournil_projets', { rang: 99999, cout: 1, actifs: 0, debut: lundi }],
+    ['finir les chantiers (v6.8)', 'PATCH', '/rest/v1/fournil_projets?rang=eq.99999', { fini: new Date().toISOString() }],
   ]) {
     const x = await appel(m, chemin, corps);
     check(x.statut >= 400 && !(Array.isArray(x.data) && x.data.length), `${quoi} : refusé (${resume(x)})`);
@@ -309,7 +338,7 @@ function arreter(message, conclusion) {
     ['fournil_reponse', { p_erreur: null, p_id: null, p_lundi: lundi, p_compte: null, p_plafonne: null, p_points_comptes: null, p_points_plafonnes: null }],
     ['fournil_jour', { p_quand: new Date().toISOString() }], ['fournil_points_plafond', { p_jours: 1 }],
     ['fournil_figer', { p_lundi: lundi }], ['fournil_borne', { p_de: 0, p_secondes: 1 }], ['fournil_duree', { p_de: 0, p_a: 1 }],
-    ['fournil_paliers', {}]]) {
+    ['fournil_paliers', {}], ['fournil_projet_base', { p_rang: 1 }], ['fournil_projet_actifs', { p_lundi: lundi }], ['fournil_projet_total', { p_semaine: lundi, p_lundi: lundi }]]) {
     const x = await rpc(nom, corps);
     check(x.statut >= 400, `la fonction interne ${nom} : refusée (${resume(x)})`);
   }

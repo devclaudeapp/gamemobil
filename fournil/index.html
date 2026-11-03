@@ -2743,7 +2743,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '9c4cf198b76c';</script>
+<script>window.FOURNIL_VERSION = '8658c63a1d05';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -6539,7 +6539,11 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
    sa boutique (ti) et rendu par le serveur sur chaque ligne du classement (titre)) ; version 6.7 : le barème du lot 7 (le plafond du serveur
    relevé à 137 par jour et 989 par semaine) et la SÉRIE de jours de suite, comptée par le serveur (+10 au 3e jour, +20 au 7e, puis à chaque tour
    de 7) : la réponse de fournil_publier porte serie, serie_auj et serie_bonus, rangés dans etat.dernier.serie et lus par resume().serie
-   (SERIE, serieProchaine) ; un serveur d'avant la 6.7 n'en dit rien : resume().serie reste null).
+   (SERIE, serieProchaine) ; un serveur d'avant la 6.7 n'en dit rien : resume().serie reste null) ; version 6.8 (supabase/fournil-projets-v68.sql) :
+   les projets de quartier, des chantiers financés par les points de boulanger de tous : projets() lit fournil_projets (lisible par tous,
+   une fois toutes les 5 min au plus), projetsVu() rend la dernière lecture { etat: 'ok', data: nettoyerProjets(…), quand } ou { etat:
+   'pas-ouvert' } (le patch pas encore collé : rien ne casse, les copains restent), projetApport() ce que le serveur a compté pour soi cette
+   semaine ; et la photo porte tp (le rang de palier, au-delà de la n°30) et x.td (le nombre de trophées dorés).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -6565,6 +6569,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     boostPourboire: [2, 600], // un pourboire reçu : un boost ×2 de 10 min dans la réserve
     boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
     objectif: 60e3, // l'objectif commun relu une fois par minute au plus
+    projets: 5 * 60e3, // version 6.8 : le chantier du quartier relu une fois toutes les 5 min au plus
     chatLimite: 50, // le chat général : les 50 derniers messages au plus par lecture
     fortuneMax: 1e24, // la borne de fournil_publier (supabase/fournil-classement.sql) pour p_fortune, p_quartier et p_score : au-delà, l'envoi
     // entier serait refusé (« valeur »), pour toujours ; on envoie donc la borne (un cadeau énorme ne bloque plus rien)
@@ -6998,6 +7003,8 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       { const a = G.codeAmenagement ? G.codeAmenagement(st.amenagement) : ''; if (a) p.a = a; } // a : la place de ses meubles (19 caractères ; absent : le plan d'origine)
       const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
       p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
+      { const d = st.dores; if (d && typeof d === 'object' && !Array.isArray(d)) p.x.td = borne(Object.keys(d).length, 0, 200); } // td : ses trophées dorés (absent : un jeu d'avant les dorés)
+      { const k = typeof G.rangPalier === 'function' ? borne(G.rangPalier(st.boutiques), 0, 1e4) : 0; if (k >= 1) p.tp = k; } // tp : son rang de palier (n°40 → 1, n°50 → 2…), absent avant la n°40 : le copain voit son titre et sa finition
       const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
       if (e) p.e = e;
       { const ti = titreOk(o.titre) ? o.titre : typeof G.distinctions === 'function' ? (G.distinctions(st) || []).find(titreOk) : null; if (ti) p.ti = ti; } // version 6.6 : le titre gagné (24 octets au plus : gardé quoi qu'il arrive)
@@ -7024,7 +7031,11 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
     if (p.c && typeof p.c === 'object') { o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' }; if (typeof p.c.a === 'string' && ID_OK.test(p.c.a)) o.c.a = p.c.a; }
     const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
-    if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
+    if (x && typeof x === 'object' && !Array.isArray(x)) {
+      o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
+      if (x.td != null) o.x.td = borne(x.td, 0, 200); // ses trophées dorés (absents d'une photo d'avant)
+    }
+    if (p.tp != null) { const k = borne(p.tp, 0, 1e4); if (k >= 1) o.tp = k; } // son rang de palier (absent, ou 0 : pas encore la n°40)
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
     if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
@@ -7064,6 +7075,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), st = G.newState(now);
     st.visite = true; st.nomBoutique = p.nom; st.boutiques = (p.q % G.QUARTIERS.length) + 1; st.quartierFixe = p.q % G.QUARTIERS.length; // son quartier, même un des cinq du parcours (n°10, 15…)
     st.standingFixe = p.l; // son standing (GAME.standing le lit à la place du calcul sur st.boutiques)
+    st.finitionFixe = p.tp || 0; // sa finition au-delà du prestige (le rang de palier ; la scène la lit à la place de GAME.finitionDe(st.boutiques))
     st.stations.forEach((s, i) => {
       const x = p.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false;
       if (x && x[2] > 1 && G.APPRENTI_NIVEAUX) st.apprentis[G.PRODUITS[i].id] = { xp: G.APPRENTI_NIVEAUX[x[2] - 1] };
@@ -7081,7 +7093,8 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     const q = G.QUARTIERS[G.quartier(st)];
     const C = leChaine(), decos = p.dc && C ? C.decosDepuisCode(p.dc) : null; // ses décos posées ([[id, place]…]) ; null : le plan d'origine (une photo sans dc)
     return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
-      decos: decos && decos.length ? decos : null, chaine: p.ch || null };
+      decos: decos && decos.length ? decos : null, chaine: p.ch || null,
+      palier: p.tp || 0, titrePalier: p.tp && typeof G.titrePalier === 'function' ? G.titrePalier(p.tp) : null }; // palier : son rang (0 : avant la n°40), titrePalier : « Boulanger étoilé »…
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {
@@ -7099,6 +7112,37 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       pourcent: Number.isFinite(pc) ? Math.max(0, Math.min(100, pc)) : Math.min(100, Math.floor(total / but * 100)) };
   }
   const quandOk = (q) => (typeof q === 'string' || typeof q === 'number') && !isNaN(new Date(q).getTime());
+  // la réponse de fournil_projets() (version 6.8), relue champ par champ : { version: 1, semaine: lundi, cette_semaine: le total vivant des
+  // points de la semaine, en_cours: { rang, cout, total, pourcent: 0 à 99, actifs, depuis: lundi } | null, finis: [{ rang, semaine, fini }]
+  // (rangés par rang, sans doublon, les 200 derniers) } ; null si ce n'est pas une réponse de la version 1
+  const PROJETS_FINIS = 200;
+  function nettoyerProjets(d) {
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.version !== 1) return null;
+    const jour = (x) => (typeof x === 'string' && JOUR.test(x) ? x : '');
+    const e = d.en_cours; let en = null;
+    if (e && typeof e === 'object' && !Array.isArray(e)) {
+      const rang = borne(e.rang, 0, 1e6), cout = borne(e.cout, 0, 2e9);
+      if (rang >= 1 && cout >= 1) {
+        const total = Math.min(cout, borne(e.total, 0, 2e9)), pc = Number(e.pourcent);
+        en = { rang, cout, total, pourcent: Number.isFinite(pc) ? Math.max(0, Math.min(100, Math.floor(pc))) : Math.min(100, Math.floor(100 * total / cout)), actifs: borne(e.actifs, 0, 1e6), depuis: jour(e.depuis) };
+      }
+    }
+    const vus = new Set(), finis = [];
+    for (const f of Array.isArray(d.finis) ? d.finis.slice(0, PROJETS_FINIS * 5) : []) { // (le serveur en rend 200 au plus : au-delà de 1 000, la réponse n'est pas la sienne)
+      if (!f || typeof f !== 'object' || Array.isArray(f)) continue;
+      const rang = borne(f.rang, 0, 1e6); if (rang < 1 || vus.has(rang) || (en && rang >= en.rang)) continue; // un chantier fini est avant celui en cours
+      vus.add(rang); finis.push({ rang, semaine: jour(f.semaine), fini: quandOk(f.fini) ? new Date(f.fini).toISOString() : '' });
+    }
+    finis.sort((a, b) => a.rang - b.rang);
+    return { version: 1, semaine: jour(d.semaine), cette_semaine: borne(d.cette_semaine, 0, 2e9), en_cours: en, finis: finis.slice(-PROJETS_FINIS) };
+  }
+  // ce que le serveur a compté pour soi cette semaine (sa dernière réponse : ses points de la semaine, série comprise) et qui va donc au
+  // chantier en cours ; d : la réponse nettoyée (sa semaine), sem : etat.dernier.semaine ({ lundi, points }) ; null s'il n'a rien envoyé cette semaine
+  function apportProjet(d, sem) {
+    if (!d || !d.semaine || !sem || typeof sem !== 'object' || sem.lundi !== d.semaine || !Number.isInteger(sem.points)) return null;
+    const points = borne(sem.points, 0, 1e6);
+    return { points, part: d.cette_semaine > 0 ? Math.min(100, Math.round(1000 * points / d.cette_semaine) / 10) : 0 }; // part : en % des points de tous cette semaine, au dixième
+  }
   // les pourboires reçus (fournil_recompenses, version 6) : [{ de: pseudo, quand: ISO }], du plus ancien au plus récent
   function nettoyerPourboires(l) {
     return (Array.isArray(l) ? l.slice(0, 50) : []).filter((x) => x && typeof x === 'object' && quandOk(x.quand) && String(x.de == null ? '' : x.de).trim())
@@ -7292,6 +7336,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
     let sansPhoto = false, sansCopains = false; // un serveur sans p_photo / sans les fonctions des copains (version 5 ou plus ancienne) : jusqu'au prochain lancement
     let objCache = null, objVol = null; // l'objectif commun : la dernière lecture { etat, data, quand }, celle en vol
+    let projCache = null, projVol = null; // version 6.8, les projets de quartier : la dernière lecture { etat: 'ok' | 'pas-ouvert', data, quand }, celle en vol
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
@@ -7684,6 +7729,27 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       }).catch(() => ({ etat: 'erreur' })).then((r) => { objVol = null; prevenir(); return r; });
       return objVol;
     }
+    // version 6.8 : le chantier du quartier (fournil_projets, lisible par tous, sans pseudo) : relu une fois toutes les 5 min au plus ;
+    // projetsVu() : la dernière lecture. Le patch pas encore collé : { etat: 'pas-ouvert' }, gardé lui aussi 5 min (il sera peut-être collé
+    // entre-temps), SANS toucher aux copains (le reste de la v6 est là). Une erreur du réseau garde la dernière bonne lecture.
+    function projets(o) {
+      if (!config()) return Promise.resolve({ etat: 'absent' });
+      if (projVol) return projVol;
+      const t = E.maintenant(), ecart = o && typeof o.ecart === 'number' ? o.ecart : REGLES.projets;
+      if (projCache && t - projCache.quand >= 0 && t - projCache.quand < ecart) return Promise.resolve(projCache);
+      projVol = rpc('fournil_projets', {}).then((r) => {
+        if (r.etat === 'pas-ouvert') { projCache = { etat: 'pas-ouvert', data: null, quand: E.maintenant() }; return projCache; }
+        if (r.etat === 'ok') { const d = nettoyerProjets(r.data); if (d) projCache = { etat: 'ok', data: d, quand: E.maintenant() }; return d ? projCache : { etat: 'erreur', detail: 'reponse' }; }
+        return r;
+      }).catch(() => ({ etat: 'erreur' })).then((r) => { projVol = null; prevenir(); return r; });
+      return projVol;
+    }
+    // ce que le serveur a compté pour soi cette semaine, qui va au chantier en cours : { points, part (% de tous) } ; null (pas inscrit, rien
+    // envoyé cette semaine, ou le chantier pas encore lu)
+    function projetApport() {
+      if (!projCache || projCache.etat !== 'ok' || !etat.rejoint) return null;
+      const d = etat.dernier || {}; return apportProjet(projCache.data, d.semaine);
+    }
     // les pourboires reçus qui attendent leur feuille (fournil_recompenses ne les rend qu'une fois : ils sont gardés ici jusque-là) ;
     // accueillirPourboires() les marque vus et dit combien de boosts ×2 donner (au plus 3 par jour sur ce téléphone)
     function pourboiresRecus() { return etat.recus.attente.slice(); }
@@ -7937,6 +8003,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
       chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, evtPaye, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
+      projets, projetsVu: () => projCache, projetApport, // version 6.8 : les projets de quartier
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
       retourEnvoyer, votesOuverts, voter, adminMoi, adminRetours, adminRetourImage, adminRetourEtat, adminVoteCreer, adminVoteFermer,
@@ -8015,7 +8082,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
     RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace, RECOMPENSES_EVT, NOMS_EVT, recompenseEvt, evtAPayer, phraseEvt, TITRES, titreOk,
-    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, SERIE, serieBonus, serieProchaine, nettoyerSerie, serieDeReponse, serieVue, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerProjets, apportProjet, PROJETS_FINIS, nettoyerPourboires, jourParis, SERIE, serieBonus, serieProchaine, nettoyerSerie, serieDeReponse, serieVue, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
     CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
     RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };
 });
