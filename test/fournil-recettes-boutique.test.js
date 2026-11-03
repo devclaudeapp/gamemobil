@@ -151,6 +151,20 @@ titre('au-delà de la n°30 : les paliers (lot « progression »)');
   check(v.defi.n === 47 && v.defi.type === 'etoiles' && v.defi.cible === 2 * v.paliers.pas && v.paliers.pas === 200, 'son défi en cours : le même, assoupli à deux pas (400 au lieu de 600)');
   const w = G.newState(T); w.now = T; w.boutiques = 39; w.defi = { n: 39, type: 'palier', niv: 550 }; G.parcours(w);
   check(w.defi.type === 'palier' && w.defi.niv === 550 && !w.defi.palier, 'une boutique n°39 d’avant ce lot : pas de défi de palier rétroactif');
+  // une sauvegarde à la n°35 d'avant ce lot (sans décennie), menée jusqu'à la n°39 : le défi du palier 1 (12 commandes) se compte depuis son
+  // chargement, sur les boutiques 35 à 39 (pas dans la seule n°39), et le dit ; rien de rétroactif (les commandes d'avant ne comptent pas)
+  const x = G.newState(T); x.now = T; x.boutiques = 35; x.etoiles = 20000; x.stats.commandes = 50; x.parcours = { recus: Array.from({ length: 29 }, (_, k) => k + 2), gains: 10, titre: 'Légende du Fournil' };
+  x.defi = { n: 35, type: 'etoiles', pct: 30, cible: 6000 }; delete x.paliers; delete x.dores; delete x.secrets;
+  const fx = G.newState(T); for (const k in fx) if (!(k in x)) x[k] = fx[k]; G.parcours(x);
+  const dec0 = JSON.stringify(x.paliers.decennie); G.parcours(x);
+  check(x.paliers.decennie && x.paliers.decennie.n === 30 && x.paliers.decennie.des === 35 && x.paliers.decennie.stats.commandes === 50 && JSON.stringify(x.paliers.decennie) === dec0, `au chargement : la décennie compte dès maintenant (${dec0}), une seule fois`);
+  for (let b = 36; b <= 38; b++) { ouvrirBoutique(x); x.stats.commandes += 3; } // neuf commandes livrées dans les boutiques 36 à 38
+  ouvrirBoutique(x); const dx = G.defiPassage(x);
+  check(x.boutiques === 39 && x.defi.type === 'stat' && x.defi.cle === 'commandes' && x.defi.base === 50 && x.defi.depuis === 35 && dx.progres === 9 && !dx.fait && /^12 commandes spéciales livrées depuis la boutique n°35/.test(dx.txt) && !/dans cette boutique/.test(dx.txt), `la n°39 : « ${dx.txt.split(' —')[0]} » (9/12 : les commandes des boutiques 36 à 38 comptent)`);
+  x.stats.commandes += 3; check(G.defiPassage(x).fait && !G.defiPassage(x).soupape, 'trois de plus dans la n°39 : fait');
+  ouvrirBoutique(x); check(x.boutiques === 40 && x.paliers.decennie.n === 40 && !('des' in x.paliers.decennie), 'la n°40 ouvre une décennie ordinaire');
+  const y = G.newState(T); y.now = T; y.boutiques = 47; y.paliers = { recus: [1], titre: '', objets: [], decennie: { n: 40, des: 52, stats: {} } }; G.parcours(y);
+  check(y.paliers.decennie && y.paliers.decennie.n === 40 && !('des' in y.paliers.decennie), 'une décennie abîmée (des hors de sa dizaine) : remise d’aplomb');
 }
 
 console.log(`\n${n - fails}/${n} vérifications.`);

@@ -192,6 +192,11 @@
       const pas = pasEtoiles(st), d = st.defi;
       if (d && typeof d === 'object' && d.type === 'etoiles' && d.pct && !d.pas && !(d.cible <= 2 * pas)) st.defi = Object.assign({}, d, { pas: 2, cible: 2 * pas });
     }
+    // une sauvegarde déjà dans une décennie (n°30 et plus) sans ses compteurs (d'avant ce lot) : la décennie compte dès maintenant, rien de
+    // rétroactif (des : la boutique où le compte a commencé). Sans elle, le défi de palier de la boutique 39, 49… ne se comptait que dans
+    // cette seule boutique (ce que la décennie évite : l'occasionnel y restait 17 jours)
+    const nb = Math.floor(st.boutiques) || 1, pl = st.paliers;
+    if (nb >= PARCOURS_FIN && !pl.decennie) { pl.decennie = { n: nb - (nb % PALIER_PAS), des: nb, stats: {} }; for (const k of COMPTEURS) pl.decennie.stats[k] = statDe(st, k); }
     return p;
   }
   function donnerRecompense(st, n) { // la récompense de la boutique n, une seule fois ; rend { n, r, texte } ou null
@@ -267,7 +272,7 @@
     else if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
     if (d.type === 'stat') { // un compteur de défi de palier : depuis le début de la décennie (la boutique n − 9), sinon depuis l'ouverture
       const dec = paliers(st).decennie, ok = dec && dec.n === n - (PALIER_PAS - 1) && Number.isFinite(dec.stats[d.cle]);
-      o.base = ok ? dec.stats[d.cle] : statDe(st, d.cle); if (ok) o.depuis = dec.n;
+      o.base = ok ? dec.stats[d.cle] : statDe(st, d.cle); if (ok) o.depuis = dec.des || dec.n; // (des : une vieille sauvegarde, comptée depuis son chargement)
     }
     return o;
   }
@@ -372,7 +377,10 @@
     if (!(Number.isInteger(p.pas) && p.pas >= 1)) delete p.pas;
     const dec = p.decennie;
     if (!(objetSimple(dec) && Number.isInteger(dec.n) && dec.n >= PARCOURS_FIN && objetSimple(dec.stats))) delete p.decennie;
-    else for (const k of Object.keys(dec.stats)) if (!COMPTEURS.includes(k) || !Number.isFinite(dec.stats[k])) delete dec.stats[k];
+    else {
+      for (const k of Object.keys(dec.stats)) if (!COMPTEURS.includes(k) || !Number.isFinite(dec.stats[k])) delete dec.stats[k];
+      if ('des' in dec && !(Number.isInteger(dec.des) && dec.des >= dec.n && dec.des < dec.n + PALIER_PAS)) delete dec.des; // (des : une vieille sauvegarde, parcours)
+    }
     return p;
   }
   const rarePossede = (st, id) => !!(st && st.paliers && Array.isArray(st.paliers.objets) && st.paliers.objets.includes(id));
@@ -395,6 +403,8 @@
     return out;
   }
   const titreBoulanger = (st) => (st.paliers && st.paliers.titre) || titreParcours(st); // le plus haut titre gagné
+  // la soupape : un défi de palier n'est jamais un mur, il est aussi fait quand on peut récolter SOUPAPE pas d'étoiles d'un coup
+  const SOUPAPE = 4;
   // les défis de palier : pour OUVRIR le palier k (le défi de la boutique 30 + 10 k − 1), dans un ordre fixe qui alterne événements,
   // argent et équipe ; la liste parcourue, elle recommence un cran plus dure (c : le tour). Réglés sur sim.js (contrat § 1.1, § 11 A).
   const DEFIS_PALIER = [
@@ -406,14 +416,14 @@
     { id: 'palier', f: (c) => ({ type: 'palier', niv: 550 + 50 * c }) }, // 800 était hors d'atteinte dans une boutique courte (sim.js : bloqué 300 jours)
     { id: 'bonus', f: (c) => ({ type: 'bonus', n: Math.min(AMELIORATIONS.length, 18 + 2 * c) }) },
     { id: 'pannes', f: (c) => ({ type: 'stat', cle: 'pannes', n: Math.round(10 * (1 + 0.2 * c)) }) },
-    { id: 'etoiles', f: (c) => ({ type: 'etoiles', pas: 2 + Math.min(c, 3) }) }, // récolter 2 pas d'étoiles d'un coup (3, 4, 5 aux tours suivants)
+    // récolter 2 pas d'étoiles d'un coup, 3 au tour suivant, puis 4 : jamais plus que la soupape (4 pas, décision du joueur : elle vaut pour
+    // chaque défi de palier), sinon l'écran annoncerait « 5 pas » quand 4 suffisent
+    { id: 'etoiles', f: (c) => ({ type: 'etoiles', pas: 2 + Math.min(c, SOUPAPE - 2) }) },
     { id: 'critiques', f: (c) => ({ type: 'stat', cle: 'critiques', n: Math.round(12 * (1 + 0.2 * c)) }) },
   ];
   // les compteurs se comptent sur toute la DÉCENNIE (depuis l'ouverture de la boutique 30, 40, 50… : st.paliers.decennie) : l'occasionnel
   // (~0,4 commande par jour) attendait 17 jours dans une seule boutique ; sur dix, il les fait en route
   const COMPTEURS = ['commandes', 'petrissages', 'pourboires', 'pannes', 'critiques'];
-  // la soupape : un défi de palier n'est jamais un mur, il est aussi fait quand on peut récolter SOUPAPE pas d'étoiles d'un coup
-  const SOUPAPE = 4;
   function defiPalier(k) { // le défi pour ouvrir le palier k
     k = Math.floor(k); if (!(k >= 1)) return null; const L = DEFIS_PALIER.length, x = DEFIS_PALIER[(k - 1) % L];
     return Object.assign({ palier: k, id: x.id }, x.f(Math.floor((k - 1) / L)));
@@ -1408,6 +1418,8 @@
     for (const k of SECRETS_N) s[k] = entierBorne(s[k], 0, 1e6, 0);
     s.caresses = Array.isArray(s.caresses) ? s.caresses.filter((t) => Number.isFinite(t)).slice(-100) : []; // les dernières (« en moins d'une minute »)
     for (const k of ['jourAube', 'jourAn', 'jour13']) if (typeof s[k] !== 'string' || s[k].length > 10) s[k] = '';
+    s.vus = (Array.isArray(s.vus) ? s.vus : []).filter((k, i, a) => typeof k === 'string' && /^[0-9a-z]{1,7}$/.test(k) && a.indexOf(k) === i).slice(0, VISITES_MAX);
+    s.visites = s.vus.length; // (les boutiques différentes : noterVisite)
     return s;
   }
   function noterOuverture(st, nowMs, sortieMs) { // au démarrage et au retour d'une sortie (ui.js : boot, reprendre) ; sortieMs : la durée de l'absence
@@ -1425,7 +1437,15 @@
     else if (s.boutiqueNommee !== (st.boutiques || 1)) { s.boutiqueNommee = st.boutiques || 1; s.nomsBoutique++; }
     return s;
   }
-  function noterVisite(st) { const s = secrets(st); s.visites++; return s.visites; }
+  // « Curieux » (10) et son doré (100) : des boutiques de copains DIFFÉRENTES (le même copain visité dix fois compte une fois). Gardées :
+  // l'empreinte courte de chaque pseudo (hashStr, en minuscules comme l'unicité du serveur, en base 36), les VISITES_MAX premières ;
+  // visites = leur nombre. Une visite sans pseudo ne compte pas ; les rivales du concours non plus (ui.js ne l'appelle pas pour elles).
+  const VISITES_MAX = 100;
+  function noterVisite(st, pseudo) {
+    const s = secrets(st), p = String(pseudo == null ? '' : pseudo).trim().toLowerCase(); if (!p) return s.visites;
+    const k = hashStr(p).toString(36); if (s.vus.length < VISITES_MAX && !s.vus.includes(k)) s.vus.push(k);
+    s.visites = s.vus.length; return s.visites;
+  }
   // vérifier les trophées : les nouveaux, gagnés, et les dorés (seulement après leur trophée). Rend la liste des neufs : les trophées
   // eux-mêmes, puis les dorés sous la forme { id, nom, desc (la condition dorée), xp, fam, dore: true, t (le trophée) }.
   // o.lent (le pas de jeu, tick) : les 37 anciens à chaque pas, les nouveaux et les dorés toutes les 10 s de jeu (leurs conditions sont plus

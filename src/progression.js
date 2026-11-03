@@ -160,6 +160,9 @@
   function rivalesPas(st, nowMs) {
     const now = Number.isFinite(nowMs) ? nowMs : maintenant(st);
     const r = rivales(st), sem = G.semaineKey(now); if (r.semaine === sem) return null;
+    // l'heure du jeu qui recule au-dessus d'un lundi (src/horloge.js : le jeu ramené à l'heure sûre) : une semaine passée ne réécrit jamais
+    // r.semaine, sinon la même semaine serait payée deux fois quand l'heure revient (médaille et boost)
+    if (r.semaine && sem < r.semaine) return null;
     if (!(st.now >= now)) st.now = now; // (le carnet de points range la semaine finie à l'heure du jeu)
     G.pointsSemaine(st); // range d'abord la semaine finie dans st.points.semaines
     const hist = (st.points && Array.isArray(st.points.semaines)) ? st.points.semaines : [];

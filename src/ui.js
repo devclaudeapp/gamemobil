@@ -1932,7 +1932,7 @@ const UI = (() => {
       if (v.qe && SCENE.stats && SCENE.stats.webgl) batirEv3(v);
       peindreVisite(); return;
     }
-    if (G.noterVisite && ph) G.noterVisite(st); // le trophée secret « Curieux » (dix boutiques de copains visitées)
+    if (G.noterVisite && ph) G.noterVisite(st, v.pseudo); // le trophée secret « Curieux » (dix boutiques de copains DIFFÉRENTES)
     montrerBoutique(v, ph);
   }
   // la boutique visitée, à la place de la sienne (la photo d'un copain, ou celle d'une rivale du concours)

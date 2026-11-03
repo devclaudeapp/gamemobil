@@ -45,8 +45,11 @@ titre('les défis de palier : variés, plus durs à chaque tour');
   const D = Array.from({ length: 11 }, (_, k) => G.defiPalier(k + 1));
   check(D.slice(0, 10).map((d) => d.id).join() === 'commandes,meubles,petrissages,carte,pourboires,palier,bonus,pannes,etoiles,critiques' && D.every((d, k) => d.palier === k + 1), `dix défis dans un ordre fixe (${D.slice(0, 10).map((d) => G.texteDefi(d)).join(' · ')})`);
   check(D[0].type === 'stat' && D[0].n === 12 && D[1].n === 7 && D[3].type === 'carte' && D[3].niv === 0 && D[5].niv === 550 && D[6].n === 18 && D[8].pas === 2 && D[9].n === 12, 'premier tour : 12 commandes, 7 meubles, toute la carte, une recette au niveau 550, 18 bonus, 2 pas d’étoiles, 12 critiques');
-  check(D[10].id === 'commandes' && D[10].n === 14 && G.defiPalier(12).n === 8 && G.defiPalier(13).n === 12 && G.defiPalier(14).niv === 100 && G.defiPalier(16).niv === 600 && G.defiPalier(17).n === 20 && G.defiPalier(19).pas === 3 && G.defiPalier(22).n === 9 && G.defiPalier(39).pas === 5 && G.defiPalier(49).pas === 5,
-    'puis la liste recommence un cran plus dure (compteurs ×1,2, 8 meubles, la carte au niveau 100, niveau 600, 20 bonus, 3 pas… 9 meubles et 5 pas au plus)');
+  check(D[10].id === 'commandes' && D[10].n === 14 && G.defiPalier(12).n === 8 && G.defiPalier(13).n === 12 && G.defiPalier(14).niv === 100 && G.defiPalier(16).niv === 600 && G.defiPalier(17).n === 20 && G.defiPalier(19).pas === 3 && G.defiPalier(22).n === 9 && G.defiPalier(29).pas === 4 && G.defiPalier(39).pas === 4 && G.defiPalier(49).pas === 4,
+    'puis la liste recommence un cran plus dure (compteurs ×1,2, 8 meubles, la carte au niveau 100, niveau 600, 20 bonus, 3 pas… 9 meubles et 4 pas au plus)');
+  // la soupape (4 pas) vaut pour chaque défi de palier : celui d'étoiles n'annonce jamais plus (« 5 pas » quand 4 suffisent, avant)
+  const etoilesPalier = Array.from({ length: 300 }, (_, k) => G.defiPalier(k + 1)).filter((d) => d.type === 'etoiles');
+  check(etoilesPalier.length === 30 && etoilesPalier.every((d) => d.pas >= 2 && d.pas <= G.SOUPAPE) && etoilesPalier.slice(2).every((d) => d.pas === G.SOUPAPE), `les défis d’étoiles de palier ne dépassent jamais la soupape (${G.SOUPAPE} pas) : ${[...new Set(etoilesPalier.map((d) => d.pas))].join(', ')} pas`);
   check(egal(G.defiDe(39), G.defiPalier(1)) && egal(G.defiDe(49), G.defiPalier(2)) && egal(G.defiDe(129), G.defiPalier(10)) && egal(G.defiDe(139), G.defiPalier(11)), 'defiDe : la boutique 39, 49… (celle qui ouvre un palier) pose le défi du palier');
   check(egal(G.defiDe(30), { type: 'etoiles', pas: 1 }) && egal(G.defiDe(40), { type: 'etoiles', pas: 1 }) && egal(G.defiDe(38), { type: 'etoiles', pas: 1 }), 'toute autre boutique dès la n°30 : « récolte un pas d’étoiles d’un coup »');
   check([20, 25, 29].every((b) => egal(G.defiDe(b), { type: 'etoiles', pas: 2 })) && [10, 15].every((b) => G.defiDe(b).pct === 25) && egal(G.defiDe(21), G.DEFIS_PASSAGE[21]) && G.defiDe(5) === null, 'avant la n°30 : le tableau d’avant, ses défis d’étoiles dès la n°20 deviennent « 2 pas » (n°10 et 15 inchangés)');
@@ -220,8 +223,16 @@ titre('les trophées secrets et « Tous ensemble »');
   G.renommer(st, 'Chez Lou'); check(ids() === '', 'la boutique nommée : il manque le chat'); G.renommerChat(st, 'Pompon');
   check(st.secrets.nomsBoutique === 1 && st.secrets.nomChat === 1 && ids() === 'bapteme', 'la boutique et le chat nommés : « Baptême »');
   G.renommer(st, 'Chez Lulu'); G.renommer(st, ''); check(st.secrets.nomsBoutique === 1, 'renommer la même boutique ne compte qu’une fois (le doré : dix boutiques)');
-  for (let k = 0; k < 10; k++) G.noterVisite(st); st.stats.petrissageRecord = 5.5;
-  check(ids() === 'eclair,petrin,curieux,eclair*', '10 visites : « Curieux » ; un pétrissage en 5,5 s : « Pétrin de feu » (et « Rapide comme l’éclair », doré : moins de 7 s)');
+  // « Curieux » : dix boutiques DIFFÉRENTES (le même copain dix fois, ou sans pseudo, ne compte qu'une fois, ou pas du tout)
+  for (let k = 0; k < 10; k++) G.noterVisite(st, k % 2 ? 'Mamie' : ' mamie '); G.noterVisite(st); G.noterVisite(st, '');
+  check(st.secrets.visites === 1 && st.secrets.vus.length === 1 && ids() === '', `la boutique de Mamie visitée dix fois (et deux visites sans pseudo) : une boutique (${st.secrets.visites}), pas de « Curieux »`);
+  for (let k = 1; k < 10; k++) G.noterVisite(st, `Copain${k}`); st.stats.petrissageRecord = 5.5;
+  check(st.secrets.visites === 10 && ids() === 'eclair,petrin,curieux,eclair*', '10 boutiques différentes : « Curieux » ; un pétrissage en 5,5 s : « Pétrin de feu » (et « Rapide comme l’éclair », doré : moins de 7 s)');
+  for (let k = 0; k < 120; k++) G.noterVisite(st, `Copain${k % 60}`);
+  check(st.secrets.visites === 61 && !st.dores.curieux, `soixante copains, deux fois chacun : 61 boutiques, pas encore le doré`);
+  for (let k = 60; k < 130; k++) G.noterVisite(st, `Copain${k}`);
+  const vus = st.secrets.vus.slice(); G.secrets(st);
+  check(st.secrets.visites === 100 && st.secrets.vus.length === 100 && egal(st.secrets.vus, vus) && st.secrets.vus.every((x) => /^[0-9a-z]{1,7}$/.test(x)) && G.verifierTrophees(st).some((t) => t.id === 'curieux' && t.dore), `cent boutiques différentes : le doré ; la liste gardée s’arrête à cent empreintes courtes (${JSON.stringify(st.secrets).length} octets pour les secrets)`);
   st.rivales = { medailles: { or: 0, argent: 0, bronze: 1 } }; check(ids() === 'medaille', 'une médaille de bronze au concours : « Sur le podium »');
   st.rivales.medailles.or = 1; st.projets = { aides: 1 }; check(ids() === 'medaille-or,batisseur', 'une médaille d’or : « Médaille d’or » ; un chantier aidé : « Bâtisseur »');
   check(G.TROPHEES.filter((t) => t.fam === 'secrets').every((t) => st.trophees[t.id]) && G.bilanTrophees(st).familles >= 2, 'les huit secrets et « Tous ensemble » : deux familles complètes');
@@ -250,6 +261,12 @@ titre('les rivales');
   const paye = P.payerRivales(st);
   check(paye.length === 1 && st.boosts.reserve.length === boosts + 1 && st.boosts.reserve[boosts].mult === 3 && st.boosts.reserve[boosts].secs === 3600 && P.payerRivales(st).length === 0 && st.boosts.reserve.length === boosts + 1, 'payé une fois : un boost ×3 d’une heure en réserve');
   check(P.rivalesPas(st, lundi + 7 * 864e5 + 3600e3) === null, 'déjà fait cette semaine : rien');
+  // l'heure du jeu qui recule au-dessus du lundi (src/horloge.js, le jeu ramené à l'heure sûre), puis revient : la semaine payée une seule fois
+  const rec = { or: st.rivales.medailles.or, aPayer: st.rivales.aPayer.length, hist: st.rivales.hist.length, serie: st.rivales.serie };
+  const minuit = lundi + 7 * 864e5 - 10 * 3600e3; // (lundi 9 novembre, 0 h à Paris)
+  const recul = P.rivalesPas(st, minuit - 2 * 60e3), semRecul = st.rivales.semaine, retour = P.rivalesPas(st, minuit + 12 * 3600e3);
+  check(recul === null && semRecul === '2026-11-09' && retour === null && st.rivales.medailles.or === rec.or && st.rivales.aPayer.length === rec.aPayer && st.rivales.hist.length === rec.hist && st.rivales.serie === rec.serie,
+    `l’heure qui recule au dimanche 23 h 58 puis revient au lundi : rien de rejoué (semaine ${semRecul}, ${st.rivales.medailles.or} or, ${st.rivales.aPayer.length} à payer)`);
   const zero = P.rivalesPas(st, lundi + 14 * 864e5);
   check(zero && zero.rang === 5 && !zero.classee && st.rivales.serie === 0 && st.rivales.aPayer.length === 0 && st.rivales.medailles.or === 1 && st.rivales.hist.length === 2, 'une semaine à 0 point : pas classée, rien de perdu (la série repart)');
   const T = P.tableauRivales(st, lundi + 14 * 864e5 + 3 * 864e5);
