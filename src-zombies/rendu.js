@@ -475,9 +475,9 @@ const ZRENDU = (() => {
     }
     // le survivant Kenney (le fossoyeur du Graveyard Kit) : les jambes jouent la marche ou le repos, le haut du corps tient l'arme ou tire
     // (deux demi-clips : les pistes des jambes d'un côté, celles du torse, des bras et de la tête de l'autre) ; l'arme est accrochée au torse
-    function nouveauSurvivantK() {
-      const S = MOD.M.survivant, g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
-      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
+    function nouveauSurvivantK(skin) {
+      const S = MOD.survivant(skin || 'gardien'), g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
+      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
       const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o);
       const mixer = new T.AnimationMixer(o), clip = (n) => S.gltf.animations.find((c) => c.name === n);
       const moitie = (n, re) => { const c = clip(n); return c ? mixer.clipAction(new T.AnimationClip(n + (re === JAMBES ? '-jambes' : '-haut'), c.duration, c.tracks.filter((t) => re.test(t.name.split('.')[0])))) : null; };
@@ -488,7 +488,7 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       scene.add(g);
-      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false };
+      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
     }
     const JAMBES = /^(leg-left|leg-right|root)$/, HAUT = /^(torso|arm-left|arm-right|head)$/;
     const changer = (s, cote, nom) => { if (s[cote] === nom) return; const a = s.act[nom], p = s.act[s[cote]]; if (a) { a.reset(); a.play(); if (p) a.crossFadeFrom(p, 0.15, false); } s[cote] = nom; };
@@ -498,11 +498,11 @@ const ZRENDU = (() => {
       if (s.mort) { s.mort = false; s.mixer.stopAllAction(); s.jambes = s.haut = ''; }
       changer(s, 'jambes', j.bouge > 0.05 ? 'marche' : 'repos'); if (s.act.marche) s.act.marche.timeScale = 0.6 + j.bouge * 0.9;
       changer(s, 'haut', j.visee ? 'tir' : 'tenir');
-      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
-      if (id !== s.armeId || s.armesVues !== MOD.armesPretes) {
-        s.armeId = id; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
+      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet', fin = (j.finitions && j.finitions[id]) || '';
+      if (id !== s.armeId || fin !== s.fin || s.armesVues !== MOD.armesPretes) {
+        s.armeId = id; s.fin = fin; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
         if (s.blaster) { s.blaster.parent.remove(s.blaster); s.blaster = null; }
-        const b = MOD.arme(id, L / s.k);
+        const b = MOD.arme(id, L / s.k, fin);
         if (b) { b.position.set(0, 0.06 / s.k, (0.22 + L / 2) / s.k); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
         else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
@@ -517,7 +517,10 @@ const ZRENDU = (() => {
       const vus = new Set();
       for (const j of jeu.joueurs) {
         vus.add(j.id);
-        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
+        let s = survivants.get(j.id);
+        const voulu = MOD && MOD.pret ? MOD.survivant(j.skin || 'gardien').id : '';
+        if (s && s.modele && s.skin !== voulu) { scene.remove(s.g); s = null; } // un autre skin (ou ses textures enfin prêtes)
+        if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK(j.skin) : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
         s.g.visible = !j.parti; s.anneau.visible = j.vivant && !j.parti; // en coop, chacun son anneau (le sien en jaune)
         if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
@@ -815,6 +818,7 @@ const ZRENDU = (() => {
     // ─── la caméra : au-dessus, inclinée, elle suit le survivant (avec un peu d'avance dans le sens de la marche) ───
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
+    let decal = 0, decalVoulu = 0;
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
@@ -826,6 +830,7 @@ const ZRENDU = (() => {
         fx = cam.x + (cine.x - cam.x) * w; fz = cam.z + (cine.z - cam.z) * w; haut -= 11 * w; recul -= 5 * w;
         if (u >= 1) cine = null;
       }
+      decal += (decalVoulu - decal) * k; fx += decal * 0.7; haut -= Math.abs(decal) * 1.4; recul -= Math.abs(decal) * 0.4; // (la collection : le survivant à gauche, en plus gros)
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
       camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
@@ -874,6 +879,7 @@ const ZRENDU = (() => {
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
+      if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
       majMeteo(jeu, idMoi, dt);
       majAlertes(dt);
       majFlaques(dt);
@@ -903,7 +909,7 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();

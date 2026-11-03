@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -57,6 +57,8 @@
     pause() { pause(); },
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
+    emote(e) { if (jeu) faire('emote', e); },
+    emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
@@ -71,6 +73,7 @@
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
+      case 'emote': return ZJEU.emote(jeu, idMoi, arg);
     }
     return { ok: false };
   }
@@ -90,6 +93,7 @@
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
+    rendu.decaler(nom === 'collection' ? 6 : 0);
     if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); }
   }
   function remplirArenes() {
@@ -109,12 +113,12 @@
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
-    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15 });
+    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -141,6 +145,9 @@
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
     if (!horsRecords) save.records[arene] = r;
     save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    save.total.boss = (save.total.boss || 0) + j.boss; if (partie) save.total.coop = (save.total.coop || 0) + 1;
+    if (!horsRecords) save.total.vagueMax = Math.max(save.total.vagueMax || 0, jeu.vague);
+    if (defi) { save.total.defisJours = (save.total.defisJours || []).filter((x) => x !== defi.jour).concat(defi.jour).slice(-60); }
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -154,6 +161,7 @@
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension();
+    const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
     setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
@@ -174,7 +182,7 @@
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -199,7 +207,7 @@
   function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
-  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; }
   function remplirBunker() {
     majMedailles();
     $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
@@ -271,7 +279,7 @@
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -313,7 +321,7 @@
   }
   function demarrerAscension(n) {
     const e = ZJEU.echelon(n); ascension = e; defi = null;
-    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now(); save.ascension.essais++; ecrire();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -334,6 +342,69 @@
     $('#b-rejouer').textContent = jeu.gagne ? `Échelon ${n + 1}` : 'Réessayer';
   }
 
+  // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
+  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
+  // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
+  function progres(x) {
+    const T = save.total; const v = { echelon: save.ascension ? save.ascension.echelon : 1, vague: T.vagueMax || Math.max(0, ...Object.values(save.records).map((r) => r.vague || 0)), boss: T.boss || 0, defis: (T.defisJours || []).length, coop: T.coop || 0, tues: T.tues || 0 };
+    const k = Object.keys(x)[0]; return { fait: v[k] || 0, but: x[k] };
+  }
+  function verifierExploits() {
+    const C = save.collection, neufs = [];
+    for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
+    if (neufs.length) ecrire(); return neufs;
+  }
+  let ongletCol = 'survivants', armeCol = 'revolver';
+  function ouvrirCollection() {
+    verifierExploits();
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('collection'); remplirCollection();
+  }
+  function remplirCollection() {
+    const C = save.collection, box = $('.col-liste');
+    document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
+    $('.col-armes').hidden = ongletCol !== 'finitions';
+    majMedailles();
+    if (ongletCol === 'survivants') {
+      box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
+        const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
+        const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+      }).join('');
+      box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.skin, S = D.SURVIVANTS[k];
+        if (C.skins.includes(k)) { C.skin = k; }
+        else if (S.prix) { if (save.meta.medailles < S.prix) { ZHUD.toast('Pas assez de médailles (le Bunker les gagne en jouant)'); PSONS.jouer('refus', 0.6); return; } save.meta.medailles -= S.prix; C.skins.push(k); C.skin = k; PSONS.jouer('achat', 0.9); }
+        else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
+        ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
+      }));
+    } else if (ongletCol === 'finitions') {
+      const fins = finitionsEues();
+      $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+        const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
+        const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+      }));
+      apercuArme();
+    } else {
+      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
+      box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
+        if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
+        save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
+      }));
+    }
+  }
+  // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
+  function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -350,6 +421,10 @@
   clic('#b-multi', ouvrirSalon);
   clic('#b-defi', ouvrirDefi);
   clic('#b-ascension', ouvrirAscension);
+  clic('#b-collection', ouvrirCollection);
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
@@ -433,7 +508,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    ouvrirCollection, verifierExploits, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

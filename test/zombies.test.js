@@ -312,6 +312,17 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   { const jeu = partie({ vedettes: ['kamikaze'], vieMax: 1e6 }); const types = new Set(); for (let i = 0; i < 60 * 15; i++) { J.pas(jeu, { moi: { mx: 0, mz: 0 } }, PAS); for (const z of jeu.zombies) types.add(z.type); } check(jeu.vague <= 2 && types.has('kamikaze'), `les vedettes de l’échelon arrivent dès la vague ${jeu.vague} (${[...types].join(', ')})`); }
 }
 
+// ─── la collection : skins, finitions, émotes ───
+{
+  check(Object.keys(D.SURVIVANTS).length >= 19 && Object.values(D.SURVIVANTS).every((S) => S.nom && (S.depart || S.prix > 0 || (S.exploit && S.texte)) && (!S.texture || /^[a-r]$/.test(S.texture))), `${Object.keys(D.SURVIVANTS).length} survivants à collectionner, chacun avec son prix ou son exploit`);
+  check(D.ORDRE_FINITIONS.length === Object.keys(D.FINITIONS).length && D.ORDRE_FINITIONS.every((f) => /^#[0-9A-F]{6}$/i.test(D.FINITIONS[f].couleur)), `${D.ORDRE_FINITIONS.length} finitions d’armes, dans leur ordre d’obtention`);
+  const jeu = J.creer({ arene: 'jardin', graine: 2, joueurs: [{ id: 'moi', skin: 'pirate', finitions: { revolver: 'or' } }, { id: 'toi', skin: 'nimporte' }] });
+  check(jeu.joueurs[0].skin === 'pirate' && jeu.joueurs[0].finitions.revolver === 'or' && jeu.joueurs[1].skin === 'gardien', 'le skin et les finitions passent dans la partie (un skin inconnu : le Gardien)');
+  const e1 = J.emote(jeu, 'moi', 'rire'), e2 = J.emote(jeu, 'moi', 'pouce'); J.pas(jeu, null, 1.3); const e3 = J.emote(jeu, 'moi', 'pouce');
+  check(e1.ok && !e2.ok && e3.ok && jeu.joueurs[0].emote.id === 'pouce' && !J.emote(jeu, 'toi', 'inconnue').ok, 'une émote s’affiche, pas plus d’une toutes les 1,2 s');
+  J.pas(jeu, null, 3); check(!jeu.joueurs[0].emote, 'puis s’efface');
+}
+
 // ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───
 {
   const C = require(path.join(__dirname, '..', 'src-zombies', 'classement.js'));

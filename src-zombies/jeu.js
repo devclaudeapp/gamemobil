@@ -66,6 +66,7 @@
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
@@ -457,7 +458,7 @@
         ev(jeu, { t: 'vagueFinie', n: jeu.vague, prime }); jeu.vaguesFinies++;
       }
     }
-    for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
+    for (const j of jeu.joueurs) { majJoueur(jeu, j, entrees[j.id] || null, dt); if (j.emote && (j.emote.t -= dt) <= 0) j.emote = null; if (j.emoteCd > 0) j.emoteCd -= dt; }
     if (jeu.joueurs.length > 1) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
@@ -880,6 +881,12 @@
     const j = trouverJoueur(jeu, idJ); if (!j || !j.armes[i] || j.main === i) return false;
     j.main = i; j.attente = Math.max(j.attente, 0.2); ev(jeu, { t: 'arme', id: j.id, arme: j.armes[i].id }); return true;
   }
+  // une émote : une bulle au-dessus du survivant (même à terre : « À l'aide ! »), pas plus d'une toutes les 1,2 s
+  function emote(jeu, idJ, e) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !D.EMOTES[e] || j.emoteCd > 0 || j.parti) return { ok: false };
+    j.emote = { id: e, t: 2.4 }; j.emoteCd = 1.2; ev(jeu, { t: 'emote', id: j.id, e });
+    return { ok: true };
+  }
   function passer(jeu) { if (jeu.phase === 'pause' && !jeu.fini) { jeu.chrono = 0; return true; } return false; }
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
@@ -892,5 +899,5 @@
     const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });

@@ -17,6 +17,7 @@
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
+        <button type="button" class="moyen" id="b-collection">Collection</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -97,6 +98,16 @@
       <dl class="asc-carte"></dl>
       <p class="asc-recomp"></p>
       <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran collection-ecran" id="ecran-collection" hidden>
+    <div class="carte-ecran collection">
+      <div class="col-tete"><h2>Collection</h2><div class="medailles" id="col-medailles"></div></div>
+      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
+      <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
+      <div class="col-liste"></div>
+      <button type="button" class="moyen" id="b-col-retour">Retour</button>
     </div>
   </section>
 

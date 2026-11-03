@@ -328,3 +328,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .asc-recomp { margin: 0; font-weight: 700; color: #6B5A1E; }
 .asc-boutons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 @media (max-height: 460px) and (orientation: landscape) { .ascension { width: min(720px, 100%); grid-template-columns: 1fr 1fr; gap: 6px 14px; } .ascension > h2, .ascension > .asc-n { grid-column: 1; } .ascension .asc-carte { grid-column: 2; grid-row: 1 / span 4; } .asc-n { font-size: 34px; } }
+
+/* ─── les émotes ─── */
+.h-bulles span { position: absolute; left: 0; top: 0; padding: 4px 9px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); font-size: 24px; line-height: 1.1; box-shadow: 0 3px 0 rgba(31, 37, 51, .3); pointer-events: none; }
+.h-bulles span::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 10px; height: 10px; background: #fff; border-right: 2.5px solid var(--encre); border-bottom: 2.5px solid var(--encre); transform: translateX(-50%) rotate(45deg); }
+.h-emote { position: absolute; left: calc(12px + var(--hg)); top: calc(186px + var(--ht)); width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); font-size: 22px; box-shadow: 0 3px 0 rgba(31, 37, 51, .35); }
+.h-emotes { position: absolute; left: calc(70px + var(--hg)); top: calc(184px + var(--ht)); z-index: 3; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: rgba(31, 37, 51, .82); }
+.h-emotes button { width: 46px; height: 46px; border-radius: 12px; border: 0; background: #fff; font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .h-emote { top: calc(160px + var(--ht)); width: 44px; height: 44px; font-size: 19px; } .h-emotes { top: calc(156px + var(--ht)); } }
+@media (orientation: portrait) { .h-emote { top: auto; bottom: calc(206px + var(--hb)); } .h-emotes { top: auto; bottom: calc(204px + var(--hb)); } }
+
+/* ─── la collection : la carte à droite, le survivant de la démonstration visible à gauche ─── */
+.collection-ecran { justify-items: end; background: linear-gradient(90deg, transparent 30%, rgba(31, 37, 51, .35)); }
+.collection { width: min(470px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.col-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.col-tete h2 { margin: 0; }
+.col-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 6px; max-height: 250px; overflow-y: auto; padding: 2px; }
+.col-carte { display: grid; gap: 2px; justify-items: center; align-content: center; min-height: 62px; padding: 6px; border-radius: 12px; border: 2.5px solid var(--encre); background: #fff; font-size: 13px; color: var(--encre); text-align: center; }
+.col-carte .nom { font: 700 14px/1.15 var(--titre); }
+.col-carte small { color: #6B7080; font-size: 11px; line-height: 1.2; }
+.col-carte .prix { display: inline-flex; gap: 3px; align-items: center; color: #8A6A10; }
+.col-carte .prix svg { width: 15px; height: 15px; }
+.col-carte.porte { background: var(--jaune); }
+.col-carte.verrou { background: #ECEAE4; }
+.col-carte .porte { color: #6B5A1E; }
+.col-carte .pastille { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--encre); }
+.col-carte .signe { font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .collection { padding: 10px 14px 12px; } .col-liste { max-height: 200px; } .collection h2 { font-size: 24px; } }

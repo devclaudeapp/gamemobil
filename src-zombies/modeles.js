@@ -24,7 +24,20 @@ const ZMODELES = (() => {
   const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] }, blasters: {} };
   // les armes (Blaster Kit de Kenney) : chargées après le reste, sans le bloquer ; une arme sans modèle garde sa forme faite main
   const BLASTERS = 'abcdefghijklmnopqr'.split('');
-  let etatArmes = 'attente';
+  let etatArmes = 'attente', etatPersos = 'attente';
+  // les survivants à collectionner : le modèle Blocky (chargé après les armes) et ses textures, chargées à la demande
+  const textures = new Map();
+  function texture(c) {
+    if (textures.has(c)) return textures.get(c);
+    const t = new T.TextureLoader().load(BASE + `persos/texture-${c}.png`); t.flipY = false; t.wrapS = t.wrapT = T.RepeatWrapping; if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; t.magFilter = T.NearestFilter;
+    textures.set(c, t); return t;
+  }
+  // le survivant d'un skin : { gltf, hauteur, map } (map : la texture à mettre ; null : celles du fichier) ; le Gardien tant que le reste manque
+  function survivant(id) {
+    const S = typeof ZDONNEES !== 'undefined' ? ZDONNEES.SURVIVANTS[id] : null;
+    if (!S || !S.texture || !M.blocky) return { gltf: M.survivant.gltf, hauteur: M.survivant.hauteur, map: null, id: 'gardien' };
+    return { gltf: M.blocky.gltf, hauteur: M.blocky.hauteur, map: texture(S.texture), id };
+  }
   let etat = 'attente', promesse = null;
 
   // un matériau Lambert (moins cher que le PBR des fichiers, comme le reste du jeu) qui garde la palette du pack
@@ -88,26 +101,29 @@ const ZMODELES = (() => {
       const g = {}; cles.forEach((k, i) => { g[k] = l[i]; });
       preparer(g); etat = 'pret';
       etatArmes = 'charge';
-      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; });
+      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; })
+        .then(() => lire('persos/blocky.glb')).then((gl) => { gl.scene.traverse((o) => { if (o.isMesh && !o.geometry.attributes.normal) o.geometry.computeVertexNormals(); }); /* (des modèles « sans éclairage » : pas de normales, noirs en Lambert) */ M.blocky = { gltf: gl, hauteur: (() => { const b = new T.Box3().setFromObject(gl.scene); return b.max.y - b.min.y; })() }; etatPersos = 'pret'; }).catch(() => { etatPersos = 'absent'; });
       return true;
     }).catch((e) => { etat = 'erreur'; if (typeof console !== 'undefined') console.warn('Dernier Rempart : modèles 3D indisponibles, formes faites main', e && e.message); return false; });
     return promesse;
   }
   // une arme prête à tenir : le blaster de l'arme (sa teinte), le canon vers +z, long de « longueur » ; null sans modèle
-  const armesFaites = new Map();
-  function arme(id, longueur) {
-    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele];
+  // (avec une finition de la collection : sa couleur, sa lueur ; « arcenciel » : le rendu fait tourner la teinte des matériaux de arcsEnCiel)
+  const armesFaites = new Map(), arcsEnCiel = new Set();
+  function arme(id, longueur, finition) {
+    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele], F = finition && ZDONNEES.FINITIONS[finition];
     if (!src) return null;
-    let base = armesFaites.get(id);
+    const cle = id + '|' + (F ? finition : '');
+    let base = armesFaites.get(cle);
     if (!base) {
       const mats = new Map();
       base = src.clone(true);
-      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
+      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (F) { m.color.set(F.couleur); if (F.lueur) m.emissive = new T.Color(F.couleur).multiplyScalar(F.lueur); if (F.translucide) { m.transparent = true; m.opacity = 0.62; } if (F.arcenciel) arcsEnCiel.add(m); } else if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
       const b = new T.Box3().setFromObject(base), c = new T.Vector3(); b.getCenter(c);
       const g = new T.Group(); base.position.sub(c); base.rotation.y = Math.PI; base.position.x = -base.position.x; base.position.z = -base.position.z; g.add(base);
-      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(id, base);
+      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(cle, base);
     }
     const o = base.clone(true); o.scale.setScalar(longueur / base.userData.long); return o;
   }
-  return { charger, arme, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
+  return { charger, arme, arcsEnCiel, survivant, get persosPrets() { return etatPersos === 'pret'; }, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
 })();

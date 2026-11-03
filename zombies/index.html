@@ -351,6 +351,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .asc-recomp { margin: 0; font-weight: 700; color: #6B5A1E; }
 .asc-boutons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 @media (max-height: 460px) and (orientation: landscape) { .ascension { width: min(720px, 100%); grid-template-columns: 1fr 1fr; gap: 6px 14px; } .ascension > h2, .ascension > .asc-n { grid-column: 1; } .ascension .asc-carte { grid-column: 2; grid-row: 1 / span 4; } .asc-n { font-size: 34px; } }
+
+/* ─── les émotes ─── */
+.h-bulles span { position: absolute; left: 0; top: 0; padding: 4px 9px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); font-size: 24px; line-height: 1.1; box-shadow: 0 3px 0 rgba(31, 37, 51, .3); pointer-events: none; }
+.h-bulles span::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 10px; height: 10px; background: #fff; border-right: 2.5px solid var(--encre); border-bottom: 2.5px solid var(--encre); transform: translateX(-50%) rotate(45deg); }
+.h-emote { position: absolute; left: calc(12px + var(--hg)); top: calc(186px + var(--ht)); width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); font-size: 22px; box-shadow: 0 3px 0 rgba(31, 37, 51, .35); }
+.h-emotes { position: absolute; left: calc(70px + var(--hg)); top: calc(184px + var(--ht)); z-index: 3; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: rgba(31, 37, 51, .82); }
+.h-emotes button { width: 46px; height: 46px; border-radius: 12px; border: 0; background: #fff; font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .h-emote { top: calc(160px + var(--ht)); width: 44px; height: 44px; font-size: 19px; } .h-emotes { top: calc(156px + var(--ht)); } }
+@media (orientation: portrait) { .h-emote { top: auto; bottom: calc(206px + var(--hb)); } .h-emotes { top: auto; bottom: calc(204px + var(--hb)); } }
+
+/* ─── la collection : la carte à droite, le survivant de la démonstration visible à gauche ─── */
+.collection-ecran { justify-items: end; background: linear-gradient(90deg, transparent 30%, rgba(31, 37, 51, .35)); }
+.collection { width: min(470px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.col-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.col-tete h2 { margin: 0; }
+.col-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 6px; max-height: 250px; overflow-y: auto; padding: 2px; }
+.col-carte { display: grid; gap: 2px; justify-items: center; align-content: center; min-height: 62px; padding: 6px; border-radius: 12px; border: 2.5px solid var(--encre); background: #fff; font-size: 13px; color: var(--encre); text-align: center; }
+.col-carte .nom { font: 700 14px/1.15 var(--titre); }
+.col-carte small { color: #6B7080; font-size: 11px; line-height: 1.2; }
+.col-carte .prix { display: inline-flex; gap: 3px; align-items: center; color: #8A6A10; }
+.col-carte .prix svg { width: 15px; height: 15px; }
+.col-carte.porte { background: var(--jaune); }
+.col-carte.verrou { background: #ECEAE4; }
+.col-carte .porte { color: #6B5A1E; }
+.col-carte .pastille { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--encre); }
+.col-carte .signe { font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .collection { padding: 10px 14px 12px; } .col-liste { max-height: 200px; } .collection h2 { font-size: 24px; } }
 </style>
 </head>
 <body>
@@ -373,6 +400,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
+        <button type="button" class="moyen" id="b-collection">Collection</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -453,6 +481,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <dl class="asc-carte"></dl>
       <p class="asc-recomp"></p>
       <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran collection-ecran" id="ecran-collection" hidden>
+    <div class="carte-ecran collection">
+      <div class="col-tete"><h2>Collection</h2><div class="medailles" id="col-medailles"></div></div>
+      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
+      <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
+      <div class="col-liste"></div>
+      <button type="button" class="moyen" id="b-col-retour">Retour</button>
     </div>
   </section>
 
@@ -1962,7 +2000,47 @@ const PRESEAU = (() => {
     finitionTous: 3, // une finition d'arme tous les trois échelons
   };
 
-  return { ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── la collection ───
+  // les survivants (Blocky Characters de Kenney, texture a … r ; le Gardien est le fossoyeur du Graveyard Kit) ; pour les obtenir : prix (des
+  // médailles, au Vestiaire), ou un exploit (echelon : l'échelon de l'Ascension atteint ; boss, vague, defis, coop : voir ui.js) — les
+  // secrets restent « ??? » tant qu'on ne les a pas
+  const SURVIVANTS = {
+    gardien:     { nom: 'Le Gardien', texture: null, depart: true },
+    grandpere:   { nom: 'Grand-père', texture: 'a', prix: 20 },
+    marcel:      { nom: 'Marcel', texture: 'b', prix: 20 },
+    gamer:       { nom: 'Le Gamer', texture: 'c', prix: 30 },
+    lila:        { nom: 'Lila', texture: 'e', prix: 30 },
+    jardinier:   { nom: 'Le Jardinier', texture: 'f', prix: 40 },
+    mecano:      { nom: 'La Mécano', texture: 'k', prix: 40 },
+    aventurier:  { nom: 'L’Aventurier', texture: 'm', prix: 60 },
+    professeur:  { nom: 'Le Professeur', texture: 'i', exploit: { echelon: 4 }, texte: 'Atteindre l’échelon 4 de l’Ascension' },
+    gendarme:    { nom: 'Le Gendarme', texture: 'j', exploit: { echelon: 8 }, texte: 'Atteindre l’échelon 8' },
+    pirate:      { nom: 'Le Pirate', texture: 'p', exploit: { echelon: 13 }, texte: 'Atteindre l’échelon 13' },
+    agent:       { nom: 'L’Agent secret', texture: 'q', exploit: { echelon: 20 }, texte: 'Atteindre l’échelon 20' },
+    mannequin:   { nom: 'Mannequin de crash-test', texture: 'd', exploit: { vague: 15 }, texte: 'Atteindre la vague 15 en partie libre' },
+    robotrouge:  { nom: 'Robot rouge', texture: 'g', exploit: { boss: 5 }, texte: 'Abattre 5 boss' },
+    robotviolet: { nom: 'Robot violet', texture: 'h', exploit: { boss: 25 }, texte: 'Abattre 25 boss', secret: true },
+    ninja:       { nom: 'Le Ninja', texture: 'r', exploit: { defis: 5 }, texte: 'Jouer le défi du jour 5 jours différents' },
+    marin:       { nom: 'Le Marin des abysses', texture: 'o', exploit: { coop: 3 }, texte: 'Finir 3 parties à plusieurs' },
+    loyal:       { nom: 'Monsieur Loyal', texture: 'n', exploit: { tues: 5000 }, texte: 'Abattre 5 000 zombies en tout', secret: true },
+    repenti:     { nom: 'Le Zombie repenti', texture: 'l', exploit: { echelon: 30 }, texte: 'Atteindre l’échelon 30', secret: true },
+  };
+  // les finitions d'armes : une couleur (et parfois une lueur) pour une arme, au choix ; une tous les 3 échelons de l'Ascension, dans cet ordre,
+  // secrètes jusque-là ; arcenciel : la teinte tourne, spectre : translucide
+  const FINITIONS = {
+    or: { nom: 'Or', couleur: '#FFD24A', lueur: 0.15 }, onyx: { nom: 'Onyx', couleur: '#2E2E36' }, givre: { nom: 'Givre', couleur: '#BDEBFF', lueur: 0.1 },
+    camouflage: { nom: 'Camouflage', couleur: '#6B7A3A' }, rubis: { nom: 'Rubis', couleur: '#E0115F', lueur: 0.12 }, cuivre: { nom: 'Cuivre', couleur: '#C77B3A' },
+    neon: { nom: 'Néon', couleur: '#39FF14', lueur: 0.5 }, ivoire: { nom: 'Ivoire', couleur: '#F2EBD9' }, emeraude: { nom: 'Émeraude', couleur: '#1FAA59', lueur: 0.12 },
+    lave: { nom: 'Lave', couleur: '#FF5A1A', lueur: 0.45 }, spectre: { nom: 'Spectre', couleur: '#8FF0FF', lueur: 0.3, translucide: true }, arcenciel: { nom: 'Arc-en-ciel', couleur: '#FF0000', lueur: 0.25, arcenciel: true },
+  };
+  const ORDRE_FINITIONS = ['or', 'onyx', 'givre', 'camouflage', 'rubis', 'cuivre', 'neon', 'ivoire', 'emeraude', 'lave', 'spectre', 'arcenciel'];
+  // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
+  const EMOTES = {
+    pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
+    peur: { nom: 'Au secours', signe: '😱', prix: 15 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
+  };
+
+  return { SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -2151,6 +2229,7 @@ const PRESEAU = (() => {
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
@@ -2542,7 +2621,7 @@ const PRESEAU = (() => {
         ev(jeu, { t: 'vagueFinie', n: jeu.vague, prime }); jeu.vaguesFinies++;
       }
     }
-    for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
+    for (const j of jeu.joueurs) { majJoueur(jeu, j, entrees[j.id] || null, dt); if (j.emote && (j.emote.t -= dt) <= 0) j.emote = null; if (j.emoteCd > 0) j.emoteCd -= dt; }
     if (jeu.joueurs.length > 1) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
@@ -2965,6 +3044,12 @@ const PRESEAU = (() => {
     const j = trouverJoueur(jeu, idJ); if (!j || !j.armes[i] || j.main === i) return false;
     j.main = i; j.attente = Math.max(j.attente, 0.2); ev(jeu, { t: 'arme', id: j.id, arme: j.armes[i].id }); return true;
   }
+  // une émote : une bulle au-dessus du survivant (même à terre : « À l'aide ! »), pas plus d'une toutes les 1,2 s
+  function emote(jeu, idJ, e) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !D.EMOTES[e] || j.emoteCd > 0 || j.parti) return { ok: false };
+    j.emote = { id: e, t: 2.4 }; j.emoteCd = 1.2; ev(jeu, { t: 'emote', id: j.id, e });
+    return { ok: true };
+  }
   function passer(jeu) { if (jeu.phase === 'pause' && !jeu.fini) { jeu.chrono = 0; return true; } return false; }
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
@@ -2977,7 +3062,7 @@ const PRESEAU = (() => {
     const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
 
 /* ── src-zombies/modeles.js ── */
@@ -3007,7 +3092,20 @@ const ZMODELES = (() => {
   const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] }, blasters: {} };
   // les armes (Blaster Kit de Kenney) : chargées après le reste, sans le bloquer ; une arme sans modèle garde sa forme faite main
   const BLASTERS = 'abcdefghijklmnopqr'.split('');
-  let etatArmes = 'attente';
+  let etatArmes = 'attente', etatPersos = 'attente';
+  // les survivants à collectionner : le modèle Blocky (chargé après les armes) et ses textures, chargées à la demande
+  const textures = new Map();
+  function texture(c) {
+    if (textures.has(c)) return textures.get(c);
+    const t = new T.TextureLoader().load(BASE + `persos/texture-${c}.png`); t.flipY = false; t.wrapS = t.wrapT = T.RepeatWrapping; if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; t.magFilter = T.NearestFilter;
+    textures.set(c, t); return t;
+  }
+  // le survivant d'un skin : { gltf, hauteur, map } (map : la texture à mettre ; null : celles du fichier) ; le Gardien tant que le reste manque
+  function survivant(id) {
+    const S = typeof ZDONNEES !== 'undefined' ? ZDONNEES.SURVIVANTS[id] : null;
+    if (!S || !S.texture || !M.blocky) return { gltf: M.survivant.gltf, hauteur: M.survivant.hauteur, map: null, id: 'gardien' };
+    return { gltf: M.blocky.gltf, hauteur: M.blocky.hauteur, map: texture(S.texture), id };
+  }
   let etat = 'attente', promesse = null;
 
   // un matériau Lambert (moins cher que le PBR des fichiers, comme le reste du jeu) qui garde la palette du pack
@@ -3071,28 +3169,31 @@ const ZMODELES = (() => {
       const g = {}; cles.forEach((k, i) => { g[k] = l[i]; });
       preparer(g); etat = 'pret';
       etatArmes = 'charge';
-      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; });
+      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; })
+        .then(() => lire('persos/blocky.glb')).then((gl) => { gl.scene.traverse((o) => { if (o.isMesh && !o.geometry.attributes.normal) o.geometry.computeVertexNormals(); }); /* (des modèles « sans éclairage » : pas de normales, noirs en Lambert) */ M.blocky = { gltf: gl, hauteur: (() => { const b = new T.Box3().setFromObject(gl.scene); return b.max.y - b.min.y; })() }; etatPersos = 'pret'; }).catch(() => { etatPersos = 'absent'; });
       return true;
     }).catch((e) => { etat = 'erreur'; if (typeof console !== 'undefined') console.warn('Dernier Rempart : modèles 3D indisponibles, formes faites main', e && e.message); return false; });
     return promesse;
   }
   // une arme prête à tenir : le blaster de l'arme (sa teinte), le canon vers +z, long de « longueur » ; null sans modèle
-  const armesFaites = new Map();
-  function arme(id, longueur) {
-    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele];
+  // (avec une finition de la collection : sa couleur, sa lueur ; « arcenciel » : le rendu fait tourner la teinte des matériaux de arcsEnCiel)
+  const armesFaites = new Map(), arcsEnCiel = new Set();
+  function arme(id, longueur, finition) {
+    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele], F = finition && ZDONNEES.FINITIONS[finition];
     if (!src) return null;
-    let base = armesFaites.get(id);
+    const cle = id + '|' + (F ? finition : '');
+    let base = armesFaites.get(cle);
     if (!base) {
       const mats = new Map();
       base = src.clone(true);
-      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
+      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (F) { m.color.set(F.couleur); if (F.lueur) m.emissive = new T.Color(F.couleur).multiplyScalar(F.lueur); if (F.translucide) { m.transparent = true; m.opacity = 0.62; } if (F.arcenciel) arcsEnCiel.add(m); } else if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
       const b = new T.Box3().setFromObject(base), c = new T.Vector3(); b.getCenter(c);
       const g = new T.Group(); base.position.sub(c); base.rotation.y = Math.PI; base.position.x = -base.position.x; base.position.z = -base.position.z; g.add(base);
-      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(id, base);
+      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(cle, base);
     }
     const o = base.clone(true); o.scale.setScalar(longueur / base.userData.long); return o;
   }
-  return { charger, arme, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
+  return { charger, arme, arcsEnCiel, survivant, get persosPrets() { return etatPersos === 'pret'; }, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
 })();
 
 /* ── src-zombies/rendu.js ── */
@@ -3573,9 +3674,9 @@ const ZRENDU = (() => {
     }
     // le survivant Kenney (le fossoyeur du Graveyard Kit) : les jambes jouent la marche ou le repos, le haut du corps tient l'arme ou tire
     // (deux demi-clips : les pistes des jambes d'un côté, celles du torse, des bras et de la tête de l'autre) ; l'arme est accrochée au torse
-    function nouveauSurvivantK() {
-      const S = MOD.M.survivant, g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
-      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
+    function nouveauSurvivantK(skin) {
+      const S = MOD.survivant(skin || 'gardien'), g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
+      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
       const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o);
       const mixer = new T.AnimationMixer(o), clip = (n) => S.gltf.animations.find((c) => c.name === n);
       const moitie = (n, re) => { const c = clip(n); return c ? mixer.clipAction(new T.AnimationClip(n + (re === JAMBES ? '-jambes' : '-haut'), c.duration, c.tracks.filter((t) => re.test(t.name.split('.')[0])))) : null; };
@@ -3586,7 +3687,7 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       scene.add(g);
-      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false };
+      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
     }
     const JAMBES = /^(leg-left|leg-right|root)$/, HAUT = /^(torso|arm-left|arm-right|head)$/;
     const changer = (s, cote, nom) => { if (s[cote] === nom) return; const a = s.act[nom], p = s.act[s[cote]]; if (a) { a.reset(); a.play(); if (p) a.crossFadeFrom(p, 0.15, false); } s[cote] = nom; };
@@ -3596,11 +3697,11 @@ const ZRENDU = (() => {
       if (s.mort) { s.mort = false; s.mixer.stopAllAction(); s.jambes = s.haut = ''; }
       changer(s, 'jambes', j.bouge > 0.05 ? 'marche' : 'repos'); if (s.act.marche) s.act.marche.timeScale = 0.6 + j.bouge * 0.9;
       changer(s, 'haut', j.visee ? 'tir' : 'tenir');
-      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
-      if (id !== s.armeId || s.armesVues !== MOD.armesPretes) {
-        s.armeId = id; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
+      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet', fin = (j.finitions && j.finitions[id]) || '';
+      if (id !== s.armeId || fin !== s.fin || s.armesVues !== MOD.armesPretes) {
+        s.armeId = id; s.fin = fin; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
         if (s.blaster) { s.blaster.parent.remove(s.blaster); s.blaster = null; }
-        const b = MOD.arme(id, L / s.k);
+        const b = MOD.arme(id, L / s.k, fin);
         if (b) { b.position.set(0, 0.06 / s.k, (0.22 + L / 2) / s.k); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
         else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
@@ -3615,7 +3716,10 @@ const ZRENDU = (() => {
       const vus = new Set();
       for (const j of jeu.joueurs) {
         vus.add(j.id);
-        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
+        let s = survivants.get(j.id);
+        const voulu = MOD && MOD.pret ? MOD.survivant(j.skin || 'gardien').id : '';
+        if (s && s.modele && s.skin !== voulu) { scene.remove(s.g); s = null; } // un autre skin (ou ses textures enfin prêtes)
+        if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK(j.skin) : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
         s.g.visible = !j.parti; s.anneau.visible = j.vivant && !j.parti; // en coop, chacun son anneau (le sien en jaune)
         if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
@@ -3913,6 +4017,7 @@ const ZRENDU = (() => {
     // ─── la caméra : au-dessus, inclinée, elle suit le survivant (avec un peu d'avance dans le sens de la marche) ───
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
+    let decal = 0, decalVoulu = 0;
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
@@ -3924,6 +4029,7 @@ const ZRENDU = (() => {
         fx = cam.x + (cine.x - cam.x) * w; fz = cam.z + (cine.z - cam.z) * w; haut -= 11 * w; recul -= 5 * w;
         if (u >= 1) cine = null;
       }
+      decal += (decalVoulu - decal) * k; fx += decal * 0.7; haut -= Math.abs(decal) * 1.4; recul -= Math.abs(decal) * 0.4; // (la collection : le survivant à gauche, en plus gros)
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
       camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
@@ -3972,6 +4078,7 @@ const ZRENDU = (() => {
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
+      if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
       majMeteo(jeu, idMoi, dt);
       majAlertes(dt);
       majFlaques(dt);
@@ -4001,7 +4108,7 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();
@@ -4346,12 +4453,15 @@ const ZHUD = (() => {
       <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <div class="h-bulles" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <button type="button" class="h-emote" aria-label="Émotes">💬</button>
+      <div class="h-emotes" hidden></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -4362,6 +4472,14 @@ const ZHUD = (() => {
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
+    // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
+    sur(el.emote, () => {
+      if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
+      const l = (A.emotesDispo && A.emotesDispo()) || Object.keys(ZDONNEES.EMOTES);
+      el.emotes.innerHTML = l.map((k) => `<button type="button" data-emote="${k}" aria-label="${ZDONNEES.EMOTES[k].nom}">${ZDONNEES.EMOTES[k].signe}</button>`).join('');
+      el.emotes.querySelectorAll('[data-emote]').forEach((b) => sur(b, () => { el.emotes.hidden = true; if (A.emote) A.emote(b.dataset.emote); }));
+      el.emotes.hidden = false;
+    });
     el.cartes.addEventListener('click', (ev) => { const b = ev.target.closest('.h-carte-atout'); if (b && A.atout) { ev.preventDefault(); A.atout(b.dataset.atout); } });
     // les chiffres de dégâts : une réserve d'étiquettes réutilisées
     for (let k = 0; k < NB_CHIFFRES; k++) { const d = document.createElement('span'); d.className = 'num'; d.hidden = true; el.degats.appendChild(d); chiffres.push({ d, t: 0, x: 0, y: 0, z: 0, dx: 0 }); }
@@ -4492,6 +4610,17 @@ const ZHUD = (() => {
       }
     }
     // la coop : le pseudo des copains au-dessus d'eux (« à terre » et la relève en cours) ; les annonces quand quelqu'un tombe ou se relève
+    // les bulles d'émotes, au-dessus de chaque survivant (le sien compris)
+    if (projeter) {
+      let b = 0;
+      for (const p of jeu.joueurs) {
+        if (!p.emote || p.parti || b >= el.bulles.length) continue;
+        const sp = el.bulles[b++], q = projeter(p.x, 3.7, p.z), E = ZDONNEES.EMOTES[p.emote.id], txt = E ? E.signe : '';
+        if (sp.textContent !== txt) sp.textContent = txt;
+        sp.hidden = false; sp.style.transform = `translate(${q[0].toFixed(0)}px, ${q[1].toFixed(0)}px) translate(-50%, -100%) scale(${Math.min(1, (2.4 - p.emote.t) * 6 + 0.3).toFixed(2)})`;
+      }
+      for (; b < el.bulles.length; b++) el.bulles[b].hidden = true;
+    }
     if (projeter) {
       let k = 0;
       for (const p of jeu.joueurs) {
@@ -4561,6 +4690,10 @@ const ZENLIGNE = (() => {
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
   const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse'];
   const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
+  // le skin, dans la présence (« am », 8 caractères au plus) : son rang dans ZDONNEES.SURVIVANTS
+  const SKINS = D ? Object.keys(D.SURVIVANTS) : [];
+  const codeSkin = (id) => String(Math.max(0, SKINS.indexOf(id)));
+  const lireSkin = (c) => SKINS[+c] || 'gardien';
   const COULEURS = ['#E3B663', '#7FB3E0', '#9BD86A', '#E58FB8'];
   const r2 = (v) => Math.round(v * 100) / 100, r1 = (v) => Math.round(v * 10) / 10;
   const codeBonus = (b) => CLES_BONUS.map((k) => Math.max(0, Math.min(9, (b && b[k]) | 0))).join('');
@@ -4574,7 +4707,7 @@ const ZENLIGNE = (() => {
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0]),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '']),
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0]),
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
       o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
@@ -4598,7 +4731,7 @@ const ZENLIGNE = (() => {
       if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
-      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null;
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null;
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -4633,12 +4766,12 @@ const ZENLIGNE = (() => {
     if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
     o = o || {};
     const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
-    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) }, config: o.config, prefixe: PREFIXE });
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
     const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
     const Z = {
       code: s.code, idMoi, partie: null,
       get estHote() { return s.estHote; },
-      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq })); },
+      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq, am: j.am })); },
       sur(t, f) { if (!abonnes.has(t)) abonnes.set(t, new Set()); abonnes.get(t).add(f); return () => abonnes.get(t).delete(f); },
       quitter() { try { s.quitter(); } catch (e) { /* rien */ } Z.partie = null; },
       stats: () => s.stats(),
@@ -4646,7 +4779,7 @@ const ZENLIGNE = (() => {
         if (!s.estHote) return 'pas-hote';
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
-        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq) })) };
+        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -4658,7 +4791,7 @@ const ZENLIGNE = (() => {
     s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
 
     function demarrer(d) {
-      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, couleur: COULEURS[i % COULEURS.length] }));
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
       const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
@@ -4685,6 +4818,7 @@ const ZENLIGNE = (() => {
           case 'arme': return J.changerArme(jeu, de, +arg);
           case 'atout': return J.choisirAtout(jeu, de, arg);
           case 'passer': return J.passer(jeu);
+          case 'emote': return J.emote(jeu, de, arg);
         }
         return null;
       }
@@ -4937,7 +5071,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -4987,6 +5121,8 @@ const ZENLIGNE = (() => {
     pause() { pause(); },
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
+    emote(e) { if (jeu) faire('emote', e); },
+    emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
@@ -5001,6 +5137,7 @@ const ZENLIGNE = (() => {
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
+      case 'emote': return ZJEU.emote(jeu, idMoi, arg);
     }
     return { ok: false };
   }
@@ -5020,6 +5157,7 @@ const ZENLIGNE = (() => {
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
+    rendu.decaler(nom === 'collection' ? 6 : 0);
     if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); }
   }
   function remplirArenes() {
@@ -5039,12 +5177,12 @@ const ZENLIGNE = (() => {
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
-    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15 });
+    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5071,6 +5209,9 @@ const ZENLIGNE = (() => {
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
     if (!horsRecords) save.records[arene] = r;
     save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    save.total.boss = (save.total.boss || 0) + j.boss; if (partie) save.total.coop = (save.total.coop || 0) + 1;
+    if (!horsRecords) save.total.vagueMax = Math.max(save.total.vagueMax || 0, jeu.vague);
+    if (defi) { save.total.defisJours = (save.total.defisJours || []).filter((x) => x !== defi.jour).concat(defi.jour).slice(-60); }
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -5084,6 +5225,7 @@ const ZENLIGNE = (() => {
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension();
+    const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
     setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
@@ -5104,7 +5246,7 @@ const ZENLIGNE = (() => {
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -5129,7 +5271,7 @@ const ZENLIGNE = (() => {
   function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
-  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; }
   function remplirBunker() {
     majMedailles();
     $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
@@ -5201,7 +5343,7 @@ const ZENLIGNE = (() => {
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5243,7 +5385,7 @@ const ZENLIGNE = (() => {
   }
   function demarrerAscension(n) {
     const e = ZJEU.echelon(n); ascension = e; defi = null;
-    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now(); save.ascension.essais++; ecrire();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5264,6 +5406,69 @@ const ZENLIGNE = (() => {
     $('#b-rejouer').textContent = jeu.gagne ? `Échelon ${n + 1}` : 'Réessayer';
   }
 
+  // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
+  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
+  // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
+  function progres(x) {
+    const T = save.total; const v = { echelon: save.ascension ? save.ascension.echelon : 1, vague: T.vagueMax || Math.max(0, ...Object.values(save.records).map((r) => r.vague || 0)), boss: T.boss || 0, defis: (T.defisJours || []).length, coop: T.coop || 0, tues: T.tues || 0 };
+    const k = Object.keys(x)[0]; return { fait: v[k] || 0, but: x[k] };
+  }
+  function verifierExploits() {
+    const C = save.collection, neufs = [];
+    for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
+    if (neufs.length) ecrire(); return neufs;
+  }
+  let ongletCol = 'survivants', armeCol = 'revolver';
+  function ouvrirCollection() {
+    verifierExploits();
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('collection'); remplirCollection();
+  }
+  function remplirCollection() {
+    const C = save.collection, box = $('.col-liste');
+    document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
+    $('.col-armes').hidden = ongletCol !== 'finitions';
+    majMedailles();
+    if (ongletCol === 'survivants') {
+      box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
+        const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
+        const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+      }).join('');
+      box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.skin, S = D.SURVIVANTS[k];
+        if (C.skins.includes(k)) { C.skin = k; }
+        else if (S.prix) { if (save.meta.medailles < S.prix) { ZHUD.toast('Pas assez de médailles (le Bunker les gagne en jouant)'); PSONS.jouer('refus', 0.6); return; } save.meta.medailles -= S.prix; C.skins.push(k); C.skin = k; PSONS.jouer('achat', 0.9); }
+        else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
+        ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
+      }));
+    } else if (ongletCol === 'finitions') {
+      const fins = finitionsEues();
+      $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+        const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
+        const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+      }));
+      apercuArme();
+    } else {
+      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
+      box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
+        if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
+        save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
+      }));
+    }
+  }
+  // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
+  function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -5280,6 +5485,10 @@ const ZENLIGNE = (() => {
   clic('#b-multi', ouvrirSalon);
   clic('#b-defi', ouvrirDefi);
   clic('#b-ascension', ouvrirAscension);
+  clic('#b-collection', ouvrirCollection);
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
@@ -5363,7 +5572,7 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    ouvrirCollection, verifierExploits, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

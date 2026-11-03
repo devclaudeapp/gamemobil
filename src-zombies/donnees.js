@@ -248,5 +248,45 @@
     finitionTous: 3, // une finition d'arme tous les trois échelons
   };
 
-  return { ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── la collection ───
+  // les survivants (Blocky Characters de Kenney, texture a … r ; le Gardien est le fossoyeur du Graveyard Kit) ; pour les obtenir : prix (des
+  // médailles, au Vestiaire), ou un exploit (echelon : l'échelon de l'Ascension atteint ; boss, vague, defis, coop : voir ui.js) — les
+  // secrets restent « ??? » tant qu'on ne les a pas
+  const SURVIVANTS = {
+    gardien:     { nom: 'Le Gardien', texture: null, depart: true },
+    grandpere:   { nom: 'Grand-père', texture: 'a', prix: 20 },
+    marcel:      { nom: 'Marcel', texture: 'b', prix: 20 },
+    gamer:       { nom: 'Le Gamer', texture: 'c', prix: 30 },
+    lila:        { nom: 'Lila', texture: 'e', prix: 30 },
+    jardinier:   { nom: 'Le Jardinier', texture: 'f', prix: 40 },
+    mecano:      { nom: 'La Mécano', texture: 'k', prix: 40 },
+    aventurier:  { nom: 'L’Aventurier', texture: 'm', prix: 60 },
+    professeur:  { nom: 'Le Professeur', texture: 'i', exploit: { echelon: 4 }, texte: 'Atteindre l’échelon 4 de l’Ascension' },
+    gendarme:    { nom: 'Le Gendarme', texture: 'j', exploit: { echelon: 8 }, texte: 'Atteindre l’échelon 8' },
+    pirate:      { nom: 'Le Pirate', texture: 'p', exploit: { echelon: 13 }, texte: 'Atteindre l’échelon 13' },
+    agent:       { nom: 'L’Agent secret', texture: 'q', exploit: { echelon: 20 }, texte: 'Atteindre l’échelon 20' },
+    mannequin:   { nom: 'Mannequin de crash-test', texture: 'd', exploit: { vague: 15 }, texte: 'Atteindre la vague 15 en partie libre' },
+    robotrouge:  { nom: 'Robot rouge', texture: 'g', exploit: { boss: 5 }, texte: 'Abattre 5 boss' },
+    robotviolet: { nom: 'Robot violet', texture: 'h', exploit: { boss: 25 }, texte: 'Abattre 25 boss', secret: true },
+    ninja:       { nom: 'Le Ninja', texture: 'r', exploit: { defis: 5 }, texte: 'Jouer le défi du jour 5 jours différents' },
+    marin:       { nom: 'Le Marin des abysses', texture: 'o', exploit: { coop: 3 }, texte: 'Finir 3 parties à plusieurs' },
+    loyal:       { nom: 'Monsieur Loyal', texture: 'n', exploit: { tues: 5000 }, texte: 'Abattre 5 000 zombies en tout', secret: true },
+    repenti:     { nom: 'Le Zombie repenti', texture: 'l', exploit: { echelon: 30 }, texte: 'Atteindre l’échelon 30', secret: true },
+  };
+  // les finitions d'armes : une couleur (et parfois une lueur) pour une arme, au choix ; une tous les 3 échelons de l'Ascension, dans cet ordre,
+  // secrètes jusque-là ; arcenciel : la teinte tourne, spectre : translucide
+  const FINITIONS = {
+    or: { nom: 'Or', couleur: '#FFD24A', lueur: 0.15 }, onyx: { nom: 'Onyx', couleur: '#2E2E36' }, givre: { nom: 'Givre', couleur: '#BDEBFF', lueur: 0.1 },
+    camouflage: { nom: 'Camouflage', couleur: '#6B7A3A' }, rubis: { nom: 'Rubis', couleur: '#E0115F', lueur: 0.12 }, cuivre: { nom: 'Cuivre', couleur: '#C77B3A' },
+    neon: { nom: 'Néon', couleur: '#39FF14', lueur: 0.5 }, ivoire: { nom: 'Ivoire', couleur: '#F2EBD9' }, emeraude: { nom: 'Émeraude', couleur: '#1FAA59', lueur: 0.12 },
+    lave: { nom: 'Lave', couleur: '#FF5A1A', lueur: 0.45 }, spectre: { nom: 'Spectre', couleur: '#8FF0FF', lueur: 0.3, translucide: true }, arcenciel: { nom: 'Arc-en-ciel', couleur: '#FF0000', lueur: 0.25, arcenciel: true },
+  };
+  const ORDRE_FINITIONS = ['or', 'onyx', 'givre', 'camouflage', 'rubis', 'cuivre', 'neon', 'ivoire', 'emeraude', 'lave', 'spectre', 'arcenciel'];
+  // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
+  const EMOTES = {
+    pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
+    peur: { nom: 'Au secours', signe: '😱', prix: 15 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
+  };
+
+  return { SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

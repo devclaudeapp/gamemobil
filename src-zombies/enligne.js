@@ -21,6 +21,10 @@ const ZENLIGNE = (() => {
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
   const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse'];
   const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
+  // le skin, dans la présence (« am », 8 caractères au plus) : son rang dans ZDONNEES.SURVIVANTS
+  const SKINS = D ? Object.keys(D.SURVIVANTS) : [];
+  const codeSkin = (id) => String(Math.max(0, SKINS.indexOf(id)));
+  const lireSkin = (c) => SKINS[+c] || 'gardien';
   const COULEURS = ['#E3B663', '#7FB3E0', '#9BD86A', '#E58FB8'];
   const r2 = (v) => Math.round(v * 100) / 100, r1 = (v) => Math.round(v * 10) / 10;
   const codeBonus = (b) => CLES_BONUS.map((k) => Math.max(0, Math.min(9, (b && b[k]) | 0))).join('');
@@ -34,7 +38,7 @@ const ZENLIGNE = (() => {
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0]),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '']),
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0]),
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
       o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
@@ -58,7 +62,7 @@ const ZENLIGNE = (() => {
       if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
-      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null;
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null;
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -93,12 +97,12 @@ const ZENLIGNE = (() => {
     if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
     o = o || {};
     const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
-    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) }, config: o.config, prefixe: PREFIXE });
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
     const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
     const Z = {
       code: s.code, idMoi, partie: null,
       get estHote() { return s.estHote; },
-      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq })); },
+      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq, am: j.am })); },
       sur(t, f) { if (!abonnes.has(t)) abonnes.set(t, new Set()); abonnes.get(t).add(f); return () => abonnes.get(t).delete(f); },
       quitter() { try { s.quitter(); } catch (e) { /* rien */ } Z.partie = null; },
       stats: () => s.stats(),
@@ -106,7 +110,7 @@ const ZENLIGNE = (() => {
         if (!s.estHote) return 'pas-hote';
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
-        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq) })) };
+        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -118,7 +122,7 @@ const ZENLIGNE = (() => {
     s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
 
     function demarrer(d) {
-      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, couleur: COULEURS[i % COULEURS.length] }));
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
       const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
@@ -145,6 +149,7 @@ const ZENLIGNE = (() => {
           case 'arme': return J.changerArme(jeu, de, +arg);
           case 'atout': return J.choisirAtout(jeu, de, arg);
           case 'passer': return J.passer(jeu);
+          case 'emote': return J.emote(jeu, de, arg);
         }
         return null;
       }
