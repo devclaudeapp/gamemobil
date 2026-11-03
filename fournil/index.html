@@ -589,7 +589,9 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-titre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #2E2547; color: #B8FF9E; font: 700 11px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(124, 255, 107, .45), 0 0 8px rgba(124, 255, 107, .35); }
 .cl-titre svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .cl-nom:has(.cl-titre) { flex-wrap: wrap; row-gap: 3px; }
-.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; } /* sous l'enseigne de la boutique visitée */
+.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90%; } /* sous l'enseigne de la boutique visitée */
+.vi-palier { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 10px 4px 6px; border-radius: 999px; background: #1F2B5C; color: #FFE7A3; font: 700 13px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(255, 200, 74, .55); } /* son titre de palier (« Boulanger étoilé ») : bleu nuit et or, comme la tenue étoilée */
+.vi-palier span { overflow: hidden; text-overflow: ellipsis; } .vi-palier svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .vi-titre .cl-titre { font-size: 13px; padding: 4px 10px 4px 6px; } .vi-titre .cl-titre svg { width: 16px; height: 16px; }
 .rec-carte.mh-acharne { background: #EFE8FF; } .rec-carte.mh-acharne.or { background: #FFF3C4; box-shadow: inset 0 0 0 2px #8E6BD8; } /* ses places au classement final de la Maison hantée */
 .gr-piece.gr-aura .gr-ico { background: #1B1530; } /* l'aura phosphorescente : sur fond de nuit, comme le chapeau du palier 20 */
@@ -2427,9 +2429,11 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 /* sur un téléphone, le bouton du second n'a que sa toque (son nom est dans aria-label) ; la barre se resserre seulement quand il est là :
    ×1 ×10 ×100 Max, « Bonus » et la toque tiennent à 390, 360 et 320 px */
 @media (max-width: 479px) { .btn-am.second { padding: 0; width: 44px; justify-content: center; } .btn-am.second .sd-mot { display: none; } }
-@media (max-width: 409px) { .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 36px; padding: 0 6px; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 12px 0 10px; } }
-@media (max-width: 379px) { .barre-achat:has(#b-second:not([hidden])) { gap: 6px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 2px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 32px; padding: 0 3px; font-size: 13px; } }
-@media (max-width: 339px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) .ico { display: none; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 10px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 30px; padding: 0 2px; } }
+/* le bouton du second prend sa place sur « Bonus », pas sur ×1 ×10 ×100 Max : ceux-là gardent 40 px au moins (master : 42 à 57 px) — sous
+   380 px, « Bonus » perd son icône (son mot et sa pastille restent) ; le second n'a que son icône sous 480 px (son nom : aria-label) */
+@media (max-width: 409px) { .barre-achat:has(#b-second:not([hidden])) { gap: 6px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 3px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 40px; padding: 0 6px; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 12px 0 10px; } }
+@media (max-width: 379px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) .ico { display: none; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 14px; } .barre-achat:has(#b-second:not([hidden])) .modes button { padding: 0 5px; } }
+@media (max-width: 339px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 10px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 2px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 34px; padding: 0 3px; font-size: 13px; } }
 .carte .icone .second-pastille { position: absolute; top: -6px; left: -6px; padding: 2px 5px; border-radius: 999px; background: var(--menthe-sombre); color: #fff; font: 800 10px/1.1 var(--texte-font); box-shadow: 0 0 0 2px #fff; letter-spacing: .02em; }
 .flottant.second-plus { color: var(--menthe-sombre); font-size: 16px; animation-duration: 1s; }
 .sd-tete, .cc-tete { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
@@ -2498,13 +2502,13 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .cc-liste { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 4px; counter-reset: none; }
 .cc-liste li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 4px 10px; border-radius: 12px; background: var(--creme); }
 .cc-liste li.moi { background: var(--or-clair); box-shadow: inset 0 0 0 2px var(--beurre); }
-.cc-liste:has(.cc-visiter) li { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.cc-liste li.moi, .cc-liste:has(.cc-visiter) li { grid-template-columns: 26px minmax(0, 1fr) auto auto; } /* (sa ligne : le rang, le nom, « toi », les points ; une rivale : … les points, « Visiter ») */
 .cc-rang { font: 700 15px/1 var(--titre); color: var(--texte-2); text-align: center; }
 .cc-liste li:nth-child(-n+3) .cc-rang { color: var(--beurre-sombre); }
-.cc-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 14px/1.2 var(--titre); }
-.cc-nom small { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10.5px/1.3 var(--texte-font); vertical-align: 1px; }
+.cc-nom { min-width: 0; overflow: hidden; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font: 700 14px/1.2 var(--titre); } /* deux lignes plutôt qu'un nom coupé (360 px, 24 caractères) */
+.cc-toi { padding: 1px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10.5px/1.3 var(--texte-font); }
 .cc-pts { font: 700 14px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cc-visiter { min-height: 34px; padding: 0 10px; }
+.cc-visiter { min-height: 44px; padding: 0 10px; } /* (une zone de touche de 44 px, comme les autres boutons) */
 .cc-visiter b { font-size: 13px; }
 .cc-recuperer { margin: 8px 0 2px; }
 .cc-medailles { display: flex; justify-content: center; gap: 18px; margin: 6px 0 4px; }
@@ -2545,6 +2549,10 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .projet-annonce h2 { margin: 4px 0 6px; }
 .pj-icones { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
 .pj-icones svg { width: 84px; height: 84px; }
+.pj-noms { margin: 6px auto 0; max-width: 32em; font-size: 12.5px; color: var(--texte-2); } /* au-delà de trois chantiers : leurs noms repliés, en petit */
+.pj-noms summary { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-weight: 800; list-style: none; }
+.pj-noms summary::-webkit-details-marker { display: none; } .pj-noms summary::after { content: '▾'; } .pj-noms[open] summary::after { content: '▴'; }
+.pj-noms p { margin: 0 0 4px; line-height: 1.4; }
 .projet-annonce .sous { margin: 6px 0 0; }
 .pj-aide { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 0; padding: 6px 12px; border-radius: 999px; background: var(--or-clair); font-size: 14px; }
 .pj-aide .ico svg { width: 18px; height: 18px; }
@@ -2743,7 +2751,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '814d393aa7d7';</script>
+<script>window.FOURNIL_VERSION = 'c4d6d59446ff';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -8163,7 +8171,7 @@ const ICONS = (() => {
   // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
   const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
   // les palettes de la garde-robe : les métaux du podium, le quartier (anthracite, accent fraise) et le quartier en or (noir et or), la base (blanc)
-  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], parcours: ['#2F4A7A', '#C77B30', '#7FA0E0'], chaine: ['#7B2D42', '#D9A23A', '#A8506A'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or)
+  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], parcours: ['#2F4A7A', '#C77B30', '#7FA0E0'], chaine: ['#7B2D42', '#D9A23A', '#A8506A'], etoile: ['#1F2B5C', '#FFC84A', '#3C5196'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or) ; la tenue étoilée des paliers (bleu nuit et or, comme persos.js)
   // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium), ou la garde-robe de GAME.tenueBoulanger(st) ({ tete, haut, accessoire: { forme, metal } })
   function boulanger(rang, tenue) {
     const gd = tenue && typeof tenue === 'object' ? tenue : null, pal = (p) => (gd && gd[p] && gd[p].metal && TENUES[gd[p].metal]) || null;
@@ -8198,12 +8206,15 @@ const ICONS = (() => {
       <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
   }
   // les pièces de la garde-robe, au trait de la maison : vetement(forme, metal) ; forme : toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes
+  // une étoile d'or à cinq branches (la tenue étoilée des paliers : brodée d'étoiles), centrée en (x, y), de rayon r
+  const etoileBrodee = (x, y, r, col) => `<path d="${Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + k * Math.PI / 5, q = k % 2 ? r * 0.45 : r; return `${k ? 'L' : 'M'}${(x + q * Math.cos(a)).toFixed(2)} ${(y + q * Math.sin(a)).toFixed(2)}`; }).join('')}z" fill="${col}" stroke="${L}" stroke-width="1" stroke-linejoin="round"/>`;
   function vetement(forme, metal) {
     const t = TENUES[metal] || TENUES.base, f = t[0], o = t[1], c = t[2], st = `stroke="${L}" stroke-width="2" stroke-linejoin="round"`;
+    const etoilee = metal === 'etoile';
     switch (forme) {
-      case 'toque': return S(`<path d="M12 28c-5-1-7-5-6-9 1-4 6-6 9-4 1-6 5-9 9-9s8 3 9 9c3-2 8 0 9 4 1 4-1 8-6 9z" fill="${f}" ${st}/><rect x="12" y="27" width="24" height="10" rx="3" fill="${f}" ${st}/><path d="M15 32h18" stroke="${o}" stroke-width="2" stroke-linecap="round"/><path d="M16 15c1-2 3-4 5-4.5" stroke="${c}" stroke-width="2.4" stroke-linecap="round" fill="none"/>`);
+      case 'toque': return S(`<path d="M12 28c-5-1-7-5-6-9 1-4 6-6 9-4 1-6 5-9 9-9s8 3 9 9c3-2 8 0 9 4 1 4-1 8-6 9z" fill="${f}" ${st}/><rect x="12" y="27" width="24" height="10" rx="3" fill="${f}" ${st}/><path d="M15 32h18" stroke="${o}" stroke-width="2" stroke-linecap="round"/><path d="M16 15c1-2 3-4 5-4.5" stroke="${c}" stroke-width="2.4" stroke-linecap="round" fill="none"/>${etoilee ? etoileBrodee(24, 19, 5.2, o) + etoileBrodee(32.5, 21.5, 2.4, o) + etoileBrodee(15.5, 22.5, 2, o) : ''}`);
       case 'casquette': return S(`<path d="M10 27c0-9 6-16 14-16s14 7 14 16v3H10z" fill="${f}" ${st}/><rect x="8" y="28" width="32" height="6" rx="3" fill="${f}" ${st}/><path d="M39 29c5-1 7 1 7 3-3 3-7 3-9 2z" fill="${o}" ${st}/><circle cx="24" cy="10.5" r="2" fill="${o}"/><path d="M15 22c1-4 4-7 7-8" stroke="${c}" stroke-width="2.4" stroke-linecap="round" fill="none"/>`);
-      case 'tablier': return S(`<path d="M17 6h14v9l7 4v23H10V19l7-4z" fill="${f}" ${st}/><path d="M17 15h14" stroke="${o}" stroke-width="2" stroke-linecap="round"/><rect x="19" y="26" width="10" height="7" rx="2" fill="${o}" opacity=".5"/><path d="M12 38h24" stroke="${o}" stroke-width="2.5" stroke-linecap="round"/><path d="M14 22v12" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`);
+      case 'tablier': return S(`<path d="M17 6h14v9l7 4v23H10V19l7-4z" fill="${f}" ${st}/><path d="M17 15h14" stroke="${o}" stroke-width="2" stroke-linecap="round"/><rect x="19" y="26" width="10" height="7" rx="2" fill="${o}" opacity=".5"/><path d="M12 38h24" stroke="${o}" stroke-width="2.5" stroke-linecap="round"/><path d="M14 22v12" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>${etoilee ? etoileBrodee(24, 20.5, 3.4, o) + etoileBrodee(31.5, 29.5, 2.2, o) + etoileBrodee(16.5, 31, 2, o) : ''}`);
       case 'sweat': return S(`<path d="M9 20l6-7h18l6 7v22H9z" fill="${f}" ${st}/><path d="M15 13c2-6 16-6 18 0" fill="none" ${st}/><path d="M21 16v7M27 16v7" stroke="${c}" stroke-width="2" stroke-linecap="round"/><rect x="15" y="31" width="18" height="8" rx="2.5" fill="${c}" ${st}/><path d="M32 22l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z" fill="${o}"/><path d="M9 25h4M35 25h4" stroke="${o}" stroke-width="3" stroke-linecap="round"/>`);
       case 'chaussures': return S(`<path d="M7 34c0-5 5-8 10-8h4l5-6h7l-2 7c6 1 10 3 10 7v4H7z" fill="${f}" ${st}/><rect x="6" y="36" width="36" height="5" rx="2.5" fill="${o}" ${st}/><path d="M22 27l3-3" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/><path d="M26 33h6" stroke="${o}" stroke-width="2" stroke-linecap="round"/>`);
       case 'baskets': return S(`<path d="M7 33c0-5 5-8 10-8h4l5-6h7l-2 7c6 1 10 3 10 7v3H7z" fill="${f}" ${st}/><rect x="5" y="35" width="38" height="6" rx="3" fill="#fff" ${st}/><path d="M14 33l9-7" stroke="${o}" stroke-width="3" stroke-linecap="round"/><path d="M27 23l2 2M30 21l2 2" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M8 38h32" stroke="${o}" stroke-width="1.6" stroke-linecap="round" opacity=".5"/>`);
@@ -8487,7 +8498,10 @@ const ICONS = (() => {
     // le pigeon voyageur (« Ma chaîne », la boutique des jetons) : la tête gris ardoise, le petit bec clair et sa cire blanche, la gorge irisée
     pigeon: S(`<path d="M6 45c0-9 8-14 18-14s18 5 18 14z" fill="#A3ACBC" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M12.5 36c3-3.6 7.2-5.2 11.5-5.2s8.5 1.6 11.5 5.2c-3.2 2.4-7.4 3.4-11.5 3.4s-8.3-1-11.5-3.4z" fill="#6FB89A" stroke="${L}" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 35.2c2.6-2 5.4-2.8 8-2.8s5.4.8 8 2.8" stroke="#9A84F0" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="24" cy="19.5" r="12.5" fill="#8E97A8" stroke="${L}" stroke-width="2"/>${yx(19, 18.5)}${yx(29, 18.5)}<path d="M21.3 23h5.4l-2.7 4.8z" fill="#E8B07A" stroke="${L}" stroke-width="1.5" stroke-linejoin="round"/><ellipse cx="24" cy="22.4" rx="2.4" ry="1.15" fill="#fff"/><circle cx="14.8" cy="23.4" r="1.9" fill="#FFB3B3"/><circle cx="33.2" cy="23.4" r="1.9" fill="#FFB3B3"/>`),
   };
-  const compagnon = (id) => COMPAGNONS[id] || CHAT;
+  // (les compagnons rares des paliers, GAME.RARES_PALIER : leur portrait est dans RARES, plus bas ; sans lui, la feuille des compagnons
+  // montrait un chat sur la carte du paon et du renard argenté)
+  const RARES_COMPAGNONS = ['paon', 'renard', 'hibou', 'licorne'];
+  const compagnon = (id) => COMPAGNONS[id] || (RARES_COMPAGNONS.includes(id) && RARES[id]) || CHAT;
   // le carnet « Mes décos » (src/chaine-ecran.js) : une icône par famille de collection, au trait de la maison ; l'écran la grise pour ce qui
   // reste à gagner. Chaque objet qui a un objet 3D montre plutôt sa vignette (src/vignettes.js, le rendu de l'objet) : l'icône reste aux
   // titres, aux cartes postales, à l'artefact (qui n'a pas les fichiers) et à une vignette qui ne se charge pas
@@ -10769,23 +10783,42 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     },
   };
   const PLACES_DEHORS = [[0.5], [0.3, 0.7], [0.18, 0.5, 0.82], [0.13, 0.38, 0.62, 0.87]]; // les places des monuments, selon leur nombre (en part de la largeur)
+  const PLACES_COMPACT = [[0.4], [0.3, 0.9], [0.15, 0.45, 0.9], [0.1, 0.3, 0.5, 0.9]]; // (au bord du trottoir : à l'écart de la porte et de son tapis, vers 0,70)
   function dehors(liste, c) { // liste : [{ id, tour }] (src/vie.js projetsDehors : quatre au plus) → un groupe ; userData.emprises : leurs boîtes monde (tests)
     const { LAY, W, H } = c, g = grp('dehors'), tr = LAY.trottoir, l = (Array.isArray(liste) ? liste : []).filter((x) => x && PROJETS3D[x.id]).slice(-4);
     // la place tient entre le bord du trottoir et le tiroir fermé (H − 37 : test/fournil-meubles.cjs) : la rue en haut (un tiers), puis la bordure,
-    // les monuments au milieu de la bande qui reste ; trop court (un petit écran), rien
-    const vis = H - 37, emp = g.userData.emprises = []; if (!l.length || !tr || vis - tr.bord < 44) return g;
-    const yPlace = tr.bord + Math.max(14, (vis - tr.bord) * 0.3), bande = vis - yPlace, z0 = c.wz(yPlace), z1 = c.wz(H + 40), zp = c.wz(yPlace + bande * 0.52), pr = [], pave = '#D8CBB8';
-    pr.push(P(M.boiteSimple(W + 4, 0.4, r2(z1 - z0)), pave, { x: W / 2, y: 0.25, z: (z0 + z1) / 2 }), P(M.boiteSimple(W + 4, 1.2, 3), '#F4F1EA', { x: W / 2, y: 0.25, z: z0 + 1.5 }), P(M.boiteSimple(W + 4, 0.2, 1.2), '#B8AC9A', { x: W / 2, y: 0.65, z: z0 + 4.2 })); // le pavé de la place, sa bordure, le caniveau
-    for (let k = 1; k * 11 < z1 - z0 - 6; k++) pr.push(P(M.boiteSimple(W + 4, 0.15, 0.6), M.assombrir(pave, 0.08), { x: W / 2, y: 0.66, z: z0 + 5 + k * 11 })); // les joints
-    const s = Math.max(0.5, Math.min(0.92, (W / Math.max(3, l.length) - 8) / 58, bande * 0.42 / (21 * (c.SY || 0.79)))), xs = PLACES_DEHORS[l.length - 1], _b = new THREE.Box3(), bx = new THREE.Box3(); // (21 : le plus grand rayon, le kiosque et le manège)
+    // les monuments au milieu de la bande qui reste. Un petit écran n'a pas cette bande (moins de 44 px : 360 × 640 et 375 × 667 en ont 11,
+    // 360 × 740 43) : les monuments, plus petits, se posent alors au bord du trottoir (compact), le pied au ras du tiroir fermé, la tête sous le
+    // passage des clients (LAY.trottoir.rue : la terrasse et ses tables restent dégagées) ; plus petits que 0,3, rien
+    const vis = H - 37, emp = g.userData.emprises = []; if (!l.length || !tr) return g;
+    const SY = c.SY || 0.79, CY = c.CY || 0.62, compact = vis - tr.bord < 44, xs = (compact ? PLACES_COMPACT : PLACES_DEHORS)[l.length - 1], _b = new THREE.Box3(), bx = new THREE.Box3(), pr = [];
+    const largeur = (W / Math.max(3, l.length) - 8) / 58;
+    const poser = (parts, m, out) => { _b.makeEmpty(); for (const p of parts) { const pp = PARTIE(p, m); if (!pp.geo.boundingBox) pp.geo.computeBoundingBox(); bx.copy(pp.geo.boundingBox).applyMatrix4(pp.m); _b.union(bx); if (out) out.push(pp); } return _b; };
+    let s, zp, place;
+    if (!compact) {
+      const yPlace = tr.bord + Math.max(14, (vis - tr.bord) * 0.3), bande = vis - yPlace, z0 = c.wz(yPlace), z1 = c.wz(H + 40), pave = '#D8CBB8';
+      zp = c.wz(yPlace + bande * 0.52); place = { y: yPlace, z0, z1 };
+      pr.push(P(M.boiteSimple(W + 4, 0.4, r2(z1 - z0)), pave, { x: W / 2, y: 0.25, z: (z0 + z1) / 2 }), P(M.boiteSimple(W + 4, 1.2, 3), '#F4F1EA', { x: W / 2, y: 0.25, z: z0 + 1.5 }), P(M.boiteSimple(W + 4, 0.2, 1.2), '#B8AC9A', { x: W / 2, y: 0.65, z: z0 + 4.2 })); // le pavé de la place, sa bordure, le caniveau
+      for (let k = 1; k * 11 < z1 - z0 - 6; k++) pr.push(P(M.boiteSimple(W + 4, 0.15, 0.6), M.assombrir(pave, 0.08), { x: W / 2, y: 0.66, z: z0 + 5 + k * 11 })); // les joints
+      s = Math.max(0.5, Math.min(0.92, largeur, bande * 0.42 / (21 * SY))); // (21 : le plus grand rayon, le kiosque et le manège)
+    } else {
+      // l'emprise à l'écran de chaque monument à l'échelle 1, autour du centre de son pied : devant (avant, sa profondeur vers l'écran) et
+      // au-dessus (haut : sa hauteur et son arrière) ; l'échelle qui tient tout entre la rue des clients et le tiroir fermé, le pied aligné
+      let avant = 0, haut = 0; const I = new THREE.Matrix4();
+      for (const x of l) { const b = poser(PROJETS3D[x.id](teinteProjet(x.tour)), I); avant = Math.max(avant, b.max.z * SY); haut = Math.max(haut, b.max.y * CY - b.min.z * SY); }
+      // (la tête peut mordre de 8 px sur la rue des clients, qui passent derrière, jamais sur les tables de la terrasse)
+      const ter = (LAY.mobiles || []).filter((m) => m.type === 'terrasse' && m.r).reduce((a, m) => Math.max(a, m.r.y + m.r.h), -Infinity);
+      const bas = vis - 1, lim = Math.max(tr.rue - 8, ter + 2); s = Math.min(0.92, largeur, (bas - lim) / Math.max(1, avant + haut));
+      if (!(s >= 0.3)) return g;
+      zp = c.wz(bas - s * avant); place = { y: lim, z0: c.wz(lim), z1: c.wz(bas), compact: true };
+    }
     l.forEach((x, i) => {
-      const parts = PROJETS3D[x.id](teinteProjet(x.tour)), m = new THREE.Matrix4().makeScale(s, s, s).setPosition(W * xs[i], 0, zp);
-      _b.makeEmpty(); for (const p of parts) { const pp = PARTIE(p, m); if (!pp.geo.boundingBox) pp.geo.computeBoundingBox(); bx.copy(pp.geo.boundingBox).applyMatrix4(pp.m); _b.union(bx); pr.push(pp); }
-      emp.push({ nom: x.id, tour: x.tour, x0: _b.min.x, x1: _b.max.x, y0: _b.min.y, y1: _b.max.y, z0: _b.min.z, z1: _b.max.z });
+      const b = poser(PROJETS3D[x.id](teinteProjet(x.tour)), new THREE.Matrix4().makeScale(s, s, s).setPosition(W * xs[i], 0, zp), pr);
+      emp.push({ nom: x.id, tour: x.tour, x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z });
     });
     const mm = M.maille(pr, { recoit: true }); mm.userData.nom = 'place'; g.add(mm);
     const allumer = lueurVerre(mm); g.userData.anime = (E) => allumer(allumage(E));
-    g.userData.place = { y: yPlace, z0, z1 }; return g;
+    g.userData.place = Object.assign(place, { s }); return g;
   }
   // ─── « Mes décos » : les petits décors et les décos en PARTIES TYPÉES, fusionnés par src/scene.js en deux maillages ───
   // Une déco (nouvelle) : { id, base (sa place bâtie : la position, l'échelle d'un groupe), fixe: [P…] (couleurs de sommets, immobiles),
@@ -18739,8 +18772,8 @@ const GARDEROBE_UI = (() => {
     if (!T['hantee-lueur']) T['hantee-lueur'] = { tissu: '#2E2547', fonce: '#7CFF6B', clair: '#B8FF9E', bijou: '#7CFF6B' };
     if (!T.chaine) T.chaine = { tissu: '#7B2D42', fonce: '#D9A23A', clair: '#A8506A', bijou: '#FFC84A' }; // la tenue du patron de « Ma chaîne » : grenat et or
   }
-  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger' };
-  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.' };
+  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger', etoile: 'Les paliers du boulanger' }; // (etoile : la tenue étoilée des paliers n°40, 70, 100 et 130, lot « progression »)
+  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.', etoile: 'Les paliers n°40, 70, 100 et 130 du parcours du boulanger.' };
   // une collection d'un événement écarté (le Quartier, QUARTIER.ECARTE, depuis le 27 oct. ; réintroduction plus tard) : ses pièces gagnées
   // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
   const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
@@ -27889,6 +27922,7 @@ const UI = (() => {
     const s = v.b.st, { postes, apprentis, crans, max } = resumeBoutique(s);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
     if (v.b.titre) li.push(`Le titre « ${esc(v.b.titre)} »`);
+    if (v.b.palier >= 1 && v.b.titrePalier) li.push(`Le palier n°${G.boutiqueDuPalier ? G.boutiqueDuPalier(v.b.palier) : 30 + 10 * v.b.palier} : « ${esc(v.b.titrePalier)} »`); // (lot « progression », la photo tp)
     if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
@@ -27954,11 +27988,13 @@ const UI = (() => {
       return;
     }
     $('#vi-titre').textContent = v.rivale ? v.pseudo : `La boutique de ${v.pseudo}`;
-    $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
+    // (une rivale : son nom est déjà le titre, le sous-titre dit seulement son quartier — à 360 px, « nom · quartier » était coupé)
+    $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? (v.rivale ? nomQuartier(ph.q) : `${v.b.nom} · ${nomQuartier(ph.q)}`) : 'Visite'}` : '';
     $('#vi-ligne').hidden = !(d && d.enLigne);
     vue.classList.toggle('carte', !v.scene);
     const ti = v.b && v.b.titre && d && d.photo ? d.photo.ti : null; // son titre (« Légende du Manoir »), lu dans sa photo : sous son enseigne
-    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti ? `<span class="vi-titre">${etiquetteTitre(ti)}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>${v.rivale ? 'Une rivale du concours : tu visites' : `Tu visites : rien ne change chez ${esc(v.pseudo)}`}</span>` : carteVisite(v);
+    const tp = v.b && v.b.palier >= 1 && v.b.titrePalier ? v.b.titrePalier : ''; // son titre de palier (« Boulanger étoilé » : la photo tp, contrat § 9.3), sous son enseigne aussi
+    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti || tp ? `<span class="vi-titre">${ti ? etiquetteTitre(ti) : ''}${tp ? `<i class="vi-palier">${ICONS.UI.etoile || ''}<span>${esc(tp)}</span></i>` : ''}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>${v.rivale ? 'Une rivale du concours : tu visites' : `Tu visites : rien ne change chez ${esc(v.pseudo)}`}</span>` : carteVisite(v);
     $('#vi-bas').innerHTML = basVisite(v);
     document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
   }
@@ -28146,7 +28182,8 @@ const UI = (() => {
   const dateSemaine = (s) => (typeof CLM !== 'undefined' && CLM.dateCourte ? CLM.dateCourte(s) : s);
   const cleConcours = () => { if (!avecConcours()) return ''; const r = PROG.rivales(st); return `${r.semaine}|${r.aPayer.length}|${r.medailles.or + r.medailles.argent + r.medailles.bronze}|${G.pointsSemaine(st)}|${Math.floor(HORLOGE.maintenant() / 60e3)}`; };
   function lignesConcours(lignes, visiter) {
-    return `<ol class="cc-liste">${lignes.map((l, k) => `<li class="${l.moi ? 'moi' : ''}"><span class="cc-rang">${k + 1}</span><span class="cc-nom">${esc(l.nom)}${l.moi ? '<small>toi</small>' : ''}</span><b class="cc-pts">${pts(l.score)}</b>${visiter && !l.moi ? `<button type="button" class="btn clair cc-visiter" data-rivale="${esc(l.id)}"><b>Visiter</b></button>` : ''}</li>`).join('')}</ol>`;
+    // (le nom passe sur deux lignes plutôt que d'être coupé ; « toi » a sa propre colonne : un nom de 24 caractères ne le pousse plus dehors)
+    return `<ol class="cc-liste">${lignes.map((l, k) => `<li class="${l.moi ? 'moi' : ''}"><span class="cc-rang">${k + 1}</span><span class="cc-nom">${esc(l.nom)}</span>${l.moi ? '<small class="cc-toi">toi</small>' : ''}<b class="cc-pts">${pts(l.score)}</b>${visiter && !l.moi ? `<button type="button" class="btn clair cc-visiter" data-rivale="${esc(l.id)}"><b>Visiter</b></button>` : ''}</li>`).join('')}</ol>`;
   }
   const medaillesHtml = (m) => `<div class="cc-medailles">${['or', 'argent', 'bronze'].map((k) => `<span class="cc-med ${m[k] ? '' : 'vide'}" aria-label="${m[k]} médaille${m[k] > 1 ? 's' : ''} ${DE_METAL[k]}">${ICONS.medaille(k)}<b>${m[k]}</b></span>`).join('')}</div>`;
   function carteConcours() {
@@ -28215,21 +28252,28 @@ const UI = (() => {
       <div class="pj-tete"><b>Le chantier du quartier : ${esc(minuscule(x.nom))}</b><small>chantier n°${e.rang}</small></div>
       <div class="obj-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pc)}"><i style="width:${pc.toFixed(1)}%"></i></div>
       <p>À nous tous : <b>${fr(e.total)} / ${fr(e.cout)}</b> croissants</p>
-      <small>Cette semaine, tu as apporté ${fr(moi)} croissant${moi > 1 ? 's' : ''}.${petite ? '' : ' Chaque point de boulanger compte ; fini, il s’installe devant toutes les boutiques.'}</small></div></div>`;
+      <small>Cette semaine, tu as apporté ${fr(moi)} croissant${moi > 1 ? 's' : ''}.${petite ? '' : ' Chaque point de boulanger compte ; fini, il s’installe devant les boutiques de tous les boulangers du classement.'}</small></div></div>`;
   }
+  // un chantier fini (ou plusieurs, pendant l'absence) : l'objet, où il est, « Bâtisseur ». Au-delà de trois (un joueur qui rejoint tard : le
+  // serveur en rend jusqu'à 200), le titre les compte, les icônes sont les quatre derniers (ceux que la scène pose dehors), les noms se
+  // replient en petit. « Voir ma boutique » ferme le tiroir : la place est sous lui (tiroir à mi-hauteur, elle est cachée), puis attend un
+  // peu avant une autre annonce. Le chantier ne se lit qu'une fois le classement rejoint : « tous les boulangers du classement »
   function sheetProjetFini(liste) {
     liste = (liste || []).filter(Boolean); if (!liste.length || !PROG) return;
     if (PROG.voirProjets) PROG.voirProjets(st, liste.map((y) => y.rang)); // l'annonce faite : une seule fois par chantier
     save();
-    const x = liste[liste.length - 1], plusieurs = liste.length > 1, aide = liste.some((y) => y.aide);
+    const n = liste.length, x = liste[n - 1], plusieurs = n > 1, beaucoup = n > 3, aide = liste.some((y) => y.aide), derniers = liste.slice(-((PROG.PROJ && PROG.PROJ.decor) || 4));
     const noms = liste.map((y) => minuscule(y.nom)), et = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0];
-    openSheet(`<div class="projet-annonce"><small>Le chantier du quartier</small><h2>${plusieurs ? `Pendant ton absence : ${esc(et)}` : `Chantier fini : ${esc(minuscule(x.nom))} !`}</h2>
-        <div class="pj-icones">${liste.map((y) => ICONS.projet(y.id, y.tour)).join('')}</div>
-        <p class="sous">${plusieurs ? '' : `${esc(x.phrase || '')} `}${plusieurs ? 'Ils sont' : 'Il est'} devant ta boutique, et devant celle de tous les boulangers.</p>
+    const titre = beaucoup ? `Pendant ton absence\u00a0: ${n} chantiers finis` : plusieurs ? `Pendant ton absence\u00a0: ${esc(et)}` : `Chantier fini\u00a0: ${esc(minuscule(x.nom))} !`; // (l'espace avant « : » insécable : jamais en tête de ligne)
+    const ou = n > derniers.length ? `Les ${derniers.length} derniers sont devant ta boutique` : plusieurs ? 'Ils sont devant ta boutique' : 'Il est devant ta boutique';
+    openSheet(`<div class="projet-annonce"><small>Le chantier du quartier</small><h2>${titre}</h2>
+        <div class="pj-icones">${derniers.map((y) => ICONS.projet(y.id, y.tour)).join('')}</div>
+        ${beaucoup ? `<details class="pj-noms"><summary>Les ${n} chantiers</summary><p>${esc(et)}</p></details>` : ''}
+        <p class="sous">${plusieurs ? '' : `${esc(x.phrase || '')} `}${ou}, et devant celles de tous les boulangers du classement.</p>
         ${aide ? `<p class="pj-aide"><i class="ico">${ICONS.UI.trophee}</i>Tu as aidé : <b>Bâtisseur</b> !</p>` : ''}</div>
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Voir ma boutique</b></button>`);
     setTimeout(() => confettis(1), 350);
-    on('[data-a="ok"]', () => { son.tap(); closeSheet(); setTimeout(() => tenterAnnonces(true), 400); });
+    on('[data-a="ok"]', () => { son.tap(); closeSheet(); tiroir.aller('ferme'); setTimeout(() => tenterAnnonces(true), 2500); });
   }
 
   // ─── les annonces du lot (le résultat du concours, un chantier fini, le second) : une feuille à la fois, quand plus rien n'est ouvert.

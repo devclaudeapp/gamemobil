@@ -1197,23 +1197,42 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     },
   };
   const PLACES_DEHORS = [[0.5], [0.3, 0.7], [0.18, 0.5, 0.82], [0.13, 0.38, 0.62, 0.87]]; // les places des monuments, selon leur nombre (en part de la largeur)
+  const PLACES_COMPACT = [[0.4], [0.3, 0.9], [0.15, 0.45, 0.9], [0.1, 0.3, 0.5, 0.9]]; // (au bord du trottoir : à l'écart de la porte et de son tapis, vers 0,70)
   function dehors(liste, c) { // liste : [{ id, tour }] (src/vie.js projetsDehors : quatre au plus) → un groupe ; userData.emprises : leurs boîtes monde (tests)
     const { LAY, W, H } = c, g = grp('dehors'), tr = LAY.trottoir, l = (Array.isArray(liste) ? liste : []).filter((x) => x && PROJETS3D[x.id]).slice(-4);
     // la place tient entre le bord du trottoir et le tiroir fermé (H − 37 : test/fournil-meubles.cjs) : la rue en haut (un tiers), puis la bordure,
-    // les monuments au milieu de la bande qui reste ; trop court (un petit écran), rien
-    const vis = H - 37, emp = g.userData.emprises = []; if (!l.length || !tr || vis - tr.bord < 44) return g;
-    const yPlace = tr.bord + Math.max(14, (vis - tr.bord) * 0.3), bande = vis - yPlace, z0 = c.wz(yPlace), z1 = c.wz(H + 40), zp = c.wz(yPlace + bande * 0.52), pr = [], pave = '#D8CBB8';
-    pr.push(P(M.boiteSimple(W + 4, 0.4, r2(z1 - z0)), pave, { x: W / 2, y: 0.25, z: (z0 + z1) / 2 }), P(M.boiteSimple(W + 4, 1.2, 3), '#F4F1EA', { x: W / 2, y: 0.25, z: z0 + 1.5 }), P(M.boiteSimple(W + 4, 0.2, 1.2), '#B8AC9A', { x: W / 2, y: 0.65, z: z0 + 4.2 })); // le pavé de la place, sa bordure, le caniveau
-    for (let k = 1; k * 11 < z1 - z0 - 6; k++) pr.push(P(M.boiteSimple(W + 4, 0.15, 0.6), M.assombrir(pave, 0.08), { x: W / 2, y: 0.66, z: z0 + 5 + k * 11 })); // les joints
-    const s = Math.max(0.5, Math.min(0.92, (W / Math.max(3, l.length) - 8) / 58, bande * 0.42 / (21 * (c.SY || 0.79)))), xs = PLACES_DEHORS[l.length - 1], _b = new THREE.Box3(), bx = new THREE.Box3(); // (21 : le plus grand rayon, le kiosque et le manège)
+    // les monuments au milieu de la bande qui reste. Un petit écran n'a pas cette bande (moins de 44 px : 360 × 640 et 375 × 667 en ont 11,
+    // 360 × 740 43) : les monuments, plus petits, se posent alors au bord du trottoir (compact), le pied au ras du tiroir fermé, la tête sous le
+    // passage des clients (LAY.trottoir.rue : la terrasse et ses tables restent dégagées) ; plus petits que 0,3, rien
+    const vis = H - 37, emp = g.userData.emprises = []; if (!l.length || !tr) return g;
+    const SY = c.SY || 0.79, CY = c.CY || 0.62, compact = vis - tr.bord < 44, xs = (compact ? PLACES_COMPACT : PLACES_DEHORS)[l.length - 1], _b = new THREE.Box3(), bx = new THREE.Box3(), pr = [];
+    const largeur = (W / Math.max(3, l.length) - 8) / 58;
+    const poser = (parts, m, out) => { _b.makeEmpty(); for (const p of parts) { const pp = PARTIE(p, m); if (!pp.geo.boundingBox) pp.geo.computeBoundingBox(); bx.copy(pp.geo.boundingBox).applyMatrix4(pp.m); _b.union(bx); if (out) out.push(pp); } return _b; };
+    let s, zp, place;
+    if (!compact) {
+      const yPlace = tr.bord + Math.max(14, (vis - tr.bord) * 0.3), bande = vis - yPlace, z0 = c.wz(yPlace), z1 = c.wz(H + 40), pave = '#D8CBB8';
+      zp = c.wz(yPlace + bande * 0.52); place = { y: yPlace, z0, z1 };
+      pr.push(P(M.boiteSimple(W + 4, 0.4, r2(z1 - z0)), pave, { x: W / 2, y: 0.25, z: (z0 + z1) / 2 }), P(M.boiteSimple(W + 4, 1.2, 3), '#F4F1EA', { x: W / 2, y: 0.25, z: z0 + 1.5 }), P(M.boiteSimple(W + 4, 0.2, 1.2), '#B8AC9A', { x: W / 2, y: 0.65, z: z0 + 4.2 })); // le pavé de la place, sa bordure, le caniveau
+      for (let k = 1; k * 11 < z1 - z0 - 6; k++) pr.push(P(M.boiteSimple(W + 4, 0.15, 0.6), M.assombrir(pave, 0.08), { x: W / 2, y: 0.66, z: z0 + 5 + k * 11 })); // les joints
+      s = Math.max(0.5, Math.min(0.92, largeur, bande * 0.42 / (21 * SY))); // (21 : le plus grand rayon, le kiosque et le manège)
+    } else {
+      // l'emprise à l'écran de chaque monument à l'échelle 1, autour du centre de son pied : devant (avant, sa profondeur vers l'écran) et
+      // au-dessus (haut : sa hauteur et son arrière) ; l'échelle qui tient tout entre la rue des clients et le tiroir fermé, le pied aligné
+      let avant = 0, haut = 0; const I = new THREE.Matrix4();
+      for (const x of l) { const b = poser(PROJETS3D[x.id](teinteProjet(x.tour)), I); avant = Math.max(avant, b.max.z * SY); haut = Math.max(haut, b.max.y * CY - b.min.z * SY); }
+      // (la tête peut mordre de 8 px sur la rue des clients, qui passent derrière, jamais sur les tables de la terrasse)
+      const ter = (LAY.mobiles || []).filter((m) => m.type === 'terrasse' && m.r).reduce((a, m) => Math.max(a, m.r.y + m.r.h), -Infinity);
+      const bas = vis - 1, lim = Math.max(tr.rue - 8, ter + 2); s = Math.min(0.92, largeur, (bas - lim) / Math.max(1, avant + haut));
+      if (!(s >= 0.3)) return g;
+      zp = c.wz(bas - s * avant); place = { y: lim, z0: c.wz(lim), z1: c.wz(bas), compact: true };
+    }
     l.forEach((x, i) => {
-      const parts = PROJETS3D[x.id](teinteProjet(x.tour)), m = new THREE.Matrix4().makeScale(s, s, s).setPosition(W * xs[i], 0, zp);
-      _b.makeEmpty(); for (const p of parts) { const pp = PARTIE(p, m); if (!pp.geo.boundingBox) pp.geo.computeBoundingBox(); bx.copy(pp.geo.boundingBox).applyMatrix4(pp.m); _b.union(bx); pr.push(pp); }
-      emp.push({ nom: x.id, tour: x.tour, x0: _b.min.x, x1: _b.max.x, y0: _b.min.y, y1: _b.max.y, z0: _b.min.z, z1: _b.max.z });
+      const b = poser(PROJETS3D[x.id](teinteProjet(x.tour)), new THREE.Matrix4().makeScale(s, s, s).setPosition(W * xs[i], 0, zp), pr);
+      emp.push({ nom: x.id, tour: x.tour, x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z });
     });
     const mm = M.maille(pr, { recoit: true }); mm.userData.nom = 'place'; g.add(mm);
     const allumer = lueurVerre(mm); g.userData.anime = (E) => allumer(allumage(E));
-    g.userData.place = { y: yPlace, z0, z1 }; return g;
+    g.userData.place = Object.assign(place, { s }); return g;
   }
   // ─── « Mes décos » : les petits décors et les décos en PARTIES TYPÉES, fusionnés par src/scene.js en deux maillages ───
   // Une déco (nouvelle) : { id, base (sa place bâtie : la position, l'échelle d'un groupe), fixe: [P…] (couleurs de sommets, immobiles),

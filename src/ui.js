@@ -1979,6 +1979,7 @@ const UI = (() => {
     const s = v.b.st, { postes, apprentis, crans, max } = resumeBoutique(s);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
     if (v.b.titre) li.push(`Le titre « ${esc(v.b.titre)} »`);
+    if (v.b.palier >= 1 && v.b.titrePalier) li.push(`Le palier n°${G.boutiqueDuPalier ? G.boutiqueDuPalier(v.b.palier) : 30 + 10 * v.b.palier} : « ${esc(v.b.titrePalier)} »`); // (lot « progression », la photo tp)
     if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
@@ -2044,11 +2045,13 @@ const UI = (() => {
       return;
     }
     $('#vi-titre').textContent = v.rivale ? v.pseudo : `La boutique de ${v.pseudo}`;
-    $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
+    // (une rivale : son nom est déjà le titre, le sous-titre dit seulement son quartier — à 360 px, « nom · quartier » était coupé)
+    $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? (v.rivale ? nomQuartier(ph.q) : `${v.b.nom} · ${nomQuartier(ph.q)}`) : 'Visite'}` : '';
     $('#vi-ligne').hidden = !(d && d.enLigne);
     vue.classList.toggle('carte', !v.scene);
     const ti = v.b && v.b.titre && d && d.photo ? d.photo.ti : null; // son titre (« Légende du Manoir »), lu dans sa photo : sous son enseigne
-    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti ? `<span class="vi-titre">${etiquetteTitre(ti)}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>${v.rivale ? 'Une rivale du concours : tu visites' : `Tu visites : rien ne change chez ${esc(v.pseudo)}`}</span>` : carteVisite(v);
+    const tp = v.b && v.b.palier >= 1 && v.b.titrePalier ? v.b.titrePalier : ''; // son titre de palier (« Boulanger étoilé » : la photo tp, contrat § 9.3), sous son enseigne aussi
+    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti || tp ? `<span class="vi-titre">${ti ? etiquetteTitre(ti) : ''}${tp ? `<i class="vi-palier">${ICONS.UI.etoile || ''}<span>${esc(tp)}</span></i>` : ''}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>${v.rivale ? 'Une rivale du concours : tu visites' : `Tu visites : rien ne change chez ${esc(v.pseudo)}`}</span>` : carteVisite(v);
     $('#vi-bas').innerHTML = basVisite(v);
     document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
   }
@@ -2236,7 +2239,8 @@ const UI = (() => {
   const dateSemaine = (s) => (typeof CLM !== 'undefined' && CLM.dateCourte ? CLM.dateCourte(s) : s);
   const cleConcours = () => { if (!avecConcours()) return ''; const r = PROG.rivales(st); return `${r.semaine}|${r.aPayer.length}|${r.medailles.or + r.medailles.argent + r.medailles.bronze}|${G.pointsSemaine(st)}|${Math.floor(HORLOGE.maintenant() / 60e3)}`; };
   function lignesConcours(lignes, visiter) {
-    return `<ol class="cc-liste">${lignes.map((l, k) => `<li class="${l.moi ? 'moi' : ''}"><span class="cc-rang">${k + 1}</span><span class="cc-nom">${esc(l.nom)}${l.moi ? '<small>toi</small>' : ''}</span><b class="cc-pts">${pts(l.score)}</b>${visiter && !l.moi ? `<button type="button" class="btn clair cc-visiter" data-rivale="${esc(l.id)}"><b>Visiter</b></button>` : ''}</li>`).join('')}</ol>`;
+    // (le nom passe sur deux lignes plutôt que d'être coupé ; « toi » a sa propre colonne : un nom de 24 caractères ne le pousse plus dehors)
+    return `<ol class="cc-liste">${lignes.map((l, k) => `<li class="${l.moi ? 'moi' : ''}"><span class="cc-rang">${k + 1}</span><span class="cc-nom">${esc(l.nom)}</span>${l.moi ? '<small class="cc-toi">toi</small>' : ''}<b class="cc-pts">${pts(l.score)}</b>${visiter && !l.moi ? `<button type="button" class="btn clair cc-visiter" data-rivale="${esc(l.id)}"><b>Visiter</b></button>` : ''}</li>`).join('')}</ol>`;
   }
   const medaillesHtml = (m) => `<div class="cc-medailles">${['or', 'argent', 'bronze'].map((k) => `<span class="cc-med ${m[k] ? '' : 'vide'}" aria-label="${m[k]} médaille${m[k] > 1 ? 's' : ''} ${DE_METAL[k]}">${ICONS.medaille(k)}<b>${m[k]}</b></span>`).join('')}</div>`;
   function carteConcours() {
@@ -2305,21 +2309,28 @@ const UI = (() => {
       <div class="pj-tete"><b>Le chantier du quartier : ${esc(minuscule(x.nom))}</b><small>chantier n°${e.rang}</small></div>
       <div class="obj-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pc)}"><i style="width:${pc.toFixed(1)}%"></i></div>
       <p>À nous tous : <b>${fr(e.total)} / ${fr(e.cout)}</b> croissants</p>
-      <small>Cette semaine, tu as apporté ${fr(moi)} croissant${moi > 1 ? 's' : ''}.${petite ? '' : ' Chaque point de boulanger compte ; fini, il s’installe devant toutes les boutiques.'}</small></div></div>`;
+      <small>Cette semaine, tu as apporté ${fr(moi)} croissant${moi > 1 ? 's' : ''}.${petite ? '' : ' Chaque point de boulanger compte ; fini, il s’installe devant les boutiques de tous les boulangers du classement.'}</small></div></div>`;
   }
+  // un chantier fini (ou plusieurs, pendant l'absence) : l'objet, où il est, « Bâtisseur ». Au-delà de trois (un joueur qui rejoint tard : le
+  // serveur en rend jusqu'à 200), le titre les compte, les icônes sont les quatre derniers (ceux que la scène pose dehors), les noms se
+  // replient en petit. « Voir ma boutique » ferme le tiroir : la place est sous lui (tiroir à mi-hauteur, elle est cachée), puis attend un
+  // peu avant une autre annonce. Le chantier ne se lit qu'une fois le classement rejoint : « tous les boulangers du classement »
   function sheetProjetFini(liste) {
     liste = (liste || []).filter(Boolean); if (!liste.length || !PROG) return;
     if (PROG.voirProjets) PROG.voirProjets(st, liste.map((y) => y.rang)); // l'annonce faite : une seule fois par chantier
     save();
-    const x = liste[liste.length - 1], plusieurs = liste.length > 1, aide = liste.some((y) => y.aide);
+    const n = liste.length, x = liste[n - 1], plusieurs = n > 1, beaucoup = n > 3, aide = liste.some((y) => y.aide), derniers = liste.slice(-((PROG.PROJ && PROG.PROJ.decor) || 4));
     const noms = liste.map((y) => minuscule(y.nom)), et = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0];
-    openSheet(`<div class="projet-annonce"><small>Le chantier du quartier</small><h2>${plusieurs ? `Pendant ton absence : ${esc(et)}` : `Chantier fini : ${esc(minuscule(x.nom))} !`}</h2>
-        <div class="pj-icones">${liste.map((y) => ICONS.projet(y.id, y.tour)).join('')}</div>
-        <p class="sous">${plusieurs ? '' : `${esc(x.phrase || '')} `}${plusieurs ? 'Ils sont' : 'Il est'} devant ta boutique, et devant celle de tous les boulangers.</p>
+    const titre = beaucoup ? `Pendant ton absence\u00a0: ${n} chantiers finis` : plusieurs ? `Pendant ton absence\u00a0: ${esc(et)}` : `Chantier fini\u00a0: ${esc(minuscule(x.nom))} !`; // (l'espace avant « : » insécable : jamais en tête de ligne)
+    const ou = n > derniers.length ? `Les ${derniers.length} derniers sont devant ta boutique` : plusieurs ? 'Ils sont devant ta boutique' : 'Il est devant ta boutique';
+    openSheet(`<div class="projet-annonce"><small>Le chantier du quartier</small><h2>${titre}</h2>
+        <div class="pj-icones">${derniers.map((y) => ICONS.projet(y.id, y.tour)).join('')}</div>
+        ${beaucoup ? `<details class="pj-noms"><summary>Les ${n} chantiers</summary><p>${esc(et)}</p></details>` : ''}
+        <p class="sous">${plusieurs ? '' : `${esc(x.phrase || '')} `}${ou}, et devant celles de tous les boulangers du classement.</p>
         ${aide ? `<p class="pj-aide"><i class="ico">${ICONS.UI.trophee}</i>Tu as aidé : <b>Bâtisseur</b> !</p>` : ''}</div>
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Voir ma boutique</b></button>`);
     setTimeout(() => confettis(1), 350);
-    on('[data-a="ok"]', () => { son.tap(); closeSheet(); setTimeout(() => tenterAnnonces(true), 400); });
+    on('[data-a="ok"]', () => { son.tap(); closeSheet(); tiroir.aller('ferme'); setTimeout(() => tenterAnnonces(true), 2500); });
   }
 
   // ─── les annonces du lot (le résultat du concours, un chantier fini, le second) : une feuille à la fois, quand plus rien n'est ouvert.

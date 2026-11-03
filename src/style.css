@@ -565,7 +565,9 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-titre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #2E2547; color: #B8FF9E; font: 700 11px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(124, 255, 107, .45), 0 0 8px rgba(124, 255, 107, .35); }
 .cl-titre svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .cl-nom:has(.cl-titre) { flex-wrap: wrap; row-gap: 3px; }
-.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; } /* sous l'enseigne de la boutique visitée */
+.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90%; } /* sous l'enseigne de la boutique visitée */
+.vi-palier { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 10px 4px 6px; border-radius: 999px; background: #1F2B5C; color: #FFE7A3; font: 700 13px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(255, 200, 74, .55); } /* son titre de palier (« Boulanger étoilé ») : bleu nuit et or, comme la tenue étoilée */
+.vi-palier span { overflow: hidden; text-overflow: ellipsis; } .vi-palier svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .vi-titre .cl-titre { font-size: 13px; padding: 4px 10px 4px 6px; } .vi-titre .cl-titre svg { width: 16px; height: 16px; }
 .rec-carte.mh-acharne { background: #EFE8FF; } .rec-carte.mh-acharne.or { background: #FFF3C4; box-shadow: inset 0 0 0 2px #8E6BD8; } /* ses places au classement final de la Maison hantée */
 .gr-piece.gr-aura .gr-ico { background: #1B1530; } /* l'aura phosphorescente : sur fond de nuit, comme le chapeau du palier 20 */
@@ -2403,9 +2405,11 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 /* sur un téléphone, le bouton du second n'a que sa toque (son nom est dans aria-label) ; la barre se resserre seulement quand il est là :
    ×1 ×10 ×100 Max, « Bonus » et la toque tiennent à 390, 360 et 320 px */
 @media (max-width: 479px) { .btn-am.second { padding: 0; width: 44px; justify-content: center; } .btn-am.second .sd-mot { display: none; } }
-@media (max-width: 409px) { .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 36px; padding: 0 6px; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 12px 0 10px; } }
-@media (max-width: 379px) { .barre-achat:has(#b-second:not([hidden])) { gap: 6px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 2px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 32px; padding: 0 3px; font-size: 13px; } }
-@media (max-width: 339px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) .ico { display: none; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 10px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 30px; padding: 0 2px; } }
+/* le bouton du second prend sa place sur « Bonus », pas sur ×1 ×10 ×100 Max : ceux-là gardent 40 px au moins (master : 42 à 57 px) — sous
+   380 px, « Bonus » perd son icône (son mot et sa pastille restent) ; le second n'a que son icône sous 480 px (son nom : aria-label) */
+@media (max-width: 409px) { .barre-achat:has(#b-second:not([hidden])) { gap: 6px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 3px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 40px; padding: 0 6px; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 12px 0 10px; } }
+@media (max-width: 379px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) .ico { display: none; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 14px; } .barre-achat:has(#b-second:not([hidden])) .modes button { padding: 0 5px; } }
+@media (max-width: 339px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 10px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 2px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 34px; padding: 0 3px; font-size: 13px; } }
 .carte .icone .second-pastille { position: absolute; top: -6px; left: -6px; padding: 2px 5px; border-radius: 999px; background: var(--menthe-sombre); color: #fff; font: 800 10px/1.1 var(--texte-font); box-shadow: 0 0 0 2px #fff; letter-spacing: .02em; }
 .flottant.second-plus { color: var(--menthe-sombre); font-size: 16px; animation-duration: 1s; }
 .sd-tete, .cc-tete { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
@@ -2474,13 +2478,13 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .cc-liste { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 4px; counter-reset: none; }
 .cc-liste li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 4px 10px; border-radius: 12px; background: var(--creme); }
 .cc-liste li.moi { background: var(--or-clair); box-shadow: inset 0 0 0 2px var(--beurre); }
-.cc-liste:has(.cc-visiter) li { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.cc-liste li.moi, .cc-liste:has(.cc-visiter) li { grid-template-columns: 26px minmax(0, 1fr) auto auto; } /* (sa ligne : le rang, le nom, « toi », les points ; une rivale : … les points, « Visiter ») */
 .cc-rang { font: 700 15px/1 var(--titre); color: var(--texte-2); text-align: center; }
 .cc-liste li:nth-child(-n+3) .cc-rang { color: var(--beurre-sombre); }
-.cc-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 14px/1.2 var(--titre); }
-.cc-nom small { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10.5px/1.3 var(--texte-font); vertical-align: 1px; }
+.cc-nom { min-width: 0; overflow: hidden; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font: 700 14px/1.2 var(--titre); } /* deux lignes plutôt qu'un nom coupé (360 px, 24 caractères) */
+.cc-toi { padding: 1px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10.5px/1.3 var(--texte-font); }
 .cc-pts { font: 700 14px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cc-visiter { min-height: 34px; padding: 0 10px; }
+.cc-visiter { min-height: 44px; padding: 0 10px; } /* (une zone de touche de 44 px, comme les autres boutons) */
 .cc-visiter b { font-size: 13px; }
 .cc-recuperer { margin: 8px 0 2px; }
 .cc-medailles { display: flex; justify-content: center; gap: 18px; margin: 6px 0 4px; }
@@ -2521,6 +2525,10 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .projet-annonce h2 { margin: 4px 0 6px; }
 .pj-icones { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
 .pj-icones svg { width: 84px; height: 84px; }
+.pj-noms { margin: 6px auto 0; max-width: 32em; font-size: 12.5px; color: var(--texte-2); } /* au-delà de trois chantiers : leurs noms repliés, en petit */
+.pj-noms summary { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-weight: 800; list-style: none; }
+.pj-noms summary::-webkit-details-marker { display: none; } .pj-noms summary::after { content: '▾'; } .pj-noms[open] summary::after { content: '▴'; }
+.pj-noms p { margin: 0 0 4px; line-height: 1.4; }
 .projet-annonce .sous { margin: 6px 0 0; }
 .pj-aide { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 0; padding: 6px 12px; border-radius: 999px; background: var(--or-clair); font-size: 14px; }
 .pj-aide .ico svg { width: 18px; height: 18px; }

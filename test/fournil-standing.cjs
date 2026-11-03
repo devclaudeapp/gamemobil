@@ -278,7 +278,7 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
   //     ≤ ceux de la n°26 (palier 5) + 15 % ; les appels de dessin ≤ 80 / 72, le standing un seul de plus (le voile de lumière de la coupole,
   //     la 7e, éteint la nuit), la place dehors un ; les pièces ne s'interpénètrent pas, ne sortent pas de l'écran, ne cachent aucune zone de
   //     touche (ni son centre, ni plus de 30 % de sa surface) ; dehors : sur la place, entre le bord du trottoir et le tiroir fermé, côte à
-  //     côte (un petit écran n'a pas la place : rien) → captures finition-*.png, dehors-*.png
+  //     côte (un petit écran, 360 × 640 : au bord du trottoir, plus petits, sous la terrasse) → captures finition-*.png, dehors-*.png
   console.log('── les finitions au-delà de la n°30 (f1 à f7, puis les étoiles) et les chantiers du quartier dehors ──');
   for (const [qual, taille] of [['haute'], ['eco'], ['eco', { width: 360, height: 640 }]]) {
     const { ctx, page, erreurs, ev } = await ouvrir(qual, taille), max = qual === 'haute' ? 80 : 72, nomT = taille ? `${taille.width} × ${taille.height}, ` : '', suf = taille ? '-' + taille.width : '';
@@ -315,7 +315,7 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     const dehorsVu = () => ev(() => { const S = window.__fournil.SCENE, d = S.dehorsVu, W = VIE.W, E = d.emprises, ko = [];
       for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) if (E[i].x0 < E[j].x1 && E[j].x0 < E[i].x1) ko.push(`${E[i].nom} × ${E[j].nom}`);
       return { liste: d.liste, mailles: d.mailles, n: E.length, place: d.place, ko, hors: E.filter((e) => e.x0 < 0 || e.x1 > W).map((e) => e.nom), haut: E.length ? Math.min(...E.map((e) => e.haut)) : 0, bas: E.length ? Math.max(...E.map((e) => e.bas)) : 0,
-        bord: VIE.LAY.trottoir.bord, vis: VIE.H - 37, tris: S.trianglesParGroupe.dehors || 0, appels: S.appelsParGroupe.dehors || 0 }; });
+        bord: VIE.LAY.trottoir.bord, rue: VIE.LAY.trottoir.rue, vis: VIE.H - 37, ter: Math.max(...VIE.LAY.mobiles.filter((m) => m.type === 'terrasse').map((m) => m.r.y + m.r.h)), tris: S.trianglesParGroupe.dehors || 0, appels: S.appelsParGroupe.dehors || 0 }; });
     for (const [qn, qi] of QS) {
       const ok5 = await aller(qi, 26), t5 = await triangles(), r5 = await examiner(), budget = Math.floor(t5 * 1.15);
       check(ok5 && r5.decor === `${qn}-s5` && r5.finition === 0, `${nomT}${qn}, ${qual}, la n°26 (palier 5, sans finition) : ${t5} triangles pour le décor (le budget des finitions : ${budget}, + 15 %), ${r5.appels} appels, dont ${r5.standing} pour le standing`);
@@ -327,10 +327,12 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
       }
       // les chantiers finis, dehors : quatre (le marché, le manège ; le kiosque et la statue rénovés, tour 1 : dorés)
       const okD = await aller(qi, 100, [3, 7, 10, 16]), tD = await triangles(), rD = await examiner(), d = await dehorsVu();
-      const placeOk = taille && !d.place ? d.mailles === 0 && d.appels === 0 && d.n === 0 // (un petit écran : pas la place entre le trottoir et le tiroir)
-        : d.mailles === 1 && d.appels === 1 && d.n === 4 && !d.ko.length && !d.hors.length && d.haut >= d.bord && d.bas <= d.vis;
+      // (un petit écran, 360 × 640 : pas la bande de la place entre le trottoir et le tiroir ; les monuments se posent au bord du trottoir,
+      //  plus petits, le pied au-dessus du tiroir fermé, la tête sous les tables de la terrasse : on les voit quand même, tiroir fermé)
+      const placeOk = d.mailles === 1 && d.appels === 1 && d.n === 4 && !d.ko.length && !d.hors.length && d.bas <= d.vis
+        && (taille ? !!(d.place && d.place.compact) && d.haut >= d.place.y - 0.5 && d.haut >= d.ter && d.place.s >= 0.3 : !(d.place && d.place.compact) && d.haut >= d.bord);
       check(okD && d.liste.join() === 'marche,manege,kiosque~1,statue~1' && placeOk && tD <= budget && rD.appels <= max,
-        `${nomT}${qn}, ${qual}, n°100 et quatre chantiers finis (${d.liste.join(', ')}) : ${d.place ? `dehors sur la place, un maillage, ${d.appels} appel, ${d.tris} triangles, entre le bord du trottoir et le tiroir fermé (écran ${d.haut.toFixed(0)} à ${d.bas.toFixed(0)}, dans ${d.bord.toFixed(0)}–${d.vis}), côte à côte ${d.ko.join(' | ')}, dans l’écran ${d.hors.join(' ')}` : `pas la place entre le trottoir (${d.bord.toFixed(0)}) et le tiroir fermé (${d.vis}) : rien de bâti`} ; avec les finitions : ${tD} triangles (≤ ${budget} : +${(100 * (tD / t5 - 1)).toFixed(1)} %), ${rD.appels} appels pour le décor (≤ ${max})`);
+        `${nomT}${qn}, ${qual}, n°100 et quatre chantiers finis (${d.liste.join(', ')}) : ${!d.place ? `rien de bâti (le trottoir ${d.bord.toFixed(0)}, le tiroir fermé ${d.vis})` : d.place.compact ? `un petit écran (${(d.vis - d.bord).toFixed(0)} px sous le trottoir) : au bord du trottoir, à l’échelle ${d.place.s.toFixed(2)}, un maillage, ${d.appels} appel, ${d.tris} triangles, sous les tables de la terrasse et au-dessus du tiroir fermé (écran ${d.haut.toFixed(0)} à ${d.bas.toFixed(0)}, la terrasse finit à ${d.ter.toFixed(0)}, le tiroir à ${d.vis}), côte à côte ${d.ko.join(' | ')}, dans l’écran ${d.hors.join(' ')}` : `dehors sur la place, un maillage, ${d.appels} appel, ${d.tris} triangles, entre le bord du trottoir et le tiroir fermé (écran ${d.haut.toFixed(0)} à ${d.bas.toFixed(0)}, dans ${d.bord.toFixed(0)}–${d.vis}), côte à côte ${d.ko.join(' | ')}, dans l’écran ${d.hors.join(' ')}`} ; avec les finitions : ${tD} triangles (≤ ${budget} : +${(100 * (tD / t5 - 1)).toFixed(1)} %), ${rD.appels} appels pour le décor (≤ ${max})`);
       await page.screenshot({ path: path.join(out, `dehors-${qn}-${qual}${suf}.png`) });
       if (!taille) { // huit chantiers finis : les quatre derniers dehors ; plus aucun : la place n'est plus bâtie
         const ok8 = await aller(qi, 100, [1, 2, 3, 4, 5, 6, 7, 8]), l8 = (await dehorsVu()).liste.join(), ok0 = await aller(qi, 100, []), d0 = await dehorsVu();

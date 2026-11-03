@@ -13,7 +13,12 @@
 //    concours ; la semaine finie : la feuille du résultat au retour, la pastille des Défis, « Récupérer » (un boost en réserve, une fois) ;
 // 6. le chantier du quartier : sans le SQL v6.8 (« pas-ouvert »), rien de cassé (« bientôt » dans la feuille du classement, rien dans les
 //    Défis) ; avec, la carte (Défis et classement) et « Chantier fini » une seule fois ;
-// 7. 360 × 640 : la barre d'achat (×1 ×10 ×100 Max, Bonus, Second) et les feuilles tiennent sans déborder ; aucune erreur de page.
+// 7. 360 × 640 : la barre d'achat (×1 ×10 ×100 Max, Bonus, Second : ×1 à Max gardent 40 px) et les feuilles tiennent sans déborder ; le
+//    concours avec le plus long nom de boutique (24 caractères) et des scores à trois chiffres : rien de coupé, « toi » visible ;
+// 6 bis. « Voir ma boutique » ferme le tiroir (la place est sous lui) ; neuf chantiers finis à 360 × 640 : le titre les compte, quatre
+//    icônes, les noms repliés, et le décor au bord du trottoir ;
+// 8. les rares : le paon et le renard argenté ont leur portrait (pas celui du chat), la toque étoilée sa collection et son icône ;
+// 9. la visite d'un copain au palier 2 : « Légende de la farine » sous son enseigne ; aucune erreur de page.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-progression.cjs
 //   (captures dans test/shots/progression/ ; PORT_PROGRESSION pour changer de port)
 'use strict';
@@ -51,7 +56,7 @@ async function ouvrir(st, o) {
   await ctx.addInitScript((r) => { window.__sansEvenements = true; try { if (!sessionStorage.getItem('semee')) { localStorage.setItem('fournil.v2', r); sessionStorage.setItem('semee', '1'); } } catch (e) { /* rien */ } }, raw(st));
   if (o.inscrit) await ctx.addInitScript(() => { try { if (!localStorage.getItem('fournil.classement')) localStorage.setItem('fournil.classement', JSON.stringify({ id: '0f8fad5b-d9cb-469f-a165-70867728950e', jeton: 'a'.repeat(64), pseudo: 'Mamie', rejoint: true, dernierEnvoi: 0 })); } catch (e) { /* rien */ } }); // le chantier ne se lit qu'une fois le classement rejoint (rien ne part avant)
   await ctx.route(/googleapis|gstatic/, (r) => r.abort());
-  await ctx.route(new RegExp(SUPA.replace(/[.]/g, '[.]') + '.*'), (r) => { const u = r.request().url(); if (o.projets && /rpc\/fournil_projets/.test(u)) return o.projets(r); return r.abort(); });
+  await ctx.route(new RegExp(SUPA.replace(/[.]/g, '[.]') + '.*'), (r) => { const u = r.request().url(); if (o.projets && /rpc\/fournil_projets/.test(u)) return o.projets(r); const m = /rpc\/(\w+)/.exec(u); if (o.rpc && m && o.rpc[m[1]]) return o.rpc[m[1]](r); return r.abort(); });
   const page = await ctx.newPage(), erreurs = [];
   page.on('pageerror', (e) => erreurs.push(e.message));
   await page.goto(`${BASE}/fournil/?qualite=eco`);
@@ -164,8 +169,8 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
     await s0.ctx.close();
     const s = await ouvrir(sauvegarde(12, { coins: 1e15, plus: { second: { vu: true, actif: false, part: 50, off: [], t: 0, achats: 0 }, ameliorations: { farine: true } } })), { page, ev } = s;
     await toutFermer(page); await ev(() => window.__fournil.tiroir('mi')); await sleep(400);
-    const b0 = await ev(() => { const b = document.querySelector('#b-second'), r = b.getBoundingClientRect(), a = document.querySelector('#b-ameliorations').getBoundingClientRect(); const ba = document.querySelector('.barre-achat'); return { vis: !b.hidden, apres: r.left >= a.right - 1, point: getComputedStyle(b.querySelector('.sd-point')).display, tient: ba.scrollWidth <= ba.clientWidth + 1 && r.right <= innerWidth, large: Math.round(r.width) }; });
-    check(b0.vis && b0.apres && b0.point === 'none' && b0.tient && b0.large >= 44, `le bouton du second, à droite de « Bonus », sans point vert au repos ; la barre d’achat tient à 390 px (${JSON.stringify(b0)})`);
+    const b0 = await ev(() => { const b = document.querySelector('#b-second'), r = b.getBoundingClientRect(), a = document.querySelector('#b-ameliorations').getBoundingClientRect(); const ba = document.querySelector('.barre-achat'); return { vis: !b.hidden, apres: r.left >= a.right - 1, point: getComputedStyle(b.querySelector('.sd-point')).display, tient: ba.scrollWidth <= ba.clientWidth + 1 && r.right <= innerWidth, large: Math.round(r.width), modes: [...document.querySelectorAll('.barre-achat .modes button')].map((x) => Math.round(x.getBoundingClientRect().width)) }; });
+    check(b0.vis && b0.apres && b0.point === 'none' && b0.tient && b0.large >= 44 && b0.modes.length === 4 && b0.modes.every((w) => w >= 40), `le bouton du second, à droite de « Bonus », sans point vert au repos ; la barre d’achat tient à 390 px, ×1 ×10 ×100 Max gardent 40 px au moins (${JSON.stringify(b0)})`);
     await page.click('#b-second'); await sleep(300);
     const f1 = await texteFeuille(page);
     check(/Le second/.test(f1) && /50 %/.test(f1) && /Il garde toujours la moitié de ta caisse/.test(f1) && /jamais pendant ton absence/.test(f1) && /ne donnent pas de points/.test(f1), 'sa feuille : la part (50 %), « Il garde toujours la moitié de ta caisse », « jamais pendant ton absence », « pas de points »');
@@ -323,7 +328,12 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
     const fini = await attendre(async () => /Chantier fini : la fontaine/.test(await texteFeuille(page)), 6000);
     check(fini && await ev(() => window.__fournil.st.projets.vus.includes(1)), 'un chantier fini : « Chantier fini : la fontaine ! », une fois (st.projets.vus)');
     await sleep(300); await page.screenshot({ path: `${out}/16-chantier-fini.png` });
-    await page.click('#feuille [data-a="ok"]'); await sleep(300);
+    const tiroirAvant = await ev(() => window.__fournil.tiroir());
+    await page.click('#feuille [data-a="ok"]');
+    const vu = await attendre(() => ev(() => { const d = window.__fournil.SCENE.dehorsVu, t = document.querySelector('#tiroir').getBoundingClientRect(), c = document.querySelector('#scene').getBoundingClientRect(); return window.__fournil.tiroir() === 'ferme' && d.mailles === 1 && d.emprises.length === 1 && d.emprises[0].bas <= t.top - c.top + 1; }), 15000);
+    const dv = await ev(() => { const d = window.__fournil.SCENE.dehorsVu, t = document.querySelector('#tiroir').getBoundingClientRect(), c = document.querySelector('#scene').getBoundingClientRect(); return { tiroir: window.__fournil.tiroir(), liste: d.liste, haut: d.emprises[0] ? Math.round(d.emprises[0].haut) : null, bas: d.emprises[0] ? Math.round(d.emprises[0].bas) : null, tiroirHaut: Math.round(t.top - c.top) }; });
+    check(tiroirAvant === 'mi' && vu && dv.liste.join() === 'fontaine', `« Voir ma boutique » ferme le tiroir (il était à mi-hauteur, la place sous lui) : la fontaine est dehors, au-dessus du tiroir (${JSON.stringify(dv)})`);
+    await sleep(400); await page.screenshot({ path: `${out}/16b-voir-ma-boutique.png` });
     await ev(() => { window.__fournil.page('defis'); window.__fournil.tiroir('ouvert'); }); await sleep(500);
     const pc = await ev(() => { const x = document.querySelector('#page-defis .projet-carte'); return x ? x.textContent.replace(/\s+/g, ' ') : ''; });
     check(/Le chantier du quartier : le kiosque à musique/.test(pc) && /5 000 \/ 8 000/.test(pc) && /Cette semaine, tu as apporté/.test(pc), `la petite carte des Défis : « ${pc.slice(0, 120)} »`);
@@ -340,13 +350,34 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
     await s.ctx.close();
   }
 
+  {
+    // neuf chantiers finis pendant l'absence (un joueur qui rejoint tard ; le serveur en rend jusqu'à 200), à 360 × 640 : le titre les compte,
+    // quatre icônes (ceux que la scène pose dehors), les noms repliés ; « Voir ma boutique » ferme le tiroir et le décor est là, au bord du
+    // trottoir (un petit écran n'a pas la bande de la place : les monuments, plus petits, sous la terrasse, au-dessus du tiroir fermé)
+    const lundi = G.semaineKey(Date.now()), rep = { version: 1, semaine: lundi, cette_semaine: 5000, en_cours: { rang: 10, cout: 30000, total: 5000, pourcent: 16, actifs: 20, depuis: lundi }, finis: Array.from({ length: 9 }, (_, k) => ({ rang: k + 1, semaine: lundi, fini: new Date().toISOString() })) };
+    const s = await ouvrir(sauvegarde(9), { vue: { width: 360, height: 640 }, inscrit: true, projets: (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rep) }) }), { page, ev } = s;
+    await toutFermer(page); await ev(() => window.__fournil.progression.projets());
+    const vu9 = await attendre(async () => /9 chantiers finis/.test(await texteFeuille(page)), 6000);
+    const f9 = await ev(() => { const h = document.querySelector('#feuille h2'); return { h2: h.textContent, hauteur: Math.round(h.getBoundingClientRect().height), icones: document.querySelectorAll('#feuille .pj-icones svg').length, noms: (document.querySelector('#feuille details.pj-noms') || {}).textContent || '', ouvert: !!(document.querySelector('#feuille details.pj-noms') || {}).open, feuille: Math.round(document.querySelector('#feuille-contenu').scrollHeight) }; });
+    check(vu9 && f9.hauteur <= 100 && f9.icones === 4 && /Les 9 chantiers/.test(f9.noms) && !f9.ouvert && /le manège/.test(f9.noms) && f9.feuille < 640 && /Les 4 derniers sont devant ta boutique/.test(await texteFeuille(page)), `neuf chantiers finis : « ${f9.h2} » (${f9.hauteur} px), ${f9.icones} icônes, les noms repliés, une feuille de ${f9.feuille} px`);
+    await page.screenshot({ path: `${out}/17b-neuf-chantiers-360.png` });
+    await page.click('#feuille [data-a="ok"]');
+    // (le tiroir fermé, posé — sa course finie — et la place rebâtie : la scène relit les chantiers une fois par seconde)
+    const mesure9 = () => ev(() => { const d = window.__fournil.SCENE.dehorsVu, t = document.querySelector('#tiroir').getBoundingClientRect(), c = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY; return { pos: window.__fournil.tiroir(), mailles: d.mailles, liste: d.liste, compact: !!(d.place && d.place.compact), haut: d.emprises.length ? Math.round(Math.min(...d.emprises.map((e) => e.haut))) : null, bas: d.emprises.length ? Math.round(Math.max(...d.emprises.map((e) => e.bas))) : null, tiroir: Math.round(t.top - c.top), ferme: VIE.H - 37, terrasse: Math.round(Math.max(...L.mobiles.filter((m) => m.type === 'terrasse').map((m) => m.r.y + m.r.h))) }; });
+    let dv = null; const vu = await attendre(async () => { dv = await mesure9(); return dv.pos === 'ferme' && dv.tiroir >= dv.ferme && dv.mailles === 1 && dv.liste.length === 4; }, 15000);
+    check(vu && dv.liste.join() === 'horloge,manege,statue,fontaine~1' && dv.compact && dv.bas <= dv.tiroir && dv.haut >= dv.terrasse, `« Voir ma boutique » à 360 × 640 : les quatre derniers dehors, au bord du trottoir, entre la terrasse et le tiroir fermé (${JSON.stringify(dv)})`);
+    await sleep(400); await page.screenshot({ path: `${out}/17c-dehors-360.png` });
+    check(!s.erreurs.length, `aucune erreur de page (${s.erreurs.slice(0, 2).join(' · ')})`);
+    await s.ctx.close();
+  }
+
   // ─── 7. 360 × 640 : la barre d'achat et les feuilles tiennent ───
   console.log('── 7. 360 × 640 ──');
   {
     const s = await ouvrir(sauvegarde(47, { etoiles: 3000, plus: { paliers: { recus: [1], titre: 'Boulanger étoilé', pas: 300 }, second: { vu: true, actif: true, part: 50, off: [], t: 0, achats: 3 } } }), { vue: { width: 360, height: 640 } }), { page, ev } = s;
     await toutFermer(page); await ev(() => window.__fournil.tiroir('mi')); await sleep(500);
-    const barre = await ev(() => { const b = document.querySelector('.barre-achat'), r = b.getBoundingClientRect(), s2 = document.querySelector('#b-second').getBoundingClientRect(), am = document.querySelector('#b-ameliorations').getBoundingClientRect(); return { w: b.scrollWidth, cw: b.clientWidth, droite: s2.right, bonus: am.right <= s2.left + 1, haut: Math.round(r.height), sh: Math.round(s2.height), sl: Math.round(s2.width) }; });
-    check(barre.w <= barre.cw + 1 && barre.droite <= 360 && barre.bonus && barre.sh >= 44 && barre.sl >= 44, `la barre d’achat tient à 360 px (${JSON.stringify(barre)})`);
+    const barre = await ev(() => { const b = document.querySelector('.barre-achat'), r = b.getBoundingClientRect(), s2 = document.querySelector('#b-second').getBoundingClientRect(), am = document.querySelector('#b-ameliorations').getBoundingClientRect(); return { w: b.scrollWidth, cw: b.clientWidth, droite: s2.right, bonus: am.right <= s2.left + 1, haut: Math.round(r.height), sh: Math.round(s2.height), sl: Math.round(s2.width), modes: [...document.querySelectorAll('.barre-achat .modes button')].map((x) => Math.round(x.getBoundingClientRect().width)), mot: document.querySelector('#b-ameliorations').textContent.trim() }; });
+    check(barre.w <= barre.cw + 1 && barre.droite <= 360 && barre.bonus && barre.sh >= 44 && barre.sl >= 44 && barre.modes.length === 4 && barre.modes.every((w) => w >= 40) && /^Bonus/.test(barre.mot), `la barre d’achat tient à 360 px, et le second ne prend pas sa place à ×1 ×10 ×100 Max : 40 px au moins chacun (${JSON.stringify(barre)})`);
     await page.screenshot({ path: `${out}/19-barre-360.png` });
     for (const [nom, f] of [['second', () => window.__fournil.progression.second()], ['concours', () => window.__fournil.progression.concours()], ['palier', () => window.__fournil.progression.palier(7)], ['parcours', () => window.__fournil.parcours()]]) {
       await ev(f); await sleep(400);
@@ -355,11 +386,52 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
       await page.screenshot({ path: `${out}/20-${nom}-360.png` });
       await fermer(page); await sleep(150);
     }
+    // le concours à 360 px, le pire cas : le plus long nom de boutique (24 caractères, GAME.renommer) et des scores à trois chiffres (ref 900)
+    await ev(() => { const F = window.__fournil, st = F.st; GAME.renommer(st, 'La Boulangerie du Moulin'); st.rivales = { semaine: GAME.semaineKey(Date.now()), ref: 900, medailles: { or: 0, argent: 0, bronze: 0 }, hist: [], aPayer: [], serie: 0, serieMax: 0 }; F.progression.concours(); }); await sleep(400);
+    const cc = await ev(() => [...document.querySelectorAll('#feuille .cc-liste li')].map((li) => { const n = li.querySelector('.cc-nom'), t = li.querySelector('.cc-toi'), v = li.querySelector('.cc-visiter'), r = li.getBoundingClientRect(); return { nom: n.textContent, coupe: n.scrollWidth > n.clientWidth + 0.5 || n.scrollHeight > n.clientHeight + 0.5, moi: li.classList.contains('moi'), toi: t ? t.getBoundingClientRect().width > 10 && t.getBoundingClientRect().right <= r.right + 0.5 && t.getBoundingClientRect().left >= n.getBoundingClientRect().right - 0.5 : null, visiter: v ? Math.round(v.getBoundingClientRect().height) : null }; }));
+    check(cc.length === 5 && cc.every((l) => !l.coupe) && cc.filter((l) => l.moi).every((l) => l.nom === 'La Boulangerie du Moulin' && l.toi === true) && cc.filter((l) => !l.moi).every((l) => l.visiter >= 44), `le concours à 360 px, un nom de 24 caractères et des scores à trois chiffres : aucun nom coupé (deux lignes au plus), « toi » visible, « Visiter » de 44 px (${cc.map((l) => `${l.nom}${l.coupe ? ' COUPÉ' : ''}${l.moi ? ` toi:${l.toi}` : ` ${l.visiter} px`}`).join(' | ')})`);
+    await ev(() => { const l = document.querySelector('#feuille .cc-liste'); if (l) l.scrollIntoView({ block: 'center' }); }); await sleep(200);
+    await page.screenshot({ path: `${out}/20b-concours-moulin-360.png` });
+    await fermer(page); await sleep(150);
     await ev(() => { window.__fournil.page('defis'); window.__fournil.tiroir('ouvert'); }); await sleep(500);
+    const ccCarte = await ev(() => { const li = document.querySelector('#page-defis .card.concours .cc-liste li.moi'), n = li && li.querySelector('.cc-nom'), t = li && li.querySelector('.cc-toi'); return li ? { coupe: n.scrollWidth > n.clientWidth + 0.5 || n.scrollHeight > n.clientHeight + 0.5, toi: !!t && t.getBoundingClientRect().right <= li.getBoundingClientRect().right + 0.5 } : null; });
+    check(ccCarte && !ccCarte.coupe && ccCarte.toi, `la carte du concours des Défis à 360 px : sa ligne entière, « toi » compris (${JSON.stringify(ccCarte)})`);
     check(!(await deborde(page, '#page-defis .card')), 'les cartes des Défis (palier, concours) ne débordent pas à 360 px');
     await page.screenshot({ path: `${out}/21-defis-360.png` });
     await ev(() => window.__fournil.boulanger()); await sleep(500);
     check(!(await deborde(page, '#page-boulanger .card, #page-boulanger .troph')), 'les trophées ne débordent pas à 360 px');
+    check(!s.erreurs.length, `aucune erreur de page (${s.erreurs.slice(0, 2).join(' · ')})`);
+    await s.ctx.close();
+  }
+
+  // ─── 8. les récompenses rares : le paon et le renard argenté ont leur portrait, la toque étoilée sa collection et ses étoiles ───
+  console.log('── 8. les récompenses rares (compagnons, garde-robe) ──');
+  {
+    const st = sauvegarde(52); G.paliers(st); G.rattraperPaliers(st); st.paliers.objets.push('renard'); // (n°52 : les paliers 1 et 2, la toque étoilée et le paon ; le renard posé pour la carte)
+    const s = await ouvrir(st), { page, ev } = s;
+    await toutFermer(page); await ev(() => window.__fournil.compagnons()); await sleep(600);
+    const cp = await ev(() => { const cs = [...document.querySelectorAll('#feuille .cp-carte')], ico = (re) => { const c = cs.find((x) => re.test(x.textContent)); return c ? c.querySelector('.cp-ico').innerHTML : null; }; const p = cs.find((x) => /Paon/.test(x.textContent)); if (p) p.scrollIntoView({ block: 'center' }); return { paon: ico(/Paon/), renard: ico(/Renard argenté/), chat: ico(/Chat roux/) }; });
+    check(!!cp.chat && !!cp.paon && !!cp.renard && cp.paon !== cp.chat && cp.renard !== cp.chat && cp.paon !== cp.renard, 'la feuille des compagnons : le paon et le renard argenté ont leur portrait, pas celui du chat roux');
+    await sleep(250); await page.screenshot({ path: `${out}/22-compagnons-rares.png` });
+    await fermer(page); await sleep(200);
+    await ev(() => window.__fournil.garderobe('tete')); await sleep(900);
+    const gr = await ev(() => { const p = [...document.querySelectorAll('.gr-piece')].find((x) => /Toque étoilée/.test(x.textContent)); if (!p) return null; p.scrollIntoView({ block: 'center' }); const ico = p.querySelector('.gr-ico').innerHTML, base = [...document.querySelectorAll('.gr-piece')].find((x) => /Toque blanche/.test(x.textContent)); return { txt: p.textContent.replace(/\s+/g, ' ').trim(), memeQueBlanche: !!base && base.querySelector('.gr-ico').innerHTML === ico, etoiles: (ico.match(/<path/g) || []).length }; });
+    check(gr && /Les paliers du boulanger · légendaire/.test(gr.txt) && !/\betoile ·/.test(gr.txt) && !gr.memeQueBlanche, `la garde-robe : la toque étoilée a sa collection (« ${gr && gr.txt.slice(0, 60)} ») et son icône bleu nuit étoilée, pas celle de la toque blanche`);
+    await sleep(250); await page.screenshot({ path: `${out}/23-garderobe-toque-etoilee.png` });
+    check(!s.erreurs.length, `aucune erreur de page (${s.erreurs.slice(0, 2).join(' · ')})`);
+    await s.ctx.close();
+  }
+
+  // ─── 9. la visite d'un copain au-delà de la n°30 : son titre de palier sous son enseigne (la photo tp, contrat § 9.3) ───
+  console.log('── 9. la visite : le titre de palier d’un copain ──');
+  for (const vue of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
+    const ph = { v: 1, nom: 'Chez Mamie Lucette', q: 2, s: null, p: G.PRODUITS.map((_, i) => (i < 10 ? [80, 1, 2] : [0, 0, 1])), m: {}, t: [], c: null, g: 30, k: [], o: 0, l: 5, tp: 2, x: { e: 10, b: 50, v: 1e15, tr: 30, s: 0, f: 1e15 } };
+    const s = await ouvrir(sauvegarde(55), { vue, inscrit: true, rpc: { fournil_boutique: (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, pseudo: 'Mamie', photo: ph, en_ligne: false }) }) } }), { page, ev } = s;
+    await toutFermer(page); await ev(() => window.__fournil.visiter('Mamie'));
+    const ok = await attendre(() => ev(() => { const v = window.__fournil.visite(); return !!v && !v.charge && !!document.querySelector('#vi-vue .vi-palier, #vi-vue .vi-carte'); }), 8000);
+    const r = await ev(() => { const p = document.querySelector('#vi-vue .vi-palier'), c = document.querySelector('#vi-vue .vi-carte'); return { palier: p ? p.textContent.trim() : '', carte: c ? c.textContent : '', dedans: !p || (p.getBoundingClientRect().left >= 0 && p.getBoundingClientRect().right <= innerWidth) }; });
+    check(ok && (/Légende de la farine/.test(r.palier) || /palier n°50 : « Légende de la farine »/.test(r.carte)) && r.dedans, `${vue.width} px : la boutique de Mamie (palier 2) montre « Légende de la farine » sous son enseigne (${JSON.stringify(r).slice(0, 120)})`);
+    await sleep(500); await page.screenshot({ path: `${out}/24-visite-titre-palier-${vue.width}.png` });
     check(!s.erreurs.length, `aucune erreur de page (${s.erreurs.slice(0, 2).join(' · ')})`);
     await s.ctx.close();
   }
