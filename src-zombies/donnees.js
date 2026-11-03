@@ -198,10 +198,125 @@
       ],
       sorties: [[-27, 0], [27, 0], [0, 27], [-14, 27], [14, 27], [-27, -24], [27, -24], [-27, 22], [27, 22]],
     },
+    // ─── les arènes suivantes (une vague à atteindre dans la précédente pour les ouvrir : DEBLOCAGE) ───
+    // laves : des rectangles [x, z, l, p] qui brûlent qui s'y tient (survivants et zombies) ; meteo : l'ambiance par défaut de l'arène
+    cimetiere: {
+      nom: 'Le Cimetière', desc: 'Des tombes basses (on tire par-dessus), une crypte et des grilles rouillées.', taille: 48,
+      sol: '#6E8A5A', sol2: '#647F52', bord: '#4A4A52', ciel: '#9A9AB8', brume: '#8E8EA8', meteo: 'crepuscule',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'crypte', r: [0, -13, 8, 5, 3.6] },
+        ...[-12, -8, -4, 4, 8, 12].flatMap((x) => [{ type: 'tombe', r: [x, -3, 1.1, 0.5, 0.8] }, { type: 'tombe', r: [x + 1, 9, 1.1, 0.5, 0.8] }]),
+        { type: 'grille', r: [-17, 0, 0.3, 16, 1.6] }, { type: 'grille', r: [17, 0, 0.3, 16, 1.6] },
+        { type: 'cypres', c: [-10, -14, 0.8] }, { type: 'cypres', c: [10, -14, 0.8] }, { type: 'cypres', c: [-19, 18, 0.8] }, { type: 'cypres', c: [19, 18, 0.8] },
+        { type: 'rocher', c: [6, 15, 1.1] }, { type: 'puits', c: [-6, 15, 1.0] },
+      ],
+      sorties: [[0, -23], [-23, 0], [23, 0], [0, 23], [-21, -21], [21, 21], [21, -21], [-21, 21]],
+    },
+    port: {
+      nom: 'Le Port', desc: 'Un labyrinthe de conteneurs sur les quais. On s’y perd, eux aussi.', taille: 52,
+      sol: '#9AA0A8', sol2: '#8E949C', bord: '#3E6E9E', ciel: '#BFD8EE', brume: '#B8CCDD',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'conteneur', r: [-12, -8, 6, 2.4, 2.6], couleur: '#C0392B' }, { type: 'conteneur', r: [-12, -5.4, 6, 2.4, 2.6], couleur: '#2E86C1' },
+        { type: 'conteneur', r: [12, -8, 6, 2.4, 2.6], couleur: '#27AE60' }, { type: 'conteneur', r: [6, 9, 2.4, 6, 2.6], couleur: '#E67E22' },
+        { type: 'conteneur', r: [-6, 10, 2.4, 6, 2.6], couleur: '#8E44AD' }, { type: 'conteneur', r: [-19, 8, 6, 2.4, 2.6], couleur: '#F1C40F' },
+        { type: 'conteneur', r: [19, 4, 2.4, 6, 2.6], couleur: '#16A085' }, { type: 'conteneur', r: [0, -16, 6, 2.4, 2.6], couleur: '#D35400' },
+        { type: 'grue', r: [17, -17, 3, 3, 6] },
+        { type: 'bitte', c: [-6, -14, 0.4] }, { type: 'bitte', c: [6, -14, 0.4] }, { type: 'bitte', c: [-21, -18, 0.4] },
+        { type: 'caisses', r: [5, -2, 3, 3, 0.9] }, { type: 'caisses', r: [-15, 17, 3, 3, 0.9] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [-22, -24], [22, -24]],
+    },
+    place: {
+      nom: 'La Place du village', desc: 'La fontaine, le kiosque à musique et les terrasses du café.', taille: 46,
+      sol: '#C8B89A', sol2: '#BCAC8E', bord: '#8A7A64', ciel: '#CFE4F2', brume: '#D6DDE2',
+      depart: [0, 6],
+      obstacles: [
+        { type: 'fontaine', c: [0, -2, 2.2] }, { type: 'kiosque', c: [-12, -11, 2.4] },
+        { type: 'banc', r: [6, -2, 0.6, 2.2, 0.6] }, { type: 'banc', r: [-6, -2, 0.6, 2.2, 0.6] },
+        { type: 'terrasse', r: [12, 10, 3, 3, 0.9] }, { type: 'terrasse', r: [-12, 11, 3, 3, 0.9] }, { type: 'terrasse', r: [13, -11, 3, 3, 0.9] },
+        { type: 'arbre', c: [-18, 0, 1.0] }, { type: 'arbre', c: [18, 0, 1.0] }, { type: 'arbre', c: [0, 18, 1.0] }, { type: 'arbre', c: [0, -18, 1.0] },
+        { type: 'lampadaire', c: [7, 7, 0.35] }, { type: 'lampadaire', c: [-7, 7, 0.35] },
+      ],
+      sorties: [[0, -22], [-22, 0], [22, 0], [-10, 22], [10, 22], [-20, -20], [20, 20], [20, -20], [-20, 20]],
+    },
+    plage: {
+      nom: 'La Plage', desc: 'Du sable, des parasols, un bateau échoué. La marée monte… de zombies.', taille: 54,
+      sol: '#E8D49A', sol2: '#DFC98C', bord: '#4AA3C8', ciel: '#BFE6F5', brume: '#CFEAF2',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'bateau', r: [-12, -10, 3.2, 9, 2.4] }, { type: 'cabane', r: [14, -12, 4, 3, 2.6] }, { type: 'cabane', r: [18, 12, 3, 4, 2.6] },
+        ...[[-6, 6], [6, 8], [-15, 12], [10, -2], [-2, -12]].map(([x, z]) => ({ type: 'parasol', c: [x, z, 0.5] })),
+        { type: 'rocher', c: [-22, 4, 1.6] }, { type: 'rocher', c: [-20, 8, 1.1] }, { type: 'rocher', c: [22, -2, 1.3] },
+        { type: 'caisses', r: [3, 16, 3, 3, 0.9] },
+      ],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [0, -26]],
+    },
+    chantier: {
+      nom: 'Le Chantier', desc: 'Parpaings, bétonnière et échafaudages : des recoins partout.', taille: 50,
+      sol: '#B59C7A', sol2: '#A8906E', bord: '#E8A33A', ciel: '#D8DFE6', brume: '#D2CFC8',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'echafaudage', r: [0, -14, 14, 2.4, 4.5] }, { type: 'betonniere', c: [9, 4, 1.3] },
+        { type: 'parpaings', r: [-9, -4, 3, 2, 1.2] }, { type: 'parpaings', r: [-14, 8, 2, 3, 1.2] }, { type: 'parpaings', r: [12, 12, 3, 2, 1.2] }, { type: 'parpaings', r: [5, -6, 2, 2, 1.2] },
+        { type: 'muret', r: [-19, -6, 1.2, 12, 1.4] }, { type: 'muret', r: [19, 2, 1.2, 12, 1.4] },
+        { type: 'benne', r: [-6, 15, 3.2, 1.8, 1.6] }, { type: 'conteneur', r: [16, -6, 2.4, 6, 2.6], couleur: '#E8A33A' },
+      ],
+      sorties: [[-23.5, -12], [23.5, -12], [-23.5, 14], [23.5, 14], [0, 23.5], [-14, 23.5], [14, 23.5], [-22, -23], [22, -23]],
+    },
+    supermarche: {
+      nom: 'Le Supermarché', desc: 'Les rayons font des couloirs : gare aux allées sans issue.', taille: 48,
+      sol: '#D8DCE0', sol2: '#CDD2D7', bord: '#7A828C', ciel: '#E8ECEF', brume: '#D9DEE3',
+      depart: [0, 14],
+      obstacles: [
+        ...[-15, -9, -3, 3, 9, 15].map((x, i) => ({ type: 'rayon', r: [x, -3, 1.6, 16, 2.2], couleur: ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E67E22'][i] })),
+        { type: 'comptoir', r: [-10, 15, 4, 1.4, 1.1] }, { type: 'comptoir', r: [10, 15, 4, 1.4, 1.1] },
+        { type: 'caddie', c: [-5, 10, 0.6] }, { type: 'caddie', c: [6, 9, 0.6] }, { type: 'caddie', c: [-18, 13, 0.6] },
+        { type: 'caisses', r: [18, -18, 3, 3, 0.9] },
+      ],
+      sorties: [[-23, -12], [23, -12], [-23, 0], [23, 0], [0, -23], [-12, -23], [12, -23], [-20, 22], [20, 22]],
+    },
+    foret: {
+      nom: 'La Forêt', desc: 'Des sapins serrés et une cabane de bûcheron. On voit mal venir.', taille: 52,
+      sol: '#5E8A44', sol2: '#557E3D', bord: '#4A3A28', ciel: '#A8C8B0', brume: '#9CB8A4', meteo: 'brouillard',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'cabane', r: [-10, -10, 5, 4, 3] },
+        ...[[-16, 4], [-6, 10], [6, 12], [14, 4], [18, -8], [8, -14], [-2, -18], [-18, 16], [16, 18], [-20, -18], [3, -6], [-12, 18], [20, 14]].map(([x, z], i) => ({ type: 'sapin', c: [x, z, 0.8 + (i % 3) * 0.15] })),
+        { type: 'rondins', r: [6, 2, 3, 1.2, 0.9] }, { type: 'rondins', r: [-4, 16, 1.2, 3, 0.9] },
+        { type: 'rocher', c: [12, -3, 1.3] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [0, -25], [-22, -24], [22, -24]],
+    },
+    neon: {
+      nom: 'Le Carrefour néon', desc: 'Un carrefour de nuit, entre les immeubles et leurs enseignes.', taille: 52,
+      sol: '#3A3F4A', sol2: '#343843', bord: '#2A2E36', ciel: '#1C2433', brume: '#1C2433', meteo: 'nuit',
+      depart: [0, 0],
+      obstacles: [
+        { type: 'immeuble', r: [-16, -16, 12, 12, 7], couleur: '#5A4A7A' }, { type: 'immeuble', r: [16, -16, 12, 12, 9], couleur: '#3A5A7A' },
+        { type: 'immeuble', r: [-16, 16, 12, 12, 8], couleur: '#7A4A5A' }, { type: 'immeuble', r: [16, 16, 12, 12, 6], couleur: '#4A6A5A' },
+        { type: 'voiture', r: [-4, -6, 2.0, 4.0, 1.4], couleur: '#FF3D9A' }, { type: 'voiture', r: [6, 5, 4.0, 2.0, 1.4], couleur: '#3DE0FF' },
+        { type: 'neon', c: [-6, 6, 0.4], couleur: '#FF3D9A' }, { type: 'neon', c: [6, -6, 0.4], couleur: '#3DE0FF' }, { type: 'neon', c: [8, 9, 0.4], couleur: '#B8FF3D' },
+        { type: 'benne', r: [-8, 2, 1.8, 3.2, 1.6] },
+      ],
+      sorties: [[0, -25], [0, 25], [-25, 0], [25, 0], [-4, -25], [4, 25], [-25, 4], [25, -4]],
+    },
+    volcan: {
+      nom: 'Le Volcan', desc: 'Des rivières de lave entre les roches noires. Ne t’y arrête pas.', taille: 54,
+      sol: '#5A4A44', sol2: '#4F403B', bord: '#2A2220', ciel: '#C87A5A', brume: '#A8705A', meteo: 'crepuscule',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'roche', c: [-10, -8, 1.8] }, { type: 'roche', c: [11, -10, 2.0] }, { type: 'roche', c: [-14, 12, 1.6] }, { type: 'roche', c: [14, 13, 1.7] },
+        { type: 'roche', c: [0, -18, 2.4] }, { type: 'roche', c: [-20, -2, 1.5] }, { type: 'roche', c: [21, 2, 1.4] }, { type: 'roche', c: [4, 15, 1.2] },
+      ],
+      laves: [[-6, -4, 3, 12], [9, 10, 14, 2.6], [-15, 18, 10, 2.4], [16, -18, 2.4, 10]],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [-22, -24], [22, -24]],
+    },
   };
-  const ORDRE_ARENES = ['jardin', 'parking', 'ferme'];
+  const ORDRE_ARENES = ['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan'];
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
-  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
+  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8, cimetiere: 8, port: 9, place: 9, plage: 10, chantier: 10, supermarche: 11, foret: 11, neon: 12, volcan: 13 };
 
   // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
   // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)

@@ -105,6 +105,7 @@
         <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
+    const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));

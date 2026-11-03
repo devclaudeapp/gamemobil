@@ -114,7 +114,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .logo-1 { font-size: clamp(26px, 6vw, 40px); letter-spacing: .12em; }
 .logo-2 { font-size: clamp(44px, 11vw, 78px); color: var(--jaune) !important; letter-spacing: .02em; }
 .accroche { margin: 0; max-width: 520px; padding: 6px 14px; border-radius: 14px; background: rgba(255, 247, 236, .88); font-size: 15px; }
-.arenes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.arenes { display: flex; gap: 10px; overflow-x: auto; max-width: 100%; padding: 4px 4px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.arenes .arene { flex: 0 0 auto; scroll-snap-align: start; }
 .arene { width: 168px; min-height: 92px; padding: 10px 12px; border-radius: 18px; border: 3px solid var(--encre); background: var(--creme); text-align: left; box-shadow: 0 4px 0 rgba(31, 37, 51, .4); display: grid; gap: 2px; align-content: start; }
 .arene b { font: 700 18px/1.1 var(--titre); }
 .arene small { font-size: 12px; color: #5A5F6B; line-height: 1.25; }

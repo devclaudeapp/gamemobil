@@ -119,7 +119,48 @@ const ZRENDU = (() => {
           }
           break;
         }
-        default: F.add(BOITE, '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
+        case 'crypte': // le mausolée : pierre grise, toit en pointe, porte sombre
+          F.add(BOITE, '#8A8A92', mat(x, h / 2, z, 0, w, h, d), 0.05, g); F.add(BOITE, '#2A2A30', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.6, 0.06));
+          F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#6A6A74', mat(x, h + d * 0.18, z, 0, d * 0.55, w * 1.04, d * 0.32, 0, Math.PI / 2), 0.04, g + 1);
+          F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.5, z, 0, 0.12, 0.8, 0.12)); F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.6, z, 0, 0.5, 0.12, 0.12));
+          break;
+        case 'tombe': F.add(BOITE, '#A8A8B0', mat(x, h / 2, z, 0, w, h, d), 0.08, g); F.add(BOITE, '#7E8A6A', mat(x, 0.05, z + (d > w ? 0 : 0.9), 0, w * 0.9, 0.1, 1.4)); break;
+        case 'grille': {
+          const lx = w >= d, long = lx ? w : d, n = Math.max(4, Math.round(long / 0.45));
+          for (let i = 0; i <= n; i++) { const t = -long / 2 + long * i / n; F.add(BOITE, '#3A3438', mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, 0.06, h, 0.06)); }
+          for (const y of [0.2, h * 0.92]) F.add(BOITE, '#4A4448', mat(x, y, z, 0, lx ? long : 0.08, 0.08, lx ? 0.08 : long));
+          break;
+        }
+        case 'conteneur': case 'rayon': case 'immeuble': { // une grande boîte colorée, avec ses nervures (conteneur), ses étagères (rayon), ses fenêtres (immeuble)
+          const col = o.couleur || '#C0392B'; F.add(BOITE, col, mat(x, h / 2, z, 0, w, h, d), 0.04, g);
+          const lx = w >= d, long = lx ? w : d;
+          if (o.type === 'conteneur') for (let i = 0; i <= Math.round(long / 0.6); i++) { const t = -long / 2 + i * 0.6; F.add(BOITE, col, mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, lx ? 0.08 : w * 1.04, h * 0.96, lx ? d * 1.04 : 0.08), 0.12, g + i); }
+          else if (o.type === 'rayon') for (const y of [0.5, 1.1, 1.7]) F.add(BOITE, '#E8E8E8', mat(x, y, z, 0, w * 1.06, 0.06, d * 1.01));
+          else for (let fy = 1.5; fy < h - 0.5; fy += 1.6) for (let i = 0; i < Math.floor(long / 2); i++) { const t = -long / 2 + 1 + i * 2; for (const sgn of [-1, 1]) F.add(BOITE, (i + Math.round(fy)) % 3 ? '#FFE9A0' : '#2A3040', mat(x + (lx ? t : sgn * (w / 2 + 0.02)), fy, z + (lx ? sgn * (d / 2 + 0.02) : t), 0, lx ? 0.8 : 0.04, 0.9, lx ? 0.04 : 0.8)); }
+          break;
+        }
+        case 'grue':
+          F.add(BOITE, '#E8A33A', mat(x, 0.4, z, 0, w, 0.8, d)); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) F.add(BOITE, '#E8A33A', mat(x + a * w * 0.35, h / 2, z + b * d * 0.35, 0, 0.18, h, 0.18));
+          F.add(BOITE, '#E8A33A', mat(x - 4, h, z, 0, 12, 0.3, 0.3)); F.add(BOITE, '#4A4F57', mat(x - 9, h - 1.5, z, 0, 0.05, 3, 0.05)); break;
+        case 'banc': F.add(BOITE, '#8C6A44', mat(x, 0.45, z, 0, w, 0.1, d), 0.05, g); F.add(BOITE, '#8C6A44', mat(x + (w < d ? w * 0.4 : 0), 0.75, z + (w < d ? 0 : d * 0.4), 0, w < d ? 0.08 : w, 0.5, w < d ? d : 0.08)); for (const sgn of [-1, 1]) F.add(BOITE, '#4A4448', mat(x + (w >= d ? sgn * w * 0.4 : 0), 0.22, z + (w < d ? sgn * d * 0.4 : 0), 0, 0.08, 0.44, 0.08)); break;
+        case 'terrasse': // une table et ses chaises, un parasol
+          F.add(cyl(0.6, 0.6, 0.06, 10), '#F2EDE4', mat(x, 0.78, z)); F.add(cyl(0.05, 0.05, 0.78, 6), '#4A4448', mat(x, 0.39, z));
+          for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; F.add(BOITE, '#C94F3D', mat(x + Math.cos(a) * 1.0, 0.45, z + Math.sin(a) * 1.0, -a, 0.45, 0.06, 0.45)); }
+          F.add(cyl(0.04, 0.04, 2.2, 6), '#4A4448', mat(x, 1.1, z)); F.add(cyl(0.05, 1.5, 0.45, 8), '#F2C230', mat(x, 2.3, z), 0.05, g); break;
+        case 'bateau': {
+          const lx = w > d, ry = lx ? Math.PI / 2 : 0, L = lx ? w : d, l = lx ? d : w;
+          F.add(BOITE, '#8A5A3A', mat(x, 0.6, z, ry, l, 1.2, L * 0.82), 0.05, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x + (lx ? L * 0.45 : 0), 0.6, z + (lx ? 0 : L * 0.45), ry, l * 0.58, 1.2, 1.4, 0, 0), 0.05, g + 1);
+          F.add(BOITE, '#E8E2D4', mat(x, 1.3, z, ry, l * 0.92, 0.18, L * 0.8)); F.add(cyl(0.08, 0.1, 4, 6), '#6A4A2A', mat(x, 3, z)); F.add(BOITE, '#F2EDE4', mat(x, 3.2, z + 0.6, ry + 0.3, 0.05, 2, 1.4)); break;
+        }
+        case 'cabane': F.add(BOITE, '#C9A26A', mat(x, h / 2, z, 0, w, h, d), 0.06, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x, h + d * 0.2, z, 0, d * 0.6, w * 1.08, d * 0.34, 0, Math.PI / 2), 0.04, g + 1); F.add(BOITE, '#5A3A22', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.65, 0.06)); break;
+        case 'echafaudage': {
+          for (let i = 0; i <= Math.round(w / 2); i++) for (const sz of [-d / 2, d / 2]) F.add(BOITE, '#8A8F98', mat(x - w / 2 + i * 2, h / 2, z + sz, 0, 0.1, h, 0.1));
+          for (const y of [h * 0.33, h * 0.66, h]) F.add(BOITE, '#B98B55', mat(x, y, z, 0, w, 0.08, d), 0.06, g + Math.round(y)); break;
+        }
+        case 'parpaings': for (let i = 0; i < 3; i++) F.add(BOITE, i % 2 ? '#A8A8A0' : '#B8B8B0', mat(x, h * (i + 0.5) / 3, z, i * 0.08, w * 0.95, h / 3 * 0.92, d * 0.95), 0.06, g + i); break;
+        case 'comptoir': F.add(BOITE, '#E8E8E8', mat(x, h / 2, z, 0, w, h, d), 0.04, g); F.add(BOITE, '#3A3F4A', mat(x, h + 0.03, z, 0, w * 1.02, 0.06, d * 1.02)); F.add(BOITE, '#2ECC71', mat(x + w * 0.3, h + 0.3, z, 0, 0.3, 0.5, 0.2)); break;
+        case 'rondins': for (let i = 0; i < 3; i++) { const lx = w >= d; F.add(cyl(0.3, 0.3, (lx ? w : d) * 0.95, 8), '#8A6040', mat(x + (lx ? 0 : (i - 1) * 0.36), 0.3 + (i === 1 ? 0.45 : 0), z + (lx ? (i - 1) * 0.36 : 0), 0, 1, 1, 1, lx ? 0 : Math.PI / 2, lx ? Math.PI / 2 : 0), 0.06, g + i); } break;
+        default: F.add(BOITE, o.couleur || '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
       }
     } else if (o.c) {
       const [x, z, r] = o.c;
@@ -148,6 +189,16 @@ const ZRENDU = (() => {
           F.add(BOITE, '#4A4F57', mat(x + 0.5, 4.2, z, 0, 1.1, 0.12, 0.2));
           F.add(BOITE, '#FFF2B8', mat(x + 0.95, 4.1, z, 0, 0.4, 0.1, 0.3));
           break;
+        case 'cypres': F.add(cyl(r * 0.2, r * 0.25, 1.0, 6), '#5A4030', mat(x, 0.5, z)); F.add(cyl(0.05, r * 0.95, 4.2, 7), '#2F5A3A', mat(x, 3.0, z, k), 0.1, g); break;
+        case 'sapin': F.add(cyl(r * 0.22, r * 0.3, 1.2, 6), '#5A4030', mat(x, 0.6, z)); for (let i = 0; i < 3; i++) F.add(cyl(0.05, r * (1.5 - i * 0.35), 1.5, 7), i % 2 ? '#3E7A3A' : '#356E34', mat(x, 1.6 + i * 1.0, z, k + i), 0.08, g + i); break;
+        case 'bitte': F.add(cyl(r * 0.8, r, 0.8, 8), '#3A3F4A', mat(x, 0.4, z)); F.add(cyl(r * 1.1, r * 1.1, 0.12, 8), '#3A3F4A', mat(x, 0.84, z)); break;
+        case 'fontaine': F.add(cyl(r, r * 1.05, 0.7, 14), '#C8C0B0', mat(x, 0.35, z), 0.05, g); F.add(cyl(r * 0.88, r * 0.88, 0.72, 14), '#5AA8D8', mat(x, 0.37, z)); F.add(cyl(0.25, 0.35, 1.6, 8), '#C8C0B0', mat(x, 1.1, z)); F.add(cyl(0.8, 0.4, 0.3, 10), '#C8C0B0', mat(x, 1.9, z)); F.add(cyl(0.6, 0.6, 0.06, 10), '#7AC8F0', mat(x, 2.02, z)); break;
+        case 'kiosque': F.add(cyl(r, r, 0.5, 8), '#E8E2D4', mat(x, 0.25, z), 0.04, g); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; F.add(cyl(0.08, 0.08, 2.6, 6), '#4A6A5A', mat(x + Math.cos(a) * r * 0.9, 1.8, z + Math.sin(a) * r * 0.9)); } F.add(cyl(0.1, r * 1.2, 1.2, 8), '#4A6A5A', mat(x, 3.6, z), 0.04, g + 1); break;
+        case 'parasol': F.add(cyl(0.05, 0.05, 2.3, 6), '#E8E2D4', mat(x, 1.15, z)); F.add(cyl(0.05, 1.5, 0.5, 8), ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71'][g % 4], mat(x, 2.35, z), 0.04, g); F.add(BOITE, '#F2EDE4', mat(x + 1, 0.12, z + 0.4, 0.4, 0.7, 0.08, 1.6)); break;
+        case 'betonniere': F.add(cyl(r * 0.8, r * 0.5, r * 1.6, 9), '#E8A33A', mat(x, r * 1.2, z, 0, 1, 1, 1, 0.6), 0.05, g); F.add(BOITE, '#5A5F68', mat(x, 0.35, z, 0, r * 1.6, 0.4, r)); F.add(cyl(0.3, 0.3, 0.15, 8), '#2A2A2A', mat(x - r * 0.7, 0.3, z, 0, 1, 1, 1, Math.PI / 2)); break;
+        case 'neon': // un poteau et son enseigne qui brille (couleur de l'obstacle ; matériau à part, plus bas)
+          F.add(cyl(0.08, 0.1, 3.4, 6), '#2A2E36', mat(x, 1.7, z)); break;
+        case 'roche': F.add(rocheGeo(r * 1.2, g), '#2E2826', mat(x, r * 0.6, z, k), 0.1, g); F.add(rocheGeo(r * 0.6, g + 3), '#3A3230', mat(x + r * 0.6, r * 0.3, z - r * 0.4, k), 0.1, g + 3); break;
         default: F.add(cyl(r, r, 1.2, 8), '#9C8E7A', mat(x, 0.6, z), 0.06, g);
       }
     }
@@ -784,15 +835,23 @@ const ZRENDU = (() => {
       const avecVoitures = !!(MOD && MOD.pret), voitures = [];
       A.obstacles.forEach((o, k) => { if (avecVoitures && o.type === 'voiture') voitures.push(o); else obstacle(F, o, k); });
       let g2 = 4242; const alea = () => { g2 = (g2 * 16807) % 2147483647; return g2 / 2147483647; };
-      for (let i = 0; i < 70; i++) { // le paysage : une couronne d'arbres et de rochers autour de l'arène
+      const autour = AUTOUR[A.id || jeu.arene] || 'arbres';
+      for (let i = 0; i < 70; i++) { // le paysage autour de l'arène (arbres et rochers, sapins, immeubles, roches noires… ou de l'eau)
+        if (autour === 'eau') break;
         const a = alea() * Math.PI * 2, r = demi + 4 + alea() * 18, x = Math.cos(a) * r, z = Math.sin(a) * r;
         if (Math.abs(x) < demi + 2 && Math.abs(z) < demi + 2) continue;
-        obstacle(F, alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] }, 100 + i);
+        const o = autour === 'sapins' ? { type: 'sapin', c: [x, z, 0.9 + alea() * 0.4] } : autour === 'immeubles' ? { type: 'immeuble', r: [x, z, 5 + alea() * 4, 5 + alea() * 4, 5 + alea() * 9], couleur: ['#3A3F5A', '#4A3A5A', '#2E4A5A'][i % 3] } : autour === 'roches' ? { type: 'roche', c: [x, z, 1 + alea() * 1.6] } : autour === 'murs' ? (i % 3 ? null : { type: 'immeuble', r: [x, z, 6, 6, 3 + alea() * 2], couleur: '#B8BEC6' }) : alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] };
+        if (o) obstacle(F, o, 100 + i);
       }
       const decor = new T.Mesh(F.geo(), matVC); decor.castShadow = true; decor.receiveShadow = true; scene.add(decor); enArene.push(decor);
-      // les touffes d'herbe et les petites fleurs (sans ombre portée)
-      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4);
-      for (let i = 0; i < 260; i++) {
+      // de l'eau tout autour (le Port, la Plage)
+      if (autour === 'eau') { const eau = new T.Mesh(new T.PlaneGeometry(A.taille + 120, A.taille + 120).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: '#3E8EBE' })); eau.position.y = -0.05; scene.add(eau); enArene.push(eau); sol.material.vertexColors = true; sol.scale.set((A.taille + 2) / (A.taille + 60), 1, (A.taille + 2) / (A.taille + 60)); }
+      // la lave (le Volcan), qui brille et ondule, et les enseignes néon : des matériaux qui luisent
+      if (A.laves) for (const [lx, lz, w, d] of A.laves) { const m = new T.Mesh(new T.BoxGeometry(w, 0.08, d), matLave); m.position.set(lx, 0.04, lz); scene.add(m); enArene.push(m); }
+      for (const o of A.obstacles) if (o.type === 'neon') { const [x, z] = o.c, m = new T.Mesh(new T.BoxGeometry(0.18, 0.9, 1.6), new T.MeshBasicMaterial({ color: o.couleur || '#FF3D9A' })); m.position.set(x, 3.2, z); scene.add(m); enArene.push(m); const l = new T.PointLight(o.couleur || '#FF3D9A', 8, 9, 1.5); l.position.set(x, 3, z); scene.add(l); enArene.push(l); }
+      // les touffes d'herbe et les petites fleurs (sans ombre portée), là où il y a de l'herbe
+      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4), herbeux = HERBE.has(A.id || jeu.arene);
+      for (let i = 0; i < (herbeux ? 260 : 0); i++) {
         const x = (alea() * 2 - 1) * (demi - 1), z = (alea() * 2 - 1) * (demi - 1); if (jeu.monde.bloque(x, z, 0.3)) continue;
         if (alea() < 0.82) { for (let k = 0; k < 3; k++) H.add(touffe, alea() < 0.5 ? '#6E9B3E' : '#7FAE48', mat(x + (k - 1) * 0.08, 0.14, z + (k % 2) * 0.07, 0, 1, 0.8 + alea() * 0.6, 1, (k - 1) * 0.3)); }
         else H.add(BOITE, ['#F2E36B', '#F29BB5', '#FFFFFF'][i % 3], mat(x, 0.08, z, alea(), 0.1, 0.06, 0.1));
@@ -819,6 +878,9 @@ const ZRENDU = (() => {
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
     let decal = 0, decalVoulu = 0;
+    const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
+    const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
+    const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
@@ -881,6 +943,7 @@ const ZRENDU = (() => {
       majChaines(jeu);
       if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
       majMeteo(jeu, idMoi, dt);
+      if (arene && arene.laves) { const tps = performance.now() / 1000; matLave.color.setRGB(1, 0.16 + Math.sin(tps * 3) * 0.05, 0.01); if (Math.random() < dt * 8) { const [lx, lz, w, d] = arene.laves[Math.floor(Math.random() * arene.laves.length)]; particule(lx + (Math.random() - 0.5) * w, 0.1, lz + (Math.random() - 0.5) * d, 0, 1.2 + Math.random(), 0, 0.7, 0.12, Math.random() < 0.5 ? '#FFB347' : '#FF5A1A', 0); } }
       majAlertes(dt);
       majFlaques(dt);
       majParticules(dt);

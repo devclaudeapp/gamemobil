@@ -137,7 +137,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .logo-1 { font-size: clamp(26px, 6vw, 40px); letter-spacing: .12em; }
 .logo-2 { font-size: clamp(44px, 11vw, 78px); color: var(--jaune) !important; letter-spacing: .02em; }
 .accroche { margin: 0; max-width: 520px; padding: 6px 14px; border-radius: 14px; background: rgba(255, 247, 236, .88); font-size: 15px; }
-.arenes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.arenes { display: flex; gap: 10px; overflow-x: auto; max-width: 100%; padding: 4px 4px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.arenes .arene { flex: 0 0 auto; scroll-snap-align: start; }
 .arene { width: 168px; min-height: 92px; padding: 10px 12px; border-radius: 18px; border: 3px solid var(--encre); background: var(--creme); text-align: left; box-shadow: 0 4px 0 rgba(31, 37, 51, .4); display: grid; gap: 2px; align-content: start; }
 .arene b { font: 700 18px/1.1 var(--titre); }
 .arene small { font-size: 12px; color: #5A5F6B; line-height: 1.25; }
@@ -1950,10 +1951,125 @@ const PRESEAU = (() => {
       ],
       sorties: [[-27, 0], [27, 0], [0, 27], [-14, 27], [14, 27], [-27, -24], [27, -24], [-27, 22], [27, 22]],
     },
+    // ─── les arènes suivantes (une vague à atteindre dans la précédente pour les ouvrir : DEBLOCAGE) ───
+    // laves : des rectangles [x, z, l, p] qui brûlent qui s'y tient (survivants et zombies) ; meteo : l'ambiance par défaut de l'arène
+    cimetiere: {
+      nom: 'Le Cimetière', desc: 'Des tombes basses (on tire par-dessus), une crypte et des grilles rouillées.', taille: 48,
+      sol: '#6E8A5A', sol2: '#647F52', bord: '#4A4A52', ciel: '#9A9AB8', brume: '#8E8EA8', meteo: 'crepuscule',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'crypte', r: [0, -13, 8, 5, 3.6] },
+        ...[-12, -8, -4, 4, 8, 12].flatMap((x) => [{ type: 'tombe', r: [x, -3, 1.1, 0.5, 0.8] }, { type: 'tombe', r: [x + 1, 9, 1.1, 0.5, 0.8] }]),
+        { type: 'grille', r: [-17, 0, 0.3, 16, 1.6] }, { type: 'grille', r: [17, 0, 0.3, 16, 1.6] },
+        { type: 'cypres', c: [-10, -14, 0.8] }, { type: 'cypres', c: [10, -14, 0.8] }, { type: 'cypres', c: [-19, 18, 0.8] }, { type: 'cypres', c: [19, 18, 0.8] },
+        { type: 'rocher', c: [6, 15, 1.1] }, { type: 'puits', c: [-6, 15, 1.0] },
+      ],
+      sorties: [[0, -23], [-23, 0], [23, 0], [0, 23], [-21, -21], [21, 21], [21, -21], [-21, 21]],
+    },
+    port: {
+      nom: 'Le Port', desc: 'Un labyrinthe de conteneurs sur les quais. On s’y perd, eux aussi.', taille: 52,
+      sol: '#9AA0A8', sol2: '#8E949C', bord: '#3E6E9E', ciel: '#BFD8EE', brume: '#B8CCDD',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'conteneur', r: [-12, -8, 6, 2.4, 2.6], couleur: '#C0392B' }, { type: 'conteneur', r: [-12, -5.4, 6, 2.4, 2.6], couleur: '#2E86C1' },
+        { type: 'conteneur', r: [12, -8, 6, 2.4, 2.6], couleur: '#27AE60' }, { type: 'conteneur', r: [6, 9, 2.4, 6, 2.6], couleur: '#E67E22' },
+        { type: 'conteneur', r: [-6, 10, 2.4, 6, 2.6], couleur: '#8E44AD' }, { type: 'conteneur', r: [-19, 8, 6, 2.4, 2.6], couleur: '#F1C40F' },
+        { type: 'conteneur', r: [19, 4, 2.4, 6, 2.6], couleur: '#16A085' }, { type: 'conteneur', r: [0, -16, 6, 2.4, 2.6], couleur: '#D35400' },
+        { type: 'grue', r: [17, -17, 3, 3, 6] },
+        { type: 'bitte', c: [-6, -14, 0.4] }, { type: 'bitte', c: [6, -14, 0.4] }, { type: 'bitte', c: [-21, -18, 0.4] },
+        { type: 'caisses', r: [5, -2, 3, 3, 0.9] }, { type: 'caisses', r: [-15, 17, 3, 3, 0.9] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [-22, -24], [22, -24]],
+    },
+    place: {
+      nom: 'La Place du village', desc: 'La fontaine, le kiosque à musique et les terrasses du café.', taille: 46,
+      sol: '#C8B89A', sol2: '#BCAC8E', bord: '#8A7A64', ciel: '#CFE4F2', brume: '#D6DDE2',
+      depart: [0, 6],
+      obstacles: [
+        { type: 'fontaine', c: [0, -2, 2.2] }, { type: 'kiosque', c: [-12, -11, 2.4] },
+        { type: 'banc', r: [6, -2, 0.6, 2.2, 0.6] }, { type: 'banc', r: [-6, -2, 0.6, 2.2, 0.6] },
+        { type: 'terrasse', r: [12, 10, 3, 3, 0.9] }, { type: 'terrasse', r: [-12, 11, 3, 3, 0.9] }, { type: 'terrasse', r: [13, -11, 3, 3, 0.9] },
+        { type: 'arbre', c: [-18, 0, 1.0] }, { type: 'arbre', c: [18, 0, 1.0] }, { type: 'arbre', c: [0, 18, 1.0] }, { type: 'arbre', c: [0, -18, 1.0] },
+        { type: 'lampadaire', c: [7, 7, 0.35] }, { type: 'lampadaire', c: [-7, 7, 0.35] },
+      ],
+      sorties: [[0, -22], [-22, 0], [22, 0], [-10, 22], [10, 22], [-20, -20], [20, 20], [20, -20], [-20, 20]],
+    },
+    plage: {
+      nom: 'La Plage', desc: 'Du sable, des parasols, un bateau échoué. La marée monte… de zombies.', taille: 54,
+      sol: '#E8D49A', sol2: '#DFC98C', bord: '#4AA3C8', ciel: '#BFE6F5', brume: '#CFEAF2',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'bateau', r: [-12, -10, 3.2, 9, 2.4] }, { type: 'cabane', r: [14, -12, 4, 3, 2.6] }, { type: 'cabane', r: [18, 12, 3, 4, 2.6] },
+        ...[[-6, 6], [6, 8], [-15, 12], [10, -2], [-2, -12]].map(([x, z]) => ({ type: 'parasol', c: [x, z, 0.5] })),
+        { type: 'rocher', c: [-22, 4, 1.6] }, { type: 'rocher', c: [-20, 8, 1.1] }, { type: 'rocher', c: [22, -2, 1.3] },
+        { type: 'caisses', r: [3, 16, 3, 3, 0.9] },
+      ],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [0, -26]],
+    },
+    chantier: {
+      nom: 'Le Chantier', desc: 'Parpaings, bétonnière et échafaudages : des recoins partout.', taille: 50,
+      sol: '#B59C7A', sol2: '#A8906E', bord: '#E8A33A', ciel: '#D8DFE6', brume: '#D2CFC8',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'echafaudage', r: [0, -14, 14, 2.4, 4.5] }, { type: 'betonniere', c: [9, 4, 1.3] },
+        { type: 'parpaings', r: [-9, -4, 3, 2, 1.2] }, { type: 'parpaings', r: [-14, 8, 2, 3, 1.2] }, { type: 'parpaings', r: [12, 12, 3, 2, 1.2] }, { type: 'parpaings', r: [5, -6, 2, 2, 1.2] },
+        { type: 'muret', r: [-19, -6, 1.2, 12, 1.4] }, { type: 'muret', r: [19, 2, 1.2, 12, 1.4] },
+        { type: 'benne', r: [-6, 15, 3.2, 1.8, 1.6] }, { type: 'conteneur', r: [16, -6, 2.4, 6, 2.6], couleur: '#E8A33A' },
+      ],
+      sorties: [[-23.5, -12], [23.5, -12], [-23.5, 14], [23.5, 14], [0, 23.5], [-14, 23.5], [14, 23.5], [-22, -23], [22, -23]],
+    },
+    supermarche: {
+      nom: 'Le Supermarché', desc: 'Les rayons font des couloirs : gare aux allées sans issue.', taille: 48,
+      sol: '#D8DCE0', sol2: '#CDD2D7', bord: '#7A828C', ciel: '#E8ECEF', brume: '#D9DEE3',
+      depart: [0, 14],
+      obstacles: [
+        ...[-15, -9, -3, 3, 9, 15].map((x, i) => ({ type: 'rayon', r: [x, -3, 1.6, 16, 2.2], couleur: ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E67E22'][i] })),
+        { type: 'comptoir', r: [-10, 15, 4, 1.4, 1.1] }, { type: 'comptoir', r: [10, 15, 4, 1.4, 1.1] },
+        { type: 'caddie', c: [-5, 10, 0.6] }, { type: 'caddie', c: [6, 9, 0.6] }, { type: 'caddie', c: [-18, 13, 0.6] },
+        { type: 'caisses', r: [18, -18, 3, 3, 0.9] },
+      ],
+      sorties: [[-23, -12], [23, -12], [-23, 0], [23, 0], [0, -23], [-12, -23], [12, -23], [-20, 22], [20, 22]],
+    },
+    foret: {
+      nom: 'La Forêt', desc: 'Des sapins serrés et une cabane de bûcheron. On voit mal venir.', taille: 52,
+      sol: '#5E8A44', sol2: '#557E3D', bord: '#4A3A28', ciel: '#A8C8B0', brume: '#9CB8A4', meteo: 'brouillard',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'cabane', r: [-10, -10, 5, 4, 3] },
+        ...[[-16, 4], [-6, 10], [6, 12], [14, 4], [18, -8], [8, -14], [-2, -18], [-18, 16], [16, 18], [-20, -18], [3, -6], [-12, 18], [20, 14]].map(([x, z], i) => ({ type: 'sapin', c: [x, z, 0.8 + (i % 3) * 0.15] })),
+        { type: 'rondins', r: [6, 2, 3, 1.2, 0.9] }, { type: 'rondins', r: [-4, 16, 1.2, 3, 0.9] },
+        { type: 'rocher', c: [12, -3, 1.3] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [0, -25], [-22, -24], [22, -24]],
+    },
+    neon: {
+      nom: 'Le Carrefour néon', desc: 'Un carrefour de nuit, entre les immeubles et leurs enseignes.', taille: 52,
+      sol: '#3A3F4A', sol2: '#343843', bord: '#2A2E36', ciel: '#1C2433', brume: '#1C2433', meteo: 'nuit',
+      depart: [0, 0],
+      obstacles: [
+        { type: 'immeuble', r: [-16, -16, 12, 12, 7], couleur: '#5A4A7A' }, { type: 'immeuble', r: [16, -16, 12, 12, 9], couleur: '#3A5A7A' },
+        { type: 'immeuble', r: [-16, 16, 12, 12, 8], couleur: '#7A4A5A' }, { type: 'immeuble', r: [16, 16, 12, 12, 6], couleur: '#4A6A5A' },
+        { type: 'voiture', r: [-4, -6, 2.0, 4.0, 1.4], couleur: '#FF3D9A' }, { type: 'voiture', r: [6, 5, 4.0, 2.0, 1.4], couleur: '#3DE0FF' },
+        { type: 'neon', c: [-6, 6, 0.4], couleur: '#FF3D9A' }, { type: 'neon', c: [6, -6, 0.4], couleur: '#3DE0FF' }, { type: 'neon', c: [8, 9, 0.4], couleur: '#B8FF3D' },
+        { type: 'benne', r: [-8, 2, 1.8, 3.2, 1.6] },
+      ],
+      sorties: [[0, -25], [0, 25], [-25, 0], [25, 0], [-4, -25], [4, 25], [-25, 4], [25, -4]],
+    },
+    volcan: {
+      nom: 'Le Volcan', desc: 'Des rivières de lave entre les roches noires. Ne t’y arrête pas.', taille: 54,
+      sol: '#5A4A44', sol2: '#4F403B', bord: '#2A2220', ciel: '#C87A5A', brume: '#A8705A', meteo: 'meteores',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'roche', c: [-10, -8, 1.8] }, { type: 'roche', c: [11, -10, 2.0] }, { type: 'roche', c: [-14, 12, 1.6] }, { type: 'roche', c: [14, 13, 1.7] },
+        { type: 'roche', c: [0, -18, 2.4] }, { type: 'roche', c: [-20, -2, 1.5] }, { type: 'roche', c: [21, 2, 1.4] }, { type: 'roche', c: [4, 15, 1.2] },
+      ],
+      laves: [[-6, -4, 3, 12], [9, 10, 14, 2.6], [-15, 18, 10, 2.4], [16, -18, 2.4, 10]],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [-22, -24], [22, -24]],
+    },
   };
-  const ORDRE_ARENES = ['jardin', 'parking', 'ferme'];
+  const ORDRE_ARENES = ['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan'];
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
-  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
+  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8, cimetiere: 8, port: 9, place: 9, plage: 10, chantier: 10, supermarche: 11, foret: 11, neon: 12, volcan: 13 };
 
   // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
   // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)
@@ -2213,7 +2329,7 @@ const PRESEAU = (() => {
       // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
       mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
       // l'Ascension : l'objectif de l'échelon, sa météo (les chutes : foudre, météores), ses vedettes ; gagne : true / false à la fin
-      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
+      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || A.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
@@ -2527,6 +2643,14 @@ const PRESEAU = (() => {
     explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
   }
   // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
+  // les rivières de lave (le Volcan) : elles brûlent qui s'y tient
+  const dansLave = (A, x, z, r) => !!A.laves && A.laves.some(([lx, lz, w, d]) => Math.abs(x - lx) < w / 2 + r * 0.3 && Math.abs(z - lz) < d / 2 + r * 0.3);
+  function majLave(jeu, dt) {
+    const A = jeu.A; if (!A.laves) return;
+    jeu.laveT = (jeu.laveT || 0) - dt; if (jeu.laveT > 0) return; jeu.laveT = 0.25;
+    for (const j of jeu.joueurs) if (j.vivant && dansLave(A, j.x, j.z, j.rayon)) { blesserJoueur(jeu, j, 6, true); ev(jeu, { t: 'brule', id: j.id, x: j.x, z: j.z }); }
+    for (const zb of jeu.zombies) if (zb.vie > 0 && dansLave(A, zb.x, zb.z, zb.rayon) && jeu.t - zb.naissance > SORTIE) { zb.feu = Math.max(zb.feu || 0, 1); zb.feuDps = Math.max(zb.feuDps || 0, 22); zb.feuDe = 'lave'; }
+  }
   function majChutes(jeu, dt) {
     const M = D.ASCENSION.meteos[jeu.meteo], C = M && M.chute;
     if (C && jeu.phase === 'vague') {
@@ -2628,6 +2752,7 @@ const PRESEAU = (() => {
     majProjectiles(jeu, dt);
     majObjets(jeu, dt);
     majChutes(jeu, dt);
+    majLave(jeu, dt);
     majObjectif(jeu, dt);
     if (jeu.fini) return jeu.evs;
     // fin : plus aucun survivant debout
@@ -3059,7 +3184,8 @@ const PRESEAU = (() => {
     let h = 0x811c9dc5; const t = 'rempart:' + jour;
     for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
     const L = D.DEFI.mutateurs, r = mulberry32(h);
-    const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
+    const AR = jour <= '2026-11-03' ? D.ORDRE_ARENES.slice(0, 3) : D.ORDRE_ARENES; // (les arènes arrivées le 4 novembre ne changent pas les défis d'avant)
+    const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
   return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
@@ -3318,7 +3444,48 @@ const ZRENDU = (() => {
           }
           break;
         }
-        default: F.add(BOITE, '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
+        case 'crypte': // le mausolée : pierre grise, toit en pointe, porte sombre
+          F.add(BOITE, '#8A8A92', mat(x, h / 2, z, 0, w, h, d), 0.05, g); F.add(BOITE, '#2A2A30', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.6, 0.06));
+          F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#6A6A74', mat(x, h + d * 0.18, z, 0, d * 0.55, w * 1.04, d * 0.32, 0, Math.PI / 2), 0.04, g + 1);
+          F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.5, z, 0, 0.12, 0.8, 0.12)); F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.6, z, 0, 0.5, 0.12, 0.12));
+          break;
+        case 'tombe': F.add(BOITE, '#A8A8B0', mat(x, h / 2, z, 0, w, h, d), 0.08, g); F.add(BOITE, '#7E8A6A', mat(x, 0.05, z + (d > w ? 0 : 0.9), 0, w * 0.9, 0.1, 1.4)); break;
+        case 'grille': {
+          const lx = w >= d, long = lx ? w : d, n = Math.max(4, Math.round(long / 0.45));
+          for (let i = 0; i <= n; i++) { const t = -long / 2 + long * i / n; F.add(BOITE, '#3A3438', mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, 0.06, h, 0.06)); }
+          for (const y of [0.2, h * 0.92]) F.add(BOITE, '#4A4448', mat(x, y, z, 0, lx ? long : 0.08, 0.08, lx ? 0.08 : long));
+          break;
+        }
+        case 'conteneur': case 'rayon': case 'immeuble': { // une grande boîte colorée, avec ses nervures (conteneur), ses étagères (rayon), ses fenêtres (immeuble)
+          const col = o.couleur || '#C0392B'; F.add(BOITE, col, mat(x, h / 2, z, 0, w, h, d), 0.04, g);
+          const lx = w >= d, long = lx ? w : d;
+          if (o.type === 'conteneur') for (let i = 0; i <= Math.round(long / 0.6); i++) { const t = -long / 2 + i * 0.6; F.add(BOITE, col, mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, lx ? 0.08 : w * 1.04, h * 0.96, lx ? d * 1.04 : 0.08), 0.12, g + i); }
+          else if (o.type === 'rayon') for (const y of [0.5, 1.1, 1.7]) F.add(BOITE, '#E8E8E8', mat(x, y, z, 0, w * 1.06, 0.06, d * 1.01));
+          else for (let fy = 1.5; fy < h - 0.5; fy += 1.6) for (let i = 0; i < Math.floor(long / 2); i++) { const t = -long / 2 + 1 + i * 2; for (const sgn of [-1, 1]) F.add(BOITE, (i + Math.round(fy)) % 3 ? '#FFE9A0' : '#2A3040', mat(x + (lx ? t : sgn * (w / 2 + 0.02)), fy, z + (lx ? sgn * (d / 2 + 0.02) : t), 0, lx ? 0.8 : 0.04, 0.9, lx ? 0.04 : 0.8)); }
+          break;
+        }
+        case 'grue':
+          F.add(BOITE, '#E8A33A', mat(x, 0.4, z, 0, w, 0.8, d)); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) F.add(BOITE, '#E8A33A', mat(x + a * w * 0.35, h / 2, z + b * d * 0.35, 0, 0.18, h, 0.18));
+          F.add(BOITE, '#E8A33A', mat(x - 4, h, z, 0, 12, 0.3, 0.3)); F.add(BOITE, '#4A4F57', mat(x - 9, h - 1.5, z, 0, 0.05, 3, 0.05)); break;
+        case 'banc': F.add(BOITE, '#8C6A44', mat(x, 0.45, z, 0, w, 0.1, d), 0.05, g); F.add(BOITE, '#8C6A44', mat(x + (w < d ? w * 0.4 : 0), 0.75, z + (w < d ? 0 : d * 0.4), 0, w < d ? 0.08 : w, 0.5, w < d ? d : 0.08)); for (const sgn of [-1, 1]) F.add(BOITE, '#4A4448', mat(x + (w >= d ? sgn * w * 0.4 : 0), 0.22, z + (w < d ? sgn * d * 0.4 : 0), 0, 0.08, 0.44, 0.08)); break;
+        case 'terrasse': // une table et ses chaises, un parasol
+          F.add(cyl(0.6, 0.6, 0.06, 10), '#F2EDE4', mat(x, 0.78, z)); F.add(cyl(0.05, 0.05, 0.78, 6), '#4A4448', mat(x, 0.39, z));
+          for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; F.add(BOITE, '#C94F3D', mat(x + Math.cos(a) * 1.0, 0.45, z + Math.sin(a) * 1.0, -a, 0.45, 0.06, 0.45)); }
+          F.add(cyl(0.04, 0.04, 2.2, 6), '#4A4448', mat(x, 1.1, z)); F.add(cyl(0.05, 1.5, 0.45, 8), '#F2C230', mat(x, 2.3, z), 0.05, g); break;
+        case 'bateau': {
+          const lx = w > d, ry = lx ? Math.PI / 2 : 0, L = lx ? w : d, l = lx ? d : w;
+          F.add(BOITE, '#8A5A3A', mat(x, 0.6, z, ry, l, 1.2, L * 0.82), 0.05, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x + (lx ? L * 0.45 : 0), 0.6, z + (lx ? 0 : L * 0.45), ry, l * 0.58, 1.2, 1.4, 0, 0), 0.05, g + 1);
+          F.add(BOITE, '#E8E2D4', mat(x, 1.3, z, ry, l * 0.92, 0.18, L * 0.8)); F.add(cyl(0.08, 0.1, 4, 6), '#6A4A2A', mat(x, 3, z)); F.add(BOITE, '#F2EDE4', mat(x, 3.2, z + 0.6, ry + 0.3, 0.05, 2, 1.4)); break;
+        }
+        case 'cabane': F.add(BOITE, '#C9A26A', mat(x, h / 2, z, 0, w, h, d), 0.06, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x, h + d * 0.2, z, 0, d * 0.6, w * 1.08, d * 0.34, 0, Math.PI / 2), 0.04, g + 1); F.add(BOITE, '#5A3A22', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.65, 0.06)); break;
+        case 'echafaudage': {
+          for (let i = 0; i <= Math.round(w / 2); i++) for (const sz of [-d / 2, d / 2]) F.add(BOITE, '#8A8F98', mat(x - w / 2 + i * 2, h / 2, z + sz, 0, 0.1, h, 0.1));
+          for (const y of [h * 0.33, h * 0.66, h]) F.add(BOITE, '#B98B55', mat(x, y, z, 0, w, 0.08, d), 0.06, g + Math.round(y)); break;
+        }
+        case 'parpaings': for (let i = 0; i < 3; i++) F.add(BOITE, i % 2 ? '#A8A8A0' : '#B8B8B0', mat(x, h * (i + 0.5) / 3, z, i * 0.08, w * 0.95, h / 3 * 0.92, d * 0.95), 0.06, g + i); break;
+        case 'comptoir': F.add(BOITE, '#E8E8E8', mat(x, h / 2, z, 0, w, h, d), 0.04, g); F.add(BOITE, '#3A3F4A', mat(x, h + 0.03, z, 0, w * 1.02, 0.06, d * 1.02)); F.add(BOITE, '#2ECC71', mat(x + w * 0.3, h + 0.3, z, 0, 0.3, 0.5, 0.2)); break;
+        case 'rondins': for (let i = 0; i < 3; i++) { const lx = w >= d; F.add(cyl(0.3, 0.3, (lx ? w : d) * 0.95, 8), '#8A6040', mat(x + (lx ? 0 : (i - 1) * 0.36), 0.3 + (i === 1 ? 0.45 : 0), z + (lx ? (i - 1) * 0.36 : 0), 0, 1, 1, 1, lx ? 0 : Math.PI / 2, lx ? Math.PI / 2 : 0), 0.06, g + i); } break;
+        default: F.add(BOITE, o.couleur || '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
       }
     } else if (o.c) {
       const [x, z, r] = o.c;
@@ -3347,6 +3514,16 @@ const ZRENDU = (() => {
           F.add(BOITE, '#4A4F57', mat(x + 0.5, 4.2, z, 0, 1.1, 0.12, 0.2));
           F.add(BOITE, '#FFF2B8', mat(x + 0.95, 4.1, z, 0, 0.4, 0.1, 0.3));
           break;
+        case 'cypres': F.add(cyl(r * 0.2, r * 0.25, 1.0, 6), '#5A4030', mat(x, 0.5, z)); F.add(cyl(0.05, r * 0.95, 4.2, 7), '#2F5A3A', mat(x, 3.0, z, k), 0.1, g); break;
+        case 'sapin': F.add(cyl(r * 0.22, r * 0.3, 1.2, 6), '#5A4030', mat(x, 0.6, z)); for (let i = 0; i < 3; i++) F.add(cyl(0.05, r * (1.5 - i * 0.35), 1.5, 7), i % 2 ? '#3E7A3A' : '#356E34', mat(x, 1.6 + i * 1.0, z, k + i), 0.08, g + i); break;
+        case 'bitte': F.add(cyl(r * 0.8, r, 0.8, 8), '#3A3F4A', mat(x, 0.4, z)); F.add(cyl(r * 1.1, r * 1.1, 0.12, 8), '#3A3F4A', mat(x, 0.84, z)); break;
+        case 'fontaine': F.add(cyl(r, r * 1.05, 0.7, 14), '#C8C0B0', mat(x, 0.35, z), 0.05, g); F.add(cyl(r * 0.88, r * 0.88, 0.72, 14), '#5AA8D8', mat(x, 0.37, z)); F.add(cyl(0.25, 0.35, 1.6, 8), '#C8C0B0', mat(x, 1.1, z)); F.add(cyl(0.8, 0.4, 0.3, 10), '#C8C0B0', mat(x, 1.9, z)); F.add(cyl(0.6, 0.6, 0.06, 10), '#7AC8F0', mat(x, 2.02, z)); break;
+        case 'kiosque': F.add(cyl(r, r, 0.5, 8), '#E8E2D4', mat(x, 0.25, z), 0.04, g); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; F.add(cyl(0.08, 0.08, 2.6, 6), '#4A6A5A', mat(x + Math.cos(a) * r * 0.9, 1.8, z + Math.sin(a) * r * 0.9)); } F.add(cyl(0.1, r * 1.2, 1.2, 8), '#4A6A5A', mat(x, 3.6, z), 0.04, g + 1); break;
+        case 'parasol': F.add(cyl(0.05, 0.05, 2.3, 6), '#E8E2D4', mat(x, 1.15, z)); F.add(cyl(0.05, 1.5, 0.5, 8), ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71'][g % 4], mat(x, 2.35, z), 0.04, g); F.add(BOITE, '#F2EDE4', mat(x + 1, 0.12, z + 0.4, 0.4, 0.7, 0.08, 1.6)); break;
+        case 'betonniere': F.add(cyl(r * 0.8, r * 0.5, r * 1.6, 9), '#E8A33A', mat(x, r * 1.2, z, 0, 1, 1, 1, 0.6), 0.05, g); F.add(BOITE, '#5A5F68', mat(x, 0.35, z, 0, r * 1.6, 0.4, r)); F.add(cyl(0.3, 0.3, 0.15, 8), '#2A2A2A', mat(x - r * 0.7, 0.3, z, 0, 1, 1, 1, Math.PI / 2)); break;
+        case 'neon': // un poteau et son enseigne qui brille (couleur de l'obstacle ; matériau à part, plus bas)
+          F.add(cyl(0.08, 0.1, 3.4, 6), '#2A2E36', mat(x, 1.7, z)); break;
+        case 'roche': F.add(rocheGeo(r * 1.2, g), '#2E2826', mat(x, r * 0.6, z, k), 0.1, g); F.add(rocheGeo(r * 0.6, g + 3), '#3A3230', mat(x + r * 0.6, r * 0.3, z - r * 0.4, k), 0.1, g + 3); break;
         default: F.add(cyl(r, r, 1.2, 8), '#9C8E7A', mat(x, 0.6, z), 0.06, g);
       }
     }
@@ -3983,15 +4160,23 @@ const ZRENDU = (() => {
       const avecVoitures = !!(MOD && MOD.pret), voitures = [];
       A.obstacles.forEach((o, k) => { if (avecVoitures && o.type === 'voiture') voitures.push(o); else obstacle(F, o, k); });
       let g2 = 4242; const alea = () => { g2 = (g2 * 16807) % 2147483647; return g2 / 2147483647; };
-      for (let i = 0; i < 70; i++) { // le paysage : une couronne d'arbres et de rochers autour de l'arène
+      const autour = AUTOUR[A.id || jeu.arene] || 'arbres';
+      for (let i = 0; i < 70; i++) { // le paysage autour de l'arène (arbres et rochers, sapins, immeubles, roches noires… ou de l'eau)
+        if (autour === 'eau') break;
         const a = alea() * Math.PI * 2, r = demi + 4 + alea() * 18, x = Math.cos(a) * r, z = Math.sin(a) * r;
         if (Math.abs(x) < demi + 2 && Math.abs(z) < demi + 2) continue;
-        obstacle(F, alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] }, 100 + i);
+        const o = autour === 'sapins' ? { type: 'sapin', c: [x, z, 0.9 + alea() * 0.4] } : autour === 'immeubles' ? { type: 'immeuble', r: [x, z, 5 + alea() * 4, 5 + alea() * 4, 5 + alea() * 9], couleur: ['#3A3F5A', '#4A3A5A', '#2E4A5A'][i % 3] } : autour === 'roches' ? { type: 'roche', c: [x, z, 1 + alea() * 1.6] } : autour === 'murs' ? (i % 3 ? null : { type: 'immeuble', r: [x, z, 6, 6, 3 + alea() * 2], couleur: '#B8BEC6' }) : alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] };
+        if (o) obstacle(F, o, 100 + i);
       }
       const decor = new T.Mesh(F.geo(), matVC); decor.castShadow = true; decor.receiveShadow = true; scene.add(decor); enArene.push(decor);
-      // les touffes d'herbe et les petites fleurs (sans ombre portée)
-      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4);
-      for (let i = 0; i < 260; i++) {
+      // de l'eau tout autour (le Port, la Plage)
+      if (autour === 'eau') { const eau = new T.Mesh(new T.PlaneGeometry(A.taille + 120, A.taille + 120).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: '#3E8EBE' })); eau.position.y = -0.05; scene.add(eau); enArene.push(eau); sol.material.vertexColors = true; sol.scale.set((A.taille + 2) / (A.taille + 60), 1, (A.taille + 2) / (A.taille + 60)); }
+      // la lave (le Volcan), qui brille et ondule, et les enseignes néon : des matériaux qui luisent
+      if (A.laves) for (const [lx, lz, w, d] of A.laves) { const m = new T.Mesh(new T.BoxGeometry(w, 0.08, d), matLave); m.position.set(lx, 0.04, lz); scene.add(m); enArene.push(m); }
+      for (const o of A.obstacles) if (o.type === 'neon') { const [x, z] = o.c, m = new T.Mesh(new T.BoxGeometry(0.18, 0.9, 1.6), new T.MeshBasicMaterial({ color: o.couleur || '#FF3D9A' })); m.position.set(x, 3.2, z); scene.add(m); enArene.push(m); const l = new T.PointLight(o.couleur || '#FF3D9A', 8, 9, 1.5); l.position.set(x, 3, z); scene.add(l); enArene.push(l); }
+      // les touffes d'herbe et les petites fleurs (sans ombre portée), là où il y a de l'herbe
+      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4), herbeux = HERBE.has(A.id || jeu.arene);
+      for (let i = 0; i < (herbeux ? 260 : 0); i++) {
         const x = (alea() * 2 - 1) * (demi - 1), z = (alea() * 2 - 1) * (demi - 1); if (jeu.monde.bloque(x, z, 0.3)) continue;
         if (alea() < 0.82) { for (let k = 0; k < 3; k++) H.add(touffe, alea() < 0.5 ? '#6E9B3E' : '#7FAE48', mat(x + (k - 1) * 0.08, 0.14, z + (k % 2) * 0.07, 0, 1, 0.8 + alea() * 0.6, 1, (k - 1) * 0.3)); }
         else H.add(BOITE, ['#F2E36B', '#F29BB5', '#FFFFFF'][i % 3], mat(x, 0.08, z, alea(), 0.1, 0.06, 0.1));
@@ -4018,6 +4203,9 @@ const ZRENDU = (() => {
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
     let decal = 0, decalVoulu = 0;
+    const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
+    const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
+    const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
@@ -4080,6 +4268,7 @@ const ZRENDU = (() => {
       majChaines(jeu);
       if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
       majMeteo(jeu, idMoi, dt);
+      if (arene && arene.laves) { const tps = performance.now() / 1000; matLave.color.setRGB(1, 0.16 + Math.sin(tps * 3) * 0.05, 0.01); if (Math.random() < dt * 8) { const [lx, lz, w, d] = arene.laves[Math.floor(Math.random() * arene.laves.length)]; particule(lx + (Math.random() - 0.5) * w, 0.1, lz + (Math.random() - 0.5) * d, 0, 1.2 + Math.random(), 0, 0.7, 0.12, Math.random() < 0.5 ? '#FFB347' : '#FF5A1A', 0); } }
       majAlertes(dt);
       majFlaques(dt);
       majParticules(dt);
@@ -5169,6 +5358,7 @@ const ZENLIGNE = (() => {
         <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
+    const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));

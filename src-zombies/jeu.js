@@ -50,7 +50,7 @@
       // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
       mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
       // l'Ascension : l'objectif de l'échelon, sa météo (les chutes : foudre, météores), ses vedettes ; gagne : true / false à la fin
-      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
+      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || A.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
@@ -364,6 +364,14 @@
     explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
   }
   // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
+  // les rivières de lave (le Volcan) : elles brûlent qui s'y tient
+  const dansLave = (A, x, z, r) => !!A.laves && A.laves.some(([lx, lz, w, d]) => Math.abs(x - lx) < w / 2 + r * 0.3 && Math.abs(z - lz) < d / 2 + r * 0.3);
+  function majLave(jeu, dt) {
+    const A = jeu.A; if (!A.laves) return;
+    jeu.laveT = (jeu.laveT || 0) - dt; if (jeu.laveT > 0) return; jeu.laveT = 0.25;
+    for (const j of jeu.joueurs) if (j.vivant && dansLave(A, j.x, j.z, j.rayon)) { blesserJoueur(jeu, j, 6, true); ev(jeu, { t: 'brule', id: j.id, x: j.x, z: j.z }); }
+    for (const zb of jeu.zombies) if (zb.vie > 0 && dansLave(A, zb.x, zb.z, zb.rayon) && jeu.t - zb.naissance > SORTIE) { zb.feu = Math.max(zb.feu || 0, 1); zb.feuDps = Math.max(zb.feuDps || 0, 22); zb.feuDe = 'lave'; }
+  }
   function majChutes(jeu, dt) {
     const M = D.ASCENSION.meteos[jeu.meteo], C = M && M.chute;
     if (C && jeu.phase === 'vague') {
@@ -465,6 +473,7 @@
     majProjectiles(jeu, dt);
     majObjets(jeu, dt);
     majChutes(jeu, dt);
+    majLave(jeu, dt);
     majObjectif(jeu, dt);
     if (jeu.fini) return jeu.evs;
     // fin : plus aucun survivant debout
@@ -896,7 +905,8 @@
     let h = 0x811c9dc5; const t = 'rempart:' + jour;
     for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
     const L = D.DEFI.mutateurs, r = mulberry32(h);
-    const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
+    const AR = jour <= '2026-11-03' ? D.ORDRE_ARENES.slice(0, 3) : D.ORDRE_ARENES; // (les arènes arrivées le 4 novembre ne changent pas les défis d'avant)
+    const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
   return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
