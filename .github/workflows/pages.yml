@@ -320,8 +320,32 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_EQUIPE3D: '8892'
+  # Le lot « progression » (src/ui.js) : les paliers après la n°30 (le rattrapage d'une sauvegarde n°47, le défi de palier et sa soupape,
+  # l'annonce), le second (sa feuille, ses achats pendant le jeu), les trophées dorés et secrets, le concours des boulangeries rivales (et
+  # la visite d'une rivale), le chantier du quartier avec et sans le SQL v6.8, 390 × 844 et 360 × 640 : quelques minutes.
+  fournil11:
+    name: Le Fournil, paliers, second, trophées, concours et chantiers (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les paliers, le second, les trophées, le concours et les chantiers
+        run: |
+          node build.js
+          node test/fournil-progression.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_PROGRESSION: '8894'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

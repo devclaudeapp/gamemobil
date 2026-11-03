@@ -2152,13 +2152,13 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 .et-but .chev svg { width: 20px; height: 20px; }
 /* la feuille du parcours : les trente boutiques */
 .pc-liste { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 6px; }
-.pc-ligne { display: grid; grid-template-columns: 28px 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 14px; background: var(--carte); box-shadow: var(--ombre-carte); }
-.pc-ligne.passee { opacity: .7; }
-.pc-ligne.actuelle { outline: 3px solid var(--lavande); background: var(--lavande-clair); }
+.pc-ligne, .pa-ligne { display: grid; grid-template-columns: 28px 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 14px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.pc-ligne.passee, .pa-ligne.passee { opacity: .7; }
+.pc-ligne.actuelle, .pa-ligne.actuelle { outline: 3px solid var(--lavande); background: var(--lavande-clair); }
 .pc-n { font: 700 16px/1 var(--titre); color: var(--texte-2); text-align: center; }
 .pc-ico, .pc-recap .pc-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--creme); display: grid; place-items: center; flex: 0 0 auto; }
 .pc-ico svg { width: 30px; height: 30px; }
-.pc-ligne.avenir .pc-ico svg { filter: grayscale(.5); opacity: .8; }
+.pc-ligne.avenir .pc-ico svg, .pa-ligne.avenir .pc-ico svg { filter: grayscale(.5); opacity: .8; }
 .pc-txt { display: grid; gap: 1px; min-width: 0; }
 .pc-txt b { font: 700 14px/1.2 var(--titre); }
 .pc-txt small { font: 700 12px/1.25 var(--texte-font); color: var(--texte-2); }
@@ -2392,3 +2392,136 @@ img.vig.gris { filter: grayscale(.85) brightness(.95); opacity: .55; } /* (comme
 .essai-quoi { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.4; }
 .essai-quoi li + li { margin-top: 6px; }
 a.essai-lien { margin-top: 8px; text-decoration: none; }
+
+/* ═══ le lot « progression » (src/ui.js) : le second, les paliers après la n°30, les trophées dorés et secrets, le concours des
+       boulangeries rivales, le chantier du quartier. Tenu à 390 × 844 et à 360 × 640. ═══ */
+/* le second : son bouton à côté de « Bonus » (dès la boutique n°5), un point vert quand il travaille ; la pastille « 2nd » sur les cartes */
+.btn-am.second { flex: 0 0 auto; margin-left: 0; padding: 0 12px 0 9px; background: var(--menthe); box-shadow: 0 3px 0 var(--menthe-sombre); }
+.btn-am.second .sd-point { display: none; position: absolute; top: -3px; right: -2px; width: 12px; height: 12px; border-radius: 50%; background: #2FCB7E; box-shadow: 0 0 0 3px var(--creme); }
+.btn-am.second.actif .sd-point { display: block; }
+.btn-am.second.neuf .sd-point { display: block; background: var(--fraise); }
+/* sur un téléphone, le bouton du second n'a que sa toque (son nom est dans aria-label) ; la barre se resserre seulement quand il est là :
+   ×1 ×10 ×100 Max, « Bonus » et la toque tiennent à 390, 360 et 320 px */
+@media (max-width: 479px) { .btn-am.second { padding: 0; width: 44px; justify-content: center; } .btn-am.second .sd-mot { display: none; } }
+@media (max-width: 409px) { .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 36px; padding: 0 6px; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 12px 0 10px; } }
+@media (max-width: 379px) { .barre-achat:has(#b-second:not([hidden])) { gap: 6px; } .barre-achat:has(#b-second:not([hidden])) .modes { gap: 2px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 32px; padding: 0 3px; font-size: 13px; } }
+@media (max-width: 339px) { .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) .ico { display: none; } .barre-achat:has(#b-second:not([hidden])) .btn-am:not(.second) { padding: 0 10px; } .barre-achat:has(#b-second:not([hidden])) .modes button { min-width: 30px; padding: 0 2px; } }
+.carte .icone .second-pastille { position: absolute; top: -6px; left: -6px; padding: 2px 5px; border-radius: 999px; background: var(--menthe-sombre); color: #fff; font: 800 10px/1.1 var(--texte-font); box-shadow: 0 0 0 2px #fff; letter-spacing: .02em; }
+.flottant.second-plus { color: var(--menthe-sombre); font-size: 16px; animation-duration: 1s; }
+.sd-tete, .cc-tete { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.sd-tete > .pic, .cc-tete > .pic, .sd-annonce > .pic { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 auto; border-radius: 16px; background: var(--menthe-clair); }
+.sd-tete > .pic svg, .cc-tete > .pic svg, .sd-annonce > .pic svg { width: 34px; height: 34px; }
+.sd-tete h2, .cc-tete h2 { margin: 2px 0 4px; }
+.sd-tete .sous, .cc-tete .sous { margin: 0; }
+.sd-part { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.sd-part .btn { min-height: 48px; padding: 0; }
+.sd-part .btn b { font-size: 24px; }
+.sd-part .btn[aria-disabled="true"] { opacity: .45; }
+.sd-val { text-align: center; }
+.sd-val b { display: block; font: 700 28px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
+.sd-val small { font-size: 12.5px; color: var(--texte-2); }
+.sd-liste .reglage .ico svg { width: 28px; height: 28px; }
+.sd-annonce { text-align: center; padding: 16px 12px 12px; margin-bottom: 10px; border-radius: var(--r-int); background: linear-gradient(180deg, var(--menthe-clair), #fff); border: 2px solid var(--menthe); }
+.sd-annonce > .pic { margin: 0 auto 6px; width: 64px; height: 64px; background: #fff; }
+.sd-annonce > .pic svg { width: 44px; height: 44px; }
+.sd-annonce small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.sd-annonce h2 { margin: 4px 0 6px; }
+.sd-annonce .sous { margin: 0; }
+
+/* les paliers : la carte des Défis, la soupape du défi en petit, la section de la feuille du parcours, l'annonce (la façade) */
+.card.parcours.palier .note.pas { color: var(--texte); }
+.soupape { margin: 2px 0 0; font: 700 12px/1.3 var(--texte-font); color: var(--texte-2); font-style: italic; }
+.soupape.ok { color: var(--menthe-sombre); font-style: normal; }
+.et-defi.soupape { font-style: italic; color: var(--texte-2); }
+.et-defi.soupape.fait { font-style: normal; color: var(--menthe-sombre); }
+.pc-liste.paliers .pa-ligne .pc-ico { background: var(--or-clair); }
+.pc-liste.paliers .pa-ligne.actuelle { outline-color: var(--beurre); background: var(--or-clair); }
+.pc-suite { padding: 4px 10px 2px; font: 700 13px/1.3 var(--titre); color: var(--texte-2); text-align: center; }
+.palier-annonce { text-align: center; padding: 14px 12px 10px; margin-bottom: 8px; border-radius: var(--r-int); background: linear-gradient(180deg, var(--or-clair), #fff); border: 2px solid var(--beurre); }
+.palier-annonce small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.palier-annonce h2 { margin: 4px 0 6px; font-size: 26px; }
+.palier-annonce .pa-facade svg { display: block; width: min(220px, 70%); height: auto; margin: 0 auto; }
+.palier-annonce .sous { margin: 8px 0 0; }
+.pa-liste li { justify-content: flex-start; align-items: center; }
+.pa-liste li > span:last-child, .concours-resultat + .detail li > span:last-child { display: grid; gap: 1px; text-align: left; }
+.pa-liste li small, .concours-resultat + .detail li small { font-weight: 700; color: var(--texte-2); }
+.titre-palier { display: flex; align-items: center; gap: 4px; margin: 2px 0 0; font: 700 13px/1.2 var(--titre); color: var(--beurre-sombre); }
+.titre-palier .ico svg { width: 16px; height: 16px; }
+
+/* les trophées : la ligne du bonus, les familles, la carte dorée (liseré et reflet), la carte secrète, la fiche d'un trophée */
+.tr-bonus { margin: 2px 0 6px; font-size: 13.5px; color: var(--texte-2); }
+.tr-bonus b { color: var(--texte); font-family: var(--titre); }
+.tr-fam-t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tr-fam-t small { font: 700 12px/1.2 var(--texte-font); letter-spacing: 0; text-transform: none; color: var(--texte-2); white-space: nowrap; }
+.tr-fam.complete .tr-fam-t small { color: var(--menthe-sombre); }
+.tr-fam.en-or .tr-fam-t small { color: var(--beurre-sombre); }
+.troph[data-trophee] { cursor: pointer; }
+.troph.dore { background: linear-gradient(135deg, #FFF3C4 0%, #FFE08A 45%, #FFF6D6 55%, #FFD45C 100%); box-shadow: inset 0 0 0 2px #E0A61E, 0 2px 0 #D4921A; }
+.troph.dore b::after { content: " ★"; color: #C77B30; }
+.troph.secret { background: repeating-linear-gradient(135deg, var(--creme) 0 8px, #F6ECE2 8px 16px); color: var(--gris-texte); }
+.troph.secret b { letter-spacing: .12em; }
+.tr-fiche { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; padding: 10px; border-radius: var(--r-int); background: var(--creme); }
+.tr-fiche.dore { background: linear-gradient(135deg, #FFF3C4, #FFE08A); box-shadow: inset 0 0 0 2px #E0A61E; }
+.tr-fiche.secret { background: repeating-linear-gradient(135deg, var(--creme) 0 8px, #F6ECE2 8px 16px); }
+.tr-fiche > .pic, .tr-fiche-vig { display: grid; place-items: center; width: 72px; height: 72px; flex: 0 0 auto; border-radius: 16px; background: #fff; }
+.tr-fiche > .pic svg { width: 40px; height: 40px; }
+.tr-fiche-vig img { width: 100%; height: 100%; }
+.tr-fiche h2 { margin: 0 0 4px; }
+.tr-fiche .sous { margin: 0; }
+.stat.tr-dore b { color: var(--beurre-sombre); }
+
+/* le concours de la semaine : la carte des Défis, sa feuille (les rivales et « Visiter »), le résultat (la médaille, le podium) */
+.cc-liste { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 4px; counter-reset: none; }
+.cc-liste li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 4px 10px; border-radius: 12px; background: var(--creme); }
+.cc-liste li.moi { background: var(--or-clair); box-shadow: inset 0 0 0 2px var(--beurre); }
+.cc-liste:has(.cc-visiter) li { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.cc-rang { font: 700 15px/1 var(--titre); color: var(--texte-2); text-align: center; }
+.cc-liste li:nth-child(-n+3) .cc-rang { color: var(--beurre-sombre); }
+.cc-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 14px/1.2 var(--titre); }
+.cc-nom small { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10.5px/1.3 var(--texte-font); vertical-align: 1px; }
+.cc-pts { font: 700 14px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cc-visiter { min-height: 34px; padding: 0 10px; }
+.cc-visiter b { font-size: 13px; }
+.cc-recuperer { margin: 8px 0 2px; }
+.cc-medailles { display: flex; justify-content: center; gap: 18px; margin: 6px 0 4px; }
+.cc-med { display: grid; justify-items: center; gap: 2px; }
+.cc-med svg { width: 48px; height: 48px; }
+.cc-med.vide svg { filter: grayscale(.9); opacity: .45; }
+.cc-med b { font: 700 16px/1 var(--titre); }
+.concours-resultat { text-align: center; padding: 14px 12px 12px; margin-bottom: 8px; border-radius: var(--r-int); background: linear-gradient(180deg, var(--or-clair), #fff); border: 2px solid var(--beurre); }
+.concours-resultat small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.concours-resultat h2 { margin: 4px 0 4px; }
+.cr-medaille svg { display: block; width: 96px; height: 96px; margin: 0 auto; }
+.cr-podium { display: flex; justify-content: center; align-items: flex-end; gap: 4px; margin: 4px 0 6px; }
+.cr-marche { display: grid; align-content: start; justify-items: center; width: 62px; border-radius: 10px 10px 0 0; background: var(--gris); color: var(--texte-2); padding-top: 4px; }
+.cr-marche.m1 { height: 58px; } .cr-marche.m2 { height: 44px; } .cr-marche.m3 { height: 34px; }
+.cr-marche b { font: 700 16px/1 var(--titre); }
+.cr-marche i { font: 800 10px/1.2 var(--texte-font); font-style: normal; min-height: 12px; }
+.cr-marche.moi { background: var(--beurre); color: var(--texte); }
+.concours-resultat .sous { margin: 4px 0 0; }
+
+/* le chantier du quartier : la carte (feuille du classement, en petit dans les Défis), « bientôt » sans le SQL, l'annonce d'un chantier fini */
+.projet-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--ciel-clair); }
+.projet-carte.petite { margin: 0; padding: 10px 12px; border-radius: var(--r-carte); box-shadow: var(--ombre-carte); background: var(--carte); }
+.projet-carte > .pic { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 auto; border-radius: 14px; background: #fff; }
+.projet-carte.petite > .pic { background: var(--ciel-clair); }
+.projet-carte > .pic svg { width: 38px; height: 38px; }
+.pj-corps { flex: 1 1 auto; min-width: 0; }
+.pj-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 8px; }
+.pj-tete b { font: 700 16px/1.2 var(--titre); }
+.pj-tete small { font-size: 12px; color: var(--texte-2); }
+.projet-carte .obj-jauge i { background: linear-gradient(90deg, #5FB8F0, var(--menthe)); }
+.projet-carte p { margin: 0; font-size: 14px; }
+.projet-carte p b { font: 700 16px/1.2 var(--titre); font-variant-numeric: tabular-nums; }
+.pj-corps > small { display: block; margin-top: 4px; font-size: 12px; line-height: 1.35; color: var(--texte-2); }
+.pj-bientot { display: flex; align-items: center; gap: 6px; margin: -4px 0 12px; font-size: 12.5px; color: var(--texte-2); }
+.pj-bientot .ico svg { width: 18px; height: 18px; }
+.projet-annonce { text-align: center; padding: 14px 12px 12px; margin-bottom: 8px; border-radius: var(--r-int); background: linear-gradient(180deg, var(--ciel-clair), #fff); border: 2px solid #A8D8FF; }
+.projet-annonce small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.projet-annonce h2 { margin: 4px 0 6px; }
+.pj-icones { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.pj-icones svg { width: 84px; height: 84px; }
+.projet-annonce .sous { margin: 6px 0 0; }
+.pj-aide { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 0; padding: 6px 12px; border-radius: 999px; background: var(--or-clair); font-size: 14px; }
+.pj-aide .ico svg { width: 18px; height: 18px; }
+@media (max-width: 379px) { .cc-liste li { padding: 4px 8px; gap: 6px; } .cc-visiter { padding: 0 8px; } .pj-icones svg { width: 68px; height: 68px; } .cc-medailles { gap: 12px; } }
