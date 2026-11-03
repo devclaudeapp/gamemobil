@@ -251,6 +251,15 @@
     if (n === 5) acc = 0;
   }
   const entrees = { moi: null };
+  // le coup de grâce sur un boss : 1,6 s au ralenti (×0,3), l'éclair blanc ; une explosion : une micro-pause de 45 ms
+  let ralentiJusque = 0, arretJusque = 0;
+  const facteurTemps = () => { const t = performance.now(); return t < arretJusque ? 0 : t < ralentiJusque ? 0.3 : 1; };
+  function effetsTemps(l) {
+    for (const e of l) {
+      if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
+      else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
+    }
+  }
   let fige = false, finVu = false;
   function boucle(t) {
     requestAnimationFrame(boucle);
@@ -258,7 +267,7 @@
     if (document.hidden) return;
     if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (partie && jeu && (ecran === 'jeu' || ecran === 'fin')) { // la coop : l'hôte simule, le client suit ; la pause n'arrête rien
-      const e = partie.etape(dt, enPause || estPortrait ? null : ZCONTROLES.lire());
+      const e = partie.etape(partie.estHote ? dt * facteurTemps() : dt, enPause || estPortrait ? null : ZCONTROLES.lire()); effetsTemps(e);
       ZSONS.evenements(e, jeu, idMoi, dt); ZHUD.maj(jeu, idMoi, dt, e); rendu.image(jeu, idMoi, dt, e);
       if (jeu.fini && !finVu) { finVu = true; finir(); }
       return;
@@ -267,7 +276,7 @@
       if (enPause) { if (!fige) { rendu.image(jeu, idMoi, 0, null); fige = true; } return; }
       fige = false;
       if (!jeu.fini) {
-        entrees.moi = ZCONTROLES.lire(); avancer(jeu, entrees, dt);
+        entrees.moi = ZCONTROLES.lire(); avancer(jeu, entrees, dt * facteurTemps()); effetsTemps(evs);
         ZSONS.evenements(evs, jeu, idMoi, dt);
         ZHUD.maj(jeu, idMoi, dt, evs);
         rendu.image(jeu, idMoi, dt, evs);
@@ -289,7 +298,7 @@
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
     demarrer, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
-    stats() { return { rendu: rendu.stats(), ecran, arene }; },
+    stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z),
   };
 })();

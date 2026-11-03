@@ -195,6 +195,8 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(J.grenade(jeu, 'moi').raison === 'recharge' && p.grenadeT > 5, `puis se recharge (${p.grenadeT.toFixed(1)} s)`);
   const avant = jeu.zombies.length; p.vie = p.vieMax = 1e6; evs = avancer(jeu, 50);
   check(evs.some((e) => e.t === 'boum') && jeu.zombies.length < avant - 3, 'elle explose et emporte le groupe');
+  const morts = evs.filter((e) => e.t === 'mort');
+  check(morts.length && morts.every((e) => e.fort && Number.isFinite(e.kx) && Number.isFinite(e.kz) && Math.hypot(e.kx, e.kz) > 0), 'les morts par souffle sont « fortes » et portent la direction du coup (le rendu fait voler les morceaux)');
 }
 {
   // le Bunker : les bonus permanents du départ

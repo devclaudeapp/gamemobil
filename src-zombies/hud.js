@@ -77,6 +77,7 @@ const ZHUD = (() => {
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
+      <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
@@ -109,6 +110,8 @@ const ZHUD = (() => {
     const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
     el.info.innerHTML = `<b>${d.nom}</b> ${d.desc}`; el.info.hidden = false; infoT = 2.2;
   }
+  // un éclair blanc (le coup de grâce sur un boss)
+  function flash() { const f = R.querySelector('.h-flash'); if (!f) return; f.classList.remove('vu'); void f.offsetWidth; f.classList.add('vu'); }
   function toast(t) { el.toast.textContent = t; el.toast.hidden = false; el.toast.classList.remove('vu'); void el.toast.offsetWidth; el.toast.classList.add('vu'); toastT = 1.8; }
   function annonce(t, s, duree) { el.annB.textContent = t; el.annS.textContent = s || ''; el.annonce.hidden = false; el.annonce.classList.remove('vu'); void el.annonce.offsetWidth; el.annonce.classList.add('vu'); annonceT = duree || 2.2; }
 
@@ -259,5 +262,5 @@ const ZHUD = (() => {
     nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
   function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  return { init, maj, annonce, toast, flash, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
 })();
