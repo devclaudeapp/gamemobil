@@ -356,3 +356,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .col-carte .pastille { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--encre); }
 .col-carte .signe { font-size: 24px; }
 @media (max-height: 460px) and (orientation: landscape) { .collection { padding: 10px 14px 12px; } .col-liste { max-height: 200px; } .collection h2 { font-size: 24px; } }
+
+/* ─── missions, pass, coffre ─── */
+.progression { width: min(480px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.prog-corps { display: grid; gap: 8px; text-align: left; }
+.prog-mission { display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 2.5px solid var(--encre); }
+.prog-mission b { font: 700 15px/1.2 var(--titre); }
+.prog-mission small, .prog-corps > small { color: #6B7080; font-size: 12px; }
+.prog-barre { height: 10px; border-radius: 999px; background: #E2DED4; overflow: hidden; }
+.prog-barre.gros { height: 16px; }
+.prog-barre i { display: block; height: 100%; background: linear-gradient(90deg, #F2C230, #FFD84A); border-radius: 999px; }
+.prog-aide { margin: 0; color: #5A5F6B; font-size: 13px; }
+.prog-titre { margin: 0; font: 700 17px/1.2 var(--titre); }
+.prog-paliers { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.prog-paliers li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #fff; font-size: 14px; }
+.prog-paliers li b { min-width: 30px; font: 700 16px/1 var(--titre); color: #8A6A10; }
+.prog-paliers li svg { width: 15px; height: 15px; vertical-align: -2px; }
+.prog-paliers li.rare { background: #FFE9A8; }
+.prog-coffre { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 8px; }
+.prog-coffre .gros-ico { font-size: 56px; line-height: 1; }
+.prog-coffre p { margin: 0; }
+@media (max-height: 460px) and (orientation: landscape) { .progression { padding: 10px 14px 12px; } .progression h2 { font-size: 24px; } }

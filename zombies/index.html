@@ -379,6 +379,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .col-carte .pastille { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--encre); }
 .col-carte .signe { font-size: 24px; }
 @media (max-height: 460px) and (orientation: landscape) { .collection { padding: 10px 14px 12px; } .col-liste { max-height: 200px; } .collection h2 { font-size: 24px; } }
+
+/* ─── missions, pass, coffre ─── */
+.progression { width: min(480px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.prog-corps { display: grid; gap: 8px; text-align: left; }
+.prog-mission { display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 2.5px solid var(--encre); }
+.prog-mission b { font: 700 15px/1.2 var(--titre); }
+.prog-mission small, .prog-corps > small { color: #6B7080; font-size: 12px; }
+.prog-barre { height: 10px; border-radius: 999px; background: #E2DED4; overflow: hidden; }
+.prog-barre.gros { height: 16px; }
+.prog-barre i { display: block; height: 100%; background: linear-gradient(90deg, #F2C230, #FFD84A); border-radius: 999px; }
+.prog-aide { margin: 0; color: #5A5F6B; font-size: 13px; }
+.prog-titre { margin: 0; font: 700 17px/1.2 var(--titre); }
+.prog-paliers { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.prog-paliers li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #fff; font-size: 14px; }
+.prog-paliers li b { min-width: 30px; font: 700 16px/1 var(--titre); color: #8A6A10; }
+.prog-paliers li svg { width: 15px; height: 15px; vertical-align: -2px; }
+.prog-paliers li.rare { background: #FFE9A8; }
+.prog-coffre { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 8px; }
+.prog-coffre .gros-ico { font-size: 56px; line-height: 1; }
+.prog-coffre p { margin: 0; }
+@media (max-height: 460px) and (orientation: landscape) { .progression { padding: 10px 14px 12px; } .progression h2 { font-size: 24px; } }
 </style>
 </head>
 <body>
@@ -401,6 +422,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
+        <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
         <button type="button" class="moyen" id="b-collection">Collection</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
@@ -492,6 +514,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
       <button type="button" class="moyen" id="b-col-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-progression" hidden>
+    <div class="carte-ecran progression">
+      <div class="col-tete"><h2>Missions et pass</h2><div class="medailles" id="prog-medailles"></div></div>
+      <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
+      <div class="prog-corps"></div>
+      <button type="button" class="moyen" id="b-prog-retour">Retour</button>
     </div>
   </section>
 
@@ -2057,7 +2088,7 @@ const PRESEAU = (() => {
     },
     volcan: {
       nom: 'Le Volcan', desc: 'Des rivières de lave entre les roches noires. Ne t’y arrête pas.', taille: 54,
-      sol: '#5A4A44', sol2: '#4F403B', bord: '#2A2220', ciel: '#C87A5A', brume: '#A8705A', meteo: 'meteores',
+      sol: '#5A4A44', sol2: '#4F403B', bord: '#2A2220', ciel: '#C87A5A', brume: '#A8705A', meteo: 'crepuscule',
       depart: [0, 4],
       obstacles: [
         { type: 'roche', c: [-10, -8, 1.8] }, { type: 'roche', c: [11, -10, 2.0] }, { type: 'roche', c: [-14, 12, 1.6] }, { type: 'roche', c: [14, 13, 1.7] },
@@ -2153,10 +2184,35 @@ const PRESEAU = (() => {
   // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
   const EMOTES = {
     pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
-    peur: { nom: 'Au secours', signe: '😱', prix: 15 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
+    peur: { nom: 'Au secours', signe: '😱', prix: 15 },
+    fete: { nom: 'La fête', signe: '🎉', pass: 25 }, fantome: { nom: 'Bouh !', signe: '👻', pass: 50 }, zombie: { nom: 'Grrr', signe: '🧟', pass: 75 }, coupe: { nom: 'Champion', signe: '🏆', pass: 100 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
   };
 
-  return { SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── la progression : missions sans fin, pass de saison, coffre du jour ───
+  // une mission : une mesure d'une partie (ui.js : bilan) qui s'additionne d'une partie à l'autre (cumul) ou se juge en une seule (record) ;
+  // son but grandit avec le rang (le nombre de missions déjà réussies) ; xp : l'expérience de pass qu'elle rapporte
+  const MISSIONS = [
+    { id: 'tues', texte: (n) => `Abats ${n} zombies`, mesure: 'tues', cumul: true, but: (r) => 120 + r * 40 },
+    { id: 'boss', texte: (n) => `Abats ${n} boss`, mesure: 'boss', cumul: true, but: (r) => 1 + Math.floor(r / 4) },
+    { id: 'crits', texte: (n) => `Place ${n} coups critiques`, mesure: 'crits', cumul: true, but: (r) => 40 + r * 15 },
+    { id: 'ferraille', texte: (n) => `Ramasse ${n} ferrailles`, mesure: 'ferraille', cumul: true, but: (r) => 150 + r * 50 },
+    { id: 'construits', texte: (n) => `Pose ${n} équipements`, mesure: 'construits', cumul: true, but: (r) => 6 + r * 2 },
+    { id: 'grenades', texte: (n) => `Lance ${n} grenades`, mesure: 'grenades', cumul: true, but: (r) => 10 + r * 3 },
+    { id: 'caisses', texte: (n) => `Ouvre ${n} caisses d’armes`, mesure: 'caisses', cumul: true, but: (r) => 5 + r * 2 },
+    { id: 'vague', texte: (n) => `Atteins la vague ${n} en une partie`, mesure: 'vague', cumul: false, but: (r) => 5 + Math.floor(r / 2) },
+    { id: 'echelons', texte: (n) => `Réussis ${n} échelon${n > 1 ? 's' : ''} de l’Ascension`, mesure: 'echelons', cumul: true, but: (r) => 1 + Math.floor(r / 5) },
+    { id: 'coop', texte: (n) => `Finis ${n} partie${n > 1 ? 's' : ''} à plusieurs`, mesure: 'coop', cumul: true, but: (r) => 1 + Math.floor(r / 6) },
+    { id: 'defi', texte: () => 'Joue le défi du jour', mesure: 'defi', cumul: true, but: () => 1 },
+  ];
+  const PASS = {
+    paliers: 100, xpPalier: 250, // l'expérience d'un palier ; une partie en rapporte (score / 20, au plus 400), une mission 300
+    xpPartie: (score) => Math.min(400, Math.round(score / 20)), xpMission: 300,
+    // la récompense d'un palier : des médailles, et aux paliers ronds une émote ou une finition du pass (en plus de celles de l'Ascension)
+    recompense: (p) => (p % 25 === 0 ? { emote: ['fete', 'fantome', 'zombie', 'coupe'][p / 25 - 1] } : p % 10 === 0 ? { medailles: 30 } : { medailles: 5 + Math.floor(p / 10) * 2 }),
+  };
+  const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
+
+  return { MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -2324,7 +2380,7 @@ const PRESEAU = (() => {
       vague: 0, phase: 'pause', chrono: o.attente != null ? o.attente : 4, aSortir: 0, totalVague: 0, sortieT: 0, bossAVenir: false,
       joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [], disques: [], zones: [], crochets: [], morts: [],
       serie: { n: 0, t: -99, mult: 1 },
-      stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
+      stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {}, crits: 0, grenades: 0, caisses: 0 },
       navPas: 0, evs: [], fini: false, choix: null,
       // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
       mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
@@ -2545,6 +2601,7 @@ const PRESEAU = (() => {
     zb.dernier = { px, pz, fort: !!crit || !!souffle || deg >= 60 }; // le dernier coup : d'où il vient, et s'il était fort (le rendu fait voler les morceaux)
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
+    if (crit) jeu.stats.crits++;
     ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.max(1, Math.round(deg)), crit: !!crit, de, boss: !!D.ZOMBIES[zb.type].boss, petit: !!petit });
     if (zb.vie <= 0) tuer(jeu, zb, de);
   }
@@ -2619,7 +2676,7 @@ const PRESEAU = (() => {
     const x1 = cible ? cible.x : j.x + Math.cos(j.angle) * 6, z1 = cible ? cible.z : j.z + Math.sin(j.angle) * 6;
     const k = 1 + rang(j, 'grenade') * D.ATOUTS.grenade.par;
     jeu.obus.push({ x0: j.x, z0: j.z, x1, z1, t: 0, duree: G.vol, degats: G.degats * k * multDegats(j), souffle: G.souffle * (1 + rang(j, 'grenade') * 0.1), de: j.id, grenade: true });
-    j.grenadeT = rechargeGrenade(j);
+    j.grenadeT = rechargeGrenade(j); jeu.stats.grenades++;
     ev(jeu, { t: 'grenade', id: j.id, x: x1, z: z1 });
     return { ok: true };
   }
@@ -3112,7 +3169,7 @@ const PRESEAU = (() => {
       jeu.objets.splice(i, 1);
       if (o.type === 'ferraille') { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur }); }
       else if (o.type === 'soin') { pris.vie = Math.min(pris.vieMax, pris.vie + o.valeur); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'soin', valeur: o.valeur }); }
-      else if (o.type === 'caisse') { const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
+      else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
     }
   }
   function ouvrirCaisse(jeu, j) {
@@ -5260,7 +5317,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -5347,7 +5404,7 @@ const ZENLIGNE = (() => {
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
     rendu.decaler(nom === 'collection' ? 6 : 0);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); }
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -5415,6 +5472,7 @@ const ZENLIGNE = (() => {
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension();
+    const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
     const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
@@ -5461,7 +5519,7 @@ const ZENLIGNE = (() => {
   function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
-  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; }
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; const pm = $('#prog-medailles'); if (pm) pm.innerHTML = h; }
   function remplirBunker() {
     majMedailles();
     $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
@@ -5598,7 +5656,7 @@ const ZENLIGNE = (() => {
 
   // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
   save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
-  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
   function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
   const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
   // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
@@ -5648,9 +5706,10 @@ const ZENLIGNE = (() => {
       }));
       apercuArme();
     } else {
-      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
+      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : E.pass ? `<small>Pass, palier ${E.pass}</small>` : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
       box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
         const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
+        if (E.pass) { ZHUD.toast(`Se gagne au palier ${E.pass} du pass de saison`); return; }
         if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
         save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
       }));
@@ -5658,6 +5717,72 @@ const ZENLIGNE = (() => {
   }
   // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
   function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
+
+  // ─── la progression : missions sans fin, pass de saison (100 paliers, un par mois), coffre du jour et série de jours ───
+  const P0 = { rang: 0, missions: [], palier: 0, xp: 0, saison: '', coffre: '', serie: 0, dernierJour: '' };
+  save.prog = Object.assign({}, P0, save.prog || {});
+  const aujourdhui = () => ZCLASSEMENT.jourParis();
+  const hier = () => ZCLASSEMENT.jourParis(Date.now() - 86400e3);
+  const saisonDe = (j) => j.slice(0, 7);
+  const NOMS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function nouvelleMission(rangPlus) { // la suivante dans le cycle, plus dure à chaque tour
+    const P = save.prog, r = P.rang + (rangPlus || 0), M = D.MISSIONS[(r * 7 + 3) % D.MISSIONS.length], deja = P.missions.map((m) => m.id);
+    let k = (r * 7 + 3) % D.MISSIONS.length, essai = 0; while (deja.includes(D.MISSIONS[k].id) && essai++ < D.MISSIONS.length) k = (k + 1) % D.MISSIONS.length;
+    const X = D.MISSIONS[k]; void M; return { id: X.id, but: X.but(Math.floor(r / 3)), fait: 0 };
+  }
+  function majProgression() { // nouvelle saison : le pass repart ; toujours trois missions
+    const P = save.prog, s = saisonDe(aujourdhui());
+    if (P.saison !== s) { P.saison = s; P.palier = 0; P.xp = 0; }
+    while (P.missions.length < 3) P.missions.push(nouvelleMission(P.missions.length));
+  }
+  majProgression();
+  function gagnerXpPass(x) {
+    const P = save.prog, gains = []; P.xp += x;
+    while (P.xp >= D.PASS.xpPalier && P.palier < D.PASS.paliers) {
+      P.xp -= D.PASS.xpPalier; P.palier++; const R = D.PASS.recompense(P.palier);
+      if (R.medailles) { save.meta.medailles += R.medailles; save.meta.gagnees += R.medailles; gains.push(`+${R.medailles} médailles`); }
+      if (R.emote && !save.collection.emotes.includes(R.emote)) { save.collection.emotes.push(R.emote); gains.push(`l’émote ${D.EMOTES[R.emote].signe}`); }
+    }
+    if (P.palier >= D.PASS.paliers) P.xp = 0;
+    return gains;
+  }
+  function bilanProgression(j) {
+    majProgression();
+    const P = save.prog, b = { tues: j.tues, boss: j.boss, crits: jeu.stats.crits, ferraille: jeu.stats.ferraille, construits: jeu.stats.construits, grenades: jeu.stats.grenades, caisses: jeu.stats.caisses, vague: jeu.vague, echelons: ascension && jeu.gagne ? 1 : 0, coop: partie ? 1 : 0, defi: defi ? 1 : 0 };
+    const faites = [];
+    for (const m of P.missions) { const X = D.MISSIONS.find((x) => x.id === m.id); if (!X) continue; m.fait = X.cumul ? m.fait + (b[X.mesure] || 0) : Math.max(m.fait, b[X.mesure] || 0); if (m.fait >= m.but) faites.push(m); }
+    let xp = D.PASS.xpPartie(j.score);
+    for (const m of faites) { P.missions.splice(P.missions.indexOf(m), 1); P.rang++; xp += D.PASS.xpMission; }
+    majProgression();
+    const gains = gagnerXpPass(xp); ecrire();
+    const t = []; if (faites.length) t.push(`${faites.length} mission${faites.length > 1 ? 's' : ''} réussie${faites.length > 1 ? 's' : ''}`); if (gains.length) t.push(`pass : ${gains.join(', ')}`);
+    return t.join(' · ');
+  }
+  // le coffre du jour (une fois par jour, heure de Paris) ; la série : les jours d'affilée où on l'ouvre
+  const coffrePret = () => save.prog.coffre !== aujourdhui();
+  function ouvrirCoffre() {
+    const P = save.prog, j = aujourdhui(); if (P.coffre === j) return null;
+    P.serie = P.dernierJour === hier() ? P.serie + 1 : 1; P.dernierJour = j; P.coffre = j;
+    const [a, b] = D.COFFRE.medailles, base = a + Math.floor(Math.random() * (b - a + 1)), m = Math.round(base * (1 + D.COFFRE.serieBonus * Math.min(D.COFFRE.serieMax, P.serie - 1)));
+    save.meta.medailles += m; save.meta.gagnees += m; ecrire(); return { medailles: m, serie: P.serie };
+  }
+  let ongletProg = 'missions';
+  function majBoutonProgression() { const b = $('#b-progression small'); if (b) b.textContent = coffrePret() ? '🎁 coffre du jour' : `🔥 ${save.prog.serie} jour${save.prog.serie > 1 ? 's' : ''} · palier ${save.prog.palier}`; }
+  function ouvrirProgression() { majProgression(); for (const k in ecrans) ecrans[k].hidden = true; montrer('progression'); remplirProgression(); }
+  function remplirProgression() {
+    const P = save.prog, box = $('.prog-corps'); majMedailles();
+    document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletProg)));
+    if (ongletProg === 'missions') {
+      box.innerHTML = `<p class="prog-aide">Trois missions à la fois ; une réussie en amène une autre, plus dure. Chacune rapporte ${D.PASS.xpMission} points de pass.</p>` + P.missions.map((m) => { const X = D.MISSIONS.find((x) => x.id === m.id); const f = Math.min(m.fait, m.but); return `<div class="prog-mission"><b>${echap(X.texte(m.but))}</b><div class="prog-barre"><i style="width:${Math.round(f / m.but * 100)}%"></i></div><small>${f} / ${m.but}</small></div>`; }).join('') + `<p class="prog-aide">${P.rang} mission${P.rang > 1 ? 's' : ''} réussie${P.rang > 1 ? 's' : ''} en tout.</p>`;
+    } else if (ongletProg === 'pass') {
+      const [an, mois] = P.saison.split('-'), prochains = []; for (let p = P.palier + 1; p <= Math.min(D.PASS.paliers, P.palier + 6); p++) { const R = D.PASS.recompense(p); prochains.push(`<li class="${R.emote ? 'rare' : ''}"><b>${p}</b><span>${R.emote ? `${D.EMOTES[R.emote].signe} émote « ${echap(D.EMOTES[R.emote].nom)} »` : `${ZHUD.ICO.medaille} ${R.medailles} médailles`}</span></li>`); }
+      box.innerHTML = `<p class="prog-titre">Saison de ${NOMS_MOIS[+mois - 1] || ''} ${an || ''} · palier ${P.palier} / ${D.PASS.paliers}</p><div class="prog-barre gros"><i style="width:${Math.round(P.xp / D.PASS.xpPalier * 100)}%"></i></div><small>${P.xp} / ${D.PASS.xpPalier} points pour le palier suivant (une partie : score ÷ 20, une mission : ${D.PASS.xpMission})</small><ul class="prog-paliers">${prochains.join('') || '<li>Pass terminé : bravo !</li>'}</ul>`;
+    } else {
+      const pret = coffrePret();
+      box.innerHTML = `<div class="prog-coffre"><span class="gros-ico">${pret ? '🎁' : '📦'}</span><p>${pret ? 'Ton coffre du jour t’attend.' : 'Coffre ouvert aujourd’hui : reviens demain !'}</p><p class="prog-aide">Série : 🔥 ${P.serie} jour${P.serie > 1 ? 's' : ''} d’affilée (+${Math.round(D.COFFRE.serieBonus * 100)} % par jour, jusqu’à ${D.COFFRE.serieMax})</p>${pret ? '<button type="button" class="gros" id="b-coffre">Ouvrir</button>' : ''}</div>`;
+      const b = $('#b-coffre'); if (b) b.addEventListener('click', () => { const r = ouvrirCoffre(); if (!r) return; PSONS.jouer('achat', 1); PSONS.vibrer([20, 40, 20]); ZHUD.toast(`+${r.medailles} médailles · série de ${r.serie} jour${r.serie > 1 ? 's' : ''}`); remplirProgression(); });
+    }
+  }
 
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
@@ -5676,6 +5801,9 @@ const ZENLIGNE = (() => {
   clic('#b-defi', ouvrirDefi);
   clic('#b-ascension', ouvrirAscension);
   clic('#b-collection', ouvrirCollection);
+  clic('#b-progression', ouvrirProgression);
+  clic('#b-prog-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletProg = b.dataset.onglet; PSONS.ui('tap'); remplirProgression(); }));
   clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
   document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
   $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
@@ -5762,7 +5890,7 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    ouvrirCollection, verifierExploits, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

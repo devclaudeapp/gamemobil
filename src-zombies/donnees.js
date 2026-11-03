@@ -400,8 +400,33 @@
   // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
   const EMOTES = {
     pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
-    peur: { nom: 'Au secours', signe: '😱', prix: 15 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
+    peur: { nom: 'Au secours', signe: '😱', prix: 15 },
+    fete: { nom: 'La fête', signe: '🎉', pass: 25 }, fantome: { nom: 'Bouh !', signe: '👻', pass: 50 }, zombie: { nom: 'Grrr', signe: '🧟', pass: 75 }, coupe: { nom: 'Champion', signe: '🏆', pass: 100 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
   };
 
-  return { SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── la progression : missions sans fin, pass de saison, coffre du jour ───
+  // une mission : une mesure d'une partie (ui.js : bilan) qui s'additionne d'une partie à l'autre (cumul) ou se juge en une seule (record) ;
+  // son but grandit avec le rang (le nombre de missions déjà réussies) ; xp : l'expérience de pass qu'elle rapporte
+  const MISSIONS = [
+    { id: 'tues', texte: (n) => `Abats ${n} zombies`, mesure: 'tues', cumul: true, but: (r) => 120 + r * 40 },
+    { id: 'boss', texte: (n) => `Abats ${n} boss`, mesure: 'boss', cumul: true, but: (r) => 1 + Math.floor(r / 4) },
+    { id: 'crits', texte: (n) => `Place ${n} coups critiques`, mesure: 'crits', cumul: true, but: (r) => 40 + r * 15 },
+    { id: 'ferraille', texte: (n) => `Ramasse ${n} ferrailles`, mesure: 'ferraille', cumul: true, but: (r) => 150 + r * 50 },
+    { id: 'construits', texte: (n) => `Pose ${n} équipements`, mesure: 'construits', cumul: true, but: (r) => 6 + r * 2 },
+    { id: 'grenades', texte: (n) => `Lance ${n} grenades`, mesure: 'grenades', cumul: true, but: (r) => 10 + r * 3 },
+    { id: 'caisses', texte: (n) => `Ouvre ${n} caisses d’armes`, mesure: 'caisses', cumul: true, but: (r) => 5 + r * 2 },
+    { id: 'vague', texte: (n) => `Atteins la vague ${n} en une partie`, mesure: 'vague', cumul: false, but: (r) => 5 + Math.floor(r / 2) },
+    { id: 'echelons', texte: (n) => `Réussis ${n} échelon${n > 1 ? 's' : ''} de l’Ascension`, mesure: 'echelons', cumul: true, but: (r) => 1 + Math.floor(r / 5) },
+    { id: 'coop', texte: (n) => `Finis ${n} partie${n > 1 ? 's' : ''} à plusieurs`, mesure: 'coop', cumul: true, but: (r) => 1 + Math.floor(r / 6) },
+    { id: 'defi', texte: () => 'Joue le défi du jour', mesure: 'defi', cumul: true, but: () => 1 },
+  ];
+  const PASS = {
+    paliers: 100, xpPalier: 250, // l'expérience d'un palier ; une partie en rapporte (score / 20, au plus 400), une mission 300
+    xpPartie: (score) => Math.min(400, Math.round(score / 20)), xpMission: 300,
+    // la récompense d'un palier : des médailles, et aux paliers ronds une émote ou une finition du pass (en plus de celles de l'Ascension)
+    recompense: (p) => (p % 25 === 0 ? { emote: ['fete', 'fantome', 'zombie', 'coupe'][p / 25 - 1] } : p % 10 === 0 ? { medailles: 30 } : { medailles: 5 + Math.floor(p / 10) * 2 }),
+  };
+  const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
+
+  return { MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

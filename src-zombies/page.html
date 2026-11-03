@@ -17,6 +17,7 @@
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
+        <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
         <button type="button" class="moyen" id="b-collection">Collection</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
@@ -108,6 +109,15 @@
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
       <button type="button" class="moyen" id="b-col-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-progression" hidden>
+    <div class="carte-ecran progression">
+      <div class="col-tete"><h2>Missions et pass</h2><div class="medailles" id="prog-medailles"></div></div>
+      <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
+      <div class="prog-corps"></div>
+      <button type="button" class="moyen" id="b-prog-retour">Retour</button>
     </div>
   </section>
 

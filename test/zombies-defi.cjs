@@ -157,6 +157,30 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   const bulle = await P(() => { const b = [...document.querySelectorAll('.h-bulles span')].find((x) => !x.hidden); return b ? b.textContent : ''; });
   check(em.includes('feu') && !em.includes('crane') && bulle === '🔥', `les émotes en partie : celles qu’on a (${em.join(', ')}), la bulle au-dessus du survivant (${bulle})`);
   await page.screenshot({ path: out + '/15-emote.png' });
+  // ─── missions, pass de saison, coffre du jour ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
+  await sleep(300);
+  check(/coffre du jour/.test(await P(() => document.querySelector('#b-progression small').textContent)), 'le titre signale le coffre du jour');
+  await page.tap('#b-progression'); await sleep(300);
+  const pm = await P(() => ({ ecran: document.body.dataset.ecran, missions: [...document.querySelectorAll('.prog-mission b')].map((b) => b.textContent), prog: window.__zombies.save.prog }));
+  check(pm.ecran === 'progression' && pm.missions.length === 3 && pm.prog.saison === new Date().toISOString().slice(0, 7), `trois missions (${pm.missions.join(' ; ')})`);
+  await page.tap('[data-onglet="pass"]'); await sleep(200);
+  check(/palier \d+ \/ 100/.test(await P(() => document.querySelector('.prog-titre').textContent)) && await P(() => document.querySelectorAll('.prog-paliers li').length === 6), 'le pass de saison : 100 paliers, les prochaines récompenses');
+  await page.tap('[data-onglet="coffre"]'); await sleep(200);
+  const med1 = await P(() => window.__zombies.save.meta.medailles);
+  await page.tap('#b-coffre'); await sleep(300);
+  const cf = await P(() => ({ med: window.__zombies.save.meta.medailles, prog: window.__zombies.save.prog, bouton: !!document.querySelector('#b-coffre') }));
+  check(cf.med >= med1 + 8 && cf.prog.serie === 1 && !cf.bouton, `le coffre du jour : +${cf.med - med1} médailles, série de 1 jour, une seule fois par jour`);
+  await page.tap('#b-prog-retour'); await sleep(200);
+  // une partie : la mission « zombies » avance, le pass gagne des points
+  const m0 = await P(() => JSON.parse(JSON.stringify(window.__zombies.save.prog)));
+  await P(() => { const j = window.__zombies.demarrer('jardin', 8); j.chrono = 0; });
+  await page.waitForFunction(() => window.__zombies.jeu.zombies.length > 2, null, { timeout: 15000 }).catch(() => {});
+  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.score += 4000; p.tues += 60; j.stats.crits += 30; p.vie = 1; p.invul = 0; for (const z of j.zombies) { z.x = p.x + 0.9; z.z = p.z; z.coup = 0; z.naissance = -9; } });
+  await page.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 15000 }).catch(() => {});
+  const m1 = await P(() => window.__zombies.save.prog);
+  const avance = m1.missions.some((m) => { const a = m0.missions.find((x) => x.id === m.id); return a && m.fait > a.fait; }) || m1.rang > m0.rang;
+  check(avance && (m1.xp > m0.xp || m1.palier > m0.palier), `après la partie : les missions avancent, le pass passe à ${m1.palier} palier(s) et ${m1.xp} points`);
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.join(' | ') : ''}`);
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s) (Dernier Rempart, défi du jour)` : '\nTout passe (Dernier Rempart, défi du jour).');
