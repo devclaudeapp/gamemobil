@@ -81,6 +81,14 @@
     mine:      { nom: 'Mine',      prix: 12,  vie: 1,   rayon: 0.4,  max: 2, plus: 2, souffle: 3.2, degats: 160,           depuis: 2, desc: 'Explose quand un zombie marche dessus.' },
     mortier:   { nom: 'Mortier',   prix: 40,  vie: 120, rayon: 0.6,  max: 1, plus: 5, portee: 14, cadence: 0.45, degats: 70, souffle: 2.6, minimum: 3, depuis: 4, desc: 'Lance des obus sur les groupes, de loin.' },
     epouvantail: { nom: 'Épouvantail', prix: 120, vie: 500, rayon: 0.6, max: 1, plus: 99, attire: 9,                  depuis: 6, desc: 'Attire les zombies proches pendant que tu tires.' },
+    // la deuxième colonne de l'atelier
+    tourellefeu:   { nom: 'Tourelle à flammes', prix: 45, vie: 170, rayon: 0.55, max: 1, plus: 4, portee: 4.6, cadence: 8, degats: 5, cone: 0.42, feu: { dps: 12, duree: 2 }, depuis: 5, desc: 'Arrose de flammes ce qui s’approche.' },
+    tourelletesla: { nom: 'Tourelle Tesla', prix: 60, vie: 150, rayon: 0.55, max: 1, plus: 5, portee: 7.5, cadence: 1.2, degats: 32, rebonds: 3, saut: 3.2, depuis: 8, desc: 'Un éclair qui saute de zombie en zombie.' },
+    claymore:      { nom: 'Claymore', prix: 18, vie: 1, rayon: 0.4, max: 2, plus: 3, souffle: 4.8, cone: 0.75, declenche: 3.2, degats: 230, depuis: 3, desc: 'Explose vers l’avant quand un zombie passe devant.' },
+    baril:         { nom: 'Baril explosif', prix: 8, vie: 40, rayon: 0.45, max: 3, plus: 2, souffle: 3.4, degats: 180, depuis: 2, desc: 'Une balle, un coup de griffe, une explosion : il saute.' },
+    // le générateur à protéger (objectif de l'Ascension) : pas à l'atelier
+    generateur:    { nom: 'Générateur', prix: Infinity, vie: 1600, rayon: 0.95, max: 0, plus: 999, attire: 15, depuis: 999, horsAtelier: true, desc: 'À protéger coûte que coûte.' },
+    radio:         { nom: 'Poste radio', prix: 35, vie: 220, rayon: 0.45, max: 1, plus: 99, attire: 13, duree: 8, souffle: 3.2, degats: 200, depuis: 7, desc: 'Sa musique attire les zombies, puis il explose.' },
   };
 
   // ─── les améliorations (permanentes pour la partie ; le prix monte à chaque cran) ───
@@ -213,5 +221,32 @@
     borneScore(v) { let s = 0; for (let n = 1; n <= v; n++) s += Math.ceil(VAGUES.nombre(n) * 1.5) * 40 * 4 * 2 + 600 * 4 * 2 + VAGUES.prime(n); return s; },
   };
 
-  return { RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── l'Ascension : une campagne d'échelons sans fin ; chaque échelon (tiré de son numéro, le même pour tout le monde) a sa horde (deux
+  // vedettes), sa météo, sa règle et son objectif (jeu.js : echelon(n)). foudre / meteore : des impacts annoncés (un cercle au sol), puis
+  // une explosion qui touche tout le monde
+  const ASCENSION = {
+    meteos: {
+      clair: { nom: 'Grand beau' }, crepuscule: { nom: 'Crépuscule' }, nuit: { nom: 'Nuit noire' }, brouillard: { nom: 'Brouillard' },
+      orage: { nom: 'Orage', chute: { cadence: 0.4, delai: 1.0, souffle: 1.7, degats: 15 } },
+      meteores: { nom: 'Pluie de météores', chute: { cadence: 0.45, delai: 1.5, souffle: 2.2, degats: 20 } },
+      blackout: { nom: 'Black-out' },
+    },
+    regles: [
+      { id: 'normale', nom: 'Règles normales', texte: 'Rien de spécial : la horde, et toi.', poids: 3 },
+      { id: 'unpv', nom: 'Un seul point de vie', texte: 'Le moindre coup est fatal.', unPV: true, depuis: 7 },
+      { id: 'blackout', nom: 'Black-out', texte: 'Plus une lumière : seulement ta lampe.', meteo: 'blackout', depuis: 4 },
+      { id: 'rapides', nom: 'Ils courent', texte: 'Zombies 30 % plus rapides.', zVitesse: 1.3, depuis: 2 },
+      { id: 'blindes', nom: 'Blindés', texte: 'Zombies 60 % plus résistants.', zVie: 1.6, depuis: 3 },
+      { id: 'disette', nom: 'Disette', texte: 'Moitié moins de ferraille.', ferraille: 0.5, depuis: 2 },
+      { id: 'sansatelier', nom: 'Sans atelier', texte: 'Pas de défenses : rien que tes armes.', sansAtelier: true, depuis: 3 },
+      { id: 'arsenal', nom: 'Arsenal', texte: 'Une arme rare dès le départ.', armeRare: true, depuis: 1 },
+      { id: 'artifice', nom: 'Feu d’artifice', texte: 'Des kamikazes partout.', vedette: 'kamikaze', depuis: 5 },
+      { id: 'maree', nom: 'Marée', texte: '60 % de zombies en plus.', nombre: 1.6, depuis: 4 },
+    ],
+    objectifs: { vagues: 'Tenir', tues: 'Carnage', chrono: 'Résister', contrat: 'Contrat', generateur: 'Générateur' },
+    recompense: (n) => 3 + Math.floor(n / 2), // les médailles d'un échelon réussi
+    finitionTous: 3, // une finition d'arme tous les trois échelons
+  };
+
+  return { ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

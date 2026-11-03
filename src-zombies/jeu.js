@@ -49,7 +49,10 @@
       navPas: 0, evs: [], fini: false, choix: null,
       // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
       mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
+      // l'Ascension : l'objectif de l'échelon, sa météo (les chutes : foudre, météores), ses vedettes ; gagne : true / false à la fin
+      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
+    if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
     jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
     const liste = o.joueurs && o.joueurs.length ? o.joueurs : [{ id: 'moi', pseudo: 'Moi' }];
@@ -67,11 +70,18 @@
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
     for (const j of jeu.joueurs) {
+      if (jeu.mod.unPV) { j.vieMax = 1; j.vie = 1; continue; } // (le Bunker ne sauve personne ici)
       const B = D.BUNKER, b = j.bonus;
       j.vieMax += b.vie * B.vie.par; j.vie = j.vieMax; j.ferraille += b.ferraille * B.ferraille.par;
       j.mGrenade = jeu.mod.grenade;
+      if (jeu.mod.armeRare) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].rarete <= 10), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; continue; }
       if (jeu.mod.arme && D.ARMES[jeu.mod.arme]) { j.armes[1] = { id: jeu.mod.arme, mun: D.ARMES[jeu.mod.arme].munitions }; j.main = 1; continue; }
       if (b.arme > 0) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= 2), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; }
+    }
+    // le générateur à protéger, au départ de l'arène
+    if (jeu.objectif && jeu.objectif.type === 'generateur') {
+      const G = D.DEFENSES.generateur, p = monde.libreProche(A.depart[0] + 2.2, A.depart[1], G.rayon, 6) || A.depart;
+      jeu.defenses.push({ id: jeu.prochainId++, type: 'generateur', x: p[0], z: p[1], vie: G.vie, vieMax: G.vie, angle: 0, attente: 0, flash: 0, par: null });
     }
     return jeu;
   }
@@ -99,6 +109,8 @@
     const V = D.VAGUES; jeu.vague++; jeu.phase = 'vague';
     jeu.totalVague = Math.ceil(V.nombre(jeu.vague) * jeu.mod.nombre); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
     for (let k = 0; k < V.caisse(jeu.vague); k++) poserCaisse(jeu);
+    const O = jeu.objectif;
+    if (O && O.type === 'contrat' && !O.lance) { O.lance = true; if (fairesortir(jeu, O.cible)) { const e = jeu.zombies[jeu.zombies.length - 1]; e.vie = e.vieMax = Math.round(e.vieMax * O.vie); e.elite = true; O.id = e.id; } }
     ev(jeu, { t: 'vague', n: jeu.vague, total: jeu.totalVague, boss: jeu.bossAVenir });
   }
   function poserCaisse(jeu) {
@@ -113,10 +125,11 @@
     return false;
   }
   function tirerType(jeu) {
-    const n = jeu.vague, rnd = jeu.rnd; let somme = 0;
-    for (const k in D.ZOMBIES) { const z = D.ZOMBIES[k]; if (z.depuis <= n && z.poids > 0) somme += z.poids * (k === 'trainard' ? 1 : Math.min(2, 1 + (n - z.depuis) * 0.12)); }
+    const n = jeu.vague, rnd = jeu.rnd, V = jeu.vedettes; let somme = 0;
+    const poids = (k, z) => (V.includes(k) ? Math.max(3, z.poids * 3) : z.depuis <= n ? z.poids * (k === 'trainard' ? 1 : Math.min(2, 1 + (n - z.depuis) * 0.12)) : 0);
+    for (const k in D.ZOMBIES) { const z = D.ZOMBIES[k]; if (z.poids > 0) somme += poids(k, z); }
     let r = rnd() * somme;
-    for (const k in D.ZOMBIES) { const z = D.ZOMBIES[k]; if (z.depuis <= n && z.poids > 0) { r -= z.poids * (k === 'trainard' ? 1 : Math.min(2, 1 + (n - z.depuis) * 0.12)); if (r <= 0) return k; } }
+    for (const k in D.ZOMBIES) { const z = D.ZOMBIES[k]; if (z.poids > 0) { r -= poids(k, z); if (r <= 0) return k; } }
     return 'trainard';
   }
   function fairesortir(jeu, type) {
@@ -161,6 +174,11 @@
         _touches.push([t, zb]);
       }
       _touches.sort((p, q) => p[0] - q[0]);
+      if (estJoueur) for (const d of jeu.defenses) { // un baril sur le trajet de la balle, avant le premier zombie : il prend
+        if (d.type !== 'baril' || d.vie <= 0) continue;
+        const fx = d.x - x, fz = d.z - z, t = fx * dx + fz * dz; if (t < 0 || t > portee || (_touches.length && t > _touches[0][0])) continue;
+        const px = fx - t * dx, pz = fz - t * dz; if (px * px + pz * pz < 0.45 * 0.45) { d.vie -= arme.degats * mult; d.flash = 0.1; }
+      }
       let l = portee, n = 0;
       for (const [t, zb] of _touches) {
         if (n > arme.perce) break;
@@ -333,6 +351,7 @@
       const k = 1 - Math.min(1, d / (r + zb.rayon)) * 0.6, n = d > 1e-3 ? 1 / d : 0;
       blesserZombie(jeu, zb, degats * k, (zb.x - x) * n * 1.5, (zb.z - z) * n * 1.5, de, false, true);
     }
+    if (!petite) for (const d of jeu.defenses) if (d.type === 'baril' && d.vie > 0 && Math.hypot(d.x - x, d.z - z) < r + 0.4) { d.vie = 0; d.de = de; }
     ev(jeu, { t: 'boum', x, z, r, petite: !!petite });
   }
 
@@ -342,6 +361,73 @@
     for (const j of jeu.joueurs) { if (!j.vivant) continue; const d = Math.hypot(j.x - zb.x, j.z - zb.z); if (d < K.souffle + j.rayon) blesserJoueur(jeu, j, K.degats * (1 - Math.min(1, d / (K.souffle + j.rayon)) * 0.5)); }
     for (const d of jeu.defenses) if (d.type !== 'mine' && Math.hypot(d.x - zb.x, d.z - zb.z) < K.souffle + 0.5) { d.vie -= K.degats * 1.5; d.flash = 0.15; }
     explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
+  }
+  // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
+  function majChutes(jeu, dt) {
+    const M = D.ASCENSION.meteos[jeu.meteo], C = M && M.chute;
+    if (C && jeu.phase === 'vague') {
+      jeu.chuteT = (jeu.chuteT == null ? 1.5 : jeu.chuteT) - dt * C.cadence * (1 + Math.min(1, jeu.vaguesFinies * 0.15));
+      if (jeu.chuteT <= 0) {
+        jeu.chuteT = 1;
+        const l = jeu.joueurs.filter((j) => j.vivant), j = l[Math.floor(jeu.rnd() * l.length) % Math.max(1, l.length)];
+        if (j) { const a = jeu.rnd() * TAU, r = jeu.rnd() * 5.5, x = j.x + Math.cos(a) * r, z = j.z + Math.sin(a) * r; jeu.chutes.push({ x, z, t: 0, delai: C.delai, r: C.souffle }); ev(jeu, { t: 'alerte', x, z, r: C.souffle, delai: C.delai, meteo: jeu.meteo }); }
+      }
+    }
+    for (let i = jeu.chutes.length - 1; i >= 0; i--) {
+      const c = jeu.chutes[i]; c.t += dt; if (c.t < c.delai) continue;
+      jeu.chutes.splice(i, 1);
+      for (const j of jeu.joueurs) if (j.vivant && Math.hypot(j.x - c.x, j.z - c.z) < c.r + j.rayon) blesserJoueur(jeu, j, C ? C.degats : 20);
+      for (const d of jeu.defenses) if (d.type !== 'mine' && Math.hypot(d.x - c.x, d.z - c.z) < c.r) { d.vie -= 40; d.flash = 0.15; }
+      explosion(jeu, c.x, c.z, c.r, (C ? C.degats : 20) * 3, 'ciel');
+      ev(jeu, { t: 'impact', x: c.x, z: c.z, meteo: jeu.meteo });
+    }
+  }
+  function finir(jeu, gagne, raison) { if (jeu.fini) return; jeu.fini = true; jeu.phase = 'fin'; jeu.gagne = gagne; jeu.raison = raison || ''; ev(jeu, { t: gagne ? 'victoire' : 'echec', raison: raison || '' }); }
+  function majObjectif(jeu, dt) {
+    const O = jeu.objectif; if (!O || jeu.fini) return;
+    if (jeu.vague > 0 && jeu.vaguesFinies < 999) jeu.tempsVague += jeu.phase === 'vague' || jeu.vaguesFinies > 0 ? dt : 0;
+    if (O.type === 'vagues') { O.fait = jeu.vaguesFinies; if (O.fait >= O.n) finir(jeu, true); }
+    else if (O.type === 'tues') { O.fait = jeu.stats.tues; if (O.fait >= O.n) finir(jeu, true); }
+    else if (O.type === 'chrono') { O.fait = Math.floor(jeu.tempsVague); if (jeu.tempsVague >= O.s) finir(jeu, true); }
+    else if (O.type === 'contrat') {
+      if (!O.lance) return;
+      O.reste = Math.max(0, O.s - jeu.tempsVague);
+      if (!jeu.zombies.some((z) => z.id === O.id && z.vie > 0)) finir(jeu, true);
+      else if (O.reste <= 0) finir(jeu, false, 'contrat');
+    } else if (O.type === 'generateur') {
+      O.fait = jeu.vaguesFinies; const g = jeu.defenses.find((d) => d.type === 'generateur'); O.vie = g ? g.vie / g.vieMax : 0;
+      if (!g) finir(jeu, false, 'generateur'); else if (O.fait >= O.n) finir(jeu, true);
+    }
+  }
+  // un échelon de l'Ascension, tiré de son numéro : le même pour tout le monde
+  function echelon(n) {
+    n = Math.max(1, n | 0);
+    let h = 0x811c9dc5; const t = 'ascension:' + n; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    const r = mulberry32(h), choisir = (l) => l[Math.floor(r() * l.length) % l.length], AS = D.ASCENSION;
+    const arene = D.ORDRE_ARENES[(n - 1) % D.ORDRE_ARENES.length === 0 && n <= 3 ? 0 : Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length];
+    const regles = AS.regles.filter((x) => (x.depuis || 1) <= n), poidsR = regles.map((x) => x.poids || 1); let tir = r() * poidsR.reduce((a, b) => a + b, 0), regle = regles[0];
+    for (let i = 0; i < regles.length; i++) { tir -= poidsR[i]; if (tir <= 0) { regle = regles[i]; break; } }
+    if (n === 1) regle = AS.regles[0];
+    const meteo = regle.meteo || (n < 3 ? 'clair' : choisir(['clair', 'clair', 'crepuscule', 'nuit', 'brouillard', 'orage', 'meteores']));
+    const vagueDepart = Math.min(30, 1 + Math.floor(n / 3));
+    const types = Object.keys(D.ZOMBIES).filter((k) => !D.ZOMBIES[k].boss && k !== 'trainard' && D.ZOMBIES[k].depuis <= vagueDepart + 1 + Math.floor(n / 4));
+    const vedettes = []; if (regle.vedette) vedettes.push(regle.vedette); while (vedettes.length < 2 && types.length) { const k = choisir(types); if (!vedettes.includes(k)) vedettes.push(k); else if (types.length < 2) break; }
+    let objectif;
+    if (n % 5 === 0) { const c = choisir(['costaud', 'geolier', 'sabreur', 'invocateur'].filter((k) => k === 'costaud' || n >= 10)); objectif = { type: 'contrat', cible: c, vie: 6 + n * 0.25, s: 75 + Math.min(45, n) }; }
+    else { const ty = choisir(n >= 4 ? ['vagues', 'tues', 'chrono', 'generateur'] : ['vagues', 'tues', 'chrono']); objectif = ty === 'vagues' ? { type: 'vagues', n: Math.min(5, 2 + Math.floor(n / 7)) } : ty === 'tues' ? { type: 'tues', n: 25 + n * 4 } : ty === 'chrono' ? { type: 'chrono', s: Math.min(150, 55 + n * 3) } : { type: 'generateur', n: Math.min(4, 2 + Math.floor(n / 9)) }; }
+    const mod = {}; for (const k of ['zVie', 'zVitesse', 'nombre', 'ferraille', 'points', 'unPV', 'sansAtelier', 'armeRare']) if (regle[k] != null) mod[k] = regle[k];
+    mod.zVie = (mod.zVie || 1) * (1 + Math.max(0, n - 1) * 0.025);
+    return { n, graine: h || 1, arene, meteo, regle: regle.id, regleNom: regle.nom, regleTexte: regle.texte, objectif, vedettes, vagueDepart, mod };
+  }
+  // la phrase de l'objectif (l'écran de l'Ascension, le HUD)
+  function texteObjectif(O) {
+    if (!O) return '';
+    if (O.type === 'vagues') return `Survis à ${O.n} vague${O.n > 1 ? 's' : ''}`;
+    if (O.type === 'tues') return `Abats ${O.n} zombies`;
+    if (O.type === 'chrono') return `Tiens ${O.s} secondes`;
+    if (O.type === 'contrat') { const nom = D.ZOMBIES[O.cible].nom; return `Contrat : abats ${/^[AEIOUÉ]/.test(nom) ? 'l’' : 'le '}${nom} d’élite en moins de ${O.s} s`; }
+    if (O.type === 'generateur') return `Protège le générateur pendant ${O.n} vague${O.n > 1 ? 's' : ''}`;
+    return '';
   }
   // ─── un pas de simulation ───
   function pas(jeu, entrees, dt) {
@@ -368,7 +454,7 @@
         const prime = V.prime(jeu.vague);
         for (const j of jeu.joueurs) if (j.vivant) j.score += prime;
         jeu.phase = 'pause'; jeu.chrono = V.pause;
-        ev(jeu, { t: 'vagueFinie', n: jeu.vague, prime });
+        ev(jeu, { t: 'vagueFinie', n: jeu.vague, prime }); jeu.vaguesFinies++;
       }
     }
     for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
@@ -377,9 +463,12 @@
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
     majObjets(jeu, dt);
+    majChutes(jeu, dt);
+    majObjectif(jeu, dt);
+    if (jeu.fini) return jeu.evs;
     // fin : plus aucun survivant debout
     if (!jeu.joueurs.some((j) => j.vivant)) {
-      jeu.fini = true; jeu.phase = 'fin';
+      jeu.fini = true; jeu.phase = 'fin'; if (jeu.objectif) jeu.gagne = false;
       const score = jeu.joueurs.reduce((s, j) => s + j.score, 0);
       ev(jeu, { t: 'fin', score, vague: jeu.vague, tues: jeu.stats.tues });
     }
@@ -421,10 +510,11 @@
     const base = armeDe(j), arme = remplir(_armeJ, base, { portee: base.portee * (1 + rang(j, 'portee') * D.ATOUTS.portee.par), perce: base.perce + rang(j, 'perce') });
     j.cible -= dt;
     if (j.cible <= 0) {
-      j.cible = 0.1; j.viseId = 0; let best = Math.max(arme.portee, D.ARMES[D.ARME_DE_BASE].portee) ** 2; // (au-delà de la portée de l'arme en main : le pistolet d'appoint)
+      j.cible = 0.1; j.viseId = 0; const max2 = Math.max(arme.portee, D.ARMES[D.ARME_DE_BASE].portee) ** 2; let best = max2; // (au-delà de la portée de l'arme en main : le pistolet d'appoint)
       for (const zb of jeu.zombies) {
         if (zb.vie <= 0) continue;
-        const d2 = (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2; if (d2 >= best) continue;
+        const r2 = (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2; if (r2 >= max2) continue;
+        const d2 = r2 * (zb.elite ? 0.3 : 1); if (d2 >= best) continue; // (l'élite d'un contrat d'abord)
         if (!jeu.monde.vue(j.x, j.z, zb.x, zb.z)) continue;
         best = d2; j.viseId = zb.id;
       }
@@ -472,7 +562,7 @@
 
   function majZombies(jeu, dt) {
     const Zs = jeu.zombies, monde = jeu.monde, vivants = jeu.joueurs.filter((j) => j.vivant);
-    const epouvantails = jeu.defenses.filter((d) => d.type === 'epouvantail');
+    const epouvantails = jeu.defenses.filter((d) => D.DEFENSES[d.type].attire); // (l'épouvantail, le poste radio)
     for (let i = 0; i < Zs.length; i++) {
       const zb = Zs[i]; if (zb.vie <= 0) continue;
       const Z = D.ZOMBIES[zb.type];
@@ -484,7 +574,7 @@
       // la proie : le survivant le plus proche, ou un épouvantail tout près
       let cx = 0, cz = 0, proie = null, best = Infinity;
       for (const j of vivants) { const d = (j.x - zb.x) ** 2 + (j.z - zb.z) ** 2; if (d < best) { best = d; proie = j; } }
-      for (const d of epouvantails) { const r = D.DEFENSES.epouvantail.attire, dd = (d.x - zb.x) ** 2 + (d.z - zb.z) ** 2; if (dd < r * r && dd < best * 1.6) { best = dd; proie = d; } }
+      for (const d of epouvantails) { const r = D.DEFENSES[d.type].attire, dd = (d.x - zb.x) ** 2 + (d.z - zb.z) ** 2; if (dd < r * r && dd < best * (d.type === 'radio' ? 4 : 1.6)) { best = dd; proie = d; } }
       if (!proie) { zb.bouge = 0; continue; }
       cx = proie.x; cz = proie.z;
       const dist = Math.sqrt(best);
@@ -513,10 +603,10 @@
         if (zb.ci >= zb.chemin.length - 1) { tx = cx; tz = cz; }
       }
       const dx = tx - zb.x, dz = tz - zb.z, l = Math.hypot(dx, dz) || 1;
-      const contact = dist < zb.rayon + (proie.rayon || D.DEFENSES.epouvantail.rayon) + 0.25;
+      const contact = dist < zb.rayon + (proie.rayon || D.DEFENSES[proie.type].rayon) + 0.25;
       // ─── les talents ───
       const estJ = proie.vivant !== undefined;
-      if (Z.kamikaze && dist < zb.rayon + (proie.rayon || 0.6) + 0.45) { zb.vie = 0; zb.dernier = { px: 0, pz: 0, fort: true }; ev(jeu, { t: 'detone', id: zb.id, x: zb.x, z: zb.z }); detoner(jeu, zb, 'kamikaze'); continue; }
+      if (Z.kamikaze && dist < zb.rayon + (proie.rayon || D.DEFENSES[proie.type].rayon) + 0.45) { zb.vie = 0; zb.dernier = { px: 0, pz: 0, fort: true }; ev(jeu, { t: 'detone', id: zb.id, x: zb.x, z: zb.z }); detoner(jeu, zb, 'kamikaze'); continue; }
       if (Z.saut) {
         if (zb.saut > 0) { // en l'air : il file vers son point de chute, par-dessus tout
           zb.saut -= dt; const k = 1 - Math.max(0, zb.saut) / Z.saut.duree;
@@ -616,10 +706,15 @@
     const km = multDefense(jeu), monde = jeu.monde;
     for (const d of jeu.defenses) {
       const T = D.DEFENSES[d.type]; if (d.flash > 0) d.flash -= dt;
-      if (d.type === 'tourelle' || d.type === 'mortier') {
+      if (d.type === 'claymore') { // un zombie devant, assez près : elle souffle vers l'avant
+        if (jeu.zombies.some((zb) => zb.vie > 0 && Math.hypot(zb.x - d.x, zb.z - d.z) < T.declenche && ecartAngle(d.angle, Math.atan2(zb.z - d.z, zb.x - d.x)) < T.cone)) d.vie = 0;
+        continue;
+      }
+      if (d.type === 'radio') { d.t = (d.t || 0) + dt; if (d.t >= T.duree) d.vie = 0; continue; }
+      if (d.type === 'tourelle' || d.type === 'mortier' || d.type === 'tourellefeu' || d.type === 'tourelletesla') {
         d.attente -= dt;
         let cible = null, best = T.portee * T.portee;
-        if (d.type === 'tourelle') {
+        if (d.type !== 'mortier') {
           for (const zb of jeu.zombies) { if (zb.vie <= 0) continue; const d2 = (zb.x - d.x) ** 2 + (zb.z - d.z) ** 2; if (d2 < best && monde.vue(d.x, d.z, zb.x, zb.z)) { best = d2; cible = zb; } }
         } else { // le mortier vise le zombie qui a le plus de voisins, hors de sa distance minimale
           let score = -1; const mn = T.minimum * T.minimum, s2 = T.souffle * T.souffle;
@@ -633,7 +728,10 @@
           const a = Math.atan2(cible.z - d.z, cible.x - d.x); d.angle = angleVers(d.angle, a, 9 * dt);
           if (d.attente <= 0 && ecartAngle(d.angle, a) < 0.25) {
             d.attente = 1 / T.cadence;
-            if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, remplir(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
+            const bx = d.x + Math.cos(d.angle) * 0.5, bz = d.z + Math.sin(d.angle) * 0.5;
+            if (d.type === 'tourellefeu') souffler(jeu, 'def' + d.id, bx, bz, d.angle, remplir(_armeTir, { degats: T.degats, portee: T.portee, cone: T.cone, feu: T.feu, recul: 0.05, classe: 'flamme', cle: 'tourellefeu' }), km);
+            else if (d.type === 'tourelletesla') eclair(jeu, 'def' + d.id, d.x, d.z, d.angle, remplir(_armeTir, { degats: T.degats, portee: T.portee + 1, rebonds: T.rebonds, saut: T.saut, classe: 'tesla', cle: 'tourelletesla' }), km, null, cible);
+            else if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, remplir(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
             else { const duree = 0.9 + Math.hypot(cible.x - d.x, cible.z - d.z) * 0.04; jeu.obus.push({ x0: d.x, z0: d.z, x1: cible.x + (jeu.rnd() - 0.5), z1: cible.z + (jeu.rnd() - 0.5), t: 0, duree, degats: T.degats * km, souffle: T.souffle }); ev(jeu, { t: 'mortier', x: d.x, z: d.z }); }
           }
         } else if (d.attente < 0) d.attente = 0;
@@ -642,8 +740,15 @@
     for (let i = jeu.defenses.length - 1; i >= 0; i--) {
       const d = jeu.defenses[i]; if (d.vie > 0) continue;
       jeu.defenses.splice(i, 1);
-      if (d.type === 'mine') explosion(jeu, d.x, d.z, D.DEFENSES.mine.souffle, D.DEFENSES.mine.degats * km, 'def' + d.id);
-      else ev(jeu, { t: 'casse', type: d.type, x: d.x, z: d.z });
+      const T = D.DEFENSES[d.type];
+      if (d.type === 'mine') explosion(jeu, d.x, d.z, T.souffle, T.degats * km, 'def' + d.id);
+      else if (d.type === 'claymore') { // le souffle en cône, vers l'avant
+        for (const zb of jeu.zombies) { if (zb.vie <= 0) continue; const ex = zb.x - d.x, ez = zb.z - d.z, dd = Math.hypot(ex, ez); if (dd > T.souffle + zb.rayon || ecartAngle(d.angle, Math.atan2(ez, ex)) > T.cone + 0.15) continue; blesserZombie(jeu, zb, T.degats * km * (1 - Math.min(1, dd / T.souffle) * 0.5), ex / (dd || 1) * 2, ez / (dd || 1) * 2, 'def' + d.id, false, true); }
+        ev(jeu, { t: 'boum', x: d.x + Math.cos(d.angle) * 1.2, z: d.z + Math.sin(d.angle) * 1.2, r: 2.2, cone: d.angle });
+      } else if (d.type === 'baril' || d.type === 'radio') {
+        explosion(jeu, d.x, d.z, T.souffle, T.degats * km, d.de || 'def' + d.id);
+        for (const j of jeu.joueurs) { if (!j.vivant) continue; const dd = Math.hypot(j.x - d.x, j.z - d.z); if (dd < T.souffle * 0.8) blesserJoueur(jeu, j, 25 * (1 - dd / T.souffle)); }
+      } else ev(jeu, { t: 'casse', type: d.type, x: d.x, z: d.z });
     }
   }
 
@@ -738,6 +843,7 @@
     const j = trouverJoueur(jeu, idJ), T = D.DEFENSES[type];
     if (!j || !T || jeu.fini) return { ok: false, raison: 'inconnu' };
     if (!j.vivant) return { ok: false, raison: 'mort' };
+    if (jeu.mod.sansAtelier || T.horsAtelier) return { ok: false, raison: 'regle' };
     if (Math.max(1, jeu.vague) < T.depuis) return { ok: false, raison: 'verrou' };
     if (compteDefenses(jeu, type) >= maxDefenses(jeu, type)) return { ok: false, raison: 'max' };
     if (j.ferraille < T.prix) return { ok: false, raison: 'ferraille' };
@@ -786,5 +892,5 @@
     const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });

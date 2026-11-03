@@ -53,7 +53,14 @@ const ZHUD = (() => {
     flamme: '<svg viewBox="0 0 64 32"><path d="M4 12h30l8-3h10v14H42l-8-3h-4l-2 9h-8l2-9H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="8" y="18" width="12" height="8" rx="3" fill="#C0392B" stroke="#1F2533" stroke-width="2"/></svg>',
   };
   const iconeArme = (id) => { const A = ZDONNEES.ARMES[id]; if (ARME_ICO[id]) return ARME_ICO[id]; if (!A) return ''; return `<span class="ico-arme" style="color:${A.couleur}">${FAMILLE_ICO[A.famille] || FAMILLE_ICO.pistolet}</span>`; };
-  const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  const DEFS1 = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], DEFS2 = ['tourellefeu', 'tourelletesla', 'claymore', 'baril', 'radio'], DEFS = DEFS1.concat(DEFS2), AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  Object.assign(ICO, {
+    tourellefeu: '<svg viewBox="0 0 40 40"><rect x="9" y="27" width="22" height="7" rx="2" fill="#5D6470"/><rect x="18" y="19" width="4" height="9" fill="#4A505A"/><rect x="10" y="12" width="16" height="10" rx="2" fill="#D9824B" stroke="#2B2A33" stroke-width="2"/><path d="M26 17h5c4-3 6 1 3 3 3 1 1 5-3 3h-5z" fill="#FFB347" stroke="#C0392B" stroke-width="1.5"/></svg>',
+    tourelletesla: '<svg viewBox="0 0 40 40"><rect x="10" y="29" width="20" height="6" rx="2" fill="#5D6470"/><rect x="17" y="14" width="6" height="16" fill="#7C8696" stroke="#2B2A33" stroke-width="2"/><circle cx="20" cy="10" r="6" fill="#6FD3FF" stroke="#2B2A33" stroke-width="2"/><path d="M27 6l4 2-3 2 4 2" stroke="#BFF0FF" stroke-width="2" fill="none"/></svg>',
+    claymore: '<svg viewBox="0 0 40 40"><path d="M7 14q13-6 26 0v11q-13-5-26 0z" fill="#6B7A3A" stroke="#2B2A33" stroke-width="2.2"/><path d="M12 30l-3 5M28 30l3 5" stroke="#2B2A33" stroke-width="2.2"/><circle cx="20" cy="18" r="2" fill="#FF4A3A"/></svg>',
+    baril: '<svg viewBox="0 0 40 40"><rect x="10" y="7" width="20" height="27" rx="4" fill="#D64534" stroke="#2B2A33" stroke-width="2.2"/><path d="M10 14h20M10 27h20" stroke="#8C2A1E" stroke-width="2"/><path d="M20 15l-3 6h4l-3 6" stroke="#FFE07A" stroke-width="2" fill="none"/></svg>',
+    radio: '<svg viewBox="0 0 40 40"><path d="M24 6l-8 9" stroke="#2B2A33" stroke-width="2"/><rect x="6" y="15" width="28" height="18" rx="4" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.2"/><circle cx="14" cy="24" r="5" fill="#2B2A33"/><rect x="22" y="20" width="8" height="3" fill="#FFE07A"/><rect x="22" y="25" width="8" height="3" fill="#FFE07A"/></svg>',
+  });
   const NB_CHIFFRES = 40, chiffres = [], derniers = [], cumul = new Map(); let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
@@ -69,6 +76,7 @@ const ZHUD = (() => {
         <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
         <div class="h-vague"><span class="h-v">V1</span><span class="h-rest contour">—</span></div>
         <div class="h-serie" hidden>SÉRIE ×2</div>
+        <div class="h-objectif contour" hidden></div>
       </div>
       <div class="h-score contour">SCORE <b>0</b></div>
       <button class="h-pause" type="button" aria-label="Pause">${ICO.pause}</button>
@@ -76,7 +84,7 @@ const ZHUD = (() => {
         <button class="h-poignee" type="button" aria-label="Replier l’atelier"><span>‹</span></button>
         <div class="h-cols">
           <div class="h-col">${AMS.map((k) => `<button type="button" class="h-btn am" data-am="${k}"><span class="ico">${ICO[k]}</span><small class="niv"></small><b class="prix"></b></button>`).join('')}</div>
-          <div class="h-col">${DEFS.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>
+          ${[DEFS1, DEFS2].map((L) => `<div class="h-col">${L.map((k) => `<button type="button" class="h-btn def" data-def="${k}"><span class="nb"></span><span class="ico">${ICO[k]}</span><b class="prix"></b></button>`).join('')}</div>`).join('')}
         </div>
         <div class="h-info" hidden></div>
       </div>
@@ -93,7 +101,7 @@ const ZHUD = (() => {
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
-      annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
+      objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
       defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
@@ -194,10 +202,14 @@ const ZHUD = (() => {
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
-    // le boss
-    const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss);
+    // l'objectif de l'échelon (l'Ascension)
+    const O = jeu.objectif, mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    const txtO = !O ? '' : O.type === 'vagues' ? `Vagues tenues ${O.fait || 0}/${O.n}` : O.type === 'tues' ? `Zombies ${Math.min(O.n, O.fait || 0)}/${O.n}` : O.type === 'chrono' ? `Tiens encore ${mmss(Math.max(0, O.s - (jeu.tempsVague || 0)))}` : O.type === 'contrat' ? (O.lance ? `Contrat : ${mmss(O.reste == null ? O.s : O.reste)}` : `Contrat : ${D.ZOMBIES[O.cible].nom} d’élite`) : `Générateur ${Math.round((O.vie == null ? 1 : O.vie) * 100)} % · vagues ${O.fait || 0}/${O.n}`;
+    if (vu.obj !== txtO) { vu.obj = txtO; el.objectif.textContent = txtO; el.objectif.hidden = !txtO; el.objectif.classList.toggle('urgent', !!O && ((O.type === 'contrat' && O.reste != null && O.reste < 15) || (O.type === 'generateur' && O.vie < 0.3))); }
+    // le boss (ou l'élite d'un contrat)
+    const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss) || jeu.zombies.find((z) => z.elite && z.vie > 0);
     if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
-    if (boss && vu.bossNom !== boss.type) { vu.bossNom = boss.type; el.bossN.textContent = D.ZOMBIES[boss.type].nom.toUpperCase(); }
+    if (boss && vu.bossNom !== boss.type + (boss.elite ? 'e' : '')) { vu.bossNom = boss.type + (boss.elite ? 'e' : ''); el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '')).toUpperCase(); }
     if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
     // les événements : rougeur, annonces, messages
     if (evs) for (const e of evs) {
