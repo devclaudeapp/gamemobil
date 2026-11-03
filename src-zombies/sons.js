@@ -98,6 +98,7 @@ const ZSONS = (() => {
         case 'fin': P.jouer('defaite', 1); break;
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
+        case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
       }
     }
   }

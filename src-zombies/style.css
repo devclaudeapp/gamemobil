@@ -234,3 +234,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .amelio button:disabled { background: #E3E6EA; box-shadow: none; color: #8A909A; }
 .fin-medailles { margin: 0; font: 700 17px/1.3 var(--titre); }
 .bunker .medailles { justify-self: center; }
+
+/* ─── le salon (coop) ─── */
+.salon { width: min(440px, 100%); max-height: 100%; overflow-y: auto; }
+.champ { display: grid; gap: 4px; text-align: left; font-size: 14px; color: #5A5F6B; }
+.champ input, .rejoindre input { min-height: 46px; padding: 0 14px; border-radius: 14px; border: 2.5px solid var(--encre); background: #fff; font: 700 18px/1 var(--titre); color: var(--encre); }
+.rejoindre { display: flex; gap: 8px; }
+.rejoindre input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .3em; text-align: center; }
+.code-salon { justify-self: center; padding: 6px 22px; border-radius: 16px; background: var(--encre); color: var(--jaune); font: 700 44px/1.1 var(--titre); letter-spacing: .25em; }
+.salon-arene { margin: 0; color: #5A5F6B; font-size: 14px; }
+.liste-joueurs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-joueurs li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; background: #fff; text-align: left; }
+.liste-joueurs li.moi { box-shadow: inset 0 0 0 2.5px var(--jaune); }
+.liste-joueurs .pastille { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #8E6BD1; color: #fff; font: 700 11px/1.4 var(--texte); }
+.liste-joueurs .pastille.toi { margin-left: 4px; background: var(--jaune-sombre); }
+.liste-joueurs .pastille + .pastille { margin-left: 4px; }
+.attente, .salon-etat, .fin-attente { margin: 0; color: #5A5F6B; font-size: 14px; }
+.salon-erreur { margin: 0; padding: 8px 12px; border-radius: 12px; background: #FFE3DE; color: #A8321F; font-size: 14px; }
+/* les pseudos des copains, au-dessus d'eux */
+.h-noms { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.h-noms span { position: absolute; left: 0; top: 0; padding: 1px 8px; border-radius: 999px; background: rgba(31, 37, 51, .7); color: #fff; font: 700 12px/1.4 var(--titre); white-space: nowrap; }
+.h-noms span.terre { background: #C8412C; }

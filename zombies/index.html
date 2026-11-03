@@ -257,6 +257,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .amelio button:disabled { background: #E3E6EA; box-shadow: none; color: #8A909A; }
 .fin-medailles { margin: 0; font: 700 17px/1.3 var(--titre); }
 .bunker .medailles { justify-self: center; }
+
+/* ─── le salon (coop) ─── */
+.salon { width: min(440px, 100%); max-height: 100%; overflow-y: auto; }
+.champ { display: grid; gap: 4px; text-align: left; font-size: 14px; color: #5A5F6B; }
+.champ input, .rejoindre input { min-height: 46px; padding: 0 14px; border-radius: 14px; border: 2.5px solid var(--encre); background: #fff; font: 700 18px/1 var(--titre); color: var(--encre); }
+.rejoindre { display: flex; gap: 8px; }
+.rejoindre input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .3em; text-align: center; }
+.code-salon { justify-self: center; padding: 6px 22px; border-radius: 16px; background: var(--encre); color: var(--jaune); font: 700 44px/1.1 var(--titre); letter-spacing: .25em; }
+.salon-arene { margin: 0; color: #5A5F6B; font-size: 14px; }
+.liste-joueurs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-joueurs li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; background: #fff; text-align: left; }
+.liste-joueurs li.moi { box-shadow: inset 0 0 0 2.5px var(--jaune); }
+.liste-joueurs .pastille { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #8E6BD1; color: #fff; font: 700 11px/1.4 var(--texte); }
+.liste-joueurs .pastille.toi { margin-left: 4px; background: var(--jaune-sombre); }
+.liste-joueurs .pastille + .pastille { margin-left: 4px; }
+.attente, .salon-etat, .fin-attente { margin: 0; color: #5A5F6B; font-size: 14px; }
+.salon-erreur { margin: 0; padding: 8px 12px; border-radius: 12px; background: #FFE3DE; color: #A8321F; font-size: 14px; }
+/* les pseudos des copains, au-dessus d'eux */
+.h-noms { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.h-noms span { position: absolute; left: 0; top: 0; padding: 1px 8px; border-radius: 999px; background: rgba(31, 37, 51, .7); color: #fff; font: 700 12px/1.4 var(--titre); white-space: nowrap; }
+.h-noms span.terre { background: #C8412C; }
 </style>
 </head>
 <body>
@@ -275,6 +296,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
       <div class="boutons">
         <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
@@ -299,9 +321,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <h2>Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
       <dl class="fin-chiffres"></dl>
       <button type="button" class="gros" id="b-rejouer">Rejouer</button>
       <button type="button" class="moyen" id="b-menu">Menu</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-salon" hidden>
+    <div class="carte-ecran salon">
+      <h2>Jouer à plusieurs</h2>
+      <div class="salon-entree">
+        <p class="resume">De 2 à 4 survivants, chacun sur son téléphone, chacun chez soi.</p>
+        <label class="champ"><span>Ton pseudo</span><input id="s-pseudo" maxlength="16" autocomplete="nickname" placeholder="Survivant"></label>
+        <button type="button" class="gros" id="b-creer">Créer un salon</button>
+        <div class="rejoindre"><input id="s-code" maxlength="4" placeholder="CODE" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" class="moyen" id="b-rejoindre">Rejoindre</button></div>
+      </div>
+      <div class="salon-dedans" hidden>
+        <p class="resume">Le code du salon, à donner aux copains :</p>
+        <div class="code-salon" aria-live="polite"></div>
+        <p class="salon-arene"></p>
+        <ul class="liste-joueurs"></ul>
+        <button type="button" class="gros" id="b-lancer">Lancer la partie</button>
+        <p class="attente">En attente : l’hôte lance la partie.</p>
+      </div>
+      <p class="salon-etat" hidden></p>
+      <p class="salon-erreur" role="alert" hidden></p>
+      <button type="button" class="moyen" id="b-salon-quitter">Retour</button>
     </div>
   </section>
 
@@ -330,6 +376,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 <script>window.ZOMBIES_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
+<script src="../vendor/supabase.min.js"></script>
+<script src="config.js"></script>
 <script>
 /* ── src-poncin/nav.js ── */
 /* OPÉRATION PONCIN — la navigation des bots. Une grille (pas de 1,5 m par défaut) des cases où tient un cercle de rayon « marge »
@@ -1044,6 +1092,518 @@ const PSONS = (() => {
   return { debloquer, regler, suspendre, jouer, vibrer, evenements, compte, ui, mesurer, ambiance, classe: classeDe, CLASSES, noms: Object.keys(SONS), get pret() { return pret(); }, get contexte() { return ctx; } };
 })();
 
+/* ── src-poncin/reseau.js ── */
+/* OPÉRATION PONCIN — les salons entre copains : se retrouver par un code de 4 lettres, puis échanger les messages de la partie.
+   Topologie en étoile autour de l'hôte (le plus ancien arrivé, donc le créateur du salon) : les clients parlent à l'hôte, l'hôte parle à un client ou à tous.
+   Trois voies (« via ») derrière la même API :
+   - 'supabase'     : (par défaut) présence et signalisation par Supabase Realtime (canal public 'poncin:CODE'), puis WebRTC de téléphone à téléphone ;
+                      repli « relais » par le même canal Supabase (débit bridé) si le pair-à-pair ne s'ouvre pas en ~8 s ;
+   - 'local'        : BroadcastChannel seul, entre onglets du même navigateur (tests Playwright, démonstrations) ;
+   - 'webrtc-local' : présence et signalisation par BroadcastChannel, données par le vrai WebRTC (candidats « host », sans STUN) : sert à éprouver le code WebRTC.
+   API (voir src-poncin/ARCHITECTURE.md, « Le jeu en ligne ») :
+     PRESEAU.salon({ via, code, creer, moi: { id, pseudo, couleur }, config, relais, prefixe }) → Promise<salon>   (prefixe : celui des canaux, 'poncin' par défaut)
+       sans code (ou creer: true) on crée le salon : le créateur est l'hôte tant qu'il est là, puis le plus ancien arrivé ;
+       avec un code, on le rejoint : la promesse attend d'avoir vu le créateur (8 s au plus) pour ne jamais se croire hôte à tort ;
+       via : 'supabase' | 'local' | 'webrtc-local' ; ?reseau=local (ou webrtc-local) dans l'adresse de la page l'impose ;
+       config : { supabaseUrl, supabaseKey } (clé PUBLIQUE), sinon window.PONCIN_CONFIG ; relais: true (ou ?relais=1) empêche le pair-à-pair (essai du relais).
+       Rejette avec une Error au message lisible si le serveur des salons est injoignable ou le jeu en ligne pas configuré.
+     salon.code, salon.via, salon.moi, salon.hote (id), salon.estHote, salon.ferme
+     salon.joueurs : Map id → { id, pseudo, couleur, pret, ping, voie, depuis, cree } (moi compris ; cree : c'est le créateur du salon)
+       voie : comment ce joueur joint l'hôte : 'hote' (c'est l'hôte), 'p2p' (WebRTC direct), 'relais' (par le serveur, ≤ 5 envois/s), 'connexion' (en cours) ; 'local' sur la voie locale ;
+       ping : aller-retour avec l'hôte en ms (0 pour l'hôte), mesuré toutes les 2 s (4 s en relais).
+     salon.sur(type, fn(data, de)) → off      (types de l'application ; et 'joueurs' (liste), 'hote' ({ hote, avant }), 'ferme')
+     salon.envoyer(type, data, { fiable = true, a = null }) → bool   (client → hôte seulement ; hôte → a, ou tous si a = null) ; un envoi à tous sérialise ses données une seule fois
+       fiable : livré une fois, dans l'ordre (numéroté, acquitté, renvoyé si besoin, même en changeant de voie) ;
+       non fiable : le dernier compte (en relais, seul le dernier de chaque type part, 5 fois/s au plus) ; jeté si le tampon dépasse 64 Ko.
+     salon.majMoi({ pret, pseudo, couleur, eq }), salon.stats(), salon.quitter()
+   Sur le fil (voies WebRTC) : chaque message est un tableau JSON : [0, type, data] non fiable (DataChannel 'etat', id 0, sans ordre ni renvoi),
+   [1, n°, type, data] fiable (DataChannel 'evts', id 1), [2, t, acquis, infos, partis] ping (de l'hôte : { id: [ping, voie] } et les instances parties), [3, t, acquis] pong, [4] au revoir.
+   Le relais : un envoi 'relais' { de, i (instance), v, l: { idDestinataire: [messages…] } } toutes les 200 ms au plus (tous les destinataires dans le même envoi).
+   La signalisation : 'signal' { de, a, i, n (essai), v, j (l'offre porte aussi pseudo, couleur, prêt…), sdp } ; offre du client, réponse de l'hôte, ICE complet (pas de « trickle »). */
+const PRESEAU = (() => {
+  'use strict';
+  const LETTRES = 'BCDFGHJKLMNPQRSTVWXZ'; // des consonnes : pas de mot vexant ; 160 000 codes
+  const nouveauCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += LETTRES[Math.floor(Math.random() * LETTRES.length)]; return c; };
+  const codeValide = (c) => typeof c === 'string' && /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/.test(c);
+  const VERSION = 3; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2 ; 3 : l'Extraction)
+  const chaine = (v, n) => (typeof v === 'string' ? v.slice(0, n) : ''); // un champ texte de la présence, borné
+  // réglages (ms) : collecte ICE, attente du pair-à-pair avant le relais, pings, cadence du relais (≤ 5 envois/s), tampon max pour l'état,
+  // renvoi des fiables non acquittés, grâce d'un joueur sorti de la présence (lien direct vivant / sinon : le temps qu'il se reconnecte), essais WebRTC suivants (en relais)
+  const R = { collecte: 3000, attente: 8000, ping: 2000, pingRelais: 4000, relais: 200, tampon: 65536, renvoi: 4000, grace: 15000, graceCourte: 5000, essais: [10000, 20000, 40000, 60000] };
+  const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+  const attendreQue = async (f, ms) => { const t = Date.now(); while (!f()) { if (Date.now() - t > ms) return false; await attendre(50); } return true; };
+  const param = (k) => { try { return new URLSearchParams(location.search).get(k); } catch (e) { return null; } };
+  // le préfixe des canaux (o.prefixe, 'poncin' par défaut) : un autre jeu du dépôt (Dernier Rempart : 'rempart') a ses salons à lui
+  const prefixe = (o) => (o && typeof o.prefixe === 'string' && /^[a-z]{2,16}$/.test(o.prefixe) ? o.prefixe : 'poncin');
+  const sur = (f) => function () { try { return f.apply(this, arguments); } catch (e) { console.warn('[Poncin réseau]', e); } }; // jamais d'exception qui remonte d'un rappel réseau
+
+  // ─── le socle commun : abonnés, liste des joueurs, élection de l'hôte (le plus ancien arrivé) ───
+  function socle(code, moi) {
+    const abonnes = new Map(), joueurs = new Map(), stats = { envoyes: 0, recus: 0, octets: 0, t0: Date.now(), p2pEnv: 0, p2pRec: 0, relaisEnv: 0, relaisRec: 0, signaux: 0, jetes: 0 };
+    const s = {
+      code, moi: Object.assign({ pret: false }, moi), hote: null, estHote: false, joueurs, ferme: false,
+      sur(type, fn) { if (!abonnes.has(type)) abonnes.set(type, new Set()); abonnes.get(type).add(fn); return () => abonnes.get(type).delete(fn); },
+      _emettre(type, data, de) { const l = abonnes.get(type); if (l) for (const fn of Array.from(l)) { try { fn(data, de); } catch (e) { console.error('[Poncin réseau]', type, e); } } },
+      _elire() { // l'hôte = le créateur du salon s'il est là, sinon le plus ancien arrivé (départage par id) ; prévient si ça change
+        const avant = (a, b) => (!!a.cree !== !!b.cree ? !!a.cree : a.depuis !== b.depuis ? a.depuis < b.depuis : a.id < b.id);
+        let h = null; for (const j of joueurs.values()) if (!h || avant(j, h)) h = j;
+        const id = h ? h.id : null; if (id !== s.hote) { const avant = s.hote; s.hote = id; s.estHote = id === s.moi.id; if (avant !== null) s._emettre('hote', { hote: id, avant }); }
+      },
+      _stats: stats,
+      stats() {
+        const dt = Math.max(1, (Date.now() - stats.t0) / 1000), r = (k) => Math.round(stats[k] / dt * 10) / 10;
+        return { envoyesParS: stats.envoyes / dt, recusParS: stats.recus / dt, octetsParS: stats.octets / dt, p2pEnvoyesParS: r('p2pEnv'), p2pRecusParS: r('p2pRec'),
+          relaisEnvoyesParS: r('relaisEnv'), relaisRecusParS: r('relaisRec'), signaux: stats.signaux, jetes: stats.jetes, secondes: dt, compteurs: Object.assign({}, stats),
+          voies: Array.from(joueurs.values()).map((j) => j.voie), liens: s._liens ? s._liens() : [] };
+      },
+    };
+    return s;
+  }
+
+  // ─── voie 'local' : BroadcastChannel (même navigateur) ───
+  async function salonLocal(o) {
+    if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
+    const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel(prefixe(o) + '-salle-' + code);
+    const depuis = Date.now() + Math.random() / 1000, vus = new Map(); // id → dernier signe de vie
+    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, v: VERSION });
+    const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, eq: chaine(j.eq, 24), am: chaine(j.am, 8), depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
+    const poster = (m) => { try { const t = JSON.stringify(m); s._stats.envoyes++; s._stats.octets += t.length; bc.postMessage(t); } catch (e) { /* fermé */ } };
+    const listeChangee = () => { s._elire(); s._emettre('joueurs', Array.from(s.joueurs.values())); };
+    poser(moiPublic()); s._elire();
+    bc.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (!m || m.de === s.moi.id || s.ferme) return;
+      s._stats.recus++;
+      if (m.k === 'salut' || m.k === 'vie') { if (!m.j || m.j.v !== VERSION) return; const nouveau = !s.joueurs.has(m.j.id); poser(m.j); if (m.k === 'salut') poster({ k: 'vie', de: s.moi.id, j: moiPublic() }); if (nouveau || m.k === 'salut') listeChangee(); else s._emettre('joueurs', Array.from(s.joueurs.values())); return; }
+      if (m.k === 'adieu') { s.joueurs.delete(m.de); vus.delete(m.de); listeChangee(); return; }
+      if (m.k === 'msg') {
+        if (m.a && m.a !== s.moi.id) return;                 // pas pour moi
+        if (!s.estHote && m.de !== s.hote) return;            // un client n'écoute que l'hôte (étoile)
+        s._emettre(m.type, m.data, m.de);
+      }
+    };
+    const battement = setInterval(() => { // signe de vie toutes les secondes ; un joueur muet 4 s est parti
+      poster({ k: 'vie', de: s.moi.id, j: moiPublic() });
+      const t = Date.now(); let change = false; for (const [id, v] of vus) if (id !== s.moi.id && t - v > 4000) { s.joueurs.delete(id); vus.delete(id); change = true; }
+      if (change) listeChangee();
+    }, 1000);
+    s.via = 'local';
+    s.envoyer = (type, data, opt) => {
+      if (s.ferme) return false;
+      const a = opt && opt.a ? opt.a : null;
+      if (!s.estHote && (!s.hote || s.hote === s.moi.id || (a && a !== s.hote))) return false; // étoile : un client ne parle qu'à l'hôte
+      poster({ k: 'msg', de: s.moi.id, a: s.estHote ? a : s.hote, type, data }); return true;
+    };
+    s.majMoi = (o2) => { Object.assign(s.moi, o2 || {}); poser(moiPublic()); poster({ k: 'vie', de: s.moi.id, j: moiPublic() }); s._emettre('joueurs', Array.from(s.joueurs.values())); };
+    s.quitter = () => { if (s.ferme) return; poster({ k: 'adieu', de: s.moi.id }); s.ferme = true; clearInterval(battement); try { bc.close(); } catch (e) { /* rien */ } s._emettre('ferme', {}); };
+    poster({ k: 'salut', de: s.moi.id, j: moiPublic() });
+    await attendre(400); // le temps que les présents répondent : l'hôte est alors le bon
+    listeChangee();
+    return s;
+  }
+
+  // ─── les transports des voies WebRTC : présence + bus ('signal', 'relais') ───
+  // transport : { demarrer() → Promise<liste des présents>, suivre(moiPublic), envoyer(evt, payload) → bool, pret() → bool, fermer() }
+  // rappels : { presence(liste [{ id, pseudo, couleur, pret, depuis, v, i }]), signal(payload), relais(payload) }
+
+  // BroadcastChannel (voie 'webrtc-local') : un signe de vie par seconde, muet 4 s = parti
+  function transportBC(code, id, rappels, pre) {
+    if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
+    const bc = new BroadcastChannel((pre || 'poncin') + '-rtc-' + code), vus = new Map(); let moiP = null, ferme = false;
+    const poster = (m) => { try { bc.postMessage(JSON.stringify(m)); } catch (e) { /* fermé */ } };
+    const liste = () => Array.from(vus.values()).map((x) => x.j);
+    bc.onmessage = sur((ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (!m || m.de === id || ferme) return;
+      if (m.k === 'qui') { if (moiP) poster({ k: 'vie', de: id, j: moiP }); return; }
+      if (m.k === 'vie' && m.j) { const j = Object.assign({}, m.j, { id: m.de }), avant = vus.get(m.de), change = !avant || JSON.stringify(avant.j) !== JSON.stringify(j); vus.set(m.de, { j, t: Date.now() }); if (change) rappels.presence(liste()); return; }
+      if (m.k === 'adieu') { if (vus.delete(m.de)) rappels.presence(liste()); return; }
+      if (m.k === 'bus' && (m.e === 'signal' || m.e === 'relais')) rappels[m.e](m.p);
+    });
+    const battement = setInterval(sur(() => {
+      if (moiP) poster({ k: 'vie', de: id, j: moiP });
+      const t = Date.now(); let ch = false; for (const [k, v] of vus) if (t - v.t > 4000) { vus.delete(k); ch = true; }
+      if (ch) rappels.presence(liste());
+    }), 1000);
+    return {
+      async demarrer() { poster({ k: 'qui', de: id }); await attendre(400); return liste(); },
+      suivre(j) { moiP = j; poster({ k: 'vie', de: id, j }); },
+      envoyer(e, p) { if (ferme) return false; poster({ k: 'bus', de: id, e, p }); return true; },
+      pret: () => !ferme,
+      fermer() { if (ferme) return; poster({ k: 'adieu', de: id }); ferme = true; clearInterval(battement); try { bc.close(); } catch (e) { /* rien */ } },
+    };
+  }
+
+  // Supabase Realtime (voie 'supabase') : canal public 'poncin:CODE' ; présence (clé = moi.id) et broadcast ('signal', 'relais'), sans écho
+  function transportSupabase(code, id, o, rappels) {
+    const cfg = o.config || (typeof window !== 'undefined' && window.PONCIN_CONFIG) || {};
+    if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error('Le jeu en ligne n’est pas configuré (poncin/config.js).');
+    const lib = typeof window !== 'undefined' && window.supabase;
+    if (!lib || !lib.createClient) throw new Error('Le module en ligne (supabase-js) n’est pas chargé : vérifie ta connexion.');
+    // un client à nous (sans session, sans stockage) : on peut le jeter et en refaire un si le canal reste coincé
+    const creerClient = () => lib.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'poncin-salon-' + Math.random().toString(36).slice(2) }, realtime: { heartbeatIntervalMs: 15000 } });
+    let client = null, canal = null, moiP = null, ferme = false, joint = false, perdu = 0, syncs = 0, refaits = 0;
+    const t0 = Date.now(), journal = [], noter = (quoi) => { journal.push(Math.round((Date.now() - t0) / 100) / 10 + ' s ' + quoi); if (journal.length > 60) journal.splice(0, 20); }; // pour le diagnostic
+    const liste = () => {
+      const l = []; let st = {}; try { st = canal ? canal.presenceState() : {}; } catch (e) { st = {}; }
+      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, eq: m.eq, am: m.am, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
+      return l;
+    };
+    const suivreMaintenant = (c) => { if (moiP && c === canal && joint) c.track(moiP).catch(() => { /* reprise au prochain SUBSCRIBED */ }); };
+    function ouvrir() {
+      if (!client) client = creerClient();
+      const c = client.channel(prefixe(o) + ':' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: id } } });
+      canal = c; joint = false; perdu = Date.now(); syncs = 0;
+      c.on('presence', { event: 'sync' }, sur(() => { if (canal !== c || ferme) return; syncs++; const l = liste(); noter('présence ' + l.length); rappels.presence(l); }));
+      c.on('broadcast', { event: 'signal' }, sur((m) => { if (canal === c && !ferme) rappels.signal(m && m.payload); }));
+      c.on('broadcast', { event: 'relais' }, sur((m) => { if (canal === c && !ferme) rappels.relais(m && m.payload); }));
+      c.subscribe(sur((statut) => {
+        if (canal !== c || ferme) return;
+        noter(statut);
+        if (statut === 'SUBSCRIBED') { joint = true; perdu = 0; suivreMaintenant(c); return; } // aussi après chaque reconnexion : on se remet dans la présence
+        if (joint || !perdu) perdu = Date.now(); joint = false;
+        if (statut === 'CLOSED') setTimeout(sur(() => { if (canal === c && !ferme && !joint) refaire(); }), 1500); // fermé par le serveur : on recommence
+        // CHANNEL_ERROR, TIMED_OUT : supabase-js se reconnecte et rejoint tout seul
+      }));
+    }
+    function refaire() { // un client et un canal neufs
+      const vieux = client; client = null; canal = null; refaits++; noter('canal refait');
+      if (vieux) vieux.removeAllChannels().catch(() => { /* rien */ });
+      ouvrir();
+    }
+    const veille = setInterval(sur(() => { // le canal reste décroché 25 s (page visible) : on refait tout
+      const cache = typeof document !== 'undefined' && document.hidden;
+      if (!ferme && !joint && perdu && !cache && Date.now() - perdu > 25000) refaire();
+    }), 5000);
+    return {
+      async demarrer() {
+        ouvrir();
+        if (!(await attendreQue(() => joint || ferme, 15000))) { this.fermer(); throw new Error('Le serveur des salons ne répond pas : vérifie ta connexion et réessaie.'); }
+        await attendreQue(() => syncs > 0 || ferme, 2500); // la liste des présents arrive juste après l'entrée dans le canal
+        return liste();
+      },
+      suivre(j) { moiP = j; suivreMaintenant(canal); },
+      envoyer(e, p) { if (!this.pret()) return false; canal.send({ type: 'broadcast', event: e, payload: p }).catch(() => { /* perdu : les fiables seront renvoyés */ }); return true; },
+      pret: () => !!(joint && !ferme && canal && client && client.realtime && client.realtime.isConnected()), // WebSocket tombé : on attend (pas de repli REST)
+      etat: () => ({ joint, refaits, syncs, journal: journal.slice() }),
+      fermer() { if (ferme) return; ferme = true; clearInterval(veille); const c = client; client = null; canal = null; if (c) c.removeAllChannels().catch(() => { /* rien */ }); },
+    };
+  }
+
+  // ─── voies WebRTC ('supabase', 'webrtc-local') : présence, élection, liens en étoile (WebRTC ou relais), messages numérotés ───
+  async function salonPair(o, via) {
+    const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), st = s._stats, local = via === 'webrtc-local';
+    const inst = Math.random().toString(36).slice(2, 10); // cette instance : un joueur qui recharge sa page repart à zéro
+    const sansP2P = !!o.relais || param('relais') === '1';
+    const creer = o.creer != null ? !!o.creer : !codeValide(o.code); // sans code, on crée le salon : le créateur reste l'hôte tant qu'il est là
+    const liens = new Map(), presents = new Map(), absents = new Map(); // liens : id → lien ; presents : ce que dit la présence ; absents : id → depuis quand un joueur au lien direct vivant manque à la présence
+    let depuis = Date.now(), demarre = false, relaisT = null, relaisDernier = 0, signature = '', infosHote = {};
+    const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
+    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
+    const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
+    const transport = local ? transportBC(code, s.moi.id, rappels, prefixe(o)) : transportSupabase(code, s.moi.id, o, rappels);
+    s.via = via;
+
+    // ── présence → joueurs → hôte → liens ──
+    function majPresence(liste) {
+      presents.clear();
+      for (const j of liste || []) if (j && j.id && j.id !== s.moi.id && j.v === VERSION && typeof j.depuis === 'number') presents.set(j.id, j);
+      if (demarre) recalculer();
+    }
+    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.eq = chaine(j.eq, 24); e.am = chaine(j.am, 8); e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
+    function recalculer() {
+      if (s.ferme) return;
+      const t = Date.now(), gardes = new Set([s.moi.id]);
+      poserJoueur(s.moi.id, moiPublic());
+      for (const [i, q] of partis) if (t - q > 60000) partis.delete(i);
+      for (const [id, j] of presents) { if (j.i && partis.has(j.i)) continue; gardes.add(id); poserJoueur(id, j); absents.delete(id); }
+      if (s.estHote) for (const l of liens.values()) { // un nouveau venu relié à l'hôte mais pas encore dans la présence (elle peut traîner) : connu par son offre
+        if (l.j && !gardes.has(l.id) && !l.parti && t - l.vu < 6000 && !(l.inst && partis.has(l.inst))) { gardes.add(l.id); poserJoueur(l.id, l.j); absents.delete(l.id); }
+      }
+      for (const id of Array.from(s.joueurs.keys())) {
+        if (gardes.has(id)) continue;
+        const l = liens.get(id);
+        if (l ? !l.parti : id in infosHote) { // sorti de la présence sans dire au revoir (et, pour un client, toujours gardé par l'hôte) : un hoquet du serveur ou une reconnexion, on le garde un moment
+          if (!absents.has(id)) absents.set(id, t);
+          const vivant = l && l.ouvert && t - l.vu < 5000; // le lien direct vit encore : 15 s ; sinon 5 s
+          if (t - absents.get(id) < (vivant ? R.grace : R.graceCourte)) continue;
+        }
+        absents.delete(id); s.joueurs.delete(id); delete infosHote[id];
+        if (s.estHote) for (const l2 of liens.values()) l2.pingT = 0; // les clients l'apprennent au ping suivant (dans la seconde)
+      }
+      s._elire(); reconcilier(); emettreJoueurs();
+    }
+    function reconcilier() { // l'hôte garde un lien par joueur ; un client, un seul lien : vers l'hôte
+      const voulus = new Set(), t = Date.now();
+      if (s.estHote) { for (const id of s.joueurs.keys()) if (id !== s.moi.id) voulus.add(id); } else if (s.hote && s.hote !== s.moi.id) voulus.add(s.hote);
+      for (const [id, l] of liens) if (!voulus.has(id) && !(s.estHote && !l.parti && t - l.vu < 10000)) fermerLien(l); // l'hôte garde un nouveau venu pas encore dans la présence
+      for (const id of voulus) if (!liens.has(id)) { const l = nouveauLien(id); if (!s.estHote) negocier(l); }
+    }
+    const voieDe = (l) => (l.ouvert ? 'p2p' : l.echec || Date.now() - l.debut > R.attente ? 'relais' : 'connexion');
+    function majVoies() {
+      const lh = !s.estHote && s.hote ? liens.get(s.hote) : null;
+      for (const j of s.joueurs.values()) {
+        if (j.id === s.hote) { j.voie = 'hote'; j.ping = 0; continue; }
+        if (s.estHote) { const l = liens.get(j.id); j.voie = l ? voieDe(l) : 'connexion'; j.ping = l ? l.ping : 0; }
+        else if (j.id === s.moi.id) { j.voie = lh ? voieDe(lh) : 'connexion'; j.ping = lh ? lh.ping : 0; }
+        else { const x = infosHote[j.id]; if (x) { j.ping = x[0]; j.voie = x[1]; } }
+      }
+    }
+    function emettreJoueurs() { // seulement si quelque chose a changé (pseudo, prêt, voie, ping, hôte)
+      majVoies();
+      const l = Array.from(s.joueurs.values()), sig = JSON.stringify([s.hote, l.map((j) => [j.id, j.pseudo, j.couleur, j.pret, j.voie, j.ping])]);
+      if (sig === signature) return; signature = sig; s._emettre('joueurs', l);
+    }
+
+    // ── les liens ──
+    function nouveauLien(id) {
+      const l = { id, inst: null, pc: null, ch: null, ouvert: false, n: 0, debut: Date.now(), echec: false, essai: 0, essaiT: null, minuteur: null, deconnecte: 0,
+        q: 1, nonAcq: [], recuQ: 0, attente: new Map(), ping: 0, vu: Date.now(), pingT: 0, relU: new Map(), relF: [], relC: new Map(), parti: false };
+      liens.set(id, l); return l;
+    }
+    function verifierInstance(l, i) { // l'autre a rechargé sa page : la numérotation repart de zéro
+      if (!i || l.inst === i) return;
+      if (l.inst) { l.q = 1; l.nonAcq = []; l.recuQ = 0; l.attente.clear(); l.relF = []; l.relU.clear(); l.parti = false; }
+      l.inst = i;
+    }
+    function fermerPc(l, doux) { // doux : on laisse 300 ms au dernier message (l'au revoir) avant de couper
+      clearTimeout(l.minuteur); l.minuteur = null;
+      if (l.pc) { const pc = l.pc; l.pc = null; l.ch = null; const fin = () => { try { pc.close(); } catch (e) { /* rien */ } }; if (doux) setTimeout(fin, 300); else fin(); }
+      l.ouvert = false; l.deconnecte = 0;
+    }
+    function fermerLien(l) {
+      const doux = l.ouvert && l.ch; if (doux) { try { l.ch.evts.send('[4]'); } catch (e) { /* rien */ } }
+      fermerPc(l, doux); clearTimeout(l.essaiT); if (liens.get(l.id) === l) liens.delete(l.id);
+    }
+    const filtrer = (d) => (sansP2P && d && d.sdp ? { type: d.type, sdp: d.sdp.split('\r\n').filter((x) => !/^a=(candidate|end-of-candidates)/.test(x)).join('\r\n') } : { type: d.type, sdp: d.sdp }); // essai du relais : sans candidats, ICE ne peut rien ouvrir
+    const collecte = (pc) => new Promise((r) => { // ICE non « trickle » : on attend la fin de la collecte (3 s au plus) et on envoie tout d'un coup
+      if (pc.iceGatheringState === 'complete') return r();
+      let calme = null, fini = false;
+      const fin = () => { if (fini) return; fini = true; clearTimeout(t); clearTimeout(calme); r(); }, t = setTimeout(fin, R.collecte);
+      pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') fin(); });
+      pc.addEventListener('icecandidate', (e) => {
+        if (!e.candidate || !e.candidate.candidate) return fin();
+        const ty = e.candidate.type || (/ typ (\w+)/.exec(e.candidate.candidate) || [])[1];
+        // Chrome traîne parfois à déclarer la collecte finie : dès qu'on a l'adresse publique (srflx, par STUN), ou une adresse locale en 'webrtc-local',
+        // on laisse 0,5 s (0,1 s) aux candidats suivants (wifi + 4G) puis on envoie
+        if (ty === 'srflx' || (local && ty === 'host')) { clearTimeout(calme); calme = setTimeout(fin, local ? 100 : 500); }
+      });
+    });
+    function creerPc(l, n) {
+      fermerPc(l);
+      let pc, etat, evts;
+      try {
+        pc = new RTCPeerConnection({ iceServers: local ? [] : STUN });
+        etat = pc.createDataChannel('etat', { negotiated: true, id: 0, ordered: false, maxRetransmits: 0 });
+        evts = pc.createDataChannel('evts', { negotiated: true, id: 1, ordered: true });
+      } catch (e) { if (pc) try { pc.close(); } catch (e2) { /* rien */ } l.echec = true; emettreJoueurs(); return null; } // pas de WebRTC : le relais
+      l.pc = pc; l.ch = { etat, evts }; l.n = n; l.deconnecte = 0;
+      const ouvert = sur(() => { if (l.pc === pc && !l.ouvert && etat.readyState === 'open' && evts.readyState === 'open') surOuvert(l); });
+      const ferme = sur(() => { if (l.pc === pc) surFerme(l); });
+      etat.onopen = evts.onopen = ouvert; etat.onclose = evts.onclose = ferme; etat.onerror = evts.onerror = () => { /* suivi par onclose */ };
+      etat.onmessage = evts.onmessage = sur((ev) => { if (l.pc !== pc || s.ferme || typeof ev.data !== 'string') return; let m; try { m = JSON.parse(ev.data); } catch (e) { return; } st.recus++; st.p2pRec++; st.octets += ev.data.length; recevoir(l, m); });
+      pc.onconnectionstatechange = sur(() => { if (l.pc !== pc) return; const c = pc.connectionState; if (c === 'failed' || c === 'closed') surFerme(l); else if (c === 'disconnected') l.deconnecte = l.deconnecte || Date.now(); else l.deconnecte = 0; });
+      l.minuteur = setTimeout(sur(() => { if (l.pc === pc && !l.ouvert) { l.echec = true; emettreJoueurs(); planifierEssai(l); } }), R.attente); // pas ouvert à temps : relais (le lien reste prêt à passer en direct)
+      return pc;
+    }
+    async function negocier(l) { // le client propose (offre), l'hôte répond
+      if (s.ferme || s.estHote || liens.get(l.id) !== l) return;
+      const n = l.n + 1, pc = creerPc(l, n); l.essai++;
+      if (!pc) return;
+      try {
+        await pc.setLocalDescription(await pc.createOffer());
+        await collecte(pc);
+        if (l.pc !== pc || s.ferme) return;
+        envoyerSignal(l.id, n, pc.localDescription);
+      } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); planifierEssai(l); } }
+    }
+    function planifierEssai(l) { // en relais, un client retente le direct de temps en temps (10 s, 20 s, 40 s, puis chaque minute)
+      if (s.estHote || s.ferme) return;
+      clearTimeout(l.essaiT);
+      l.essaiT = setTimeout(sur(() => { if (liens.get(l.id) === l && !l.ouvert && !s.ferme && !s.estHote) negocier(l); }), R.essais[Math.min(Math.max(l.essai - 1, 0), R.essais.length - 1)]);
+    }
+    function envoyerSignal(a, n, d) { st.signaux++; transport.envoyer('signal', { de: s.moi.id, a, i: inst, n, v: VERSION, j: d.type === 'offer' ? moiPublic() : undefined, sdp: filtrer({ type: d.type, sdp: d.sdp }) }); }
+    async function surSignal(p) {
+      if (!p || p.a !== s.moi.id || !p.de || p.de === s.moi.id || p.v !== VERSION || s.ferme || !p.sdp) return;
+      if (p.sdp.type === 'offer') {
+        if (!s.estHote) return; // seul l'hôte accepte des liens
+        const l = liens.get(p.de) || nouveauLien(p.de);
+        verifierInstance(l, p.i); l.vu = Date.now(); l.parti = false;
+        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, eq: j.eq, am: j.am, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
+        const pc = creerPc(l, p.n); if (!pc) return;
+        try {
+          await pc.setRemoteDescription(filtrer(p.sdp));
+          await pc.setLocalDescription(await pc.createAnswer());
+          await collecte(pc);
+          if (l.pc !== pc || s.ferme) return;
+          envoyerSignal(l.id, p.n, pc.localDescription);
+        } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); } }
+      } else if (p.sdp.type === 'answer') {
+        const l = liens.get(p.de);
+        if (!l || !l.pc || l.n !== p.n || l.pc.signalingState !== 'have-local-offer') return;
+        verifierInstance(l, p.i);
+        const pc = l.pc;
+        try { await pc.setRemoteDescription(filtrer(p.sdp)); } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); planifierEssai(l); } }
+      }
+    }
+    function surOuvert(l) {
+      l.ouvert = true; l.echec = false; l.essai = 0; l.vu = Date.now(); clearTimeout(l.minuteur); clearTimeout(l.essaiT);
+      l.relU.clear(); l.relC.clear(); l.relF = []; // ce qui attendait le relais : les fiables repartent par le direct, le reste est périmé
+      renvoyer(l); l.pingT = 0; emettreJoueurs();
+    }
+    function surFerme(l) {
+      const etait = l.ouvert; fermerPc(l);
+      if (etait) { l.echec = true; renvoyer(l); } // le direct est tombé : on bascule tout de suite sur le relais
+      emettreJoueurs();
+      if (!s.ferme && liens.get(l.id) === l && !l.parti) planifierEssai(l);
+    }
+
+    // ── envoi et réception ──
+    function envoyerSur(l, m, fiable, texte) { // texte : m déjà sérialisé (un envoi à tous ne sérialise ses données qu'une fois)
+      if (l.ouvert && l.ch) {
+        const c = fiable ? l.ch.evts : l.ch.etat;
+        if (c.readyState === 'open') {
+          if (!fiable && c.bufferedAmount > R.tampon) { st.jetes++; return false; } // le direct rame : l'état suivant remplacera celui-ci
+          try { const t = texte || JSON.stringify(m); c.send(t); st.envoyes++; st.p2pEnv++; st.octets += t.length; return true; } catch (e) { /* plein ou fermé : le relais prend la suite */ }
+        }
+      }
+      if (m[0] === 0) l.relU.set(m[1], m); else if (m[0] === 1) l.relF.push(m); else l.relC.set(m[0], m); // relais : le dernier de chaque type, tous les fiables
+      planifierRelais(); return true;
+    }
+    function renvoyer(l) { // les fiables non acquittés repartent (par le direct s'il est ouvert, sinon la file du relais est refaite, sans doublons)
+      const t = Date.now(); for (const x of l.nonAcq) x.t = t;
+      if (l.ouvert && l.ch) { for (const x of l.nonAcq) envoyerSur(l, x.m, true); } else { l.relF = l.nonAcq.map((x) => x.m); if (l.relF.length) planifierRelais(); }
+    }
+    const acquitter = (l, q) => { if (typeof q !== 'number') return; let k = 0; while (k < l.nonAcq.length && l.nonAcq[k].m[1] <= q) k++; if (k) l.nonAcq.splice(0, k); };
+    const accepte = (l) => s.estHote || l.id === s.hote; // étoile : un client n'écoute que l'hôte
+    function livrer(l, m) { l.recuQ = m[1]; if (accepte(l)) s._emettre(m[2], m[3], l.id); }
+    function recevoir(l, m) {
+      if (!Array.isArray(m)) return;
+      l.vu = Date.now();
+      const k = m[0];
+      if (k === 0) { if (accepte(l) && typeof m[1] === 'string') s._emettre(m[1], m[2], l.id); }
+      else if (k === 1) {
+        const q = m[1]; if (typeof q !== 'number' || q <= l.recuQ) return; // déjà vu
+        if (q > l.recuQ + 1) { if (l.attente.size < 5000) l.attente.set(q, m); return; } // en avance : on attend le trou
+        livrer(l, m);
+        while (l.attente.has(l.recuQ + 1)) { const m2 = l.attente.get(l.recuQ + 1); l.attente.delete(l.recuQ + 1); livrer(l, m2); }
+      } else if (k === 2) {
+        acquitter(l, m[2]);
+        if (m[3] && !s.estHote && l.id === s.hote) { infosHote = m[3]; if (Array.isArray(m[4])) for (const i of m[4]) if (!partis.has(i)) partis.set(i, Date.now()); recalculer(); } // la liste de l'hôte : voies et pings des autres, départs
+        envoyerSur(l, [3, m[1], l.recuQ], false);
+      } else if (k === 3) { acquitter(l, m[2]); const rtt = Date.now() - m[1]; if (rtt >= 0 && rtt < 60000) { l.ping = Math.round(rtt); emettreJoueurs(); } }
+      else if (k === 4) { l.parti = true; if (l.inst) partis.set(l.inst, Date.now()); if (s.estHote) for (const l2 of liens.values()) l2.pingT = 0; setTimeout(sur(recalculer), 0); }
+    }
+    function surRelais(p) {
+      if (!p || !p.l || !p.de || p.de === s.moi.id || p.v !== VERSION || s.ferme) return;
+      const msgs = p.l[s.moi.id]; if (!Array.isArray(msgs)) return;
+      st.relaisRec++; st.recus++;
+      if (!s.estHote && p.de !== s.hote) return;
+      let l = liens.get(p.de);
+      if (!l) { if (!s.estHote) return; l = nouveauLien(p.de); }
+      verifierInstance(l, p.i);
+      for (const m of msgs) recevoir(l, m);
+    }
+    function planifierRelais() { if (!relaisT && !s.ferme) relaisT = setTimeout(sur(viderRelais), Math.max(0, relaisDernier + R.relais - Date.now())); }
+    function viderRelais(force) { // un seul envoi pour tous les destinataires, 5 par seconde au plus
+      relaisT = null; if (s.ferme && !force) return;
+      if (!transport.pret()) { if (!force) relaisT = setTimeout(sur(viderRelais), 500); return; } // le canal se reconnecte : ça attend
+      const l2 = {}; let n = 0, reste = false;
+      for (const l of liens.values()) {
+        if (!l.relC.size && !l.relU.size && !l.relF.length) continue;
+        l2[l.id] = Array.from(l.relC.values()).concat(Array.from(l.relU.values()), l.relF.splice(0, 100)); l.relC.clear(); l.relU.clear(); n++; // 100 fiables par envoi au plus
+        if (l.relF.length) reste = true;
+      }
+      if (!n) return;
+      if (reste) setTimeout(sur(planifierRelais), 0);
+      relaisDernier = Date.now();
+      const p = { de: s.moi.id, i: inst, v: VERSION, l: l2 };
+      if (transport.envoyer('relais', p)) { st.relaisEnv++; st.envoyes++; try { st.octets += JSON.stringify(p).length; } catch (e) { /* rien */ } }
+    }
+
+    // ── l'horloge : pings (avec les acquittements), renvois, liens décrochés, joueurs partis ──
+    const tic = setInterval(sur(() => {
+      if (s.ferme) return;
+      const t = Date.now();
+      let infos = null;
+      if (s.estHote) { majVoies(); infos = {}; for (const j of s.joueurs.values()) if (j.id !== s.moi.id) infos[j.id] = [j.ping, j.voie]; }
+      const dits = Array.from(partis.keys());
+      for (const l of liens.values()) {
+        if (t - l.pingT >= (l.ouvert ? R.ping : R.pingRelais)) { l.pingT = t; envoyerSur(l, infos ? [2, t, l.recuQ, infos, dits] : [2, t, l.recuQ], false); }
+        if (l.nonAcq.length && t - l.nonAcq[0].t > R.renvoi) renvoyer(l);
+        if (l.pc && l.deconnecte && t - l.deconnecte > 6000) surFerme(l); // ICE « disconnected » depuis 6 s : on le tient pour mort
+        else if (l.ouvert && l.ch && (l.ch.evts.readyState !== 'open' || l.ch.etat.readyState !== 'open')) surFerme(l); // fermé sans prévenir
+      }
+      recalculer();
+    }), 1000);
+
+    // ── l'API ──
+    s.envoyer = (type, data, opt) => {
+      if (s.ferme || typeof type !== 'string') return false;
+      const fiable = !opt || opt.fiable !== false, a = opt && opt.a ? opt.a : null;
+      let cibles;
+      if (s.estHote) cibles = a ? [a] : Array.from(s.joueurs.keys()).filter((id) => id !== s.moi.id);
+      else { if (!s.hote || s.hote === s.moi.id || (a && a !== s.hote)) return false; cibles = [s.hote]; } // étoile : un client ne parle qu'à l'hôte
+      // les données ne sont sérialisées qu'une fois pour tous les liens directs (seul le numéro d'ordre des fiables change d'un lien à l'autre)
+      let ok = false, js = null, mu = null, tu = null;
+      for (const id of cibles) {
+        let l = liens.get(id);
+        if (!l) { if (!s.joueurs.has(id) || id === s.moi.id) continue; l = nouveauLien(id); }
+        const direct = l.ouvert && l.ch;
+        if (direct && js === null) { try { js = JSON.stringify(data); } catch (e) { js = 'null'; } if (js === undefined) js = 'null'; }
+        if (fiable) { const m = [1, l.q++, type, data]; l.nonAcq.push({ m, t: Date.now() }); envoyerSur(l, m, true, direct ? '[1,' + m[1] + ',' + JSON.stringify(type) + ',' + js + ']' : null); ok = true; }
+        else {
+          if (!mu) mu = [0, type, data];
+          if (direct && tu === null) tu = '[0,' + JSON.stringify(type) + ',' + js + ']';
+          if (envoyerSur(l, mu, false, direct ? tu : null)) ok = true;
+        }
+      }
+      return ok;
+    };
+    s.majMoi = (o2) => { if (s.ferme) return; Object.assign(s.moi, o2 || {}); transport.suivre(moiPublic()); recalculer(); };
+    const surPagehide = () => s.quitter();
+    s.quitter = () => {
+      if (s.ferme) return;
+      for (const l of liens.values()) if (!l.ouvert) l.relC.set(4, [4]); // l'au revoir : par le direct (fermerLien) ou par le relais
+      try { viderRelais(true); } catch (e) { /* rien */ } // ce qui attendait le relais part quand même
+      for (const l of Array.from(liens.values())) fermerLien(l);
+      s.ferme = true; clearInterval(tic); clearTimeout(relaisT);
+      try { transport.fermer(); } catch (e) { /* rien */ }
+      try { removeEventListener('pagehide', surPagehide); } catch (e) { /* rien */ }
+      s._emettre('ferme', {});
+    };
+    s._liens = () => Array.from(liens.values()).map((l) => ({ id: l.id, voie: voieDe(l), ping: l.ping, nonAcquittes: l.nonAcq.length, essais: l.essai, ice: l.pc ? l.pc.connectionState : null }));
+    s._transport = transport;
+
+    // ── l'entrée dans le salon ──
+    let initiaux;
+    try { initiaux = await transport.demarrer(); } catch (e) { s.ferme = true; clearInterval(tic); try { transport.fermer(); } catch (e2) { /* rien */ } throw e; }
+    majPresence(initiaux);
+    // la présence de Supabase peut mettre quelques secondes à tout montrer : celui qui rejoint attend d'y voir le créateur (8 s au plus), pour ne jamais se croire hôte par erreur
+    if (!creer) await attendreQue(() => s.ferme || Array.from(presents.values()).some((j) => j.c), 8000);
+    if (s.ferme) throw new Error('salon quitté');
+    for (const j of presents.values()) if (j.depuis >= depuis) depuis = j.depuis + 1; // plus jeune que tous les présents, même si les horloges des téléphones diffèrent
+    demarre = true;
+    recalculer();
+    transport.suivre(moiPublic());
+    try { addEventListener('pagehide', surPagehide); } catch (e) { /* rien */ }
+    emettreJoueurs();
+    return s;
+  }
+
+  function salon(o) {
+    o = o || {};
+    if (!o.moi || !o.moi.id) return Promise.reject(new Error('il faut moi.id'));
+    const force = param('reseau'), via = ['local', 'webrtc-local', 'supabase'].indexOf(force) >= 0 ? force : o.via || 'supabase';
+    try {
+      if (via === 'local') return salonLocal(o);
+      return salonPair(o, via === 'webrtc-local' ? 'webrtc-local' : 'supabase');
+    } catch (e) { return Promise.reject(e); }
+  }
+  return { salon, nouveauCode, codeValide, VERSION, LETTRES, REGLAGES: R };
+})();
+
 /* ── src-zombies/donnees.js ── */
 /* DERNIER REMPART — les données du jeu, séparées de la logique : armes, zombies, défenses, améliorations, arènes, vagues.
    Rien ici ne calcule une partie : jeu.js lit ces tables. Pour équilibrer, on ne touche qu'à ce fichier (test/zombies.test.js vérifie
@@ -1377,8 +1937,10 @@ const PSONS = (() => {
       joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [],
       serie: { n: 0, t: -99, mult: 1 },
       stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
-      navPas: 0, evs: [], fini: false,
+      navPas: 0, evs: [], fini: false, choix: null,
     };
+    // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
+    jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
     const liste = o.joueurs && o.joueurs.length ? o.joueurs : [{ id: 'moi', pseudo: 'Moi' }];
     liste.forEach((j, k) => {
       const a = (k / liste.length) * TAU, p = monde.libreProche(A.depart[0] + (liste.length > 1 ? Math.cos(a) * 1.2 : 0), A.depart[1] + (liste.length > 1 ? Math.sin(a) * 1.2 : 0), D.JOUEUR.rayon, 6) || A.depart;
@@ -1388,7 +1950,8 @@ const PSONS = (() => {
         armes: [{ id: D.ARME_DE_BASE, mun: Infinity }, null], main: 0, attente: 0, cible: 0, visee: 0,
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
-        bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}),
+        bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
+        choix: null, releve: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
@@ -1537,26 +2100,32 @@ const PSONS = (() => {
     while (j.xp >= D.XP.pour(j.niveau)) { j.xp -= D.XP.pour(j.niveau); j.niveau++; j.choixAttente++; ev(jeu, { t: 'niveau', id: j.id, niveau: j.niveau }); }
     proposer(jeu);
   }
-  function proposer(jeu) { // trois atouts tirés au hasard parmi ceux qui ne sont pas au maximum
-    if (jeu.choix) return;
-    const j = jeu.joueurs.find((k) => k.choixAttente > 0 && k.vivant); if (!j) return;
-    const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max), options = [];
-    while (options.length < 3 && l.length) options.push(l.splice(Math.floor(jeu.rnd() * l.length) % l.length, 1)[0]);
-    if (!options.length) { j.choixAttente = 0; return; }
-    jeu.choix = { id: j.id, options, niveau: j.niveau - j.choixAttente + 1 };
+  function proposer(jeu) { // trois atouts tirés au hasard parmi ceux qui ne sont pas au maximum, pour chaque joueur qui a un niveau en attente
+    for (const j of jeu.joueurs) {
+      if (j.choix || j.choixAttente <= 0 || !j.vivant) continue;
+      const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max), options = [];
+      while (options.length < 3 && l.length) options.push(l.splice(Math.floor(jeu.rnd() * l.length) % l.length, 1)[0]);
+      if (!options.length) { j.choixAttente = 0; continue; }
+      j.choix = { id: j.id, options, niveau: j.niveau - j.choixAttente + 1 };
+    }
+    majChoixGlobal(jeu);
   }
+  // jeu.choix : le choix qui met la partie en pause (en solo seulement)
+  function majChoixGlobal(jeu) { const j = jeu.pauseChoix ? jeu.joueurs.find((k) => k.choix) : null; jeu.choix = j ? j.choix : null; }
   function choisirAtout(jeu, idJ, k) {
-    const c = jeu.choix; if (!c || c.id !== idJ || !c.options.includes(k)) return false;
-    const j = trouverJoueur(jeu, idJ), A = D.ATOUTS[k];
+    const j = trouverJoueur(jeu, idJ); if (!j) return false;
+    if (!j.choix && jeu.choix && jeu.choix.id === idJ) j.choix = jeu.choix; // (un choix posé tel quel sur jeu.choix)
+    const c = j.choix; if (!c || !c.options.includes(k)) return false;
+    const A = D.ATOUTS[k];
     j.atouts[k] = rang(j, k) + 1; j.choixAttente = Math.max(0, j.choixAttente - 1);
     if (k === 'vie') { j.vieMax += A.par; j.vie = Math.min(j.vieMax, j.vie + A.par); }
-    jeu.choix = null; ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k] });
+    j.choix = null; jeu.choix = null; ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k] });
     proposer(jeu);
     return true;
   }
   function grenade(jeu, idJ) {
     const j = trouverJoueur(jeu, idJ); if (!j || !j.vivant || jeu.fini) return { ok: false, raison: 'mort' };
-    if (jeu.choix) return { ok: false, raison: 'choix' };
+    if (jeu.pauseChoix && jeu.choix) return { ok: false, raison: 'choix' };
     if (j.grenadeT > 0) return { ok: false, raison: 'recharge' };
     // la cible : le zombie qui a le plus de voisins à portée (sinon droit devant)
     const G = D.GRENADE, p2 = G.portee * G.portee, s2 = G.souffle * G.souffle; let cible = null, score = -1;
@@ -1612,6 +2181,7 @@ const PSONS = (() => {
       }
     }
     for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
+    if (jeu.joueurs.length > 1) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
@@ -1625,6 +2195,16 @@ const PSONS = (() => {
     return jeu.evs;
   }
 
+  // à plusieurs : un survivant à terre se relève si un copain reste près de lui (RELEVE s) ; il repart avec 40 % de sa vie
+  const RELEVE = 2.5, PRES = 1.7;
+  function relever(jeu, dt) {
+    for (const j of jeu.joueurs) {
+      if (j.vivant || j.parti) continue;
+      const aide = jeu.joueurs.find((k) => k.vivant && Math.hypot(k.x - j.x, k.z - j.z) < PRES);
+      j.releve = aide ? j.releve + dt : Math.max(0, j.releve - dt * 0.5);
+      if (j.releve >= RELEVE) { j.vivant = true; j.releve = 0; j.vie = Math.round(j.vieMax * 0.4); j.invul = 2; ev(jeu, { t: 'releve', id: j.id, par: aide.id }); }
+    }
+  }
   function majJoueur(jeu, j, e, dt) {
     if (!j.vivant) return;
     if (j.invul > 0) j.invul -= dt;
@@ -1635,6 +2215,8 @@ const PSONS = (() => {
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
     j.bouge = l > 0.05 ? Math.min(1, l) : 0;
+    // en ligne, le client prédit son déplacement et envoie sa position : l'hôte l'adopte si elle est à moins de 2,5 m de la sienne
+    if (e && typeof e.x === 'number' && typeof e.z === 'number' && Number.isFinite(e.x) && Number.isFinite(e.z) && Math.hypot(e.x - j.x, e.z - j.z) < 2.5) { j.x = e.x; j.z = e.z; }
     // les défenses sont dures pour lui aussi (sauf les mines)
     for (const d of jeu.defenses) { if (d.type === 'mine') continue; pousserCercle(j, d.x, d.z, D.DEFENSES[d.type].rayon); }
     jeu.monde.pousser(j);
@@ -1673,7 +2255,7 @@ const PSONS = (() => {
     if (!j.vivant || j.invul > 0) return;
     j.vie -= deg; j.invul = D.JOUEUR.invulnerable;
     ev(jeu, { t: 'blesse', id: j.id, degats: Math.round(deg) });
-    if (j.vie <= 0) { j.vie = 0; j.vivant = false; ev(jeu, { t: 'tombe', id: j.id }); }
+    if (j.vie <= 0) { j.vie = 0; j.vivant = false; j.releve = 0; j.choix = null; ev(jeu, { t: 'tombe', id: j.id }); majChoixGlobal(jeu); }
   }
 
   function majZombies(jeu, dt) {
@@ -2380,8 +2962,8 @@ const ZRENDU = (() => {
       const vus = new Set();
       for (const j of jeu.joueurs) {
         vus.add(j.id);
-        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); }
-        s.g.visible = true; s.anneau.visible = j.id === idMoi && j.vivant;
+        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
+        s.g.visible = !j.parti; s.anneau.visible = j.vivant && !j.parti; // en coop, chacun son anneau (le sien en jaune)
         if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
         if (!j.vivant) { s.g.rotation.z = Math.min(Math.PI / 2, (s.g.rotation.z || 0) + dt * 5); s.g.position.y = 0.1; continue; }
@@ -2844,6 +3426,7 @@ const ZSONS = (() => {
         case 'fin': P.jouer('defaite', 1); break;
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
+        case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
       }
     }
   }
@@ -2932,12 +3515,13 @@ const ZHUD = (() => {
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
       <div class="h-degats" aria-hidden="true"></div>
+      <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -3063,13 +3647,29 @@ const ZHUD = (() => {
     const gr = j.grenadeT > 0 ? j.grenadeT / Math.max(0.1, ZJEU.rechargeGrenade ? ZJEU.rechargeGrenade(j) : D.GRENADE.recharge) : 0, gk = gr > 0 ? Math.ceil(gr * 20) : 0;
     if (vu.gren !== gk) { vu.gren = gk; el.grenVoile.style.height = `${Math.min(100, gr * 100)}%`; el.gren.classList.toggle('prete', gk === 0); }
     // le choix d'un atout (la partie attend)
-    const c = jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null, cc = c ? c.niveau + ':' + c.options.join() : '';
+    const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
       vu.choix = cc; el.choix.hidden = !c;
       if (c) {
         el.choixT.textContent = `NIVEAU ${c.niveau} !`;
         el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');
       }
+    }
+    // la coop : le pseudo des copains au-dessus d'eux (« à terre » et la relève en cours) ; les annonces quand quelqu'un tombe ou se relève
+    if (projeter) {
+      let k = 0;
+      for (const p of jeu.joueurs) {
+        if (p.id === idMoi || p.parti || k >= el.noms.length) continue;
+        const sp = el.noms[k++], q = projeter(p.x, 3.1, p.z), txt = p.vivant ? p.pseudo : `${p.pseudo} · à terre${p.releve > 0 ? ' ' + Math.min(100, Math.round(p.releve / 2.5 * 100)) + ' %' : ''}`;
+        if (sp.textContent !== txt) sp.textContent = txt;
+        sp.classList.toggle('terre', !p.vivant); sp.hidden = false; sp.style.transform = `translate(${q[0].toFixed(0)}px, ${q[1].toFixed(0)}px) translate(-50%, -50%)`;
+      }
+      for (; k < el.noms.length; k++) el.noms[k].hidden = true;
+    }
+    if (evs && jeu.joueurs.length > 1) for (const e of evs) {
+      const p = jeu.joueurs.find((x) => x.id === e.id);
+      if (e.t === 'tombe' && p) { if (e.id === idMoi) { if (jeu.joueurs.some((x) => x.vivant)) annonce('À TERRE', 'Un copain doit rester près de toi pour te relever', 3); } else toast(`${p.pseudo} est à terre : va le relever !`); }
+      else if (e.t === 'releve' && p) toast(e.id === idMoi ? 'Relevé ! Merci les copains' : `${p.pseudo} est relevé`);
     }
     // les chiffres de dégâts : un par zombie touché et par image (les plombs d'un même coup s'additionnent), les critiques en grand
     if (evs && projeter) {
@@ -3099,6 +3699,204 @@ const ZHUD = (() => {
   return { init, maj, annonce, toast, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
 })();
 
+/* ── src-zombies/enligne.js ── */
+/* DERNIER REMPART — la coop en ligne, de 2 à 4 survivants, chacun chez soi.
+   Les salons sont ceux d'Opération Poncin (src-poncin/reseau.js, PRESEAU) : un code de 4 lettres, présence et signalisation par
+   Supabase Realtime, puis WebRTC de téléphone à téléphone (relais par Supabase si le direct ne s'ouvre pas) ; canaux préfixés « rempart »
+   (jamais mêlés à ceux de Poncin). ?reseau=local (BroadcastChannel, entre onglets) sert aux tests.
+   L'hôte fait autorité : il simule la partie avec ZJEU (tous les survivants), applique la dernière entrée reçue de chacun, exécute leurs
+   actions (construire, améliorer, grenade, arme, atout, lancer la vague) et diffuse :
+     « etat »  15 fois par seconde, non fiable : un instantané compact (survivants, zombies, défenses, objets, projectiles, vague) ;
+     « evts »  ≤ 10 paquets par seconde, fiable : les événements du jeu (tirs, touches, morts, explosions…), pour les sons et les effets.
+   Le client montre une copie de la partie (ZJEU.creer, même graine, mêmes joueurs : même arène, même monde, jamais simulée) dont les
+   objets sont écrits par les instantanés ; zombies et copains glissent vers leur dernière position connue ; son propre survivant est
+   prédit sur place (la même vitesse, les mêmes murs) et il envoie sa position avec son entrée (« entree », 20 fois par seconde) :
+   l'hôte l'adopte si elle est plausible (ZJEU). Les bonus du Bunker de chacun voyagent dans sa présence (eq, 6 chiffres).
+   À plusieurs, un niveau passé ne met pas la partie en pause : chacun choisit son atout de son côté. Un survivant à terre se relève
+   si un copain reste près de lui ; la partie s'arrête quand tout le monde est à terre. L'hôte parti : la partie s'arrête.
+   API : ZENLIGNE.ouvrir({ code, creer, pseudo, bonus, via, config }) → Promise<salon>
+     salon.code, salon.idMoi, salon.estHote, salon.joueurs() → [{ id, pseudo, hote, moi, voie }], salon.lancer(arene) (l'hôte),
+     salon.quitter(), salon.sur('maj' | 'debut' | 'ferme', fn) ; salon.partie : { jeu, idMoi, estHote, etape(dt, entree) → evs, action(quoi, arg) }. */
+const ZENLIGNE = (() => {
+  'use strict';
+  const PREFIXE = 'rempart', ETAT_MS = 66, EVTS_MS = 100, ENTREE_MS = 50, PAS = 1 / 60, MAX_JOUEURS = 4, MAX_EVTS = 90;
+  const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
+  const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse'];
+  const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
+  const COULEURS = ['#E3B663', '#7FB3E0', '#9BD86A', '#E58FB8'];
+  const r2 = (v) => Math.round(v * 100) / 100, r1 = (v) => Math.round(v * 10) / 10;
+  const codeBonus = (b) => CLES_BONUS.map((k) => Math.max(0, Math.min(9, (b && b[k]) | 0))).join('');
+  const lireBonus = (s) => { const o = {}; CLES_BONUS.forEach((k, i) => { o[k] = Math.max(0, Math.min(9, +String(s || '')[i] || 0)); }); return o; };
+  const aleaId = () => 'j' + Math.random().toString(36).slice(2, 10);
+
+  // ─── l'instantané de l'hôte ───
+  function instantane(jeu) {
+    return {
+      t: r2(jeu.t), ph: jeu.phase, c: r1(jeu.chrono), v: jeu.vague, as: jeu.aSortir, tv: jeu.totalVague, f: jeu.fini ? 1 : 0,
+      s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
+      j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
+        p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0]),
+      z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse)]),
+      d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
+      o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
+      cr: jeu.crachats.map((c) => [r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
+      ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0]),
+    };
+  }
+  // ─── la copie du client, écrite par un instantané (les objets gardent leur identité : le rendu les suit par id) ───
+  function appliquer(jeu, e, idMoi) {
+    if (Math.abs(jeu.t - e.t) > 0.3) jeu.t = e.t;
+    jeu.phase = e.ph; jeu.chrono = e.c; jeu.vague = e.v; jeu.aSortir = e.as; jeu.totalVague = e.tv; jeu.fini = !!e.f;
+    jeu.serie.n = e.s[0]; jeu.serie.t = e.s[1]; jeu.serie.mult = e.s[2];
+    jeu.stats.tues = e.st[0]; jeu.stats.ferraille = e.st[1]; jeu.stats.construits = e.st[2];
+    for (const a of e.j) {
+      const p = jeu.joueurs.find((k) => k.id === a[0]); if (!p) continue;
+      p.cx = a[1]; p.cz = a[2];
+      p.angle = a[3]; // la visée vient de l'hôte (le tir est automatique)
+      if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
+      p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
+      p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23];
+      if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
+    }
+    const garder = (liste, lignes, faire, maj) => {
+      const parId = new Map(liste.map((x) => [x.id, x])); liste.length = 0;
+      for (const l of lignes) { let x = parId.get(l[0]); if (!x) x = faire(l); maj(x, l); liste.push(x); }
+    };
+    garder(jeu.zombies, e.z, (l) => ({ id: l[0], x: l[2], z: l[3], rx: 0, rz: 0 }), (z, l) => {
+      z.type = TZ[l[1]]; z.tx = l[2]; z.tz = l[3]; z.angle = l[4]; z.vie = l[5]; z.vieMax = l[6]; z.flash = l[7] ? 0.1 : 0; z.attaque = l[8]; z.bouge = l[9]; z.naissance = l[10]; z.vitesse = l[11]; z.rayon = D.ZOMBIES[z.type].rayon;
+    });
+    garder(jeu.defenses, e.d, (l) => ({ id: l[0] }), (d, l) => { d.type = TD[l[1]]; d.x = l[2]; d.z = l[3]; d.angle = l[4]; d.vie = l[5]; d.vieMax = l[6]; d.flash = l[7] ? 0.1 : 0; });
+    garder(jeu.objets, e.o, (l) => ({ id: l[0], x: l[2], z: l[3] }), (o, l) => { o.type = TO[l[1]]; o.tx = l[2]; o.tz = l[3]; o.valeur = l[4]; o.vole = !!l[5]; o.age = l[6]; if (!o.vole) { o.x = l[2]; o.z = l[3]; } });
+    jeu.crachats.length = 0; for (const c of e.cr) jeu.crachats.push({ x: c[0], z: c[1], vx: c[2], vz: c[3] });
+    jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6] });
+  }
+  // entre deux instantanés : zombies, copains et ferraille glissent vers leur dernière position ; les projectiles avancent
+  function lisser(jeu, dt, idMoi) {
+    const k = 1 - Math.exp(-14 * dt);
+    for (const z of jeu.zombies) if (z.tx != null) { z.x += (z.tx - z.x) * k; z.z += (z.tz - z.z) * k; }
+    for (const p of jeu.joueurs) if (p.id !== idMoi && p.cx != null) { const dx = p.cx - p.x, dz = p.cz - p.z; p.x += dx * k; p.z += dz * k; p.vx = dx * 6; p.vz = dz * 6; }
+    for (const o of jeu.objets) if (o.vole && o.tx != null) { o.x += (o.tx - o.x) * k; o.z += (o.tz - o.z) * k; }
+    for (const c of jeu.crachats) { c.x += c.vx * dt; c.z += c.vz * dt; }
+    for (const o of jeu.obus) o.t = Math.min(o.duree, o.t + dt);
+    jeu.t += dt;
+  }
+
+  async function ouvrir(o) {
+    if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
+    o = o || {};
+    const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) }, config: o.config, prefixe: PREFIXE });
+    const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
+    const Z = {
+      code: s.code, idMoi, partie: null,
+      get estHote() { return s.estHote; },
+      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq })); },
+      sur(t, f) { if (!abonnes.has(t)) abonnes.set(t, new Set()); abonnes.get(t).add(f); return () => abonnes.get(t).delete(f); },
+      quitter() { try { s.quitter(); } catch (e) { /* rien */ } Z.partie = null; },
+      stats: () => s.stats(),
+      lancer(arene) {
+        if (!s.estHote) return 'pas-hote';
+        const liste = Z.joueurs().slice(0, MAX_JOUEURS);
+        if (liste.length < 1) return 'personne';
+        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq) })) };
+        s.envoyer('debut', debut, { fiable: true });
+        demarrer(debut);
+        return true;
+      },
+    };
+    s.sur('joueurs', () => emettre('maj', Z.joueurs()));
+    s.sur('ferme', () => { Z.partie = null; emettre('ferme', { raison: 'ferme' }); });
+    s.sur('hote', () => { if (Z.partie && !Z.partie.estHote) emettre('ferme', { raison: 'hote' }); else emettre('maj', Z.joueurs()); });
+    s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
+
+    function demarrer(d) {
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, couleur: COULEURS[i % COULEURS.length] }));
+      const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs });
+      jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
+      Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
+      emettre('debut', Z.partie);
+    }
+
+    // ─── l'hôte : la vraie partie ───
+    function partieHote(jeu) {
+      const entrees = {}, attente = [], P = { jeu, idMoi, estHote: true, arene: jeu.arene };
+      let acc = 0, tEtat = 0, tEvts = 0;
+      const offs = [
+        s.sur('entree', (d, de) => { if (d && jeu.joueurs.some((p) => p.id === de)) entrees[de] = { mx: +d.mx || 0, mz: +d.mz || 0, x: +d.x, z: +d.z }; }),
+        s.sur('action', (d, de) => { if (d) agir(de, d.quoi, d.arg); }),
+        s.sur('joueurs', (l) => { // un copain parti : il tombe et ne se relève plus
+          const ids = new Set((l || []).map((j) => j.id));
+          for (const p of jeu.joueurs) if (!ids.has(p.id) && p.id !== idMoi && !p.parti) { p.parti = true; p.vivant = false; p.choix = null; }
+        }),
+      ];
+      function agir(de, quoi, arg) {
+        switch (quoi) {
+          case 'construire': return J.construire(jeu, de, arg);
+          case 'ameliorer': return J.ameliorer(jeu, de, arg);
+          case 'grenade': return J.grenade(jeu, de);
+          case 'arme': return J.changerArme(jeu, de, +arg);
+          case 'atout': return J.choisirAtout(jeu, de, arg);
+          case 'passer': return J.passer(jeu);
+        }
+        return null;
+      }
+      P.action = (quoi, arg) => agir(idMoi, quoi, arg);
+      P.etape = (dt, entree) => {
+        entrees[idMoi] = entree ? { mx: entree.mx, mz: entree.mz } : null;
+        const evs = []; acc += dt; let n = 0;
+        while (acc >= PAS && n < 5) { const e = J.pas(jeu, entrees, PAS); for (let i = 0; i < e.length; i++) { evs.push(e[i]); attente.push(e[i]); } acc -= PAS; n++; }
+        if (n === 5) acc = 0;
+        const t = performance.now();
+        if (t - tEtat >= ETAT_MS) { tEtat = t; s.envoyer('etat', instantane(jeu), { fiable: false }); }
+        if (attente.length && t - tEvts >= EVTS_MS) {
+          tEvts = t;
+          // les tirs et les touches sont nombreux : au plus MAX_EVTS par paquet, les autres événements passent toujours
+          let l = attente.splice(0); if (l.length > MAX_EVTS) { const imp = l.filter((e) => e.t !== 'tir' && e.t !== 'touche'), reste = l.filter((e) => e.t === 'tir' || e.t === 'touche'); l = imp.concat(reste.slice(-Math.max(10, MAX_EVTS - imp.length))); }
+          s.envoyer('evts', l, { fiable: true });
+        }
+        if (jeu.fini) s.envoyer('etat', instantane(jeu), { fiable: true });
+        return evs;
+      };
+      P.fermer = () => { for (const f of offs) f(); };
+      return P;
+    }
+    // ─── le client : la copie, écrite par l'hôte ───
+    function partieClient(jeu) {
+      const P = { jeu, idMoi, estHote: false, arene: jeu.arene }, recus = [];
+      let dernier = null, tEntree = 0;
+      const offs = [
+        s.sur('etat', (e) => { if (e && (!dernier || e.t >= dernier.t - 0.5)) { dernier = e; appliquer(jeu, e, idMoi); } }),
+        s.sur('evts', (l) => { if (Array.isArray(l)) for (const e of l) recus.push(e); }),
+      ];
+      P.action = (quoi, arg) => { s.envoyer('action', { quoi, arg }, { fiable: true }); return { ok: true, distant: true }; };
+      P.etape = (dt, entree) => {
+        const moi = jeu.joueurs.find((p) => p.id === idMoi);
+        // la prédiction : son propre survivant bouge tout de suite (même vitesse que chez l'hôte, mêmes murs, mêmes défenses)
+        if (moi && moi.vivant && entree) {
+          let mx = +entree.mx || 0, mz = +entree.mz || 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
+          const v = D.JOUEUR.vitesse * (1 + (moi.atouts.vitesse || 0) * D.ATOUTS.vitesse.par);
+          moi.vx = mx * v; moi.vz = mz * v; moi.x += moi.vx * dt; moi.z += moi.vz * dt; moi.bouge = l > 0.05 ? Math.min(1, l) : 0;
+          for (const d of jeu.defenses) { if (d.type === 'mine') continue; const R = D.DEFENSES[d.type].rayon + moi.rayon, ex = moi.x - d.x, ez = moi.z - d.z, dd = Math.hypot(ex, ez); if (dd < R && dd > 1e-6) { moi.x = d.x + ex / dd * R; moi.z = d.z + ez / dd * R; } }
+          jeu.monde.pousser(moi);
+          // recalage doux vers l'hôte s'il voit autre chose (un zombie qui pousse, une barricade)
+          if (moi.cx != null) { const ex = moi.cx - moi.x, ez = moi.cz - moi.z, d2 = Math.hypot(ex, ez); if (d2 > 0.6) { moi.x += ex * 0.04; moi.z += ez * 0.04; } }
+        } else if (moi) { moi.vx = moi.vz = 0; moi.bouge = 0; }
+        const t = performance.now();
+        if (t - tEntree >= ENTREE_MS && moi) { tEntree = t; s.envoyer('entree', { mx: entree ? r2(entree.mx) : 0, mz: entree ? r2(entree.mz) : 0, x: r2(moi.x), z: r2(moi.z) }, { fiable: false }); }
+        lisser(jeu, dt, idMoi);
+        const evs = recus.splice(0);
+        return evs;
+      };
+      P.fermer = () => { for (const f of offs) f(); };
+      return P;
+    }
+    return Z;
+  }
+  return { ouvrir, instantane, appliquer, codeBonus, lireBonus, MAX_JOUEURS, PREFIXE };
+})();
+
 /* ── src-zombies/ui.js ── */
 /* DERNIER REMPART — l'interface et la boucle : les écrans (titre avec la partie de démonstration en fond, pause, fin, réglages), la
    sauvegarde (localStorage « zombies.v1 » : records par arène, totaux, réglages ; lue en lecture seule par la Salle de jeux), et la
@@ -3109,7 +3907,7 @@ const ZHUD = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -3140,24 +3938,40 @@ const ZHUD = (() => {
     if (ecran !== 'jeu') return;
     if (n === 'pause') { if (enPause) reprendre(); else pause(); }
     else if (enPause) return;
-    else if (jeu.choix && /^arme[012]$/.test(n)) { const k = jeu.choix.options[+n.slice(-1)]; if (k) choisir(k); }
-    else if (n === 'passer') ZJEU.passer(jeu);
+    else if (monChoix() && /^arme[012]$/.test(n)) { const k = monChoix().options[+n.slice(-1)]; if (k) choisir(k); }
+    else if (n === 'passer') faire('passer');
     else if (n === 'grenade') lancerGrenade();
-    else if (n === 'arme0' || n === 'arme1') ZJEU.changerArme(jeu, idMoi, +n.slice(-1));
+    else if (n === 'arme0' || n === 'arme1') faire('arme', +n.slice(-1));
   } });
   const raisons = { ferraille: 'Pas assez de ferraille', max: 'Tu en as déjà le maximum pour cette vague', verrou: 'Pas encore : plus tard dans la partie', place: 'Pas de place ici : écarte-toi des murs', mort: '' };
   ZHUD.init($('#hud'), {
-    construire(type) { if (!jeu || enPause) return; const r = ZJEU.construire(jeu, idMoi, type); if (!r.ok && raisons[r.raison]) { ZHUD.toast(raisons[r.raison]); PSONS.jouer('refus', 0.6); } },
-    ameliorer(type) { if (!jeu || enPause) return; const r = ZJEU.ameliorer(jeu, idMoi, type); if (!r.ok && raisons[r.raison]) { ZHUD.toast(r.raison === 'max' ? 'Déjà au maximum' : raisons[r.raison]); PSONS.jouer('refus', 0.6); } },
-    arme(i) { if (jeu && !enPause) ZJEU.changerArme(jeu, idMoi, i); },
+    construire(type) { if (!jeu || (enPause && !partie)) return; const r = faire('construire', type); if (!r.ok && raisons[r.raison]) { ZHUD.toast(raisons[r.raison]); PSONS.jouer('refus', 0.6); } },
+    ameliorer(type) { if (!jeu || (enPause && !partie)) return; const r = faire('ameliorer', type); if (!r.ok && raisons[r.raison]) { ZHUD.toast(r.raison === 'max' ? 'Déjà au maximum' : raisons[r.raison]); PSONS.jouer('refus', 0.6); } },
+    arme(i) { if (jeu && !enPause) faire('arme', i); },
     pause() { pause(); },
-    passer() { if (jeu && !enPause) ZJEU.passer(jeu); },
+    passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
-  function lancerGrenade() { if (!jeu || enPause) return; const r = ZJEU.grenade(jeu, idMoi); if (!r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
-  function choisir(k) { if (!jeu || enPause || !jeu.choix) return; if (ZJEU.choisirAtout(jeu, idMoi, k)) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
+  // toutes les actions passent par ici : en solo sur la partie, en coop envoyées à l'hôte (qui les exécute pour ce joueur)
+  function faire(quoi, arg) {
+    if (!jeu) return { ok: false };
+    if (partie) return partie.action(quoi, arg) || { ok: false };
+    switch (quoi) {
+      case 'construire': return ZJEU.construire(jeu, idMoi, arg);
+      case 'ameliorer': return ZJEU.ameliorer(jeu, idMoi, arg);
+      case 'grenade': return ZJEU.grenade(jeu, idMoi);
+      case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
+      case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
+      case 'passer': return { ok: ZJEU.passer(jeu) };
+    }
+    return { ok: false };
+  }
+  const moi = () => (jeu ? jeu.joueurs.find((p) => p.id === idMoi) || jeu.joueurs[0] : null);
+  const monChoix = () => { const m = moi(); return m ? m.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null) : null; };
+  function lancerGrenade() { if (!jeu || (enPause && !partie)) return; const r = faire('grenade'); if (r && !r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
+  function choisir(k) { if (!jeu || (enPause && !partie) || !monChoix()) return; const r = faire('atout', k); if (r && r.ok) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
   const geste = () => { try { PSONS.debloquer(); } catch (e) { /* rien */ } };
   window.addEventListener('pointerdown', geste, true); window.addEventListener('keydown', geste, true);
@@ -3204,7 +4018,7 @@ const ZHUD = (() => {
   function pause() {
     if (ecran !== 'jeu' || !jeu || jeu.fini) return;
     enPause = true; ZCONTROLES.activer(false);
-    $('#ecran-pause .resume').textContent = `Vague ${Math.max(1, jeu.vague)} · ${jeu.joueurs[0].tues} zombies · ${jeu.joueurs[0].score} points`;
+    $('#ecran-pause .resume').textContent = `Vague ${Math.max(1, jeu.vague)} · ${moi().tues} zombies · ${moi().score} points${partie ? ' · la partie continue pour les copains' : ''}`;
     ecrans.pause.hidden = false; document.body.dataset.ecran = 'pause'; ecran = 'jeu'; // l'écran de jeu reste dessous, figé
     try { PSONS.suspendre(true); } catch (e) { /* rien */ }
   }
@@ -3214,7 +4028,7 @@ const ZHUD = (() => {
     try { PSONS.suspendre(false); } catch (e) { /* rien */ }
   }
   function finir() {
-    const j = jeu.joueurs[0], r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
+    const j = moi(), r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
     const record = j.score > r.score || jeu.vague > r.vague;
     r.parties++; r.vague = Math.max(r.vague, jeu.vague); r.score = Math.max(r.score, j.score); r.tues = Math.max(r.tues, j.tues);
     const M = D.MEDAILLES, medailles = jeu.vague * M.parVague + Math.floor(j.tues / M.parZombies) + j.boss * M.parBoss;
@@ -3230,10 +4044,50 @@ const ZHUD = (() => {
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
+    $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
+    $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
     setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
   }
-  function quitter() { jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
+  function quitter() { quitterSalon(); jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
+
+  // ─── jouer à plusieurs : le salon (un code de 4 lettres), puis la partie en coop ───
+  let salon = null, partie = null;
+  const erreurSalon = (t) => { const e = $('.salon-erreur'); e.textContent = t || ''; e.hidden = !t; };
+  function ouvrirSalon() {
+    $('#s-pseudo').value = save.pseudo || ''; erreurSalon('');
+    $('.salon-entree').hidden = !!salon; $('.salon-dedans').hidden = !salon;
+    for (const k in ecrans) ecrans[k].hidden = k !== 'salon'; document.body.dataset.ecran = 'salon';
+    if (salon) majSalon();
+  }
+  async function entrerSalon(creer) {
+    const pseudo = ($('#s-pseudo').value || '').trim().slice(0, 16) || 'Survivant', code = ($('#s-code').value || '').trim().toUpperCase();
+    if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
+    save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
+    try {
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon.sur('maj', majSalon);
+      salon.sur('debut', (p) => demarrerPartie(p));
+      salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
+      $('.salon-etat').hidden = true; ouvrirSalon();
+    } catch (e) { salon = null; $('.salon-etat').hidden = true; erreurSalon(e && e.message ? e.message : 'Connexion impossible : vérifie ta connexion et réessaie.'); }
+  }
+  function majSalon() {
+    if (!salon) return;
+    const l = salon.joueurs();
+    $('.code-salon').textContent = salon.code;
+    $('.liste-joueurs').innerHTML = l.map((j) => `<li${j.moi ? ' class="moi"' : ''}><b>${j.pseudo.replace(/[<>&"]/g, '')}</b>${j.hote ? '<span class="pastille">hôte</span>' : ''}${j.moi ? '<span class="pastille toi">toi</span>' : ''}</li>`).join('');
+    $('#b-lancer').hidden = !salon.estHote; $('.attente').hidden = salon.estHote;
+    $('#b-lancer').textContent = l.length > 1 ? `Lancer à ${l.length}` : 'Lancer (en attendant les copains)';
+    $('.salon-arene').textContent = `Arène : ${D.ARENES[arene].nom}`;
+  }
+  function demarrerPartie(p) {
+    partie = p; jeu = p.jeu; idMoi = p.idMoi; arene = p.arene; demo = null; enPause = false; finVu = false; acc = 0;
+    for (const k in ecrans) ecrans[k].hidden = true;
+    ZHUD.reinit(); ZCONTROLES.reinit(); montrer('jeu');
+    ZHUD.annonce('EN COOP', `${jeu.joueurs.length} survivant${jeu.joueurs.length > 1 ? 's' : ''} · ${D.ARENES[arene].nom}`, 2.4);
+  }
+  function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
   function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
@@ -3258,13 +4112,18 @@ const ZHUD = (() => {
   clic('#b-reprendre', reprendre);
   clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } demarrer(arene); });
   clic('#b-quitter', quitter);
-  clic('#b-rejouer', () => { ecrans.fin.hidden = true; demarrer(arene); });
+  clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
     retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco;
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
+  clic('#b-multi', ouvrirSalon);
+  clic('#b-creer', () => entrerSalon(true));
+  clic('#b-rejoindre', () => entrerSalon(false));
+  clic('#b-lancer', () => { if (salon) { verrouiller(); salon.lancer(arene); } });
+  clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
   clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
@@ -3292,12 +4151,18 @@ const ZHUD = (() => {
     if (n === 5) acc = 0;
   }
   const entrees = { moi: null };
-  let fige = false;
+  let fige = false, finVu = false;
   function boucle(t) {
     requestAnimationFrame(boucle);
     const dt = derT ? Math.min(0.1, (t - derT) / 1000) : PAS; derT = t;
     if (document.hidden) return;
     if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
+    if (partie && jeu && (ecran === 'jeu' || ecran === 'fin')) { // la coop : l'hôte simule, le client suit ; la pause n'arrête rien
+      const e = partie.etape(dt, enPause || estPortrait ? null : ZCONTROLES.lire());
+      ZSONS.evenements(e, jeu, idMoi, dt); ZHUD.maj(jeu, idMoi, dt, e); rendu.image(jeu, idMoi, dt, e);
+      if (jeu.fini && !finVu) { finVu = true; finir(); }
+      return;
+    }
     if (jeu && (ecran === 'jeu' || ecran === 'fin')) {
       if (enPause) { if (!fige) { rendu.image(jeu, idMoi, 0, null); fige = true; } return; }
       fige = false;
@@ -3322,7 +4187,7 @@ const ZHUD = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, pause, reprendre, montrer, quitter,
+    demarrer, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z),
