@@ -34,7 +34,7 @@ const ZENLIGNE = (() => {
   // ─── l'instantané de l'hôte ───
   function instantane(jeu) {
     return {
-      t: r2(jeu.t), ph: jeu.phase, c: r1(jeu.chrono), v: jeu.vague, as: jeu.aSortir, tv: jeu.totalVague, f: jeu.fini ? 1 : 0,
+      t: r2(jeu.t), g: jeu.gagnant || '', ph: jeu.phase, c: r1(jeu.chrono), v: jeu.vague, as: jeu.aSortir, tv: jeu.totalVague, f: jeu.fini ? 1 : 0,
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
@@ -52,7 +52,7 @@ const ZENLIGNE = (() => {
   // ─── la copie du client, écrite par un instantané (les objets gardent leur identité : le rendu les suit par id) ───
   function appliquer(jeu, e, idMoi) {
     if (Math.abs(jeu.t - e.t) > 0.3) jeu.t = e.t;
-    jeu.phase = e.ph; jeu.chrono = e.c; jeu.vague = e.v; jeu.aSortir = e.as; jeu.totalVague = e.tv; jeu.fini = !!e.f;
+    jeu.phase = e.ph; jeu.gagnant = e.g || ''; jeu.chrono = e.c; jeu.vague = e.v; jeu.aSortir = e.as; jeu.totalVague = e.tv; jeu.fini = !!e.f;
     jeu.serie.n = e.s[0]; jeu.serie.t = e.s[1]; jeu.serie.mult = e.s[2];
     jeu.stats.tues = e.st[0]; jeu.stats.ferraille = e.st[1]; jeu.stats.construits = e.st[2];
     for (const a of e.j) {
@@ -106,11 +106,12 @@ const ZENLIGNE = (() => {
       sur(t, f) { if (!abonnes.has(t)) abonnes.set(t, new Set()); abonnes.get(t).add(f); return () => abonnes.get(t).delete(f); },
       quitter() { try { s.quitter(); } catch (e) { /* rien */ } Z.partie = null; },
       stats: () => s.stats(),
-      lancer(arene) {
+      lancer(arene, mode) {
         if (!s.estHote) return 'pas-hote';
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
-        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
+        if (mode === 'duel' && liste.length !== 2) return 'duel-deux';
+        const debut = { mode: mode === 'cps' || mode === 'duel' ? mode : '', graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -123,7 +124,7 @@ const ZENLIGNE = (() => {
 
     function demarrer(d) {
       const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
-      const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs });
+      const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs, mode: d.mode || '' });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
       emettre('debut', Z.partie);

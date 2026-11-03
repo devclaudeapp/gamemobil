@@ -882,8 +882,8 @@ const ZRENDU = (() => {
     const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
     const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
     function majCamera(jeu, idMoi, dt) {
-      const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
-      const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
+      const j = jeu.camera || jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return; // (l'Infection : la caméra suit ton zombie)
+      const tx = j.x + (j.vx || 0) * 0.25, tz = j.z + (j.vz || 0) * 0.25;
       if (!cam.init) { cam.x = tx; cam.z = tz; cam.init = true; }
       const k = 1 - Math.exp(-6 * dt); cam.x += (tx - cam.x) * k; cam.z += (tz - cam.z) * k;
       const portrait = H > W; let haut = portrait ? 30 : 22, recul = portrait ? 12 : 12, fx = cam.x, fz = cam.z;
@@ -925,6 +925,7 @@ const ZRENDU = (() => {
           case 'saute': case 'atterrit': for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; particule(e.x + Math.cos(a) * 0.3, 0.15, e.z + Math.sin(a) * 0.3, Math.cos(a) * 2, 0.6, Math.sin(a) * 2, 0.45, 0.14, '#C8B48A', 0); } if (e.t === 'atterrit') secousse = Math.max(secousse, 0.12); break;
           case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
           case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
+          case 'infecte': flaque(e.x, e.z, 1.0, '#5E8C2E'); for (let k = 0; k < 18; k++) particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 5, 2 + Math.random() * 3, (Math.random() - 0.5) * 5, 0.7, 0.12, k % 2 ? '#8FD14F' : '#4F8A2E', 0.4); secousse = Math.max(secousse, 0.2); break;
           case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo }); break;
           case 'impact':
             if (e.meteo === 'orage') { let px = e.x + (Math.random() - 0.5) * 2, py = 16, pz = e.z + (Math.random() - 0.5) * 2; for (let k = 1; k <= 6; k++) { const f = k / 6, nx = e.x + (Math.random() - 0.5) * (1 - f) * 2.5, ny = 16 * (1 - f), nz = e.z + (Math.random() - 0.5) * (1 - f) * 2.5; segment(px, py, pz, nx, ny, nz, 0.16, '#E8F4FF', 0.22); px = nx; py = ny; pz = nz; } eclairT = 0.15; }

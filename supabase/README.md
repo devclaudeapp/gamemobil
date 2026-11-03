@@ -57,6 +57,10 @@ npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglit
 node test/zombies-defi-sql.cjs /tmp/pglite
 ```
 
+## Le social de Dernier Rempart (classement mondial, amis, inconnus)
+
+Le second script, `supabase/zombies-social.sql`, se colle **après** `zombies-defi.sql` (il en reprend les joueurs : même pseudo, même jeton). Il ouvre l'écran **Social** du jeu : le **classement mondial** (top 1000 : meilleure vague, meilleur score, échelon de l'Ascension, points de duel, victoires d'Infection, zombies abattus), les **amis** (ajoutés par leur pseudo ; on voit s'ils sont en ligne, en partie, ou dans un salon — avec un bouton « Rejoindre ») et la **file pour jouer avec un inconnu** (bouton « Avec un inconnu » du salon). Tables fermées, tout passe par des fonctions qui vérifient le jeton et bornent les valeurs. Le tester sans Supabase : `node test/zombies-defi-sql.cjs /tmp/pglite` (il colle les deux scripts).
+
 ## Le classement du Fournil
 
 Le Fournil a un classement entre amis, en **points de boulanger** (version 3 du SQL, version 4 avec l'événement « Le Quartier », version 5 avec « La Maison hantée » et « en ligne ») : ils récompensent la façon de jouer, pas l'ancienneté. Un débutant et une grande boutique qui jouent pareil marquent autant (vérifié par `test/fournil-points.test.js`). Le barème, compté par le jeu (`src/game.js`) du lundi au dimanche, heure de Paris :

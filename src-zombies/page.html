@@ -3,6 +3,11 @@
   <div id="zone" class="joy-zone" aria-hidden="true"></div>
 <div id="tourne" role="alert"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="14" width="44" height="92" rx="9" fill="#2E3646" stroke="#FFD84A" stroke-width="5"/><circle cx="60" cy="94" r="4" fill="#FFD84A"/></svg><b>Tourne ton téléphone</b><p>Dernier Rempart se joue à l’horizontale. La partie t’attend en pause.</p></div>
   <div id="hud" hidden></div>
+  <div id="hud-inf" hidden>
+    <div class="hi-haut"><div class="hi-vie"><i></i></div><span class="hi-reste contour">Survivants <b>6</b></span><span class="hi-chrono contour">2:30</span><span class="hi-mordus contour">Mordus <b>0</b></span><button type="button" class="hi-pause" aria-label="Pause">❚❚</button></div>
+    <p class="hi-annonce contour" hidden></p>
+    <button type="button" class="hi-bond" aria-label="Bondir">BONDIR</button>
+  </div>
   <p id="sans3d" hidden>Ce navigateur n’affiche pas la 3D (WebGL) : Dernier Rempart ne peut pas démarrer ici.</p>
 
   <section class="ecran" id="ecran-titre" hidden>
@@ -16,9 +21,11 @@
         <button type="button" class="moyen defi-bouton" id="b-ascension"><span>L’Ascension</span><small class="asc-sous"></small></button>
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
+        <button type="button" class="moyen" id="b-modes">Modes</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
         <button type="button" class="moyen" id="b-collection">Collection</button>
+        <button type="button" class="moyen" id="b-social">Social</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -58,6 +65,7 @@
         <label class="champ"><span>Ton pseudo</span><input id="s-pseudo" maxlength="16" autocomplete="nickname" placeholder="Survivant"></label>
         <button type="button" class="gros" id="b-creer">Créer un salon</button>
         <div class="rejoindre"><input id="s-code" maxlength="4" placeholder="CODE" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" class="moyen" id="b-rejoindre">Rejoindre</button></div>
+        <button type="button" class="moyen" id="b-inconnu">Avec un inconnu</button>
       </div>
       <div class="salon-dedans" hidden>
         <p class="resume">Le code du salon, à donner aux copains :</p>
@@ -118,6 +126,26 @@
       <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
       <div class="prog-corps"></div>
       <button type="button" class="moyen" id="b-prog-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-modes" hidden>
+    <div class="carte-ecran modes">
+      <h2>Modes de jeu</h2>
+      <button type="button" class="mode-carte mode-inf" id="b-mode-inf"><b>🧟 Infection</b><span>C’est toi l’épidémie : mords les survivants avant la fin du chrono. Chaque mordu traque les autres.</span><small></small></button>
+      <button type="button" class="mode-carte" id="b-mode-cps"><b>🎯 Chacun pour soi</b><span>À plusieurs, la même arme pour tous, pas de relève : le dernier debout gagne.</span></button>
+      <button type="button" class="mode-carte" id="b-mode-duel"><b>⚔️ Duel</b><span>À deux : tes zombies abattus en envoient à l’autre. Monte les huit divisions.</span><small class="duel-div"></small></button>
+      <button type="button" class="moyen" id="b-modes-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-social" hidden>
+    <div class="carte-ecran social">
+      <h2>Social</h2>
+      <div class="onglets soc-onglets" role="tablist"><button type="button" role="tab" data-onglet="mondial">Mondial</button><button type="button" role="tab" data-onglet="amis">Amis</button><button type="button" role="tab" data-onglet="profil">Profil</button></div>
+      <div class="soc-corps"></div>
+      <p class="soc-etat"></p>
+      <button type="button" class="moyen" id="b-soc-retour">Retour</button>
     </div>
   </section>
 

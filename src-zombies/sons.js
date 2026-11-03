@@ -116,6 +116,9 @@ const ZSONS = (() => {
         case 'impact': if (e.meteo === 'orage') { P.jouer('tonnerre', 0.9); P.vibrer(30); } break;
         case 'victoire': P.jouer('mancheFin', 1); jouer('serie', 1, 0, 1.2); P.vibrer([30, 60, 30, 60, 90]); break;
         case 'echec': P.jouer('defaite', 1); break;
+        case 'infecte': jouer('splat', 0.9); jouer('grogne', 1, 0, 0.7); P.vibrer(25); break;
+        case 'envoi': if (e.vers === idMoi) { jouer('vague', 0.7); P.vibrer([30, 30, 30]); } break;
+        case 'gagnant': P.jouer(e.id === idMoi ? 'mancheFin' : 'defaite', 1); break;
         case 'pare': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('impactMetal', 0.6 * k, p); break; }
         case 'souffle': { const t = performance.now(); if (t - souffleZT > 160) { souffleZT = t; const [k, p] = ecoute(e.x, e.z, 18); if (k > 0.05) jouer('flamme', 0.7 * k, p); } break; }
         case 'saute': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('arc', 0.5 * k, p); break; }

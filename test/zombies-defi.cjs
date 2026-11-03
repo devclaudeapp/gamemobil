@@ -39,6 +39,11 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
     var lignes = du(a.p_jour || '${JOUR}').map(function (s, i) { return { rang: i + 1, pseudo: F.joueurs[s.id], score: s.score, vague: s.vague, parties: s.parties, moi: s.id === a.p_id }; });
     return { data: { version: 1, periode: a.p_periode, jour: '${JOUR}', lundi: '${C.lundiDe(JOUR)}', joueurs: lignes.length, lignes: lignes, moi: lignes.filter(function (x) { return x.moi; })[0] || null }, error: null };
   }
+  if (nom === 'zombies_profil_publier') { F.profils = F.profils || {}; F.profils[a.p_id] = Object.assign(F.profils[a.p_id] || {}, a); return { data: { ok: true, erreur: null }, error: null }; }
+  if (nom === 'zombies_mondial') return { data: { version: 1, critere: a.p_critere, joueurs: 2, lignes: [{ rang: 1, pseudo: 'Rival', valeur: 42, skin: 'pirate', en_ligne: true, moi: false }, { rang: 2, pseudo: 'Testeur', valeur: 7, skin: 'gardien', en_ligne: true, moi: true }], moi: { rang: 2, valeur: 7 } }, error: null };
+  if (nom === 'zombies_ami') { F.amis = F.amis || []; if (!/rival/i.test(a.p_pseudo)) return { data: { ok: false, erreur: 'inconnu' }, error: null }; if (!F.amis.includes('Rival')) F.amis.push('Rival'); return { data: { ok: true, erreur: null }, error: null }; }
+  if (nom === 'zombies_amis_liste') return { data: { ok: true, erreur: null, amis: (F.amis || []).map(function (p) { return { pseudo: p, skin: 'pirate', score: 1, vague: 9, echelon: 3, duel: 50, en_ligne: true, statut: 'salon:BRKT:duel' }; }) }, error: null };
+  if (nom === 'zombies_file_rejoindre') return { data: { ok: true, erreur: null, code: a.p_code, trouve: false }, error: null };
   return { data: null, error: { code: 'PGRST202', message: 'Could not find the function' }, status: 404 };
 } }; } };`;
 
@@ -181,6 +186,36 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   const m1 = await P(() => window.__zombies.save.prog);
   const avance = m1.missions.some((m) => { const a = m0.missions.find((x) => x.id === m.id); return a && m.fait > a.fait; }) || m1.rang > m0.rang;
   check(avance && (m1.xp > m0.xp || m1.palier > m0.palier), `après la partie : les missions avancent, le pass passe à ${m1.palier} palier(s) et ${m1.xp} points`);
+  // ─── les modes : l'écran, puis l'Infection (toi en zombie, le HUD, un survivant mordu, le bond, la fin) ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
+  await sleep(300); await page.tap('#b-modes'); await sleep(300);
+  check(await P(() => document.body.dataset.ecran === 'modes' && document.querySelectorAll('.mode-carte').length === 3 && /Bronze/.test(document.querySelector('.duel-div').textContent)), 'l’écran des modes : Infection, Chacun pour soi, Duel (ta division)');
+  await page.tap('#b-mode-inf'); await sleep(800);
+  const inf = await P(() => ({ mode: window.__zombies.jeu.mode, hud: !document.querySelector('#hud-inf').hidden && document.querySelector('#hud').hidden, reste: document.querySelector('.hi-reste b').textContent, chrono: document.querySelector('.hi-chrono').textContent, survivants: window.__zombies.stats().rendu.survivant }));
+  check(inf.mode === 'infection' && inf.hud && inf.reste === '6' && /^2:[0-9]{2}$/.test(inf.chrono), `Infection : son HUD (6 survivants, ${inf.chrono})`);
+  await P(() => { const j = window.__zombies.jeu, b = j.joueurs[0]; j.moiZ.x = b.x - 0.5; j.moiZ.z = b.z; });
+  await page.waitForFunction(() => window.__zombies.jeu.mordus >= 1, null, { timeout: 5000 }).catch(() => {});
+  await sleep(300);
+  check(await P(() => window.__zombies.jeu.mordus >= 1 && document.querySelector('.hi-reste b').textContent === '5' && window.__zombies.jeu.zombies.length >= 2), 'un survivant mordu : il passe de ton côté');
+  await page.screenshot({ path: out + '/16-infection.png' });
+  await page.tap('.hi-bond'); await sleep(100);
+  check(await P(() => window.__zombies.jeu.bondT > 0), 'le bouton « Bondir » : un bond, puis il se recharge');
+  await P(() => { const j = window.__zombies.jeu; for (const b of j.joueurs) { b.vivant = false; b.parti = true; } });
+  await page.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  const fi = await P(() => ({ t: document.querySelector('.fin-titre').textContent, inf: window.__zombies.save.infection }));
+  check(/épidémie a gagné/.test(fi.t) && fi.inf.victoires === 1, `la fin : « ${fi.t} »`);
+  // ─── le social : le classement mondial, un ami ajouté (il attend dans son salon : « Rejoindre »), le profil ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
+  await sleep(300); await page.tap('#b-social'); await sleep(300);
+  await page.waitForFunction(() => document.querySelectorAll('.soc-liste li').length >= 2, null, { timeout: 8000 }).catch(() => {});
+  const so = await P(() => ({ ecran: document.body.dataset.ecran, lignes: [...document.querySelectorAll('.soc-liste li')].map((l) => l.innerText.replace(/\s+/g, ' ')), profil: window.__faux.profils && Object.values(window.__faux.profils)[0] }));
+  check(so.ecran === 'social' && so.lignes.length === 2 && /Rival/.test(so.lignes[0]) && /en ligne/.test(so.lignes[0]) && so.profil && so.profil.p_statut === 'menu', `le classement mondial (${so.lignes.join(' | ')}) ; le profil publié`);
+  await page.tap('[data-onglet="amis"]'); await sleep(300); await page.fill('#soc-pseudo', 'Rival'); await page.tap('#b-soc-ajout');
+  await page.waitForFunction(() => document.querySelectorAll('.soc-amis .soc-rejoindre').length === 1, null, { timeout: 8000 }).catch(() => {});
+  check(await P(() => /attend dans son salon \(Duel\)/.test(document.querySelector('.soc-amis').innerText) && document.querySelectorAll('.soc-rejoindre').length === 1), 'un ami ajouté par son pseudo : en ligne, il attend dans son salon de duel (« Rejoindre »)');
+  await page.screenshot({ path: out + '/17-social.png' });
+  await page.tap('[data-onglet="profil"]'); await sleep(200);
+  check(await P(() => /Testeur/.test(document.querySelector('.soc-corps').innerText) && /Duel/.test(document.querySelector('.soc-corps').innerText)), 'le profil : pseudo, survivant, records, division');
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.join(' | ') : ''}`);
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s) (Dernier Rempart, défi du jour)` : '\nTout passe (Dernier Rempart, défi du jour).');
