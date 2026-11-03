@@ -1,0 +1,52 @@
+<div id="app">
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div id="zone" class="joy-zone" aria-hidden="true"></div>
+  <div id="hud" hidden></div>
+  <p id="sans3d" hidden>Ce navigateur n’affiche pas la 3D (WebGL) : Dernier Rempart ne peut pas démarrer ici.</p>
+
+  <section class="ecran" id="ecran-titre" hidden>
+    <div class="titre-boite">
+      <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
+      <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
+      <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
+      <div class="boutons">
+        <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen" id="b-reglages">Réglages</button>
+        <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
+      </div>
+      <p class="aide">Glisse le pouce n’importe où pour courir : ton survivant tire tout seul sur le zombie le plus proche. Entre les vagues, dépense ta ferraille dans l’atelier, à droite.</p>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-pause" hidden>
+    <div class="carte-ecran">
+      <h2>Pause</h2>
+      <p class="resume"></p>
+      <button type="button" class="gros" id="b-reprendre">Reprendre</button>
+      <button type="button" class="moyen" id="b-recommencer">Recommencer</button>
+      <button type="button" class="moyen" id="b-pause-reglages">Réglages</button>
+      <button type="button" class="moyen" id="b-quitter">Abandonner</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-fin" hidden>
+    <div class="carte-ecran">
+      <h2>Submergé !</h2>
+      <p class="fin-record" hidden>Nouveau record !</p>
+      <dl class="fin-chiffres"></dl>
+      <button type="button" class="gros" id="b-rejouer">Rejouer</button>
+      <button type="button" class="moyen" id="b-menu">Menu</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-reglages" hidden>
+    <div class="carte-ecran">
+      <h2>Réglages</h2>
+      <label class="regle"><span>Sons</span><input type="checkbox" id="r-son"></label>
+      <label class="regle"><span>Vibrations</span><input type="checkbox" id="r-vibre"></label>
+      <label class="regle"><span>Graphismes économes <small>(batterie, vieux téléphones)</small></span><input type="checkbox" id="r-eco"></label>
+      <button type="button" class="gros" id="b-reglages-ok">OK</button>
+      <p class="credits">Modèles 3D CC0 de Kenney (horde, survivant, défenses, voitures) et de KayKit par Kay Lousberg (les boss) ; décor fait main. Sons synthétisés.</p>
+    </div>
+  </section>
+</div>
