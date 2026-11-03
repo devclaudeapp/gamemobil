@@ -49,6 +49,7 @@ async function ouvrir(st, o) {
   o = o || {};
   const ctx = await browser.newContext({ viewport: o.vue || { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await ctx.addInitScript((r) => { window.__sansEvenements = true; try { if (!sessionStorage.getItem('semee')) { localStorage.setItem('fournil.v2', r); sessionStorage.setItem('semee', '1'); } } catch (e) { /* rien */ } }, raw(st));
+  if (o.inscrit) await ctx.addInitScript(() => { try { if (!localStorage.getItem('fournil.classement')) localStorage.setItem('fournil.classement', JSON.stringify({ id: '0f8fad5b-d9cb-469f-a165-70867728950e', jeton: 'a'.repeat(64), pseudo: 'Mamie', rejoint: true, dernierEnvoi: 0 })); } catch (e) { /* rien */ } }); // le chantier ne se lit qu'une fois le classement rejoint (rien ne part avant)
   await ctx.route(/googleapis|gstatic/, (r) => r.abort());
   await ctx.route(new RegExp(SUPA.replace(/[.]/g, '[.]') + '.*'), (r) => { const u = r.request().url(); if (o.projets && /rpc\/fournil_projets/.test(u)) return o.projets(r); return r.abort(); });
   const page = await ctx.newPage(), erreurs = [];
@@ -304,7 +305,7 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
   // ─── 6. le chantier du quartier : sans le SQL (« pas-ouvert »), puis avec ───
   console.log('── 6. le chantier du quartier ──');
   {
-    const s = await ouvrir(sauvegarde(9), { projets: (r) => r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function' }) }) }), { page, ev } = s;
+    const s = await ouvrir(sauvegarde(9), { inscrit: true, projets: (r) => r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function' }) }) }), { page, ev } = s;
     await toutFermer(page); await ev(() => window.__fournil.progression.projets()); await sleep(500);
     await ev(() => { window.__fournil.page('defis'); window.__fournil.tiroir('ouvert'); }); await sleep(400);
     check(await ev(() => !document.querySelector('#page-defis .projet-carte')), 'sans le SQL v6.8 : rien dans les Défis');
@@ -317,7 +318,7 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
   {
     const lundi = G.semaineKey(Date.now()), rep = { version: 1, semaine: lundi, cette_semaine: 5000, en_cours: { rang: 2, cout: 8000, total: 5000, pourcent: 62, actifs: 20, depuis: lundi }, finis: [{ rang: 1, semaine: lundi, fini: new Date().toISOString() }] };
     const st = sauvegarde(9);
-    const s = await ouvrir(st, { projets: (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rep) }) }), { page, ev } = s;
+    const s = await ouvrir(st, { inscrit: true, projets: (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rep) }) }), { page, ev } = s;
     await toutFermer(page); await ev(() => window.__fournil.progression.projets());
     const fini = await attendre(async () => /Chantier fini : la fontaine/.test(await texteFeuille(page)), 6000);
     check(fini && await ev(() => window.__fournil.st.projets.vus.includes(1)), 'un chantier fini : « Chantier fini : la fontaine ! », une fois (st.projets.vus)');

@@ -618,7 +618,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     st.trophees = { premiere: T, cent: T, inconnu: T };
     const q = Q.neuf(T); q.majeur = true; q.ouvertLe = T; q.postes[0].niv = 60; q.postes[0].staff = true; q.postes[1].niv = 12; q.decos = ['graffiti', 'neon']; q.paliers = [1, 2, 3, 4]; q.total = Q.PALIERS[3].total + 5;
     const p = CL.photo(st, { G, ev: { id: 'quartier', q } });
-    check(p && egal(p.x, { e: 42, b: 3, v: 123456, tr: 2, s: 9, f: 98770000 }), `x : étoiles, boutique, ventes, trophées (connus seulement), série, fortune à 4 chiffres (${JSON.stringify(p && p.x)})`);
+    check(p && egal(p.x, Object.assign({ e: 42, b: 3, v: 123456, tr: 2, s: 9, f: 98770000 }, st.dores ? { td: 0 } : {})), `x : étoiles, boutique, ventes, trophées (connus seulement), série, fortune à 4 chiffres (${JSON.stringify(p && p.x)})`);
     check(p && egal(p.e, { id: 'quartier', p: [[60, 1], [12, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], d: ['graffiti', 'neon'], pa: 4, t: Q.PALIERS[3].total + 5 }), `e : l’événement, ses huit postes (niveau, apprenti), ses décos, ses paliers, son total (${JSON.stringify(p && p.e)})`);
     { // une Planque au bout de l'événement : huit postes à des milliers de niveaux, tous les apprentis, vingt paliers, toutes les décos ; une vieille photo à six postes
       const q8 = Q.neuf(T); q8.postes.forEach((x) => { x.niv = 4999; x.staff = true; }); q8.decos = Q.DECOS.slice(); q8.paliers = Q.PALIERS.map((x) => x.n); q8.total = 1e17;
@@ -994,6 +994,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const reponse = { version: 1, semaine: '2026-10-05', cette_semaine: 150, en_cours: { rang: 1, cout: 6000, total: 2150, pourcent: 35, actifs: 4, depuis: '2026-09-28' }, finis: [] };
     const r = faux((url, init, c) => { if (url.endsWith('/fournil_projets')) { n++; if (mode === 'absent') return rep(404, { code: 'PGRST202' }); if (mode === 'panne') return rep(500, { code: 'XX000' }); if (mode === 'faux') return rep(200, { version: 7 }); return rep(200, reponse); } if (url.endsWith('/fournil_publier')) return rep(200, { ok: true, erreur: null, version: 6, semaine: '2026-10-05', rang_semaine: 1, rang_total: 1, joueurs: 3, points_semaine: 40 }); return sv.gerer(url, init, c); });
     const st = inscrit(), m = moteur(r, { stockage: st });
+    { const n0 = n, m0 = moteur(r); check((await m0.projets()).etat === 'pas-rejoint' && n === n0 && m0.projetsVu() === null, 'pas rejoint : le chantier n’est pas lu, aucun appel'); }
     check(m.projetsVu() === null, 'rien de lu : projetsVu() = null');
     let p = await m.projets(); const a0 = r.appels[0];
     check(p.etat === 'pas-ouvert' && m.projetsVu().etat === 'pas-ouvert' && m.copains() && a0.url.endsWith('/rest/v1/rpc/fournil_projets') && egal(a0.corps, {}) && a0.init.headers.apikey === CLEF,

@@ -1208,6 +1208,7 @@
     // entre-temps), SANS toucher aux copains (le reste de la v6 est là). Une erreur du réseau garde la dernière bonne lecture.
     function projets(o) {
       if (!config()) return Promise.resolve({ etat: 'absent' });
+      resynchroniser(); if (!etat.rejoint) return Promise.resolve({ etat: 'pas-rejoint' }); // rien ne part vers le classement tant qu'on ne l'a pas rejoint
       if (projVol) return projVol;
       const t = E.maintenant(), ecart = o && typeof o.ecart === 'number' ? o.ecart : REGLES.projets;
       if (projCache && t - projCache.quand >= 0 && t - projCache.quand < ecart) return Promise.resolve(projCache);
