@@ -172,7 +172,7 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 // (src-poncin/reseau.js, canaux « rempart ») ; zombies/config.js porte l'adresse et la clé PUBLIQUE Supabase (la même que poncin/config.js).
 // Three.js et ses outils (vendor/fournil-hd.min.js : GLTFLoader, SkeletonUtils, MeshoptDecoder) sont des fichiers à part, comme les modèles
 // (zombies/modeles/, faits par outils/zombies/faire-modeles.mjs), mis en cache par le service worker du jeu (zombies/sw.js) : le jeu marche hors ligne.
-const ZOMBIES = ['../src-poncin/nav.js', '../src-poncin/sons.js', '../src-poncin/reseau.js', 'donnees.js', 'monde.js', 'jeu.js', 'modeles.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'enligne.js', 'classement.js', 'ui.js'];
+const ZOMBIES = ['../src-poncin/nav.js', '../src-poncin/sons.js', '../src-poncin/reseau.js', 'donnees.js', 'monde.js', 'jeu.js', 'modeles.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'enligne.js', 'classement.js', 'infection.js', 'ui.js'];
 if (fs.existsSync(path.join(__dirname, 'src-zombies', 'ui.js'))) {
   const lireZ = (f) => fs.readFileSync(path.join(__dirname, 'src-zombies', f), 'utf8');
   const jsZ = ZOMBIES.map((f) => `/* ── ${f.startsWith('../') ? f.slice(3) : 'src-zombies/' + f} ── */\n${lireZ(f)}`).join('\n');

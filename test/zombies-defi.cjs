@@ -181,6 +181,24 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   const m1 = await P(() => window.__zombies.save.prog);
   const avance = m1.missions.some((m) => { const a = m0.missions.find((x) => x.id === m.id); return a && m.fait > a.fait; }) || m1.rang > m0.rang;
   check(avance && (m1.xp > m0.xp || m1.palier > m0.palier), `après la partie : les missions avancent, le pass passe à ${m1.palier} palier(s) et ${m1.xp} points`);
+  // ─── les modes : l'écran, puis l'Infection (toi en zombie, le HUD, un survivant mordu, le bond, la fin) ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
+  await sleep(300); await page.tap('#b-modes'); await sleep(300);
+  check(await P(() => document.body.dataset.ecran === 'modes' && document.querySelectorAll('.mode-carte').length === 3 && /Bronze/.test(document.querySelector('.duel-div').textContent)), 'l’écran des modes : Infection, Chacun pour soi, Duel (ta division)');
+  await page.tap('#b-mode-inf'); await sleep(800);
+  const inf = await P(() => ({ mode: window.__zombies.jeu.mode, hud: !document.querySelector('#hud-inf').hidden && document.querySelector('#hud').hidden, reste: document.querySelector('.hi-reste b').textContent, chrono: document.querySelector('.hi-chrono').textContent, survivants: window.__zombies.stats().rendu.survivant }));
+  check(inf.mode === 'infection' && inf.hud && inf.reste === '6' && /^2:[0-9]{2}$/.test(inf.chrono), `Infection : son HUD (6 survivants, ${inf.chrono})`);
+  await P(() => { const j = window.__zombies.jeu, b = j.joueurs[0]; j.moiZ.x = b.x - 0.5; j.moiZ.z = b.z; });
+  await page.waitForFunction(() => window.__zombies.jeu.mordus >= 1, null, { timeout: 5000 }).catch(() => {});
+  await sleep(300);
+  check(await P(() => window.__zombies.jeu.mordus >= 1 && document.querySelector('.hi-reste b').textContent === '5' && window.__zombies.jeu.zombies.length >= 2), 'un survivant mordu : il passe de ton côté');
+  await page.screenshot({ path: out + '/16-infection.png' });
+  await page.tap('.hi-bond'); await sleep(100);
+  check(await P(() => window.__zombies.jeu.bondT > 0), 'le bouton « Bondir » : un bond, puis il se recharge');
+  await P(() => { const j = window.__zombies.jeu; for (const b of j.joueurs) { b.vivant = false; b.parti = true; } });
+  await page.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  const fi = await P(() => ({ t: document.querySelector('.fin-titre').textContent, inf: window.__zombies.save.infection }));
+  check(/épidémie a gagné/.test(fi.t) && fi.inf.victoires === 1, `la fin : « ${fi.t} »`);
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.join(' | ') : ''}`);
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s) (Dernier Rempart, défi du jour)` : '\nTout passe (Dernier Rempart, défi du jour).');

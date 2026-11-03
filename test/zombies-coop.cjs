@@ -104,6 +104,17 @@ const URL0 = `http://localhost:${PORT}/zombies/?reseau=local`;
   await A.tap('#b-rejouer');
   await B.waitForFunction(() => document.body.dataset.ecran === 'jeu' && !window.__zombies.jeu.fini, null, { timeout: 10000 }).catch(() => {});
   check(await PB(() => document.body.dataset.ecran === 'jeu' && !window.__zombies.jeu.fini), '« Rejouer ensemble » : une nouvelle partie démarre chez Bob aussi');
+  // ─── le duel : le même salon relance en mode duel ; Bob tombe, Alice gagne et monte de division ───
+  await PA(() => { window.__zombies.modeSalon = 'duel'; for (const p of window.__zombies.jeu.joueurs) { p.vie = 0; p.vivant = false; } });
+  await A.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  await A.tap('#b-rejouer');
+  await B.waitForFunction(() => window.__zombies.jeu && window.__zombies.jeu.mode === 'duel' && !window.__zombies.jeu.fini, null, { timeout: 10000 }).catch(() => {});
+  check(await PB(() => window.__zombies.jeu.mode === 'duel') && await PA(() => window.__zombies.jeu.mode === 'duel'), 'le duel démarre chez les deux');
+  await PA((id) => { const j = window.__zombies.jeu, b = j.joueurs.find((p) => p.id === id); b.vie = 0; b.vivant = false; }, idB);
+  await A.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  await B.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  const duel = [await PA(() => ({ t: document.querySelector('.fin-titre').textContent, d: window.__zombies.save.duel, r: document.querySelector('.fin-record').textContent })), await PB(() => ({ t: document.querySelector('.fin-titre').textContent, d: window.__zombies.save.duel }))];
+  check(/Duel gagné/.test(duel[0].t) && duel[0].d.points === 25 && /Bronze/.test(duel[0].r) && /gagne/.test(duel[1].t) && duel[1].d.defaites === 1, `Bob tombe : « ${duel[0].t} » chez Alice (${duel[0].r}), « ${duel[1].t} » chez Bob`);
   check(errors.length === 0, `aucune erreur dans les pages${errors.length ? ' : ' + errors.slice(0, 3).join(' | ') : ''}`);
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s) (Dernier Rempart, coop)` : '\nTout passe (Dernier Rempart, coop).');

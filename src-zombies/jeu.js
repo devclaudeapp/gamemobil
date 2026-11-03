@@ -53,6 +53,10 @@
       objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || A.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
+    // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
+    // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
+    if (o.mode === 'cps' || o.mode === 'duel') jeu.mode = o.mode;
+    jeu.gagnant = '';
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
     jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
     const liste = o.joueurs && o.joueurs.length ? o.joueurs : [{ id: 'moi', pseudo: 'Moi' }];
@@ -79,6 +83,7 @@
       if (jeu.mod.arme && D.ARMES[jeu.mod.arme]) { j.armes[1] = { id: jeu.mod.arme, mun: D.ARMES[jeu.mod.arme].munitions }; j.main = 1; continue; }
       if (b.arme > 0) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= 2), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; }
     }
+    if (jeu.mode === 'cps') { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0), a = l[Math.floor(rnd() * l.length) % l.length]; for (const j of jeu.joueurs) { j.armes[1] = { id: a, mun: Infinity }; j.main = 1; } jeu.armeCommune = a; }
     // le générateur à protéger, au départ de l'arène
     if (jeu.objectif && jeu.objectif.type === 'generateur') {
       const G = D.DEFENSES.generateur, p = monde.libreProche(A.depart[0] + 2.2, A.depart[1], G.rayon, 6) || A.depart;
@@ -109,7 +114,12 @@
   function lancerVague(jeu) {
     const V = D.VAGUES; jeu.vague++; jeu.phase = 'vague';
     jeu.totalVague = Math.ceil(V.nombre(jeu.vague) * jeu.mod.nombre); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
-    for (let k = 0; k < V.caisse(jeu.vague); k++) poserCaisse(jeu);
+    if (jeu.mode !== 'cps') for (let k = 0; k < V.caisse(jeu.vague); k++) poserCaisse(jeu);
+    if (jeu.mode === 'duel') for (const j of jeu.joueurs) { // un atout offert à chaque vague, au hasard
+      if (!j.vivant) continue; const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max); if (!l.length) continue;
+      const k = l[Math.floor(jeu.rnd() * l.length) % l.length]; j.atouts[k] = rang(j, k) + 1; if (k === 'vie') { j.vieMax += D.ATOUTS.vie.par; j.vie += D.ATOUTS.vie.par; }
+      ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k], offert: true });
+    }
     const O = jeu.objectif;
     if (O && O.type === 'contrat' && !O.lance) { O.lance = true; if (fairesortir(jeu, O.cible)) { const e = jeu.zombies[jeu.zombies.length - 1]; e.vie = e.vieMax = Math.round(e.vieMax * O.vie); e.elite = true; O.id = e.id; } }
     ev(jeu, { t: 'vague', n: jeu.vague, total: jeu.totalVague, boss: jeu.bossAVenir });
@@ -282,6 +292,7 @@
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
     if (j) { j.score += points; j.tues++; if (Z.boss) j.boss++; gagnerXp(jeu, j, Z.points * D.XP.parPoint); }
+    if (j && jeu.mode === 'duel' && !zb.envoye && (j.envois = (j.envois || 0) + 1) % 6 === 0) envoyer(jeu, j);
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
     if (!Z.boss && zb.type !== 'kamikaze') { jeu.morts.push({ x: zb.x, z: zb.z, t: jeu.t }); if (jeu.morts.length > 24) jeu.morts.shift(); }
     // ce qu'il laisse : de la ferraille (en quelques morceaux), parfois un soin
@@ -363,6 +374,16 @@
     for (const j of jeu.joueurs) { if (!j.vivant) continue; const d = Math.hypot(j.x - zb.x, j.z - zb.z); if (d < K.souffle + j.rayon) blesserJoueur(jeu, j, K.degats * (1 - Math.min(1, d / (K.souffle + j.rayon)) * 0.5)); }
     for (const d of jeu.defenses) if (d.type !== 'mine' && Math.hypot(d.x - zb.x, d.z - zb.z) < K.souffle + 0.5) { d.vie -= K.degats * 1.5; d.flash = 0.15; }
     explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
+  }
+  // le duel : trois coureurs qui sortent de terre près de l'adversaire
+  function envoyer(jeu, de) {
+    const vers = jeu.joueurs.find((k) => k.id !== de.id && k.vivant); if (!vers) return;
+    for (let k = 0; k < 3; k++) {
+      const a = jeu.rnd() * TAU, p = jeu.monde.libreProche(vers.x + Math.cos(a) * 6.5, vers.z + Math.sin(a) * 6.5, 0.4, 3); if (!p) continue;
+      const Z = D.ZOMBIES.coureur, vie = Math.round(Z.vie * D.VAGUES.vie(Math.max(1, jeu.vague)));
+      jeu.zombies.push({ id: nouvelId(jeu), type: 'coureur', x: p[0], z: p[1], vie, vieMax: vie, vitesse: Z.vitesse * D.VAGUES.vitesse(Math.max(1, jeu.vague)), rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 0, coinceT: 0, coince: 0, cx: p[0], cz: p[1], coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: jeu.t, envoye: true });
+    }
+    ev(jeu, { t: 'envoi', de: de.id, vers: vers.id });
   }
   // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
   // les rivières de lave (le Volcan) : elles brûlent qui s'y tient
@@ -468,7 +489,7 @@
       }
     }
     for (const j of jeu.joueurs) { majJoueur(jeu, j, entrees[j.id] || null, dt); if (j.emote && (j.emote.t -= dt) <= 0) j.emote = null; if (j.emoteCd > 0) j.emoteCd -= dt; }
-    if (jeu.joueurs.length > 1) relever(jeu, dt);
+    if (jeu.joueurs.length > 1 && !jeu.mode) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
@@ -477,6 +498,16 @@
     majLave(jeu, dt);
     majObjectif(jeu, dt);
     if (jeu.fini) return jeu.evs;
+    // chacun pour soi, duel : le dernier debout gagne (personne debout : le meilleur score)
+    if (jeu.mode && jeu.joueurs.length > 1) {
+      const debout = jeu.joueurs.filter((j) => j.vivant && !j.parti);
+      if (debout.length <= 1) {
+        const g = debout[0] || jeu.joueurs.slice().sort((a, b) => b.score - a.score)[0];
+        jeu.gagnant = g.id; jeu.fini = true; jeu.phase = 'fin'; ev(jeu, { t: 'gagnant', id: g.id });
+        ev(jeu, { t: 'fin', score: g.score, vague: jeu.vague, tues: jeu.stats.tues });
+        return jeu.evs;
+      }
+    }
     // fin : plus aucun survivant debout
     if (!jeu.joueurs.some((j) => j.vivant)) {
       jeu.fini = true; jeu.phase = 'fin'; if (jeu.objectif) jeu.gagne = false;

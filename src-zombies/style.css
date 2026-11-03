@@ -377,3 +377,23 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .prog-coffre .gros-ico { font-size: 56px; line-height: 1; }
 .prog-coffre p { margin: 0; }
 @media (max-height: 460px) and (orientation: landscape) { .progression { padding: 10px 14px 12px; } .progression h2 { font-size: 24px; } }
+
+/* ─── les modes ─── */
+.modes { width: min(520px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.mode-carte { display: grid; gap: 3px; padding: 10px 14px; border-radius: 16px; border: 2.5px solid var(--encre); background: #fff; text-align: left; color: var(--encre); box-shadow: 0 3px 0 rgba(31, 37, 51, .3); }
+.mode-carte b { font: 700 18px/1.15 var(--titre); }
+.mode-carte span { font-size: 13px; color: #5A5F6B; }
+.mode-carte small { font-weight: 700; color: #8A6A10; font-size: 12px; }
+.mode-carte small:empty { display: none; }
+/* le HUD de l'Infection */
+#hud-inf { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+#hud-inf button { pointer-events: auto; }
+.hi-haut { position: absolute; left: calc(14px + var(--hg)); right: calc(14px + var(--hd)); top: calc(10px + var(--ht)); display: flex; align-items: center; gap: 12px; color: #fff; font: 700 18px/1 var(--titre); }
+.hi-vie { flex: 0 1 260px; height: 18px; border-radius: 999px; background: rgba(31, 37, 51, .7); border: 3px solid var(--encre); overflow: hidden; }
+.hi-vie i { display: block; height: 100%; background: #8FD14F; }
+.hi-chrono { margin-left: auto; font-size: 24px; }
+.hi-chrono.urgent { color: #FF6B5B; }
+.hi-pause { width: 46px; height: 46px; border-radius: 12px; border: 3px solid var(--encre); background: rgba(31, 37, 51, .85); color: #fff; font-size: 16px; }
+.hi-annonce { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); margin: 0; color: #fff; font: 700 24px/1.2 var(--titre); text-align: center; }
+.hi-bond { position: absolute; right: calc(24px + var(--hd)); bottom: calc(24px + var(--hb)); width: 96px; height: 96px; border-radius: 50%; border: 4px solid var(--encre); background: conic-gradient(rgba(31, 37, 51, .75) var(--recharge, 0%), #8FD14F 0); font: 700 16px/1 var(--titre); color: var(--encre); box-shadow: 0 5px 0 rgba(31, 37, 51, .4); }
+.hi-bond.pret { background: #8FD14F; }

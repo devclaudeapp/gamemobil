@@ -323,6 +323,31 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   J.pas(jeu, null, 3); check(!jeu.joueurs[0].emote, 'puis s’efface');
 }
 
+// ─── les modes : l'Infection (seul), chacun pour soi et le duel (à plusieurs) ───
+{
+  const I = require(path.join(__dirname, '..', 'src-zombies', 'infection.js'));
+  const jeu = I.creer({ arene: 'jardin', graine: 3 });
+  check(jeu.joueurs.length === 6 && jeu.zombies.length === 1 && jeu.zombies[0].moi && jeu.camera === jeu.moiZ, 'Infection : six survivants (l’ordinateur), toi en zombie, la caméra te suit');
+  const bot = (jeu) => { const m = jeu.moiZ; let c = null, b = 1e9; for (const j of jeu.joueurs) if (j.vivant) { const d = Math.hypot(j.x - m.x, j.z - m.z); if (d < b) { b = d; c = j; } } if (c && b < 4) I.bondir(jeu); return c ? { mx: (c.x - m.x) / b, mz: (c.z - m.z) / b } : { mx: 0, mz: 0 }; };
+  const evs = []; let k = 0, maxZ = 0; while (!jeu.fini && k++ < 60 * 200) { for (const e of I.pas(jeu, bot(jeu), 1 / 60)) evs.push(e); maxZ = Math.max(maxZ, jeu.zombies.length); }
+  check(evs.some((e) => e.t === 'infecte') && evs.some((e) => e.t === 'tir') && evs.some((e) => e.t === 'touche' && e.cible === 1) && jeu.fini, `les survivants fuient et te tirent dessus ; tu les mords (${jeu.mordus} mordus, ${jeu.gagne ? 'épidémie totale' : jeu.raison})`);
+  check(maxZ >= 3, `les mordus deviennent tes zombies et traquent les autres (jusqu’à ${maxZ - 1} à tes côtés)`);
+  { const j2 = I.creer({ arene: 'jardin', graine: 3 }); j2.moiZ.vie = 0; I.pas(j2, null, 1 / 60); check(j2.fini && j2.gagne === false && j2.raison === 'abattu', 'abattu : perdu'); }
+  { const j3 = I.creer({ arene: 'jardin', graine: 3 }); j3.reste = 0.01; I.pas(j3, null, 1 / 60); check(j3.fini && j3.raison === 'temps', 'le chrono écoulé : les survivants ont tenu'); }
+  // chacun pour soi
+  const cps = J.creer({ arene: 'jardin', graine: 4, mode: 'cps', joueurs: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
+  check(cps.mode === 'cps' && cps.joueurs.every((j) => j.armes[1] && j.armes[1].id === cps.armeCommune && j.armes[1].mun === Infinity), `chacun pour soi : la même arme pour tous (${D.ARMES[cps.armeCommune].nom})`);
+  cps.joueurs[0].vivant = false; cps.joueurs[1].vivant = false; const ec = J.pas(cps, null, 1 / 60);
+  check(cps.fini && cps.gagnant === 'c' && ec.some((e) => e.t === 'gagnant'), 'le dernier debout gagne (pas de relève)');
+  // le duel
+  const du = J.creer({ arene: 'jardin', graine: 4, mode: 'duel', attente: 0, joueurs: [{ id: 'a' }, { id: 'b' }] });
+  const e1 = avancer(du, 30); check(e1.some((e) => e.t === 'atout' && e.offert) && Object.keys(du.joueurs[0].atouts).length === 1, 'duel : un atout offert à chaque vague');
+  du.joueurs[0].envois = 5; du.zombies.length = 0; du.aSortir = 0; du.zombies.push({ id: 9990, type: 'trainard', x: du.joueurs[0].x + 3, z: du.joueurs[0].z, vie: 1, vieMax: 1, vitesse: 0, rayon: 0.42, angle: 0, chemin: null, ci: 0, repense: 99, coup: 99, crache: 99, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
+  du.joueurs[1].x = du.joueurs[0].x + 12; du.joueurs[1].armes[0] = null;
+  const e2 = avancer(du, 60); const envoi = e2.find((e) => e.t === 'envoi');
+  check(envoi && envoi.vers === 'b' && du.zombies.filter((z) => z.envoye).length >= 2, 'tes zombies abattus en envoient trois à l’autre');
+}
+
 // ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───
 {
   const C = require(path.join(__dirname, '..', 'src-zombies', 'classement.js'));
