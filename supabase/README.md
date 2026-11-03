@@ -49,6 +49,14 @@ npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglit
 TZ=Europe/Paris node test/poncin-butin-sql.cjs /tmp/pglite
 ```
 
+## Le classement du défi du jour (Dernier Rempart)
+
+Après chaque partie de défi du jour, le jeu publie { jour, score, vague, zombies tués } ; le classement garde le **meilleur score de chacun pour chaque jour** et montre **aujourd'hui** et **cette semaine** (la somme des meilleurs scores de chaque jour, du lundi au dimanche, heure de Paris). Le serveur, c'est `supabase/zombies-defi.sql` : à coller **tel quel** dans **SQL Editor** → **New query** → **Run** (une fois ; il se recolle sans rien perdre et ne touche ni au Fournil ni à Poncin). Tant qu'il n'est pas collé, le jeu affiche « Le classement n'est pas encore ouvert » et garde les scores sur le téléphone ; ils partent tout seuls une fois le SQL installé. Il borne ce que le téléphone peut prétendre (le jour : aujourd'hui ou hier ; un score plafonné selon la vague atteinte ; une partie toutes les 15 s, 150 par jour ; les limites d'inscription par adresse) — le détail est en tête du fichier. Le tester sans Supabase :
+```sh
+npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglite@0.5.8
+node test/zombies-defi-sql.cjs /tmp/pglite
+```
+
 ## Le classement du Fournil
 
 Le Fournil a un classement entre amis, en **points de boulanger** (version 3 du SQL, version 4 avec l'événement « Le Quartier », version 5 avec « La Maison hantée » et « en ligne ») : ils récompensent la façon de jouer, pas l'ancienneté. Un débutant et une grande boutique qui jouent pareil marquent autant (vérifié par `test/fournil-points.test.js`). Le barème, compté par le jeu (`src/game.js`) du lundi au dimanche, heure de Paris :

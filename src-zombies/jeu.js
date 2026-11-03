@@ -47,6 +47,8 @@
       serie: { n: 0, t: -99, mult: 1 },
       stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
       navPas: 0, evs: [], fini: false, choix: null,
+      // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
+      mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
     };
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
     jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
@@ -60,13 +62,15 @@
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
-        choix: null, releve: 0,
+        choix: null, releve: 0, mGrenade: 1,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
     for (const j of jeu.joueurs) {
       const B = D.BUNKER, b = j.bonus;
       j.vieMax += b.vie * B.vie.par; j.vie = j.vieMax; j.ferraille += b.ferraille * B.ferraille.par;
+      j.mGrenade = jeu.mod.grenade;
+      if (jeu.mod.arme && D.ARMES[jeu.mod.arme]) { j.armes[1] = { id: jeu.mod.arme, mun: D.ARMES[jeu.mod.arme].munitions }; j.main = 1; continue; }
       if (b.arme > 0) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= 2), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; }
     }
     return jeu;
@@ -80,7 +84,7 @@
   const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par);
   const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
   const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
-  const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par);
+  const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
   const aimant = (j) => D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par;
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
@@ -93,7 +97,7 @@
   // ─── les vagues ───
   function lancerVague(jeu) {
     const V = D.VAGUES; jeu.vague++; jeu.phase = 'vague';
-    jeu.totalVague = V.nombre(jeu.vague); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
+    jeu.totalVague = Math.ceil(V.nombre(jeu.vague) * jeu.mod.nombre); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
     for (let k = 0; k < V.caisse(jeu.vague); k++) poserCaisse(jeu);
     ev(jeu, { t: 'vague', n: jeu.vague, total: jeu.totalVague, boss: jeu.bossAVenir });
   }
@@ -123,9 +127,9 @@
     const l = bonnes.length ? bonnes : A.sorties, s = l[Math.floor(rnd() * l.length) % l.length];
     const p = jeu.monde.libreProche(s[0] + (rnd() - 0.5) * 2, s[1] + (rnd() - 0.5) * 2, Z.rayon, 5); if (!p) return false;
     const kv = D.VAGUES.vie(jeu.vague), kx = D.VAGUES.vitesse(jeu.vague) * (0.92 + rnd() * 0.16);
-    const vie = Math.round(Z.vie * kv * (Z.boss ? 1 + Math.max(0, jeu.joueurs.length - 1) * 0.6 : 1));
+    const vie = Math.round(Z.vie * kv * jeu.mod.zVie * (Z.boss ? 1 + Math.max(0, jeu.joueurs.length - 1) * 0.6 : 1));
     jeu.zombies.push({
-      id: nouvelId(jeu), type, x: p[0], z: p[1], vie, vieMax: vie, vitesse: Z.vitesse * kx, rayon: Z.rayon, angle: 0,
+      id: nouvelId(jeu), type, x: p[0], z: p[1], vie, vieMax: vie, vitesse: Z.vitesse * kx * jeu.mod.zVitesse, rayon: Z.rayon, angle: 0,
       chemin: null, ci: 0, repense: rnd() * 0.4, coinceT: 0, coince: 0, cx: p[0], cz: p[1], coup: 0.3 + rnd() * 0.5, crache: 1 + rnd(), flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: jeu.t,
     });
     return true;
@@ -186,7 +190,7 @@
     S.n = jeu.t - S.t <= D.SERIE.fenetre ? S.n + 1 : 1; S.t = jeu.t;
     S.mult = 1; for (const [seuil, m] of D.SERIE.paliers) if (S.n >= seuil) { S.mult = m; break; }
     if (S.mult > avant) ev(jeu, { t: 'serie', mult: S.mult, n: S.n });
-    const points = Z.points * S.mult;
+    const points = Math.round(Z.points * S.mult * jeu.mod.points);
     // le tueur (un survivant, ou une défense : les points vont au plus proche des survivants)
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
@@ -194,7 +198,7 @@
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
     // ce qu'il laisse : de la ferraille (en quelques morceaux), parfois un soin
     const fouille = j ? rang(j, 'butin') * D.ATOUTS.butin.par : 0;
-    let reste = Math.floor(Z.ferraille * (1 + fouille) + rnd() * 0.999 * (Z.ferraille * fouille % 1 ? 1 : 0)); const total = reste; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
+    let reste = Math.floor(Z.ferraille * jeu.mod.ferraille * (1 + fouille) + rnd() * 0.999 * (Z.ferraille * fouille % 1 ? 1 : 0)); const total = reste; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
     for (let k = 0; k < morceaux && jeu.objets.length < MAX_OBJETS; k++) {
       const v = k === morceaux - 1 ? reste : Math.ceil(total / morceaux); reste -= v;
       const a = rnd() * TAU, r = morceaux > 1 ? 0.3 + rnd() * 0.6 : 0;
@@ -587,5 +591,13 @@
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
 
-  return { creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  // le défi du jour : la date (« 2026-11-03 », heure de Paris) donne la graine, l'arène et le mutateur, les mêmes pour tout le monde
+  function defiDu(jour) {
+    let h = 0x811c9dc5; const t = 'rempart:' + jour;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    const L = D.DEFI.mutateurs, r = mulberry32(h);
+    const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
+    return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
+  }
+  return { defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
