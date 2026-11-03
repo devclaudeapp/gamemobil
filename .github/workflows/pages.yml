@@ -172,7 +172,8 @@ jobs:
   fournil4:
     name: Le Fournil, standing des boutiques, aménagement et batterie (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 20 minutes d'habitude, mais plus de 30 sur un runner lent (tout passait, coupé au dernier test).
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
