@@ -3,7 +3,7 @@
 // (mutateur, arène, classement vide, pseudo) → la partie : l'arène, la graine et le mutateur du jour, sans les bonus du Bunker →
 // le survivant tombe → la fin : « Défi du jour : … pts · 2e sur 2 », le meilleur score gardé (zombies.v1), parti au classement, les
 // records de l'arène intacts → le titre montre le meilleur du jour → l'écran du défi : ma ligne, l'onglet « Cette semaine » →
-// le SQL pas collé sur le projet : un message, et le jeu marche.
+// le SQL pas collé sur le projet : un message, et le jeu marche. Puis l'Ascension : son écran, une partie, la victoire, l'échelon suivant.
 // NODE_PATH=/opt/node22/lib/node_modules node test/zombies-defi.cjs   (PORT_ZOMBIES_DEFI : le port du serveur de test)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -110,6 +110,25 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   await page.tap('#b-defi-jouer'); await sleep(800);
   check(await P(() => window.__zombies.ecran === 'jeu' && window.__zombies.jeu.t > 0.2 && !!window.__zombies.defi), 'et le défi se joue quand même');
 
+  // ─── l'Ascension : le bouton du titre, l'écran de l'échelon, la partie (objectif au HUD), la victoire, la progression gardée ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
+  await sleep(400);
+  check(/Échelon 1/.test(await P(() => document.querySelector('.asc-sous').textContent)), 'le titre : « L’Ascension · Échelon 1 »');
+  await page.tap('#b-ascension'); await sleep(300);
+  const ae = await P(() => ({ ecran: document.body.dataset.ecran, n: document.querySelector('.asc-n').textContent, carte: document.querySelector('.asc-carte').innerText, rec: document.querySelector('.asc-recomp').textContent }));
+  check(ae.ecran === 'ascension' && /Échelon 1/.test(ae.n) && /Objectif/.test(ae.carte) && /Météo/.test(ae.carte) && /Règle/.test(ae.carte) && /médailles/.test(ae.rec), `l’écran de l’échelon : objectif, arène, météo, règle, horde, récompense (${ae.carte.split('\n')[1]})`);
+  await page.screenshot({ path: out + '/13-ascension.png' });
+  await page.tap('#b-asc-jouer'); await sleep(600);
+  const aj = await P(() => ({ asc: window.__zombies.ascension && window.__zombies.ascension.n, obj: window.__zombies.jeu.objectif, hud: !document.querySelector('.h-objectif').hidden && document.querySelector('.h-objectif').textContent }));
+  check(aj.asc === 1 && aj.obj && aj.hud, `la partie : l’objectif suivi au HUD (« ${aj.hud} »)`);
+  const med0 = await P(() => window.__zombies.save.meta.medailles);
+  await P(() => { const j = window.__zombies.jeu, O = j.objectif; j.joueurs[0].vie = j.joueurs[0].vieMax = 1e6; if (O.type === 'chrono') j.tempsVague = O.s; else if (O.type === 'tues') j.stats.tues = O.n; else j.vaguesFinies = O.n || 9; });
+  await page.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 10000 }).catch(() => {});
+  const af = await P(() => ({ titre: document.querySelector('.fin-titre').textContent, rec: document.querySelector('.fin-medailles').textContent.trim(), bouton: document.querySelector('#b-rejouer').textContent, save: window.__zombies.save }));
+  check(/Échelon 1 réussi/.test(af.titre) && af.save.ascension.echelon === 2 && af.save.ascension.reussis === 1 && af.save.meta.medailles > med0 && /Échelon 2/.test(af.bouton), `la victoire : « ${af.titre} », ${af.rec}, l’échelon 2 s’ouvre`);
+  await page.screenshot({ path: out + '/14-ascension-fin.png' });
+  await page.tap('#b-rejouer'); await sleep(500);
+  check(await P(() => window.__zombies.ascension && window.__zombies.ascension.n === 2 && window.__zombies.ecran === 'jeu'), '« Échelon 2 » : on monte');
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.join(' | ') : ''}`);
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s) (Dernier Rempart, défi du jour)` : '\nTout passe (Dernier Rempart, défi du jour).');
