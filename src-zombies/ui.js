@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -84,7 +84,7 @@
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); }
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -107,7 +107,7 @@
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
-    arene = D.ARENES[id] ? id : arene;
+    arene = D.ARENES[id] ? id : arene; defi = null;
     jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
@@ -128,12 +128,13 @@
     try { PSONS.suspendre(false); } catch (e) { /* rien */ }
   }
   function finir() {
-    const j = moi(), r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
-    const record = j.score > r.score || jeu.vague > r.vague;
+    const j = moi(), r = defi ? { vague: 0, score: 0, tues: 0, parties: 0 } : save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
+    const record = !defi && (j.score > r.score || jeu.vague > r.vague);
     r.parties++; r.vague = Math.max(r.vague, jeu.vague); r.score = Math.max(r.score, j.score); r.tues = Math.max(r.tues, j.tues);
     const M = D.MEDAILLES, medailles = jeu.vague * M.parVague + Math.floor(j.tues / M.parZombies) + j.boss * M.parBoss;
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
-    save.records[arene] = r; save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    if (!defi) save.records[arene] = r;
+    save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -144,6 +145,7 @@
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
+    finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
@@ -182,7 +184,7 @@
     $('.salon-arene').textContent = `Arène : ${D.ARENES[arene].nom}`;
   }
   function demarrerPartie(p) {
-    partie = p; jeu = p.jeu; idMoi = p.idMoi; arene = p.arene; demo = null; enPause = false; finVu = false; acc = 0;
+    partie = p; jeu = p.jeu; idMoi = p.idMoi; defi = null; arene = p.arene; demo = null; enPause = false; finVu = false; acc = 0;
     for (const k in ecrans) ecrans[k].hidden = true;
     ZHUD.reinit(); ZCONTROLES.reinit(); montrer('jeu');
     ZHUD.annonce('EN COOP', `${jeu.joueurs.length} survivant${jeu.joueurs.length > 1 ? 's' : ''} · ${D.ARENES[arene].nom}`, 2.4);
@@ -206,13 +208,91 @@
     try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
   });
 
+  // ─── le défi du jour : la même partie pour tout le monde aujourd'hui (heure de Paris) ; le meilleur score part au classement ───
+  const stock = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const CL = ZCLASSEMENT.creer({ config: () => window.ZOMBIES_CONFIG || window.PONCIN_CONFIG, supabase: () => window.supabase, stockage: stock, enLigne: () => navigator.onLine !== false });
+  let defi = null, periode = 'jour', lecture = 0;
+  const echap = (t) => String(t == null ? '' : t).replace(/[<>&"]/g, '');
+  const nf = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  const defiActuel = () => ZJEU.defiDu(ZCLASSEMENT.jourParis());
+  function monDefi(jour) { if (!save.defi || save.defi.jour !== jour) save.defi = { jour, meilleur: 0, vague: 0, tues: 0, parties: 0, envoye: true }; return save.defi; }
+  function majBoutonDefi() { const d = defiActuel(), m = monDefi(d.jour); $('.defi-sous').textContent = `${d.nom} · ${m.parties ? 'ton meilleur : ' + nf(m.meilleur) : 'pas encore joué'}`; }
+  const MESSAGES = {
+    absent: 'Classement indisponible ici : ton meilleur score reste gardé sur ce téléphone.', 'hors-ligne': 'Pas de réseau : ton score partira dès que tu seras en ligne.',
+    lent: 'Le classement ne répond pas : réessaie plus tard.', 'pas-installe': 'Le classement n’est pas encore ouvert : ton score est gardé.',
+    pseudo_pris: 'Ce pseudo est déjà pris : choisis-en un autre.', pseudo_invalide: 'Pseudo : 2 à 16 lettres ou chiffres.', trop_vite: 'Doucement ! Réessaie dans quelques secondes.',
+    quota: 'Assez de parties pour aujourd’hui !', complet: 'Le classement est complet.', erreur: 'Classement indisponible pour l’instant.',
+  };
+  function retenirPseudo() { const v = ZCLASSEMENT.verifierPseudo($('#d-pseudo').value); if (v.ok && v.pseudo !== save.pseudo) { save.pseudo = v.pseudo; ecrire(); } }
+  function pseudoClassement() { const p = ZCLASSEMENT.pseudoPour(save.pseudo || ''); return p; }
+  // le meilleur score du jour qui n'est pas encore parti (pas de réseau, pas de pseudo…) part à la prochaine occasion
+  async function envoyerEnAttente(renommer) {
+    const m = save.defi, pseudo = pseudoClassement();
+    if (!pseudo || !CL.disponible()) return null;
+    if (m && m.parties && !m.envoye && m.jour >= ZCLASSEMENT.jourParis(Date.now() - 86400e3)) {
+      const r = await CL.publier({ jour: m.jour, score: m.meilleur, vague: m.vague, tues: m.tues }, { pseudo });
+      if (r.ok || r.erreur === 'valeur' || r.erreur === 'jour') { m.envoye = true; ecrire(); }
+      if (!r.ok && MESSAGES[r.erreur]) $('.defi-etat').textContent = MESSAGES[r.erreur];
+      return r;
+    }
+    if (renommer && CL.etat().rejoint && CL.etat().pseudo !== pseudo) { const r = await CL.publier(null, { pseudo }); if (!r.ok && MESSAGES[r.erreur]) $('.defi-etat').textContent = MESSAGES[r.erreur]; return r; }
+    return null;
+  }
+  function ouvrirDefi() {
+    const d = defiActuel(), m = monDefi(d.jour);
+    let date = d.jour; try { date = new Date(d.jour + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }); } catch (e) { /* la date brute */ }
+    $('.defi-date').textContent = date;
+    $('.defi-mut').textContent = d.nom; $('.defi-texte').textContent = d.texte;
+    $('.defi-arene').textContent = `${D.ARENES[d.arene].nom} · la même partie pour tout le monde · sans les bonus du Bunker`;
+    $('.defi-perso').textContent = m.parties ? `Ton meilleur aujourd’hui : ${nf(m.meilleur)} pts (vague ${m.vague}) · ${pluriel(m.parties, 'partie')}` : 'Pas encore joué aujourd’hui : le meilleur score de la journée compte.';
+    $('#d-pseudo').value = save.pseudo || CL.etat().pseudo || '';
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('defi');
+    chargerClassement().then(() => envoyerEnAttente()).then((r) => { if (r && r.ok) chargerClassement(); });
+  }
+  async function chargerClassement() {
+    const n = ++lecture, box = $('.defi-liste'), etat = $('.defi-etat');
+    document.querySelectorAll('.onglets [data-periode]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.periode === periode)));
+    if (!CL.disponible()) { box.innerHTML = ''; etat.textContent = MESSAGES.absent; return; }
+    etat.textContent = 'Chargement du classement…';
+    const r = await CL.lire(periode, ZCLASSEMENT.jourParis()); if (n !== lecture) return;
+    if (!r.ok) { box.innerHTML = ''; etat.textContent = MESSAGES[r.erreur] || MESSAGES.erreur; return; }
+    const li = (l, loin) => `<li class="${l.moi ? 'moi' : ''}${loin ? ' loin' : ''}"><b>${l.rang || '–'}</b><span>${l.moi && !l.pseudo ? 'Toi' : echap(l.pseudo)}<small>${periode === 'jour' ? `vague ${l.vague} · ${pluriel(l.parties, 'partie')}` : `${pluriel(l.parties, 'jour')} · vague ${l.vague} au mieux`}</small></span><span class="score">${nf(l.score)}</span></li>`;
+    box.innerHTML = r.lignes.map((l) => li(l)).join('') + (r.moi && !r.lignes.some((l) => l.moi) ? li(r.moi, true) : '');
+    etat.textContent = r.lignes.length ? `${pluriel(r.joueurs, 'joueur')} ${periode === 'jour' ? 'aujourd’hui' : 'cette semaine'}${pseudoClassement() ? '' : ' · choisis un pseudo pour y entrer'}` : 'Personne encore : sois le premier !';
+  }
+  function demarrerDefi() {
+    const d = defiActuel(); defi = d;
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    demo = null; enPause = false; acc = 0; debut = Date.now();
+    ZHUD.reinit(); ZCONTROLES.reinit();
+    montrer('jeu');
+    ZHUD.annonce('DÉFI DU JOUR', `${d.nom} · ${D.ARENES[d.arene].nom}`, 2.6);
+    return jeu;
+  }
+  // l'écran de fin d'un défi : le score, le meilleur du jour, puis la place au classement
+  function finDefi(j) {
+    const box = $('.fin-defi');
+    box.hidden = !defi || !!partie; if (box.hidden) return;
+    const m = monDefi(defi.jour), meilleur = j.score > m.meilleur || !m.parties;
+    m.parties++; if (meilleur) { m.meilleur = j.score; m.vague = jeu.vague; m.tues = j.tues; m.envoye = false; }
+    ecrire(); $('.fin-record').hidden = true;
+    const base = `Défi du jour : ${nf(j.score)} pts${meilleur && m.parties > 1 ? ' — ton meilleur aujourd’hui !' : ''}`;
+    box.textContent = base;
+    if (!pseudoClassement()) { if (CL.disponible()) box.textContent = base + ' · choisis un pseudo (Défi du jour) pour entrer au classement'; return; }
+    const lire = () => CL.lire('jour', defi.jour).then((r) => { if (r.ok && r.moi && r.moi.rang) box.textContent = `${base} · ${r.moi.rang === 1 ? '1er' : r.moi.rang + 'e'} sur ${r.joueurs}`; });
+    if (meilleur) envoyerEnAttente().then((r) => { if (r && r.ok && r.rang) box.textContent = `${base} · ${r.rang === 1 ? '1er' : r.rang + 'e'} sur ${r.joueurs}`; else if (r && !r.ok && MESSAGES[r.erreur]) box.textContent = `${base} · ${MESSAGES[r.erreur]}`; });
+    else lire();
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
   clic('#b-reprendre', reprendre);
-  clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } demarrer(arene); });
+  clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-quitter', quitter);
-  clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; demarrer(arene); });
+  clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
     retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco;
@@ -220,6 +300,11 @@
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
   clic('#b-multi', ouvrirSalon);
+  clic('#b-defi', ouvrirDefi);
+  clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
+  clic('#b-defi-retour', () => { retenirPseudo(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  document.querySelectorAll('.onglets [data-periode]').forEach((b) => b.addEventListener('click', () => { periode = b.dataset.periode; try { PSONS.ui('tap'); } catch (e) { /* rien */ } chargerClassement(); }));
+  $('#d-pseudo').addEventListener('change', () => { retenirPseudo(); envoyerEnAttente(true).then(chargerClassement); });
   clic('#b-creer', () => entrerSalon(true));
   clic('#b-rejoindre', () => entrerSalon(false));
   clic('#b-lancer', () => { if (salon) { verrouiller(); salon.lancer(arene); } });
@@ -296,7 +381,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    demarrer, demarrerDefi, ouvrirDefi, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z),

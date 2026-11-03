@@ -97,6 +97,7 @@ const BASE = `http://localhost:${PORT}/`;
   await sleep(400);
   check(choix.visible && choix.cartes.join() === 'Tir double,Œil de lynx,Cuir épais' && /NIVEAU 2/.test(choix.titre) && (await P(() => window.__zombies.jeu.t)) === choix.t, `niveau 2 : trois atouts au choix (${choix.cartes.join(', ')}), la partie attend`);
   await page.screenshot({ path: out + '/02c-atout.png' });
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.xp = -1e9; p.choixAttente = 1; }); // (pas d'autre niveau en attente derrière celui-ci)
   await page.tap('[data-atout="multi"]'); await sleep(300);
   check(await P(() => window.__zombies.jeu.joueurs[0].atouts.multi === 1 && !window.__zombies.jeu.choix && document.querySelector('.h-choix').hidden), 'toucher « Tir double » le prend, la partie repart');
   // la suite du parcours ne doit pas être coupée par un vrai passage de niveau (la CI tire vite) : plus d'expérience, et un choix en cours est pris

@@ -161,5 +161,23 @@
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
   const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
 
-  return { BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
+  // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)
+  const DEFI = {
+    mutateurs: [
+      { id: 'ruee', nom: 'Ruée', texte: 'Les zombies courent 25 % plus vite. Points ×1,25.', zVitesse: 1.25, points: 1.25 },
+      { id: 'cuir', nom: 'Peau dure', texte: 'Zombies 50 % plus résistants. Points ×1,5.', zVie: 1.5, points: 1.5 },
+      { id: 'maree', nom: 'Marée', texte: '50 % de zombies en plus à chaque vague.', nombre: 1.5 },
+      { id: 'artificier', nom: 'Artificier', texte: 'La grenade se recharge 2,5 fois plus vite.', grenade: 0.4 },
+      { id: 'chevrotine', nom: 'Chevrotine', texte: 'Tu pars avec le fusil à pompe.', arme: 'pompe' },
+      { id: 'lynx', nom: 'Œil de faucon', texte: 'Tu pars avec la carabine.', arme: 'precision' },
+      { id: 'ferrailleur', nom: 'Ferrailleur', texte: 'Deux fois plus de ferraille sur les zombies.', ferraille: 2 },
+      { id: 'disette', nom: 'Disette', texte: 'Moitié moins de ferraille, mais points ×2.', ferraille: 0.5, points: 2 },
+    ],
+    // le score le plus haut possible en atteignant la vague v (le serveur refuse au-delà) : chaque zombie compté comme un Costaud
+    // (40 pts) en série ×4 avec les points ×2, la vague à 1,5 fois son nombre, un boss par vague (600 × 4 × 2), et la prime
+    borneScore(v) { let s = 0; for (let n = 1; n <= v; n++) s += Math.ceil(VAGUES.nombre(n) * 1.5) * 40 * 4 * 2 + 600 * 4 * 2 + VAGUES.prime(n); return s; },
+  };
+
+  return { DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

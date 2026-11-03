@@ -231,6 +231,30 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(jeu.fini && evs.some((e) => e.t === 'fin'), 'tout le monde à terre : la partie s’arrête');
 }
 
+// ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───
+{
+  const C = require(path.join(__dirname, '..', 'src-zombies', 'classement.js'));
+  const a = J.defiDu('2026-11-04'), b = J.defiDu('2026-11-04'), c = J.defiDu('2026-11-05');
+  check(JSON.stringify(a) === JSON.stringify(b) && a.graine !== c.graine && D.ARENES[a.arene] && D.DEFI.mutateurs.some((m) => m.id === a.mutateur), `le même jour, le même défi pour tout le monde (${a.jour} : ${a.nom}, ${D.ARENES[a.arene].nom}) ; le lendemain, un autre`);
+  const vus = new Set(), arenes = new Set(); for (let k = 0; k < 120; k++) { const d = J.defiDu(new Date(Date.UTC(2026, 0, 1 + k)).toISOString().slice(0, 10)); vus.add(d.mutateur); arenes.add(d.arene); }
+  check(vus.size === D.DEFI.mutateurs.length && arenes.size === D.ORDRE_ARENES.length, `sur 120 jours, tous les mutateurs (${vus.size}) et toutes les arènes (${arenes.size}) reviennent`);
+  check(D.DEFI.mutateurs.every((m) => m.nom && m.texte && (!m.arme || D.ARMES[m.arme])) && D.DEFI.mutateurs.every((m) => (m.points || 1) <= 2 && (m.nombre || 1) <= 1.5), 'chaque mutateur a son nom et son texte ; aucun ne dépasse les bornes du serveur (points ×2, nombre ×1,5)');
+  const norm = J.creer({ arene: 'jardin', graine: 5, attente: 0 }), dur = J.creer({ arene: 'jardin', graine: 5, attente: 0, mod: { zVie: 1.5, zVitesse: 1.25, nombre: 1.5, points: 2, grenade: 0.4, arme: 'pompe' } });
+  avancer(norm, 80); avancer(dur, 80);
+  const zn = norm.zombies[0], zd = dur.zombies[0];
+  check(dur.totalVague === Math.ceil(norm.totalVague * 1.5) && zd.vieMax >= zn.vieMax * 1.4 && zd.vitesse > zn.vitesse * 1.1, `les mutateurs : zombies plus nombreux (${dur.totalVague} contre ${norm.totalVague}), plus résistants, plus rapides`);
+  const pd = dur.joueurs[0];
+  check(pd.armes[1] && pd.armes[1].id === 'pompe' && pd.main === 1 && Math.abs(J.rechargeGrenade(pd) - D.GRENADE.recharge * 0.4) < 1e-9, 'l’arme de départ (fusil à pompe), la grenade rechargée 2,5 fois plus vite');
+  const kill = (jeu) => { jeu.zombies.length = 0; jeu.serie.t = -99; jeu.zombies.push({ id: 9900, type: 'trainard', x: jeu.joueurs[0].x + 3, z: jeu.joueurs[0].z, vie: 1, vieMax: 1, vitesse: 0, rayon: 0.42, angle: 0, chemin: null, ci: 0, repense: 99, coup: 99, crache: 99, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 }); return avancer(jeu, 60).find((e) => e.t === 'mort'); };
+  const mn = kill(norm), md = kill(dur);
+  check(mn && md && md.points === mn.points * 2, `les points ×2 (${mn && mn.points} → ${md && md.points})`);
+  check(C.jourParis(Date.parse('2026-07-01T22:30:00Z')) === '2026-07-02' && C.jourParis(Date.parse('2026-12-31T22:30:00Z')) === '2026-12-31' && C.jourParis(Date.parse('2026-12-31T23:30:00Z')) === '2027-01-01', 'le jour à Paris, heure d’été (UTC+2) comme d’hiver (UTC+1)');
+  check(C.lundiDe('2026-11-04') === '2026-11-02' && C.lundiDe('2026-11-02') === '2026-11-02' && C.lundiDe('2026-11-08') === '2026-11-02', 'le lundi de la semaine');
+  check(C.pseudoPour('  Zoé   la <b>Brave</b> ') === 'Zoé la b Brave b' && C.pseudoPour('x') === null && C.verifierPseudo('Élodie').ok && !C.verifierPseudo('...').ok, 'les pseudos : nettoyés, trop courts ou sans lettre refusés');
+  const n = C.nettoyerClassement({ jour: '2026-11-04', lundi: '2026-11-02', joueurs: 2, lignes: [{ rang: 1, pseudo: 'A', score: 10, vague: 2, parties: 1, moi: true, id: 'secret' }, null, 'x'], moi: { rang: 1, score: 10, vague: 2, parties: 1 } }, 'jour');
+  check(n.ok && n.lignes.length === 1 && !('id' in n.lignes[0]) && n.moi.moi && n.moi.rang === 1, 'les réponses du serveur sont nettoyées (lignes illisibles écartées, rien d’inattendu)');
+}
+
 // ─── un joueur automatique sur chaque arène : plusieurs vagues tenues, aucune bloquée ; le temps de calcul ───
 {
   function bot(jeu) {

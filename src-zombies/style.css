@@ -154,6 +154,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .logo-2 { font-size: 52px; }
   .arene { min-height: 0; padding: 8px 10px; width: 156px; }
   .aide { display: none; }
+  .accroche { display: none; } /* (la place pour la rangée de boutons ; l'aide et l'accroche restent en portrait et sur grand écran) */
+  .boutons .moyen { padding: 8px 14px; }
 }
 /* ─── en portrait : le score passe sous la vague, l'atelier se replie volontiers, la mini-carte rapetisse ─── */
 @media (orientation: portrait) {
@@ -260,3 +262,49 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .h-flash.vu { animation: eclair .7s ease-out; }
 @keyframes eclair { 0% { opacity: .85; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .h-flash.vu { animation: none; } }
+
+/* ─── le défi du jour ─── */
+.defi-bouton { flex-direction: column; gap: 2px; background: #FFE9A8; }
+.defi-bouton small { font: 600 11px/1.1 var(--texte); color: #6B5A1E; }
+.defi-bouton small:empty { display: none; }
+.defi { width: min(760px, 100%); max-height: 100%; overflow-y: auto; grid-template-columns: 1fr; align-items: start; }
+.defi-gauche, .defi-droite { display: grid; gap: 8px; }
+.defi-date { margin: -4px 0 0; color: #5A5F6B; font-size: 14px; text-transform: capitalize; }
+.defi-carte { display: grid; gap: 3px; padding: 10px 14px; border-radius: 16px; background: var(--encre); color: #fff; text-align: left; }
+.defi-mut { font: 700 20px/1.1 var(--titre); color: var(--jaune); }
+.defi-texte { font-size: 14px; }
+.defi-arene { color: #B9C0CE; font-size: 12px; }
+.defi-perso { margin: 0; font-weight: 700; }
+.onglets { display: flex; gap: 6px; justify-content: center; }
+.onglets button { flex: 1; min-height: 38px; border-radius: 999px; border: 2.5px solid var(--encre); background: #fff; font: 700 14px/1 var(--titre); color: var(--encre); }
+.onglets button[aria-selected="true"] { background: var(--jaune); }
+.defi-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 230px; overflow-y: auto; }
+.defi-liste li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: #fff; text-align: left; font-size: 14px; }
+.defi-liste li b { font: 700 16px/1 var(--titre); color: #8A6A10; text-align: center; }
+.defi-liste li .score { font-weight: 700; }
+.defi-liste li small { display: block; color: #8A8F9A; font-size: 11px; }
+.defi-liste li.moi { box-shadow: inset 0 0 0 2.5px var(--jaune); }
+.defi-liste li.moi.loin { margin-top: 6px; }
+.defi-etat { margin: 0; color: #5A5F6B; font-size: 13px; }
+.defi-etat:empty { display: none; }
+.fin-defi { margin: 0; padding: 6px 12px; border-radius: 12px; background: var(--encre); color: var(--jaune); font-weight: 700; }
+@media (min-width: 620px) { .defi { grid-template-columns: 1fr 1fr; gap: 16px; } }
+@media (max-height: 460px) { .defi h2 { font-size: 24px; } .defi .gros { padding: 8px 24px; font-size: 20px; min-height: 42px; } .defi .champ input { min-height: 38px; } .defi-liste { max-height: 200px; } }
+.fin-medailles svg { width: 22px; height: 22px; vertical-align: -4px; }
+/* en paysage sur un téléphone : l'écran de fin sur deux colonnes de chiffres, les boutons côte à côte */
+@media (max-height: 460px) and (orientation: landscape) {
+  #ecran-fin .carte-ecran { width: min(560px, 100%); grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 12px 16px 14px; }
+  #ecran-fin .carte-ecran > :not(#b-rejouer):not(#b-menu) { grid-column: 1 / -1; }
+  #ecran-fin h2 { font-size: 24px; margin: 0; }
+  #ecran-fin .fin-chiffres { grid-template-columns: 1fr auto 1fr auto; gap: 2px 12px; font-size: 14px; }
+  #ecran-fin .fin-chiffres dd { font-size: 16px; }
+  #ecran-fin .gros { padding: 8px 20px; font-size: 20px; min-height: 44px; }
+}
+@media (max-height: 460px) and (orientation: landscape) {
+  .defi { padding: 12px 16px 14px; }
+  .defi-gauche { grid-template-columns: 1fr auto; gap: 6px 8px; }
+  .defi-gauche > :not(#b-defi-jouer):not(#b-defi-retour) { grid-column: 1 / -1; }
+  .defi-perso { font-size: 14px; }
+  .defi-carte { padding: 8px 12px; }
+  .defi-liste { max-height: 250px; }
+}
