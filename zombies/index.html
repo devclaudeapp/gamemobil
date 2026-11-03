@@ -137,7 +137,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .logo-1 { font-size: clamp(26px, 6vw, 40px); letter-spacing: .12em; }
 .logo-2 { font-size: clamp(44px, 11vw, 78px); color: var(--jaune) !important; letter-spacing: .02em; }
 .accroche { margin: 0; max-width: 520px; padding: 6px 14px; border-radius: 14px; background: rgba(255, 247, 236, .88); font-size: 15px; }
-.arenes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.arenes { display: flex; gap: 10px; overflow-x: auto; max-width: 100%; padding: 4px 4px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.arenes .arene { flex: 0 0 auto; scroll-snap-align: start; }
 .arene { width: 168px; min-height: 92px; padding: 10px 12px; border-radius: 18px; border: 3px solid var(--encre); background: var(--creme); text-align: left; box-shadow: 0 4px 0 rgba(31, 37, 51, .4); display: grid; gap: 2px; align-content: start; }
 .arene b { font: 700 18px/1.1 var(--titre); }
 .arene small { font-size: 12px; color: #5A5F6B; line-height: 1.25; }
@@ -351,6 +352,54 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .asc-recomp { margin: 0; font-weight: 700; color: #6B5A1E; }
 .asc-boutons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 @media (max-height: 460px) and (orientation: landscape) { .ascension { width: min(720px, 100%); grid-template-columns: 1fr 1fr; gap: 6px 14px; } .ascension > h2, .ascension > .asc-n { grid-column: 1; } .ascension .asc-carte { grid-column: 2; grid-row: 1 / span 4; } .asc-n { font-size: 34px; } }
+
+/* ─── les émotes ─── */
+.h-bulles span { position: absolute; left: 0; top: 0; padding: 4px 9px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); font-size: 24px; line-height: 1.1; box-shadow: 0 3px 0 rgba(31, 37, 51, .3); pointer-events: none; }
+.h-bulles span::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 10px; height: 10px; background: #fff; border-right: 2.5px solid var(--encre); border-bottom: 2.5px solid var(--encre); transform: translateX(-50%) rotate(45deg); }
+.h-emote { position: absolute; left: calc(12px + var(--hg)); top: calc(186px + var(--ht)); width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); font-size: 22px; box-shadow: 0 3px 0 rgba(31, 37, 51, .35); }
+.h-emotes { position: absolute; left: calc(70px + var(--hg)); top: calc(184px + var(--ht)); z-index: 3; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: rgba(31, 37, 51, .82); }
+.h-emotes button { width: 46px; height: 46px; border-radius: 12px; border: 0; background: #fff; font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .h-emote { top: calc(160px + var(--ht)); width: 44px; height: 44px; font-size: 19px; } .h-emotes { top: calc(156px + var(--ht)); } }
+@media (orientation: portrait) { .h-emote { top: auto; bottom: calc(206px + var(--hb)); } .h-emotes { top: auto; bottom: calc(204px + var(--hb)); } }
+
+/* ─── la collection : la carte à droite, le survivant de la démonstration visible à gauche ─── */
+.collection-ecran { justify-items: end; background: linear-gradient(90deg, transparent 30%, rgba(31, 37, 51, .35)); }
+.collection { width: min(470px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.col-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.col-tete h2 { margin: 0; }
+.col-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 6px; max-height: 250px; overflow-y: auto; padding: 2px; }
+.col-carte { display: grid; gap: 2px; justify-items: center; align-content: center; min-height: 62px; padding: 6px; border-radius: 12px; border: 2.5px solid var(--encre); background: #fff; font-size: 13px; color: var(--encre); text-align: center; }
+.col-carte .nom { font: 700 14px/1.15 var(--titre); }
+.col-carte small { color: #6B7080; font-size: 11px; line-height: 1.2; }
+.col-carte .prix { display: inline-flex; gap: 3px; align-items: center; color: #8A6A10; }
+.col-carte .prix svg { width: 15px; height: 15px; }
+.col-carte.porte { background: var(--jaune); }
+.col-carte.verrou { background: #ECEAE4; }
+.col-carte .porte { color: #6B5A1E; }
+.col-carte .pastille { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--encre); }
+.col-carte .signe { font-size: 24px; }
+@media (max-height: 460px) and (orientation: landscape) { .collection { padding: 10px 14px 12px; } .col-liste { max-height: 200px; } .collection h2 { font-size: 24px; } }
+
+/* ─── missions, pass, coffre ─── */
+.progression { width: min(480px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.prog-corps { display: grid; gap: 8px; text-align: left; }
+.prog-mission { display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 2.5px solid var(--encre); }
+.prog-mission b { font: 700 15px/1.2 var(--titre); }
+.prog-mission small, .prog-corps > small { color: #6B7080; font-size: 12px; }
+.prog-barre { height: 10px; border-radius: 999px; background: #E2DED4; overflow: hidden; }
+.prog-barre.gros { height: 16px; }
+.prog-barre i { display: block; height: 100%; background: linear-gradient(90deg, #F2C230, #FFD84A); border-radius: 999px; }
+.prog-aide { margin: 0; color: #5A5F6B; font-size: 13px; }
+.prog-titre { margin: 0; font: 700 17px/1.2 var(--titre); }
+.prog-paliers { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.prog-paliers li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #fff; font-size: 14px; }
+.prog-paliers li b { min-width: 30px; font: 700 16px/1 var(--titre); color: #8A6A10; }
+.prog-paliers li svg { width: 15px; height: 15px; vertical-align: -2px; }
+.prog-paliers li.rare { background: #FFE9A8; }
+.prog-coffre { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 8px; }
+.prog-coffre .gros-ico { font-size: 56px; line-height: 1; }
+.prog-coffre p { margin: 0; }
+@media (max-height: 460px) and (orientation: landscape) { .progression { padding: 10px 14px 12px; } .progression h2 { font-size: 24px; } }
 </style>
 </head>
 <body>
@@ -373,6 +422,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
+        <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
+        <button type="button" class="moyen" id="b-collection">Collection</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -453,6 +504,25 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <dl class="asc-carte"></dl>
       <p class="asc-recomp"></p>
       <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran collection-ecran" id="ecran-collection" hidden>
+    <div class="carte-ecran collection">
+      <div class="col-tete"><h2>Collection</h2><div class="medailles" id="col-medailles"></div></div>
+      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
+      <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
+      <div class="col-liste"></div>
+      <button type="button" class="moyen" id="b-col-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-progression" hidden>
+    <div class="carte-ecran progression">
+      <div class="col-tete"><h2>Missions et pass</h2><div class="medailles" id="prog-medailles"></div></div>
+      <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
+      <div class="prog-corps"></div>
+      <button type="button" class="moyen" id="b-prog-retour">Retour</button>
     </div>
   </section>
 
@@ -1912,10 +1982,125 @@ const PRESEAU = (() => {
       ],
       sorties: [[-27, 0], [27, 0], [0, 27], [-14, 27], [14, 27], [-27, -24], [27, -24], [-27, 22], [27, 22]],
     },
+    // ─── les arènes suivantes (une vague à atteindre dans la précédente pour les ouvrir : DEBLOCAGE) ───
+    // laves : des rectangles [x, z, l, p] qui brûlent qui s'y tient (survivants et zombies) ; meteo : l'ambiance par défaut de l'arène
+    cimetiere: {
+      nom: 'Le Cimetière', desc: 'Des tombes basses (on tire par-dessus), une crypte et des grilles rouillées.', taille: 48,
+      sol: '#6E8A5A', sol2: '#647F52', bord: '#4A4A52', ciel: '#9A9AB8', brume: '#8E8EA8', meteo: 'crepuscule',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'crypte', r: [0, -13, 8, 5, 3.6] },
+        ...[-12, -8, -4, 4, 8, 12].flatMap((x) => [{ type: 'tombe', r: [x, -3, 1.1, 0.5, 0.8] }, { type: 'tombe', r: [x + 1, 9, 1.1, 0.5, 0.8] }]),
+        { type: 'grille', r: [-17, 0, 0.3, 16, 1.6] }, { type: 'grille', r: [17, 0, 0.3, 16, 1.6] },
+        { type: 'cypres', c: [-10, -14, 0.8] }, { type: 'cypres', c: [10, -14, 0.8] }, { type: 'cypres', c: [-19, 18, 0.8] }, { type: 'cypres', c: [19, 18, 0.8] },
+        { type: 'rocher', c: [6, 15, 1.1] }, { type: 'puits', c: [-6, 15, 1.0] },
+      ],
+      sorties: [[0, -23], [-23, 0], [23, 0], [0, 23], [-21, -21], [21, 21], [21, -21], [-21, 21]],
+    },
+    port: {
+      nom: 'Le Port', desc: 'Un labyrinthe de conteneurs sur les quais. On s’y perd, eux aussi.', taille: 52,
+      sol: '#9AA0A8', sol2: '#8E949C', bord: '#3E6E9E', ciel: '#BFD8EE', brume: '#B8CCDD',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'conteneur', r: [-12, -8, 6, 2.4, 2.6], couleur: '#C0392B' }, { type: 'conteneur', r: [-12, -5.4, 6, 2.4, 2.6], couleur: '#2E86C1' },
+        { type: 'conteneur', r: [12, -8, 6, 2.4, 2.6], couleur: '#27AE60' }, { type: 'conteneur', r: [6, 9, 2.4, 6, 2.6], couleur: '#E67E22' },
+        { type: 'conteneur', r: [-6, 10, 2.4, 6, 2.6], couleur: '#8E44AD' }, { type: 'conteneur', r: [-19, 8, 6, 2.4, 2.6], couleur: '#F1C40F' },
+        { type: 'conteneur', r: [19, 4, 2.4, 6, 2.6], couleur: '#16A085' }, { type: 'conteneur', r: [0, -16, 6, 2.4, 2.6], couleur: '#D35400' },
+        { type: 'grue', r: [17, -17, 3, 3, 6] },
+        { type: 'bitte', c: [-6, -14, 0.4] }, { type: 'bitte', c: [6, -14, 0.4] }, { type: 'bitte', c: [-21, -18, 0.4] },
+        { type: 'caisses', r: [5, -2, 3, 3, 0.9] }, { type: 'caisses', r: [-15, 17, 3, 3, 0.9] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [-22, -24], [22, -24]],
+    },
+    place: {
+      nom: 'La Place du village', desc: 'La fontaine, le kiosque à musique et les terrasses du café.', taille: 46,
+      sol: '#C8B89A', sol2: '#BCAC8E', bord: '#8A7A64', ciel: '#CFE4F2', brume: '#D6DDE2',
+      depart: [0, 6],
+      obstacles: [
+        { type: 'fontaine', c: [0, -2, 2.2] }, { type: 'kiosque', c: [-12, -11, 2.4] },
+        { type: 'banc', r: [6, -2, 0.6, 2.2, 0.6] }, { type: 'banc', r: [-6, -2, 0.6, 2.2, 0.6] },
+        { type: 'terrasse', r: [12, 10, 3, 3, 0.9] }, { type: 'terrasse', r: [-12, 11, 3, 3, 0.9] }, { type: 'terrasse', r: [13, -11, 3, 3, 0.9] },
+        { type: 'arbre', c: [-18, 0, 1.0] }, { type: 'arbre', c: [18, 0, 1.0] }, { type: 'arbre', c: [0, 18, 1.0] }, { type: 'arbre', c: [0, -18, 1.0] },
+        { type: 'lampadaire', c: [7, 7, 0.35] }, { type: 'lampadaire', c: [-7, 7, 0.35] },
+      ],
+      sorties: [[0, -22], [-22, 0], [22, 0], [-10, 22], [10, 22], [-20, -20], [20, 20], [20, -20], [-20, 20]],
+    },
+    plage: {
+      nom: 'La Plage', desc: 'Du sable, des parasols, un bateau échoué. La marée monte… de zombies.', taille: 54,
+      sol: '#E8D49A', sol2: '#DFC98C', bord: '#4AA3C8', ciel: '#BFE6F5', brume: '#CFEAF2',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'bateau', r: [-12, -10, 3.2, 9, 2.4] }, { type: 'cabane', r: [14, -12, 4, 3, 2.6] }, { type: 'cabane', r: [18, 12, 3, 4, 2.6] },
+        ...[[-6, 6], [6, 8], [-15, 12], [10, -2], [-2, -12]].map(([x, z]) => ({ type: 'parasol', c: [x, z, 0.5] })),
+        { type: 'rocher', c: [-22, 4, 1.6] }, { type: 'rocher', c: [-20, 8, 1.1] }, { type: 'rocher', c: [22, -2, 1.3] },
+        { type: 'caisses', r: [3, 16, 3, 3, 0.9] },
+      ],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [0, -26]],
+    },
+    chantier: {
+      nom: 'Le Chantier', desc: 'Parpaings, bétonnière et échafaudages : des recoins partout.', taille: 50,
+      sol: '#B59C7A', sol2: '#A8906E', bord: '#E8A33A', ciel: '#D8DFE6', brume: '#D2CFC8',
+      depart: [0, 3],
+      obstacles: [
+        { type: 'echafaudage', r: [0, -14, 14, 2.4, 4.5] }, { type: 'betonniere', c: [9, 4, 1.3] },
+        { type: 'parpaings', r: [-9, -4, 3, 2, 1.2] }, { type: 'parpaings', r: [-14, 8, 2, 3, 1.2] }, { type: 'parpaings', r: [12, 12, 3, 2, 1.2] }, { type: 'parpaings', r: [5, -6, 2, 2, 1.2] },
+        { type: 'muret', r: [-19, -6, 1.2, 12, 1.4] }, { type: 'muret', r: [19, 2, 1.2, 12, 1.4] },
+        { type: 'benne', r: [-6, 15, 3.2, 1.8, 1.6] }, { type: 'conteneur', r: [16, -6, 2.4, 6, 2.6], couleur: '#E8A33A' },
+      ],
+      sorties: [[-23.5, -12], [23.5, -12], [-23.5, 14], [23.5, 14], [0, 23.5], [-14, 23.5], [14, 23.5], [-22, -23], [22, -23]],
+    },
+    supermarche: {
+      nom: 'Le Supermarché', desc: 'Les rayons font des couloirs : gare aux allées sans issue.', taille: 48,
+      sol: '#D8DCE0', sol2: '#CDD2D7', bord: '#7A828C', ciel: '#E8ECEF', brume: '#D9DEE3',
+      depart: [0, 14],
+      obstacles: [
+        ...[-15, -9, -3, 3, 9, 15].map((x, i) => ({ type: 'rayon', r: [x, -3, 1.6, 16, 2.2], couleur: ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E67E22'][i] })),
+        { type: 'comptoir', r: [-10, 15, 4, 1.4, 1.1] }, { type: 'comptoir', r: [10, 15, 4, 1.4, 1.1] },
+        { type: 'caddie', c: [-5, 10, 0.6] }, { type: 'caddie', c: [6, 9, 0.6] }, { type: 'caddie', c: [-18, 13, 0.6] },
+        { type: 'caisses', r: [18, -18, 3, 3, 0.9] },
+      ],
+      sorties: [[-23, -12], [23, -12], [-23, 0], [23, 0], [0, -23], [-12, -23], [12, -23], [-20, 22], [20, 22]],
+    },
+    foret: {
+      nom: 'La Forêt', desc: 'Des sapins serrés et une cabane de bûcheron. On voit mal venir.', taille: 52,
+      sol: '#5E8A44', sol2: '#557E3D', bord: '#4A3A28', ciel: '#A8C8B0', brume: '#9CB8A4', meteo: 'brouillard',
+      depart: [0, 2],
+      obstacles: [
+        { type: 'cabane', r: [-10, -10, 5, 4, 3] },
+        ...[[-16, 4], [-6, 10], [6, 12], [14, 4], [18, -8], [8, -14], [-2, -18], [-18, 16], [16, 18], [-20, -18], [3, -6], [-12, 18], [20, 14]].map(([x, z], i) => ({ type: 'sapin', c: [x, z, 0.8 + (i % 3) * 0.15] })),
+        { type: 'rondins', r: [6, 2, 3, 1.2, 0.9] }, { type: 'rondins', r: [-4, 16, 1.2, 3, 0.9] },
+        { type: 'rocher', c: [12, -3, 1.3] },
+      ],
+      sorties: [[-25, -12], [25, -12], [-25, 14], [25, 14], [0, 25], [-14, 25], [14, 25], [0, -25], [-22, -24], [22, -24]],
+    },
+    neon: {
+      nom: 'Le Carrefour néon', desc: 'Un carrefour de nuit, entre les immeubles et leurs enseignes.', taille: 52,
+      sol: '#3A3F4A', sol2: '#343843', bord: '#2A2E36', ciel: '#1C2433', brume: '#1C2433', meteo: 'nuit',
+      depart: [0, 0],
+      obstacles: [
+        { type: 'immeuble', r: [-16, -16, 12, 12, 7], couleur: '#5A4A7A' }, { type: 'immeuble', r: [16, -16, 12, 12, 9], couleur: '#3A5A7A' },
+        { type: 'immeuble', r: [-16, 16, 12, 12, 8], couleur: '#7A4A5A' }, { type: 'immeuble', r: [16, 16, 12, 12, 6], couleur: '#4A6A5A' },
+        { type: 'voiture', r: [-4, -6, 2.0, 4.0, 1.4], couleur: '#FF3D9A' }, { type: 'voiture', r: [6, 5, 4.0, 2.0, 1.4], couleur: '#3DE0FF' },
+        { type: 'neon', c: [-6, 6, 0.4], couleur: '#FF3D9A' }, { type: 'neon', c: [6, -6, 0.4], couleur: '#3DE0FF' }, { type: 'neon', c: [8, 9, 0.4], couleur: '#B8FF3D' },
+        { type: 'benne', r: [-8, 2, 1.8, 3.2, 1.6] },
+      ],
+      sorties: [[0, -25], [0, 25], [-25, 0], [25, 0], [-4, -25], [4, 25], [-25, 4], [25, -4]],
+    },
+    volcan: {
+      nom: 'Le Volcan', desc: 'Des rivières de lave entre les roches noires. Ne t’y arrête pas.', taille: 54,
+      sol: '#5A4A44', sol2: '#4F403B', bord: '#2A2220', ciel: '#C87A5A', brume: '#A8705A', meteo: 'crepuscule',
+      depart: [0, 4],
+      obstacles: [
+        { type: 'roche', c: [-10, -8, 1.8] }, { type: 'roche', c: [11, -10, 2.0] }, { type: 'roche', c: [-14, 12, 1.6] }, { type: 'roche', c: [14, 13, 1.7] },
+        { type: 'roche', c: [0, -18, 2.4] }, { type: 'roche', c: [-20, -2, 1.5] }, { type: 'roche', c: [21, 2, 1.4] }, { type: 'roche', c: [4, 15, 1.2] },
+      ],
+      laves: [[-6, -4, 3, 12], [9, 10, 14, 2.6], [-15, 18, 10, 2.4], [16, -18, 2.4, 10]],
+      sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [-22, -24], [22, -24]],
+    },
   };
-  const ORDRE_ARENES = ['jardin', 'parking', 'ferme'];
+  const ORDRE_ARENES = ['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan'];
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
-  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
+  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8, cimetiere: 8, port: 9, place: 9, plage: 10, chantier: 10, supermarche: 11, foret: 11, neon: 12, volcan: 13 };
 
   // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
   // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)
@@ -1962,7 +2147,72 @@ const PRESEAU = (() => {
     finitionTous: 3, // une finition d'arme tous les trois échelons
   };
 
-  return { ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── la collection ───
+  // les survivants (Blocky Characters de Kenney, texture a … r ; le Gardien est le fossoyeur du Graveyard Kit) ; pour les obtenir : prix (des
+  // médailles, au Vestiaire), ou un exploit (echelon : l'échelon de l'Ascension atteint ; boss, vague, defis, coop : voir ui.js) — les
+  // secrets restent « ??? » tant qu'on ne les a pas
+  const SURVIVANTS = {
+    gardien:     { nom: 'Le Gardien', texture: null, depart: true },
+    grandpere:   { nom: 'Grand-père', texture: 'a', prix: 20 },
+    marcel:      { nom: 'Marcel', texture: 'b', prix: 20 },
+    gamer:       { nom: 'Le Gamer', texture: 'c', prix: 30 },
+    lila:        { nom: 'Lila', texture: 'e', prix: 30 },
+    jardinier:   { nom: 'Le Jardinier', texture: 'f', prix: 40 },
+    mecano:      { nom: 'La Mécano', texture: 'k', prix: 40 },
+    aventurier:  { nom: 'L’Aventurier', texture: 'm', prix: 60 },
+    professeur:  { nom: 'Le Professeur', texture: 'i', exploit: { echelon: 4 }, texte: 'Atteindre l’échelon 4 de l’Ascension' },
+    gendarme:    { nom: 'Le Gendarme', texture: 'j', exploit: { echelon: 8 }, texte: 'Atteindre l’échelon 8' },
+    pirate:      { nom: 'Le Pirate', texture: 'p', exploit: { echelon: 13 }, texte: 'Atteindre l’échelon 13' },
+    agent:       { nom: 'L’Agent secret', texture: 'q', exploit: { echelon: 20 }, texte: 'Atteindre l’échelon 20' },
+    mannequin:   { nom: 'Mannequin de crash-test', texture: 'd', exploit: { vague: 15 }, texte: 'Atteindre la vague 15 en partie libre' },
+    robotrouge:  { nom: 'Robot rouge', texture: 'g', exploit: { boss: 5 }, texte: 'Abattre 5 boss' },
+    robotviolet: { nom: 'Robot violet', texture: 'h', exploit: { boss: 25 }, texte: 'Abattre 25 boss', secret: true },
+    ninja:       { nom: 'Le Ninja', texture: 'r', exploit: { defis: 5 }, texte: 'Jouer le défi du jour 5 jours différents' },
+    marin:       { nom: 'Le Marin des abysses', texture: 'o', exploit: { coop: 3 }, texte: 'Finir 3 parties à plusieurs' },
+    loyal:       { nom: 'Monsieur Loyal', texture: 'n', exploit: { tues: 5000 }, texte: 'Abattre 5 000 zombies en tout', secret: true },
+    repenti:     { nom: 'Le Zombie repenti', texture: 'l', exploit: { echelon: 30 }, texte: 'Atteindre l’échelon 30', secret: true },
+  };
+  // les finitions d'armes : une couleur (et parfois une lueur) pour une arme, au choix ; une tous les 3 échelons de l'Ascension, dans cet ordre,
+  // secrètes jusque-là ; arcenciel : la teinte tourne, spectre : translucide
+  const FINITIONS = {
+    or: { nom: 'Or', couleur: '#FFD24A', lueur: 0.15 }, onyx: { nom: 'Onyx', couleur: '#2E2E36' }, givre: { nom: 'Givre', couleur: '#BDEBFF', lueur: 0.1 },
+    camouflage: { nom: 'Camouflage', couleur: '#6B7A3A' }, rubis: { nom: 'Rubis', couleur: '#E0115F', lueur: 0.12 }, cuivre: { nom: 'Cuivre', couleur: '#C77B3A' },
+    neon: { nom: 'Néon', couleur: '#39FF14', lueur: 0.5 }, ivoire: { nom: 'Ivoire', couleur: '#F2EBD9' }, emeraude: { nom: 'Émeraude', couleur: '#1FAA59', lueur: 0.12 },
+    lave: { nom: 'Lave', couleur: '#FF5A1A', lueur: 0.45 }, spectre: { nom: 'Spectre', couleur: '#8FF0FF', lueur: 0.3, translucide: true }, arcenciel: { nom: 'Arc-en-ciel', couleur: '#FF0000', lueur: 0.25, arcenciel: true },
+  };
+  const ORDRE_FINITIONS = ['or', 'onyx', 'givre', 'camouflage', 'rubis', 'cuivre', 'neon', 'ivoire', 'emeraude', 'lave', 'spectre', 'arcenciel'];
+  // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
+  const EMOTES = {
+    pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
+    peur: { nom: 'Au secours', signe: '😱', prix: 15 },
+    fete: { nom: 'La fête', signe: '🎉', pass: 25 }, fantome: { nom: 'Bouh !', signe: '👻', pass: 50 }, zombie: { nom: 'Grrr', signe: '🧟', pass: 75 }, coupe: { nom: 'Champion', signe: '🏆', pass: 100 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
+  };
+
+  // ─── la progression : missions sans fin, pass de saison, coffre du jour ───
+  // une mission : une mesure d'une partie (ui.js : bilan) qui s'additionne d'une partie à l'autre (cumul) ou se juge en une seule (record) ;
+  // son but grandit avec le rang (le nombre de missions déjà réussies) ; xp : l'expérience de pass qu'elle rapporte
+  const MISSIONS = [
+    { id: 'tues', texte: (n) => `Abats ${n} zombies`, mesure: 'tues', cumul: true, but: (r) => 120 + r * 40 },
+    { id: 'boss', texte: (n) => `Abats ${n} boss`, mesure: 'boss', cumul: true, but: (r) => 1 + Math.floor(r / 4) },
+    { id: 'crits', texte: (n) => `Place ${n} coups critiques`, mesure: 'crits', cumul: true, but: (r) => 40 + r * 15 },
+    { id: 'ferraille', texte: (n) => `Ramasse ${n} ferrailles`, mesure: 'ferraille', cumul: true, but: (r) => 150 + r * 50 },
+    { id: 'construits', texte: (n) => `Pose ${n} équipements`, mesure: 'construits', cumul: true, but: (r) => 6 + r * 2 },
+    { id: 'grenades', texte: (n) => `Lance ${n} grenades`, mesure: 'grenades', cumul: true, but: (r) => 10 + r * 3 },
+    { id: 'caisses', texte: (n) => `Ouvre ${n} caisses d’armes`, mesure: 'caisses', cumul: true, but: (r) => 5 + r * 2 },
+    { id: 'vague', texte: (n) => `Atteins la vague ${n} en une partie`, mesure: 'vague', cumul: false, but: (r) => 5 + Math.floor(r / 2) },
+    { id: 'echelons', texte: (n) => `Réussis ${n} échelon${n > 1 ? 's' : ''} de l’Ascension`, mesure: 'echelons', cumul: true, but: (r) => 1 + Math.floor(r / 5) },
+    { id: 'coop', texte: (n) => `Finis ${n} partie${n > 1 ? 's' : ''} à plusieurs`, mesure: 'coop', cumul: true, but: (r) => 1 + Math.floor(r / 6) },
+    { id: 'defi', texte: () => 'Joue le défi du jour', mesure: 'defi', cumul: true, but: () => 1 },
+  ];
+  const PASS = {
+    paliers: 100, xpPalier: 250, // l'expérience d'un palier ; une partie en rapporte (score / 20, au plus 400), une mission 300
+    xpPartie: (score) => Math.min(400, Math.round(score / 20)), xpMission: 300,
+    // la récompense d'un palier : des médailles, et aux paliers ronds une émote ou une finition du pass (en plus de celles de l'Ascension)
+    recompense: (p) => (p % 25 === 0 ? { emote: ['fete', 'fantome', 'zombie', 'coupe'][p / 25 - 1] } : p % 10 === 0 ? { medailles: 30 } : { medailles: 5 + Math.floor(p / 10) * 2 }),
+  };
+  const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
+
+  return { MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -2130,12 +2380,12 @@ const PRESEAU = (() => {
       vague: 0, phase: 'pause', chrono: o.attente != null ? o.attente : 4, aSortir: 0, totalVague: 0, sortieT: 0, bossAVenir: false,
       joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [], disques: [], zones: [], crochets: [], morts: [],
       serie: { n: 0, t: -99, mult: 1 },
-      stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
+      stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {}, crits: 0, grenades: 0, caisses: 0 },
       navPas: 0, evs: [], fini: false, choix: null,
       // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
       mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
       // l'Ascension : l'objectif de l'échelon, sa météo (les chutes : foudre, météores), ses vedettes ; gagne : true / false à la fin
-      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
+      objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || A.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
@@ -2151,6 +2401,7 @@ const PRESEAU = (() => {
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
@@ -2350,6 +2601,7 @@ const PRESEAU = (() => {
     zb.dernier = { px, pz, fort: !!crit || !!souffle || deg >= 60 }; // le dernier coup : d'où il vient, et s'il était fort (le rendu fait voler les morceaux)
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
+    if (crit) jeu.stats.crits++;
     ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.max(1, Math.round(deg)), crit: !!crit, de, boss: !!D.ZOMBIES[zb.type].boss, petit: !!petit });
     if (zb.vie <= 0) tuer(jeu, zb, de);
   }
@@ -2424,7 +2676,7 @@ const PRESEAU = (() => {
     const x1 = cible ? cible.x : j.x + Math.cos(j.angle) * 6, z1 = cible ? cible.z : j.z + Math.sin(j.angle) * 6;
     const k = 1 + rang(j, 'grenade') * D.ATOUTS.grenade.par;
     jeu.obus.push({ x0: j.x, z0: j.z, x1, z1, t: 0, duree: G.vol, degats: G.degats * k * multDegats(j), souffle: G.souffle * (1 + rang(j, 'grenade') * 0.1), de: j.id, grenade: true });
-    j.grenadeT = rechargeGrenade(j);
+    j.grenadeT = rechargeGrenade(j); jeu.stats.grenades++;
     ev(jeu, { t: 'grenade', id: j.id, x: x1, z: z1 });
     return { ok: true };
   }
@@ -2448,6 +2700,14 @@ const PRESEAU = (() => {
     explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
   }
   // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
+  // les rivières de lave (le Volcan) : elles brûlent qui s'y tient
+  const dansLave = (A, x, z, r) => !!A.laves && A.laves.some(([lx, lz, w, d]) => Math.abs(x - lx) < w / 2 + r * 0.3 && Math.abs(z - lz) < d / 2 + r * 0.3);
+  function majLave(jeu, dt) {
+    const A = jeu.A; if (!A.laves) return;
+    jeu.laveT = (jeu.laveT || 0) - dt; if (jeu.laveT > 0) return; jeu.laveT = 0.25;
+    for (const j of jeu.joueurs) if (j.vivant && dansLave(A, j.x, j.z, j.rayon)) { blesserJoueur(jeu, j, 6, true); ev(jeu, { t: 'brule', id: j.id, x: j.x, z: j.z }); }
+    for (const zb of jeu.zombies) if (zb.vie > 0 && dansLave(A, zb.x, zb.z, zb.rayon) && jeu.t - zb.naissance > SORTIE) { zb.feu = Math.max(zb.feu || 0, 1); zb.feuDps = Math.max(zb.feuDps || 0, 22); zb.feuDe = 'lave'; }
+  }
   function majChutes(jeu, dt) {
     const M = D.ASCENSION.meteos[jeu.meteo], C = M && M.chute;
     if (C && jeu.phase === 'vague') {
@@ -2542,13 +2802,14 @@ const PRESEAU = (() => {
         ev(jeu, { t: 'vagueFinie', n: jeu.vague, prime }); jeu.vaguesFinies++;
       }
     }
-    for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
+    for (const j of jeu.joueurs) { majJoueur(jeu, j, entrees[j.id] || null, dt); if (j.emote && (j.emote.t -= dt) <= 0) j.emote = null; if (j.emoteCd > 0) j.emoteCd -= dt; }
     if (jeu.joueurs.length > 1) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
     majObjets(jeu, dt);
     majChutes(jeu, dt);
+    majLave(jeu, dt);
     majObjectif(jeu, dt);
     if (jeu.fini) return jeu.evs;
     // fin : plus aucun survivant debout
@@ -2908,7 +3169,7 @@ const PRESEAU = (() => {
       jeu.objets.splice(i, 1);
       if (o.type === 'ferraille') { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur }); }
       else if (o.type === 'soin') { pris.vie = Math.min(pris.vieMax, pris.vie + o.valeur); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'soin', valeur: o.valeur }); }
-      else if (o.type === 'caisse') { const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
+      else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
     }
   }
   function ouvrirCaisse(jeu, j) {
@@ -2965,6 +3226,12 @@ const PRESEAU = (() => {
     const j = trouverJoueur(jeu, idJ); if (!j || !j.armes[i] || j.main === i) return false;
     j.main = i; j.attente = Math.max(j.attente, 0.2); ev(jeu, { t: 'arme', id: j.id, arme: j.armes[i].id }); return true;
   }
+  // une émote : une bulle au-dessus du survivant (même à terre : « À l'aide ! »), pas plus d'une toutes les 1,2 s
+  function emote(jeu, idJ, e) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !D.EMOTES[e] || j.emoteCd > 0 || j.parti) return { ok: false };
+    j.emote = { id: e, t: 2.4 }; j.emoteCd = 1.2; ev(jeu, { t: 'emote', id: j.id, e });
+    return { ok: true };
+  }
   function passer(jeu) { if (jeu.phase === 'pause' && !jeu.fini) { jeu.chrono = 0; return true; } return false; }
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
@@ -2974,10 +3241,11 @@ const PRESEAU = (() => {
     let h = 0x811c9dc5; const t = 'rempart:' + jour;
     for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
     const L = D.DEFI.mutateurs, r = mulberry32(h);
-    const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
+    const AR = jour <= '2026-11-03' ? D.ORDRE_ARENES.slice(0, 3) : D.ORDRE_ARENES; // (les arènes arrivées le 4 novembre ne changent pas les défis d'avant)
+    const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
 
 /* ── src-zombies/modeles.js ── */
@@ -3007,7 +3275,20 @@ const ZMODELES = (() => {
   const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] }, blasters: {} };
   // les armes (Blaster Kit de Kenney) : chargées après le reste, sans le bloquer ; une arme sans modèle garde sa forme faite main
   const BLASTERS = 'abcdefghijklmnopqr'.split('');
-  let etatArmes = 'attente';
+  let etatArmes = 'attente', etatPersos = 'attente';
+  // les survivants à collectionner : le modèle Blocky (chargé après les armes) et ses textures, chargées à la demande
+  const textures = new Map();
+  function texture(c) {
+    if (textures.has(c)) return textures.get(c);
+    const t = new T.TextureLoader().load(BASE + `persos/texture-${c}.png`); t.flipY = false; t.wrapS = t.wrapT = T.RepeatWrapping; if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; t.magFilter = T.NearestFilter;
+    textures.set(c, t); return t;
+  }
+  // le survivant d'un skin : { gltf, hauteur, map } (map : la texture à mettre ; null : celles du fichier) ; le Gardien tant que le reste manque
+  function survivant(id) {
+    const S = typeof ZDONNEES !== 'undefined' ? ZDONNEES.SURVIVANTS[id] : null;
+    if (!S || !S.texture || !M.blocky) return { gltf: M.survivant.gltf, hauteur: M.survivant.hauteur, map: null, id: 'gardien' };
+    return { gltf: M.blocky.gltf, hauteur: M.blocky.hauteur, map: texture(S.texture), id };
+  }
   let etat = 'attente', promesse = null;
 
   // un matériau Lambert (moins cher que le PBR des fichiers, comme le reste du jeu) qui garde la palette du pack
@@ -3071,28 +3352,31 @@ const ZMODELES = (() => {
       const g = {}; cles.forEach((k, i) => { g[k] = l[i]; });
       preparer(g); etat = 'pret';
       etatArmes = 'charge';
-      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; });
+      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; })
+        .then(() => lire('persos/blocky.glb')).then((gl) => { gl.scene.traverse((o) => { if (o.isMesh && !o.geometry.attributes.normal) o.geometry.computeVertexNormals(); }); /* (des modèles « sans éclairage » : pas de normales, noirs en Lambert) */ M.blocky = { gltf: gl, hauteur: (() => { const b = new T.Box3().setFromObject(gl.scene); return b.max.y - b.min.y; })() }; etatPersos = 'pret'; }).catch(() => { etatPersos = 'absent'; });
       return true;
     }).catch((e) => { etat = 'erreur'; if (typeof console !== 'undefined') console.warn('Dernier Rempart : modèles 3D indisponibles, formes faites main', e && e.message); return false; });
     return promesse;
   }
   // une arme prête à tenir : le blaster de l'arme (sa teinte), le canon vers +z, long de « longueur » ; null sans modèle
-  const armesFaites = new Map();
-  function arme(id, longueur) {
-    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele];
+  // (avec une finition de la collection : sa couleur, sa lueur ; « arcenciel » : le rendu fait tourner la teinte des matériaux de arcsEnCiel)
+  const armesFaites = new Map(), arcsEnCiel = new Set();
+  function arme(id, longueur, finition) {
+    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele], F = finition && ZDONNEES.FINITIONS[finition];
     if (!src) return null;
-    let base = armesFaites.get(id);
+    const cle = id + '|' + (F ? finition : '');
+    let base = armesFaites.get(cle);
     if (!base) {
       const mats = new Map();
       base = src.clone(true);
-      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
+      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (F) { m.color.set(F.couleur); if (F.lueur) m.emissive = new T.Color(F.couleur).multiplyScalar(F.lueur); if (F.translucide) { m.transparent = true; m.opacity = 0.62; } if (F.arcenciel) arcsEnCiel.add(m); } else if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
       const b = new T.Box3().setFromObject(base), c = new T.Vector3(); b.getCenter(c);
       const g = new T.Group(); base.position.sub(c); base.rotation.y = Math.PI; base.position.x = -base.position.x; base.position.z = -base.position.z; g.add(base);
-      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(id, base);
+      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(cle, base);
     }
     const o = base.clone(true); o.scale.setScalar(longueur / base.userData.long); return o;
   }
-  return { charger, arme, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
+  return { charger, arme, arcsEnCiel, survivant, get persosPrets() { return etatPersos === 'pret'; }, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
 })();
 
 /* ── src-zombies/rendu.js ── */
@@ -3217,7 +3501,48 @@ const ZRENDU = (() => {
           }
           break;
         }
-        default: F.add(BOITE, '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
+        case 'crypte': // le mausolée : pierre grise, toit en pointe, porte sombre
+          F.add(BOITE, '#8A8A92', mat(x, h / 2, z, 0, w, h, d), 0.05, g); F.add(BOITE, '#2A2A30', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.6, 0.06));
+          F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#6A6A74', mat(x, h + d * 0.18, z, 0, d * 0.55, w * 1.04, d * 0.32, 0, Math.PI / 2), 0.04, g + 1);
+          F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.5, z, 0, 0.12, 0.8, 0.12)); F.add(BOITE, '#B8B8C0', mat(x, h + d * 0.6, z, 0, 0.5, 0.12, 0.12));
+          break;
+        case 'tombe': F.add(BOITE, '#A8A8B0', mat(x, h / 2, z, 0, w, h, d), 0.08, g); F.add(BOITE, '#7E8A6A', mat(x, 0.05, z + (d > w ? 0 : 0.9), 0, w * 0.9, 0.1, 1.4)); break;
+        case 'grille': {
+          const lx = w >= d, long = lx ? w : d, n = Math.max(4, Math.round(long / 0.45));
+          for (let i = 0; i <= n; i++) { const t = -long / 2 + long * i / n; F.add(BOITE, '#3A3438', mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, 0.06, h, 0.06)); }
+          for (const y of [0.2, h * 0.92]) F.add(BOITE, '#4A4448', mat(x, y, z, 0, lx ? long : 0.08, 0.08, lx ? 0.08 : long));
+          break;
+        }
+        case 'conteneur': case 'rayon': case 'immeuble': { // une grande boîte colorée, avec ses nervures (conteneur), ses étagères (rayon), ses fenêtres (immeuble)
+          const col = o.couleur || '#C0392B'; F.add(BOITE, col, mat(x, h / 2, z, 0, w, h, d), 0.04, g);
+          const lx = w >= d, long = lx ? w : d;
+          if (o.type === 'conteneur') for (let i = 0; i <= Math.round(long / 0.6); i++) { const t = -long / 2 + i * 0.6; F.add(BOITE, col, mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, lx ? 0.08 : w * 1.04, h * 0.96, lx ? d * 1.04 : 0.08), 0.12, g + i); }
+          else if (o.type === 'rayon') for (const y of [0.5, 1.1, 1.7]) F.add(BOITE, '#E8E8E8', mat(x, y, z, 0, w * 1.06, 0.06, d * 1.01));
+          else for (let fy = 1.5; fy < h - 0.5; fy += 1.6) for (let i = 0; i < Math.floor(long / 2); i++) { const t = -long / 2 + 1 + i * 2; for (const sgn of [-1, 1]) F.add(BOITE, (i + Math.round(fy)) % 3 ? '#FFE9A0' : '#2A3040', mat(x + (lx ? t : sgn * (w / 2 + 0.02)), fy, z + (lx ? sgn * (d / 2 + 0.02) : t), 0, lx ? 0.8 : 0.04, 0.9, lx ? 0.04 : 0.8)); }
+          break;
+        }
+        case 'grue':
+          F.add(BOITE, '#E8A33A', mat(x, 0.4, z, 0, w, 0.8, d)); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) F.add(BOITE, '#E8A33A', mat(x + a * w * 0.35, h / 2, z + b * d * 0.35, 0, 0.18, h, 0.18));
+          F.add(BOITE, '#E8A33A', mat(x - 4, h, z, 0, 12, 0.3, 0.3)); F.add(BOITE, '#4A4F57', mat(x - 9, h - 1.5, z, 0, 0.05, 3, 0.05)); break;
+        case 'banc': F.add(BOITE, '#8C6A44', mat(x, 0.45, z, 0, w, 0.1, d), 0.05, g); F.add(BOITE, '#8C6A44', mat(x + (w < d ? w * 0.4 : 0), 0.75, z + (w < d ? 0 : d * 0.4), 0, w < d ? 0.08 : w, 0.5, w < d ? d : 0.08)); for (const sgn of [-1, 1]) F.add(BOITE, '#4A4448', mat(x + (w >= d ? sgn * w * 0.4 : 0), 0.22, z + (w < d ? sgn * d * 0.4 : 0), 0, 0.08, 0.44, 0.08)); break;
+        case 'terrasse': // une table et ses chaises, un parasol
+          F.add(cyl(0.6, 0.6, 0.06, 10), '#F2EDE4', mat(x, 0.78, z)); F.add(cyl(0.05, 0.05, 0.78, 6), '#4A4448', mat(x, 0.39, z));
+          for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; F.add(BOITE, '#C94F3D', mat(x + Math.cos(a) * 1.0, 0.45, z + Math.sin(a) * 1.0, -a, 0.45, 0.06, 0.45)); }
+          F.add(cyl(0.04, 0.04, 2.2, 6), '#4A4448', mat(x, 1.1, z)); F.add(cyl(0.05, 1.5, 0.45, 8), '#F2C230', mat(x, 2.3, z), 0.05, g); break;
+        case 'bateau': {
+          const lx = w > d, ry = lx ? Math.PI / 2 : 0, L = lx ? w : d, l = lx ? d : w;
+          F.add(BOITE, '#8A5A3A', mat(x, 0.6, z, ry, l, 1.2, L * 0.82), 0.05, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x + (lx ? L * 0.45 : 0), 0.6, z + (lx ? 0 : L * 0.45), ry, l * 0.58, 1.2, 1.4, 0, 0), 0.05, g + 1);
+          F.add(BOITE, '#E8E2D4', mat(x, 1.3, z, ry, l * 0.92, 0.18, L * 0.8)); F.add(cyl(0.08, 0.1, 4, 6), '#6A4A2A', mat(x, 3, z)); F.add(BOITE, '#F2EDE4', mat(x, 3.2, z + 0.6, ry + 0.3, 0.05, 2, 1.4)); break;
+        }
+        case 'cabane': F.add(BOITE, '#C9A26A', mat(x, h / 2, z, 0, w, h, d), 0.06, g); F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#8A5A3A', mat(x, h + d * 0.2, z, 0, d * 0.6, w * 1.08, d * 0.34, 0, Math.PI / 2), 0.04, g + 1); F.add(BOITE, '#5A3A22', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.25, h * 0.65, 0.06)); break;
+        case 'echafaudage': {
+          for (let i = 0; i <= Math.round(w / 2); i++) for (const sz of [-d / 2, d / 2]) F.add(BOITE, '#8A8F98', mat(x - w / 2 + i * 2, h / 2, z + sz, 0, 0.1, h, 0.1));
+          for (const y of [h * 0.33, h * 0.66, h]) F.add(BOITE, '#B98B55', mat(x, y, z, 0, w, 0.08, d), 0.06, g + Math.round(y)); break;
+        }
+        case 'parpaings': for (let i = 0; i < 3; i++) F.add(BOITE, i % 2 ? '#A8A8A0' : '#B8B8B0', mat(x, h * (i + 0.5) / 3, z, i * 0.08, w * 0.95, h / 3 * 0.92, d * 0.95), 0.06, g + i); break;
+        case 'comptoir': F.add(BOITE, '#E8E8E8', mat(x, h / 2, z, 0, w, h, d), 0.04, g); F.add(BOITE, '#3A3F4A', mat(x, h + 0.03, z, 0, w * 1.02, 0.06, d * 1.02)); F.add(BOITE, '#2ECC71', mat(x + w * 0.3, h + 0.3, z, 0, 0.3, 0.5, 0.2)); break;
+        case 'rondins': for (let i = 0; i < 3; i++) { const lx = w >= d; F.add(cyl(0.3, 0.3, (lx ? w : d) * 0.95, 8), '#8A6040', mat(x + (lx ? 0 : (i - 1) * 0.36), 0.3 + (i === 1 ? 0.45 : 0), z + (lx ? (i - 1) * 0.36 : 0), 0, 1, 1, 1, lx ? 0 : Math.PI / 2, lx ? Math.PI / 2 : 0), 0.06, g + i); } break;
+        default: F.add(BOITE, o.couleur || '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
       }
     } else if (o.c) {
       const [x, z, r] = o.c;
@@ -3246,6 +3571,16 @@ const ZRENDU = (() => {
           F.add(BOITE, '#4A4F57', mat(x + 0.5, 4.2, z, 0, 1.1, 0.12, 0.2));
           F.add(BOITE, '#FFF2B8', mat(x + 0.95, 4.1, z, 0, 0.4, 0.1, 0.3));
           break;
+        case 'cypres': F.add(cyl(r * 0.2, r * 0.25, 1.0, 6), '#5A4030', mat(x, 0.5, z)); F.add(cyl(0.05, r * 0.95, 4.2, 7), '#2F5A3A', mat(x, 3.0, z, k), 0.1, g); break;
+        case 'sapin': F.add(cyl(r * 0.22, r * 0.3, 1.2, 6), '#5A4030', mat(x, 0.6, z)); for (let i = 0; i < 3; i++) F.add(cyl(0.05, r * (1.5 - i * 0.35), 1.5, 7), i % 2 ? '#3E7A3A' : '#356E34', mat(x, 1.6 + i * 1.0, z, k + i), 0.08, g + i); break;
+        case 'bitte': F.add(cyl(r * 0.8, r, 0.8, 8), '#3A3F4A', mat(x, 0.4, z)); F.add(cyl(r * 1.1, r * 1.1, 0.12, 8), '#3A3F4A', mat(x, 0.84, z)); break;
+        case 'fontaine': F.add(cyl(r, r * 1.05, 0.7, 14), '#C8C0B0', mat(x, 0.35, z), 0.05, g); F.add(cyl(r * 0.88, r * 0.88, 0.72, 14), '#5AA8D8', mat(x, 0.37, z)); F.add(cyl(0.25, 0.35, 1.6, 8), '#C8C0B0', mat(x, 1.1, z)); F.add(cyl(0.8, 0.4, 0.3, 10), '#C8C0B0', mat(x, 1.9, z)); F.add(cyl(0.6, 0.6, 0.06, 10), '#7AC8F0', mat(x, 2.02, z)); break;
+        case 'kiosque': F.add(cyl(r, r, 0.5, 8), '#E8E2D4', mat(x, 0.25, z), 0.04, g); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; F.add(cyl(0.08, 0.08, 2.6, 6), '#4A6A5A', mat(x + Math.cos(a) * r * 0.9, 1.8, z + Math.sin(a) * r * 0.9)); } F.add(cyl(0.1, r * 1.2, 1.2, 8), '#4A6A5A', mat(x, 3.6, z), 0.04, g + 1); break;
+        case 'parasol': F.add(cyl(0.05, 0.05, 2.3, 6), '#E8E2D4', mat(x, 1.15, z)); F.add(cyl(0.05, 1.5, 0.5, 8), ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71'][g % 4], mat(x, 2.35, z), 0.04, g); F.add(BOITE, '#F2EDE4', mat(x + 1, 0.12, z + 0.4, 0.4, 0.7, 0.08, 1.6)); break;
+        case 'betonniere': F.add(cyl(r * 0.8, r * 0.5, r * 1.6, 9), '#E8A33A', mat(x, r * 1.2, z, 0, 1, 1, 1, 0.6), 0.05, g); F.add(BOITE, '#5A5F68', mat(x, 0.35, z, 0, r * 1.6, 0.4, r)); F.add(cyl(0.3, 0.3, 0.15, 8), '#2A2A2A', mat(x - r * 0.7, 0.3, z, 0, 1, 1, 1, Math.PI / 2)); break;
+        case 'neon': // un poteau et son enseigne qui brille (couleur de l'obstacle ; matériau à part, plus bas)
+          F.add(cyl(0.08, 0.1, 3.4, 6), '#2A2E36', mat(x, 1.7, z)); break;
+        case 'roche': F.add(rocheGeo(r * 1.2, g), '#2E2826', mat(x, r * 0.6, z, k), 0.1, g); F.add(rocheGeo(r * 0.6, g + 3), '#3A3230', mat(x + r * 0.6, r * 0.3, z - r * 0.4, k), 0.1, g + 3); break;
         default: F.add(cyl(r, r, 1.2, 8), '#9C8E7A', mat(x, 0.6, z), 0.06, g);
       }
     }
@@ -3573,9 +3908,9 @@ const ZRENDU = (() => {
     }
     // le survivant Kenney (le fossoyeur du Graveyard Kit) : les jambes jouent la marche ou le repos, le haut du corps tient l'arme ou tire
     // (deux demi-clips : les pistes des jambes d'un côté, celles du torse, des bras et de la tête de l'autre) ; l'arme est accrochée au torse
-    function nouveauSurvivantK() {
-      const S = MOD.M.survivant, g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
-      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
+    function nouveauSurvivantK(skin) {
+      const S = MOD.survivant(skin || 'gardien'), g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
+      o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
       const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o);
       const mixer = new T.AnimationMixer(o), clip = (n) => S.gltf.animations.find((c) => c.name === n);
       const moitie = (n, re) => { const c = clip(n); return c ? mixer.clipAction(new T.AnimationClip(n + (re === JAMBES ? '-jambes' : '-haut'), c.duration, c.tracks.filter((t) => re.test(t.name.split('.')[0])))) : null; };
@@ -3586,7 +3921,7 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       scene.add(g);
-      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false };
+      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
     }
     const JAMBES = /^(leg-left|leg-right|root)$/, HAUT = /^(torso|arm-left|arm-right|head)$/;
     const changer = (s, cote, nom) => { if (s[cote] === nom) return; const a = s.act[nom], p = s.act[s[cote]]; if (a) { a.reset(); a.play(); if (p) a.crossFadeFrom(p, 0.15, false); } s[cote] = nom; };
@@ -3596,11 +3931,11 @@ const ZRENDU = (() => {
       if (s.mort) { s.mort = false; s.mixer.stopAllAction(); s.jambes = s.haut = ''; }
       changer(s, 'jambes', j.bouge > 0.05 ? 'marche' : 'repos'); if (s.act.marche) s.act.marche.timeScale = 0.6 + j.bouge * 0.9;
       changer(s, 'haut', j.visee ? 'tir' : 'tenir');
-      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
-      if (id !== s.armeId || s.armesVues !== MOD.armesPretes) {
-        s.armeId = id; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
+      const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet', fin = (j.finitions && j.finitions[id]) || '';
+      if (id !== s.armeId || fin !== s.fin || s.armesVues !== MOD.armesPretes) {
+        s.armeId = id; s.fin = fin; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
         if (s.blaster) { s.blaster.parent.remove(s.blaster); s.blaster = null; }
-        const b = MOD.arme(id, L / s.k);
+        const b = MOD.arme(id, L / s.k, fin);
         if (b) { b.position.set(0, 0.06 / s.k, (0.22 + L / 2) / s.k); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
         else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
@@ -3615,7 +3950,10 @@ const ZRENDU = (() => {
       const vus = new Set();
       for (const j of jeu.joueurs) {
         vus.add(j.id);
-        let s = survivants.get(j.id); if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK() : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
+        let s = survivants.get(j.id);
+        const voulu = MOD && MOD.pret ? MOD.survivant(j.skin || 'gardien').id : '';
+        if (s && s.modele && s.skin !== voulu) { scene.remove(s.g); s = null; } // un autre skin (ou ses textures enfin prêtes)
+        if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK(j.skin) : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
         s.g.visible = !j.parti; s.anneau.visible = j.vivant && !j.parti; // en coop, chacun son anneau (le sien en jaune)
         if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
@@ -3879,15 +4217,23 @@ const ZRENDU = (() => {
       const avecVoitures = !!(MOD && MOD.pret), voitures = [];
       A.obstacles.forEach((o, k) => { if (avecVoitures && o.type === 'voiture') voitures.push(o); else obstacle(F, o, k); });
       let g2 = 4242; const alea = () => { g2 = (g2 * 16807) % 2147483647; return g2 / 2147483647; };
-      for (let i = 0; i < 70; i++) { // le paysage : une couronne d'arbres et de rochers autour de l'arène
+      const autour = AUTOUR[A.id || jeu.arene] || 'arbres';
+      for (let i = 0; i < 70; i++) { // le paysage autour de l'arène (arbres et rochers, sapins, immeubles, roches noires… ou de l'eau)
+        if (autour === 'eau') break;
         const a = alea() * Math.PI * 2, r = demi + 4 + alea() * 18, x = Math.cos(a) * r, z = Math.sin(a) * r;
         if (Math.abs(x) < demi + 2 && Math.abs(z) < demi + 2) continue;
-        obstacle(F, alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] }, 100 + i);
+        const o = autour === 'sapins' ? { type: 'sapin', c: [x, z, 0.9 + alea() * 0.4] } : autour === 'immeubles' ? { type: 'immeuble', r: [x, z, 5 + alea() * 4, 5 + alea() * 4, 5 + alea() * 9], couleur: ['#3A3F5A', '#4A3A5A', '#2E4A5A'][i % 3] } : autour === 'roches' ? { type: 'roche', c: [x, z, 1 + alea() * 1.6] } : autour === 'murs' ? (i % 3 ? null : { type: 'immeuble', r: [x, z, 6, 6, 3 + alea() * 2], couleur: '#B8BEC6' }) : alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] };
+        if (o) obstacle(F, o, 100 + i);
       }
       const decor = new T.Mesh(F.geo(), matVC); decor.castShadow = true; decor.receiveShadow = true; scene.add(decor); enArene.push(decor);
-      // les touffes d'herbe et les petites fleurs (sans ombre portée)
-      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4);
-      for (let i = 0; i < 260; i++) {
+      // de l'eau tout autour (le Port, la Plage)
+      if (autour === 'eau') { const eau = new T.Mesh(new T.PlaneGeometry(A.taille + 120, A.taille + 120).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: '#3E8EBE' })); eau.position.y = -0.05; scene.add(eau); enArene.push(eau); sol.material.vertexColors = true; sol.scale.set((A.taille + 2) / (A.taille + 60), 1, (A.taille + 2) / (A.taille + 60)); }
+      // la lave (le Volcan), qui brille et ondule, et les enseignes néon : des matériaux qui luisent
+      if (A.laves) for (const [lx, lz, w, d] of A.laves) { const m = new T.Mesh(new T.BoxGeometry(w, 0.08, d), matLave); m.position.set(lx, 0.04, lz); scene.add(m); enArene.push(m); }
+      for (const o of A.obstacles) if (o.type === 'neon') { const [x, z] = o.c, m = new T.Mesh(new T.BoxGeometry(0.18, 0.9, 1.6), new T.MeshBasicMaterial({ color: o.couleur || '#FF3D9A' })); m.position.set(x, 3.2, z); scene.add(m); enArene.push(m); const l = new T.PointLight(o.couleur || '#FF3D9A', 8, 9, 1.5); l.position.set(x, 3, z); scene.add(l); enArene.push(l); }
+      // les touffes d'herbe et les petites fleurs (sans ombre portée), là où il y a de l'herbe
+      const H = new Fab(), touffe = cyl(0, 0.09, 0.32, 4), herbeux = HERBE.has(A.id || jeu.arene);
+      for (let i = 0; i < (herbeux ? 260 : 0); i++) {
         const x = (alea() * 2 - 1) * (demi - 1), z = (alea() * 2 - 1) * (demi - 1); if (jeu.monde.bloque(x, z, 0.3)) continue;
         if (alea() < 0.82) { for (let k = 0; k < 3; k++) H.add(touffe, alea() < 0.5 ? '#6E9B3E' : '#7FAE48', mat(x + (k - 1) * 0.08, 0.14, z + (k % 2) * 0.07, 0, 1, 0.8 + alea() * 0.6, 1, (k - 1) * 0.3)); }
         else H.add(BOITE, ['#F2E36B', '#F29BB5', '#FFFFFF'][i % 3], mat(x, 0.08, z, alea(), 0.1, 0.06, 0.1));
@@ -3913,6 +4259,10 @@ const ZRENDU = (() => {
     // ─── la caméra : au-dessus, inclinée, elle suit le survivant (avec un peu d'avance dans le sens de la marche) ───
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
+    let decal = 0, decalVoulu = 0;
+    const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
+    const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
+    const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return;
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
@@ -3924,6 +4274,7 @@ const ZRENDU = (() => {
         fx = cam.x + (cine.x - cam.x) * w; fz = cam.z + (cine.z - cam.z) * w; haut -= 11 * w; recul -= 5 * w;
         if (u >= 1) cine = null;
       }
+      decal += (decalVoulu - decal) * k; fx += decal * 0.7; haut -= Math.abs(decal) * 1.4; recul -= Math.abs(decal) * 0.4; // (la collection : le survivant à gauche, en plus gros)
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
       camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
@@ -3972,7 +4323,9 @@ const ZRENDU = (() => {
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
+      if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
       majMeteo(jeu, idMoi, dt);
+      if (arene && arene.laves) { const tps = performance.now() / 1000; matLave.color.setRGB(1, 0.16 + Math.sin(tps * 3) * 0.05, 0.01); if (Math.random() < dt * 8) { const [lx, lz, w, d] = arene.laves[Math.floor(Math.random() * arene.laves.length)]; particule(lx + (Math.random() - 0.5) * w, 0.1, lz + (Math.random() - 0.5) * d, 0, 1.2 + Math.random(), 0, 0.7, 0.12, Math.random() < 0.5 ? '#FFB347' : '#FF5A1A', 0); } }
       majAlertes(dt);
       majFlaques(dt);
       majParticules(dt);
@@ -4001,7 +4354,7 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();
@@ -4346,12 +4699,15 @@ const ZHUD = (() => {
       <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <div class="h-bulles" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <button type="button" class="h-emote" aria-label="Émotes">💬</button>
+      <div class="h-emotes" hidden></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -4362,6 +4718,14 @@ const ZHUD = (() => {
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
+    // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
+    sur(el.emote, () => {
+      if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
+      const l = (A.emotesDispo && A.emotesDispo()) || Object.keys(ZDONNEES.EMOTES);
+      el.emotes.innerHTML = l.map((k) => `<button type="button" data-emote="${k}" aria-label="${ZDONNEES.EMOTES[k].nom}">${ZDONNEES.EMOTES[k].signe}</button>`).join('');
+      el.emotes.querySelectorAll('[data-emote]').forEach((b) => sur(b, () => { el.emotes.hidden = true; if (A.emote) A.emote(b.dataset.emote); }));
+      el.emotes.hidden = false;
+    });
     el.cartes.addEventListener('click', (ev) => { const b = ev.target.closest('.h-carte-atout'); if (b && A.atout) { ev.preventDefault(); A.atout(b.dataset.atout); } });
     // les chiffres de dégâts : une réserve d'étiquettes réutilisées
     for (let k = 0; k < NB_CHIFFRES; k++) { const d = document.createElement('span'); d.className = 'num'; d.hidden = true; el.degats.appendChild(d); chiffres.push({ d, t: 0, x: 0, y: 0, z: 0, dx: 0 }); }
@@ -4492,6 +4856,17 @@ const ZHUD = (() => {
       }
     }
     // la coop : le pseudo des copains au-dessus d'eux (« à terre » et la relève en cours) ; les annonces quand quelqu'un tombe ou se relève
+    // les bulles d'émotes, au-dessus de chaque survivant (le sien compris)
+    if (projeter) {
+      let b = 0;
+      for (const p of jeu.joueurs) {
+        if (!p.emote || p.parti || b >= el.bulles.length) continue;
+        const sp = el.bulles[b++], q = projeter(p.x, 3.7, p.z), E = ZDONNEES.EMOTES[p.emote.id], txt = E ? E.signe : '';
+        if (sp.textContent !== txt) sp.textContent = txt;
+        sp.hidden = false; sp.style.transform = `translate(${q[0].toFixed(0)}px, ${q[1].toFixed(0)}px) translate(-50%, -100%) scale(${Math.min(1, (2.4 - p.emote.t) * 6 + 0.3).toFixed(2)})`;
+      }
+      for (; b < el.bulles.length; b++) el.bulles[b].hidden = true;
+    }
     if (projeter) {
       let k = 0;
       for (const p of jeu.joueurs) {
@@ -4561,6 +4936,10 @@ const ZENLIGNE = (() => {
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
   const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse'];
   const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
+  // le skin, dans la présence (« am », 8 caractères au plus) : son rang dans ZDONNEES.SURVIVANTS
+  const SKINS = D ? Object.keys(D.SURVIVANTS) : [];
+  const codeSkin = (id) => String(Math.max(0, SKINS.indexOf(id)));
+  const lireSkin = (c) => SKINS[+c] || 'gardien';
   const COULEURS = ['#E3B663', '#7FB3E0', '#9BD86A', '#E58FB8'];
   const r2 = (v) => Math.round(v * 100) / 100, r1 = (v) => Math.round(v * 10) / 10;
   const codeBonus = (b) => CLES_BONUS.map((k) => Math.max(0, Math.min(9, (b && b[k]) | 0))).join('');
@@ -4574,7 +4953,7 @@ const ZENLIGNE = (() => {
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0]),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '']),
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0]),
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
       o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
@@ -4598,7 +4977,7 @@ const ZENLIGNE = (() => {
       if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
-      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null;
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null;
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -4633,12 +5012,12 @@ const ZENLIGNE = (() => {
     if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
     o = o || {};
     const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
-    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) }, config: o.config, prefixe: PREFIXE });
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
     const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
     const Z = {
       code: s.code, idMoi, partie: null,
       get estHote() { return s.estHote; },
-      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq })); },
+      joueurs() { return Array.from(s.joueurs.values()).sort((a, b) => (a.id === s.hote ? -1 : b.id === s.hote ? 1 : (a.depuis || 0) - (b.depuis || 0))).map((j) => ({ id: j.id, pseudo: j.pseudo || 'Survivant', hote: j.id === s.hote, moi: j.id === idMoi, voie: j.voie || '', eq: j.eq, am: j.am })); },
       sur(t, f) { if (!abonnes.has(t)) abonnes.set(t, new Set()); abonnes.get(t).add(f); return () => abonnes.get(t).delete(f); },
       quitter() { try { s.quitter(); } catch (e) { /* rien */ } Z.partie = null; },
       stats: () => s.stats(),
@@ -4646,7 +5025,7 @@ const ZENLIGNE = (() => {
         if (!s.estHote) return 'pas-hote';
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
-        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq) })) };
+        const debut = { graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -4658,7 +5037,7 @@ const ZENLIGNE = (() => {
     s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
 
     function demarrer(d) {
-      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, couleur: COULEURS[i % COULEURS.length] }));
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
       const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
@@ -4685,6 +5064,7 @@ const ZENLIGNE = (() => {
           case 'arme': return J.changerArme(jeu, de, +arg);
           case 'atout': return J.choisirAtout(jeu, de, arg);
           case 'passer': return J.passer(jeu);
+          case 'emote': return J.emote(jeu, de, arg);
         }
         return null;
       }
@@ -4937,7 +5317,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -4987,6 +5367,8 @@ const ZENLIGNE = (() => {
     pause() { pause(); },
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
+    emote(e) { if (jeu) faire('emote', e); },
+    emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
@@ -5001,6 +5383,7 @@ const ZENLIGNE = (() => {
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
+      case 'emote': return ZJEU.emote(jeu, idMoi, arg);
     }
     return { ok: false };
   }
@@ -5020,7 +5403,8 @@ const ZENLIGNE = (() => {
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); }
+    rendu.decaler(nom === 'collection' ? 6 : 0);
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -5031,6 +5415,7 @@ const ZENLIGNE = (() => {
         <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
+    const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
@@ -5039,12 +5424,12 @@ const ZENLIGNE = (() => {
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
-    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15 });
+    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5071,6 +5456,9 @@ const ZENLIGNE = (() => {
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
     if (!horsRecords) save.records[arene] = r;
     save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    save.total.boss = (save.total.boss || 0) + j.boss; if (partie) save.total.coop = (save.total.coop || 0) + 1;
+    if (!horsRecords) save.total.vagueMax = Math.max(save.total.vagueMax || 0, jeu.vague);
+    if (defi) { save.total.defisJours = (save.total.defisJours || []).filter((x) => x !== defi.jour).concat(defi.jour).slice(-60); }
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -5084,6 +5472,8 @@ const ZENLIGNE = (() => {
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension();
+    const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
+    const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
     setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
@@ -5104,7 +5494,7 @@ const ZENLIGNE = (() => {
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -5129,7 +5519,7 @@ const ZENLIGNE = (() => {
   function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
-  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; const pm = $('#prog-medailles'); if (pm) pm.innerHTML = h; }
   function remplirBunker() {
     majMedailles();
     $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
@@ -5201,7 +5591,7 @@ const ZENLIGNE = (() => {
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5243,7 +5633,7 @@ const ZENLIGNE = (() => {
   }
   function demarrerAscension(n) {
     const e = ZJEU.echelon(n); ascension = e; defi = null;
-    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now(); save.ascension.essais++; ecrire();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -5264,6 +5654,136 @@ const ZENLIGNE = (() => {
     $('#b-rejouer').textContent = jeu.gagne ? `Échelon ${n + 1}` : 'Réessayer';
   }
 
+  // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
+  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
+  // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
+  function progres(x) {
+    const T = save.total; const v = { echelon: save.ascension ? save.ascension.echelon : 1, vague: T.vagueMax || Math.max(0, ...Object.values(save.records).map((r) => r.vague || 0)), boss: T.boss || 0, defis: (T.defisJours || []).length, coop: T.coop || 0, tues: T.tues || 0 };
+    const k = Object.keys(x)[0]; return { fait: v[k] || 0, but: x[k] };
+  }
+  function verifierExploits() {
+    const C = save.collection, neufs = [];
+    for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
+    if (neufs.length) ecrire(); return neufs;
+  }
+  let ongletCol = 'survivants', armeCol = 'revolver';
+  function ouvrirCollection() {
+    verifierExploits();
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('collection'); remplirCollection();
+  }
+  function remplirCollection() {
+    const C = save.collection, box = $('.col-liste');
+    document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
+    $('.col-armes').hidden = ongletCol !== 'finitions';
+    majMedailles();
+    if (ongletCol === 'survivants') {
+      box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
+        const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
+        const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+      }).join('');
+      box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.skin, S = D.SURVIVANTS[k];
+        if (C.skins.includes(k)) { C.skin = k; }
+        else if (S.prix) { if (save.meta.medailles < S.prix) { ZHUD.toast('Pas assez de médailles (le Bunker les gagne en jouant)'); PSONS.jouer('refus', 0.6); return; } save.meta.medailles -= S.prix; C.skins.push(k); C.skin = k; PSONS.jouer('achat', 0.9); }
+        else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
+        ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
+      }));
+    } else if (ongletCol === 'finitions') {
+      const fins = finitionsEues();
+      $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+        const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
+        const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+      }));
+      apercuArme();
+    } else {
+      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : E.pass ? `<small>Pass, palier ${E.pass}</small>` : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
+      box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
+        if (E.pass) { ZHUD.toast(`Se gagne au palier ${E.pass} du pass de saison`); return; }
+        if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
+        save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
+      }));
+    }
+  }
+  // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
+  function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
+
+  // ─── la progression : missions sans fin, pass de saison (100 paliers, un par mois), coffre du jour et série de jours ───
+  const P0 = { rang: 0, missions: [], palier: 0, xp: 0, saison: '', coffre: '', serie: 0, dernierJour: '' };
+  save.prog = Object.assign({}, P0, save.prog || {});
+  const aujourdhui = () => ZCLASSEMENT.jourParis();
+  const hier = () => ZCLASSEMENT.jourParis(Date.now() - 86400e3);
+  const saisonDe = (j) => j.slice(0, 7);
+  const NOMS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function nouvelleMission(rangPlus) { // la suivante dans le cycle, plus dure à chaque tour
+    const P = save.prog, r = P.rang + (rangPlus || 0), M = D.MISSIONS[(r * 7 + 3) % D.MISSIONS.length], deja = P.missions.map((m) => m.id);
+    let k = (r * 7 + 3) % D.MISSIONS.length, essai = 0; while (deja.includes(D.MISSIONS[k].id) && essai++ < D.MISSIONS.length) k = (k + 1) % D.MISSIONS.length;
+    const X = D.MISSIONS[k]; void M; return { id: X.id, but: X.but(Math.floor(r / 3)), fait: 0 };
+  }
+  function majProgression() { // nouvelle saison : le pass repart ; toujours trois missions
+    const P = save.prog, s = saisonDe(aujourdhui());
+    if (P.saison !== s) { P.saison = s; P.palier = 0; P.xp = 0; }
+    while (P.missions.length < 3) P.missions.push(nouvelleMission(P.missions.length));
+  }
+  majProgression();
+  function gagnerXpPass(x) {
+    const P = save.prog, gains = []; P.xp += x;
+    while (P.xp >= D.PASS.xpPalier && P.palier < D.PASS.paliers) {
+      P.xp -= D.PASS.xpPalier; P.palier++; const R = D.PASS.recompense(P.palier);
+      if (R.medailles) { save.meta.medailles += R.medailles; save.meta.gagnees += R.medailles; gains.push(`+${R.medailles} médailles`); }
+      if (R.emote && !save.collection.emotes.includes(R.emote)) { save.collection.emotes.push(R.emote); gains.push(`l’émote ${D.EMOTES[R.emote].signe}`); }
+    }
+    if (P.palier >= D.PASS.paliers) P.xp = 0;
+    return gains;
+  }
+  function bilanProgression(j) {
+    majProgression();
+    const P = save.prog, b = { tues: j.tues, boss: j.boss, crits: jeu.stats.crits, ferraille: jeu.stats.ferraille, construits: jeu.stats.construits, grenades: jeu.stats.grenades, caisses: jeu.stats.caisses, vague: jeu.vague, echelons: ascension && jeu.gagne ? 1 : 0, coop: partie ? 1 : 0, defi: defi ? 1 : 0 };
+    const faites = [];
+    for (const m of P.missions) { const X = D.MISSIONS.find((x) => x.id === m.id); if (!X) continue; m.fait = X.cumul ? m.fait + (b[X.mesure] || 0) : Math.max(m.fait, b[X.mesure] || 0); if (m.fait >= m.but) faites.push(m); }
+    let xp = D.PASS.xpPartie(j.score);
+    for (const m of faites) { P.missions.splice(P.missions.indexOf(m), 1); P.rang++; xp += D.PASS.xpMission; }
+    majProgression();
+    const gains = gagnerXpPass(xp); ecrire();
+    const t = []; if (faites.length) t.push(`${faites.length} mission${faites.length > 1 ? 's' : ''} réussie${faites.length > 1 ? 's' : ''}`); if (gains.length) t.push(`pass : ${gains.join(', ')}`);
+    return t.join(' · ');
+  }
+  // le coffre du jour (une fois par jour, heure de Paris) ; la série : les jours d'affilée où on l'ouvre
+  const coffrePret = () => save.prog.coffre !== aujourdhui();
+  function ouvrirCoffre() {
+    const P = save.prog, j = aujourdhui(); if (P.coffre === j) return null;
+    P.serie = P.dernierJour === hier() ? P.serie + 1 : 1; P.dernierJour = j; P.coffre = j;
+    const [a, b] = D.COFFRE.medailles, base = a + Math.floor(Math.random() * (b - a + 1)), m = Math.round(base * (1 + D.COFFRE.serieBonus * Math.min(D.COFFRE.serieMax, P.serie - 1)));
+    save.meta.medailles += m; save.meta.gagnees += m; ecrire(); return { medailles: m, serie: P.serie };
+  }
+  let ongletProg = 'missions';
+  function majBoutonProgression() { const b = $('#b-progression small'); if (b) b.textContent = coffrePret() ? '🎁 coffre du jour' : `🔥 ${save.prog.serie} jour${save.prog.serie > 1 ? 's' : ''} · palier ${save.prog.palier}`; }
+  function ouvrirProgression() { majProgression(); for (const k in ecrans) ecrans[k].hidden = true; montrer('progression'); remplirProgression(); }
+  function remplirProgression() {
+    const P = save.prog, box = $('.prog-corps'); majMedailles();
+    document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletProg)));
+    if (ongletProg === 'missions') {
+      box.innerHTML = `<p class="prog-aide">Trois missions à la fois ; une réussie en amène une autre, plus dure. Chacune rapporte ${D.PASS.xpMission} points de pass.</p>` + P.missions.map((m) => { const X = D.MISSIONS.find((x) => x.id === m.id); const f = Math.min(m.fait, m.but); return `<div class="prog-mission"><b>${echap(X.texte(m.but))}</b><div class="prog-barre"><i style="width:${Math.round(f / m.but * 100)}%"></i></div><small>${f} / ${m.but}</small></div>`; }).join('') + `<p class="prog-aide">${P.rang} mission${P.rang > 1 ? 's' : ''} réussie${P.rang > 1 ? 's' : ''} en tout.</p>`;
+    } else if (ongletProg === 'pass') {
+      const [an, mois] = P.saison.split('-'), prochains = []; for (let p = P.palier + 1; p <= Math.min(D.PASS.paliers, P.palier + 6); p++) { const R = D.PASS.recompense(p); prochains.push(`<li class="${R.emote ? 'rare' : ''}"><b>${p}</b><span>${R.emote ? `${D.EMOTES[R.emote].signe} émote « ${echap(D.EMOTES[R.emote].nom)} »` : `${ZHUD.ICO.medaille} ${R.medailles} médailles`}</span></li>`); }
+      box.innerHTML = `<p class="prog-titre">Saison de ${NOMS_MOIS[+mois - 1] || ''} ${an || ''} · palier ${P.palier} / ${D.PASS.paliers}</p><div class="prog-barre gros"><i style="width:${Math.round(P.xp / D.PASS.xpPalier * 100)}%"></i></div><small>${P.xp} / ${D.PASS.xpPalier} points pour le palier suivant (une partie : score ÷ 20, une mission : ${D.PASS.xpMission})</small><ul class="prog-paliers">${prochains.join('') || '<li>Pass terminé : bravo !</li>'}</ul>`;
+    } else {
+      const pret = coffrePret();
+      box.innerHTML = `<div class="prog-coffre"><span class="gros-ico">${pret ? '🎁' : '📦'}</span><p>${pret ? 'Ton coffre du jour t’attend.' : 'Coffre ouvert aujourd’hui : reviens demain !'}</p><p class="prog-aide">Série : 🔥 ${P.serie} jour${P.serie > 1 ? 's' : ''} d’affilée (+${Math.round(D.COFFRE.serieBonus * 100)} % par jour, jusqu’à ${D.COFFRE.serieMax})</p>${pret ? '<button type="button" class="gros" id="b-coffre">Ouvrir</button>' : ''}</div>`;
+      const b = $('#b-coffre'); if (b) b.addEventListener('click', () => { const r = ouvrirCoffre(); if (!r) return; PSONS.jouer('achat', 1); PSONS.vibrer([20, 40, 20]); ZHUD.toast(`+${r.medailles} médailles · série de ${r.serie} jour${r.serie > 1 ? 's' : ''}`); remplirProgression(); });
+    }
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -5280,6 +5800,13 @@ const ZENLIGNE = (() => {
   clic('#b-multi', ouvrirSalon);
   clic('#b-defi', ouvrirDefi);
   clic('#b-ascension', ouvrirAscension);
+  clic('#b-collection', ouvrirCollection);
+  clic('#b-progression', ouvrirProgression);
+  clic('#b-prog-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletProg = b.dataset.onglet; PSONS.ui('tap'); remplirProgression(); }));
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
@@ -5363,7 +5890,7 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

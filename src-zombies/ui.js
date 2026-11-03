@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -57,6 +57,8 @@
     pause() { pause(); },
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
+    emote(e) { if (jeu) faire('emote', e); },
+    emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
@@ -71,6 +73,7 @@
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
+      case 'emote': return ZJEU.emote(jeu, idMoi, arg);
     }
     return { ok: false };
   }
@@ -90,7 +93,8 @@
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); }
+    rendu.decaler(nom === 'collection' ? 6 : 0);
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -101,6 +105,7 @@
         <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
+    const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
@@ -109,12 +114,12 @@
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
-    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15 });
+    demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -141,6 +146,9 @@
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
     if (!horsRecords) save.records[arene] = r;
     save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    save.total.boss = (save.total.boss || 0) + j.boss; if (partie) save.total.coop = (save.total.coop || 0) + 1;
+    if (!horsRecords) save.total.vagueMax = Math.max(save.total.vagueMax || 0, jeu.vague);
+    if (defi) { save.total.defisJours = (save.total.defisJours || []).filter((x) => x !== defi.jour).concat(defi.jour).slice(-60); }
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -154,6 +162,8 @@
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension();
+    const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
+    const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
     setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
@@ -174,7 +184,7 @@
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -199,7 +209,7 @@
   function quitterSalon() { if (partie && partie.fermer) partie.fermer(); if (salon) { const l = salon; salon = null; try { l.quitter(); } catch (e) { /* rien */ } } partie = null; idMoi = 'moi'; }
 
   // ─── le Bunker : les améliorations permanentes ───
-  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; const pm = $('#prog-medailles'); if (pm) pm.innerHTML = h; }
   function remplirBunker() {
     majMedailles();
     $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
@@ -271,7 +281,7 @@
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -313,7 +323,7 @@
   }
   function demarrerAscension(n) {
     const e = ZJEU.echelon(n); ascension = e; defi = null;
-    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now(); save.ascension.essais++; ecrire();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -334,6 +344,136 @@
     $('#b-rejouer').textContent = jeu.gagne ? `Échelon ${n + 1}` : 'Réessayer';
   }
 
+  // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
+  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
+  // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
+  function progres(x) {
+    const T = save.total; const v = { echelon: save.ascension ? save.ascension.echelon : 1, vague: T.vagueMax || Math.max(0, ...Object.values(save.records).map((r) => r.vague || 0)), boss: T.boss || 0, defis: (T.defisJours || []).length, coop: T.coop || 0, tues: T.tues || 0 };
+    const k = Object.keys(x)[0]; return { fait: v[k] || 0, but: x[k] };
+  }
+  function verifierExploits() {
+    const C = save.collection, neufs = [];
+    for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
+    if (neufs.length) ecrire(); return neufs;
+  }
+  let ongletCol = 'survivants', armeCol = 'revolver';
+  function ouvrirCollection() {
+    verifierExploits();
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('collection'); remplirCollection();
+  }
+  function remplirCollection() {
+    const C = save.collection, box = $('.col-liste');
+    document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
+    $('.col-armes').hidden = ongletCol !== 'finitions';
+    majMedailles();
+    if (ongletCol === 'survivants') {
+      box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
+        const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
+        const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+      }).join('');
+      box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.skin, S = D.SURVIVANTS[k];
+        if (C.skins.includes(k)) { C.skin = k; }
+        else if (S.prix) { if (save.meta.medailles < S.prix) { ZHUD.toast('Pas assez de médailles (le Bunker les gagne en jouant)'); PSONS.jouer('refus', 0.6); return; } save.meta.medailles -= S.prix; C.skins.push(k); C.skin = k; PSONS.jouer('achat', 0.9); }
+        else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
+        ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
+      }));
+    } else if (ongletCol === 'finitions') {
+      const fins = finitionsEues();
+      $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+        const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
+        const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+      }));
+      apercuArme();
+    } else {
+      box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : E.pass ? `<small>Pass, palier ${E.pass}</small>` : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
+      box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
+        if (E.pass) { ZHUD.toast(`Se gagne au palier ${E.pass} du pass de saison`); return; }
+        if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
+        save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
+      }));
+    }
+  }
+  // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
+  function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
+
+  // ─── la progression : missions sans fin, pass de saison (100 paliers, un par mois), coffre du jour et série de jours ───
+  const P0 = { rang: 0, missions: [], palier: 0, xp: 0, saison: '', coffre: '', serie: 0, dernierJour: '' };
+  save.prog = Object.assign({}, P0, save.prog || {});
+  const aujourdhui = () => ZCLASSEMENT.jourParis();
+  const hier = () => ZCLASSEMENT.jourParis(Date.now() - 86400e3);
+  const saisonDe = (j) => j.slice(0, 7);
+  const NOMS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function nouvelleMission(rangPlus) { // la suivante dans le cycle, plus dure à chaque tour
+    const P = save.prog, r = P.rang + (rangPlus || 0), M = D.MISSIONS[(r * 7 + 3) % D.MISSIONS.length], deja = P.missions.map((m) => m.id);
+    let k = (r * 7 + 3) % D.MISSIONS.length, essai = 0; while (deja.includes(D.MISSIONS[k].id) && essai++ < D.MISSIONS.length) k = (k + 1) % D.MISSIONS.length;
+    const X = D.MISSIONS[k]; void M; return { id: X.id, but: X.but(Math.floor(r / 3)), fait: 0 };
+  }
+  function majProgression() { // nouvelle saison : le pass repart ; toujours trois missions
+    const P = save.prog, s = saisonDe(aujourdhui());
+    if (P.saison !== s) { P.saison = s; P.palier = 0; P.xp = 0; }
+    while (P.missions.length < 3) P.missions.push(nouvelleMission(P.missions.length));
+  }
+  majProgression();
+  function gagnerXpPass(x) {
+    const P = save.prog, gains = []; P.xp += x;
+    while (P.xp >= D.PASS.xpPalier && P.palier < D.PASS.paliers) {
+      P.xp -= D.PASS.xpPalier; P.palier++; const R = D.PASS.recompense(P.palier);
+      if (R.medailles) { save.meta.medailles += R.medailles; save.meta.gagnees += R.medailles; gains.push(`+${R.medailles} médailles`); }
+      if (R.emote && !save.collection.emotes.includes(R.emote)) { save.collection.emotes.push(R.emote); gains.push(`l’émote ${D.EMOTES[R.emote].signe}`); }
+    }
+    if (P.palier >= D.PASS.paliers) P.xp = 0;
+    return gains;
+  }
+  function bilanProgression(j) {
+    majProgression();
+    const P = save.prog, b = { tues: j.tues, boss: j.boss, crits: jeu.stats.crits, ferraille: jeu.stats.ferraille, construits: jeu.stats.construits, grenades: jeu.stats.grenades, caisses: jeu.stats.caisses, vague: jeu.vague, echelons: ascension && jeu.gagne ? 1 : 0, coop: partie ? 1 : 0, defi: defi ? 1 : 0 };
+    const faites = [];
+    for (const m of P.missions) { const X = D.MISSIONS.find((x) => x.id === m.id); if (!X) continue; m.fait = X.cumul ? m.fait + (b[X.mesure] || 0) : Math.max(m.fait, b[X.mesure] || 0); if (m.fait >= m.but) faites.push(m); }
+    let xp = D.PASS.xpPartie(j.score);
+    for (const m of faites) { P.missions.splice(P.missions.indexOf(m), 1); P.rang++; xp += D.PASS.xpMission; }
+    majProgression();
+    const gains = gagnerXpPass(xp); ecrire();
+    const t = []; if (faites.length) t.push(`${faites.length} mission${faites.length > 1 ? 's' : ''} réussie${faites.length > 1 ? 's' : ''}`); if (gains.length) t.push(`pass : ${gains.join(', ')}`);
+    return t.join(' · ');
+  }
+  // le coffre du jour (une fois par jour, heure de Paris) ; la série : les jours d'affilée où on l'ouvre
+  const coffrePret = () => save.prog.coffre !== aujourdhui();
+  function ouvrirCoffre() {
+    const P = save.prog, j = aujourdhui(); if (P.coffre === j) return null;
+    P.serie = P.dernierJour === hier() ? P.serie + 1 : 1; P.dernierJour = j; P.coffre = j;
+    const [a, b] = D.COFFRE.medailles, base = a + Math.floor(Math.random() * (b - a + 1)), m = Math.round(base * (1 + D.COFFRE.serieBonus * Math.min(D.COFFRE.serieMax, P.serie - 1)));
+    save.meta.medailles += m; save.meta.gagnees += m; ecrire(); return { medailles: m, serie: P.serie };
+  }
+  let ongletProg = 'missions';
+  function majBoutonProgression() { const b = $('#b-progression small'); if (b) b.textContent = coffrePret() ? '🎁 coffre du jour' : `🔥 ${save.prog.serie} jour${save.prog.serie > 1 ? 's' : ''} · palier ${save.prog.palier}`; }
+  function ouvrirProgression() { majProgression(); for (const k in ecrans) ecrans[k].hidden = true; montrer('progression'); remplirProgression(); }
+  function remplirProgression() {
+    const P = save.prog, box = $('.prog-corps'); majMedailles();
+    document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletProg)));
+    if (ongletProg === 'missions') {
+      box.innerHTML = `<p class="prog-aide">Trois missions à la fois ; une réussie en amène une autre, plus dure. Chacune rapporte ${D.PASS.xpMission} points de pass.</p>` + P.missions.map((m) => { const X = D.MISSIONS.find((x) => x.id === m.id); const f = Math.min(m.fait, m.but); return `<div class="prog-mission"><b>${echap(X.texte(m.but))}</b><div class="prog-barre"><i style="width:${Math.round(f / m.but * 100)}%"></i></div><small>${f} / ${m.but}</small></div>`; }).join('') + `<p class="prog-aide">${P.rang} mission${P.rang > 1 ? 's' : ''} réussie${P.rang > 1 ? 's' : ''} en tout.</p>`;
+    } else if (ongletProg === 'pass') {
+      const [an, mois] = P.saison.split('-'), prochains = []; for (let p = P.palier + 1; p <= Math.min(D.PASS.paliers, P.palier + 6); p++) { const R = D.PASS.recompense(p); prochains.push(`<li class="${R.emote ? 'rare' : ''}"><b>${p}</b><span>${R.emote ? `${D.EMOTES[R.emote].signe} émote « ${echap(D.EMOTES[R.emote].nom)} »` : `${ZHUD.ICO.medaille} ${R.medailles} médailles`}</span></li>`); }
+      box.innerHTML = `<p class="prog-titre">Saison de ${NOMS_MOIS[+mois - 1] || ''} ${an || ''} · palier ${P.palier} / ${D.PASS.paliers}</p><div class="prog-barre gros"><i style="width:${Math.round(P.xp / D.PASS.xpPalier * 100)}%"></i></div><small>${P.xp} / ${D.PASS.xpPalier} points pour le palier suivant (une partie : score ÷ 20, une mission : ${D.PASS.xpMission})</small><ul class="prog-paliers">${prochains.join('') || '<li>Pass terminé : bravo !</li>'}</ul>`;
+    } else {
+      const pret = coffrePret();
+      box.innerHTML = `<div class="prog-coffre"><span class="gros-ico">${pret ? '🎁' : '📦'}</span><p>${pret ? 'Ton coffre du jour t’attend.' : 'Coffre ouvert aujourd’hui : reviens demain !'}</p><p class="prog-aide">Série : 🔥 ${P.serie} jour${P.serie > 1 ? 's' : ''} d’affilée (+${Math.round(D.COFFRE.serieBonus * 100)} % par jour, jusqu’à ${D.COFFRE.serieMax})</p>${pret ? '<button type="button" class="gros" id="b-coffre">Ouvrir</button>' : ''}</div>`;
+      const b = $('#b-coffre'); if (b) b.addEventListener('click', () => { const r = ouvrirCoffre(); if (!r) return; PSONS.jouer('achat', 1); PSONS.vibrer([20, 40, 20]); ZHUD.toast(`+${r.medailles} médailles · série de ${r.serie} jour${r.serie > 1 ? 's' : ''}`); remplirProgression(); });
+    }
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -350,6 +490,13 @@
   clic('#b-multi', ouvrirSalon);
   clic('#b-defi', ouvrirDefi);
   clic('#b-ascension', ouvrirAscension);
+  clic('#b-collection', ouvrirCollection);
+  clic('#b-progression', ouvrirProgression);
+  clic('#b-prog-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletProg = b.dataset.onglet; PSONS.ui('tap'); remplirProgression(); }));
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
@@ -433,7 +580,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

@@ -97,12 +97,15 @@ const ZHUD = (() => {
       <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <div class="h-bulles" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
+      <button type="button" class="h-emote" aria-label="Émotes">💬</button>
+      <div class="h-emotes" hidden></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -113,6 +116,14 @@ const ZHUD = (() => {
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
+    // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
+    sur(el.emote, () => {
+      if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
+      const l = (A.emotesDispo && A.emotesDispo()) || Object.keys(ZDONNEES.EMOTES);
+      el.emotes.innerHTML = l.map((k) => `<button type="button" data-emote="${k}" aria-label="${ZDONNEES.EMOTES[k].nom}">${ZDONNEES.EMOTES[k].signe}</button>`).join('');
+      el.emotes.querySelectorAll('[data-emote]').forEach((b) => sur(b, () => { el.emotes.hidden = true; if (A.emote) A.emote(b.dataset.emote); }));
+      el.emotes.hidden = false;
+    });
     el.cartes.addEventListener('click', (ev) => { const b = ev.target.closest('.h-carte-atout'); if (b && A.atout) { ev.preventDefault(); A.atout(b.dataset.atout); } });
     // les chiffres de dégâts : une réserve d'étiquettes réutilisées
     for (let k = 0; k < NB_CHIFFRES; k++) { const d = document.createElement('span'); d.className = 'num'; d.hidden = true; el.degats.appendChild(d); chiffres.push({ d, t: 0, x: 0, y: 0, z: 0, dx: 0 }); }
@@ -243,6 +254,17 @@ const ZHUD = (() => {
       }
     }
     // la coop : le pseudo des copains au-dessus d'eux (« à terre » et la relève en cours) ; les annonces quand quelqu'un tombe ou se relève
+    // les bulles d'émotes, au-dessus de chaque survivant (le sien compris)
+    if (projeter) {
+      let b = 0;
+      for (const p of jeu.joueurs) {
+        if (!p.emote || p.parti || b >= el.bulles.length) continue;
+        const sp = el.bulles[b++], q = projeter(p.x, 3.7, p.z), E = ZDONNEES.EMOTES[p.emote.id], txt = E ? E.signe : '';
+        if (sp.textContent !== txt) sp.textContent = txt;
+        sp.hidden = false; sp.style.transform = `translate(${q[0].toFixed(0)}px, ${q[1].toFixed(0)}px) translate(-50%, -100%) scale(${Math.min(1, (2.4 - p.emote.t) * 6 + 0.3).toFixed(2)})`;
+      }
+      for (; b < el.bulles.length; b++) el.bulles[b].hidden = true;
+    }
     if (projeter) {
       let k = 0;
       for (const p of jeu.joueurs) {

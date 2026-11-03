@@ -312,13 +312,24 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   { const jeu = partie({ vedettes: ['kamikaze'], vieMax: 1e6 }); const types = new Set(); for (let i = 0; i < 60 * 15; i++) { J.pas(jeu, { moi: { mx: 0, mz: 0 } }, PAS); for (const z of jeu.zombies) types.add(z.type); } check(jeu.vague <= 2 && types.has('kamikaze'), `les vedettes de l’échelon arrivent dès la vague ${jeu.vague} (${[...types].join(', ')})`); }
 }
 
+// ─── la collection : skins, finitions, émotes ───
+{
+  check(Object.keys(D.SURVIVANTS).length >= 19 && Object.values(D.SURVIVANTS).every((S) => S.nom && (S.depart || S.prix > 0 || (S.exploit && S.texte)) && (!S.texture || /^[a-r]$/.test(S.texture))), `${Object.keys(D.SURVIVANTS).length} survivants à collectionner, chacun avec son prix ou son exploit`);
+  check(D.ORDRE_FINITIONS.length === Object.keys(D.FINITIONS).length && D.ORDRE_FINITIONS.every((f) => /^#[0-9A-F]{6}$/i.test(D.FINITIONS[f].couleur)), `${D.ORDRE_FINITIONS.length} finitions d’armes, dans leur ordre d’obtention`);
+  const jeu = J.creer({ arene: 'jardin', graine: 2, joueurs: [{ id: 'moi', skin: 'pirate', finitions: { revolver: 'or' } }, { id: 'toi', skin: 'nimporte' }] });
+  check(jeu.joueurs[0].skin === 'pirate' && jeu.joueurs[0].finitions.revolver === 'or' && jeu.joueurs[1].skin === 'gardien', 'le skin et les finitions passent dans la partie (un skin inconnu : le Gardien)');
+  const e1 = J.emote(jeu, 'moi', 'rire'), e2 = J.emote(jeu, 'moi', 'pouce'); J.pas(jeu, null, 1.3); const e3 = J.emote(jeu, 'moi', 'pouce');
+  check(e1.ok && !e2.ok && e3.ok && jeu.joueurs[0].emote.id === 'pouce' && !J.emote(jeu, 'toi', 'inconnue').ok, 'une émote s’affiche, pas plus d’une toutes les 1,2 s');
+  J.pas(jeu, null, 3); check(!jeu.joueurs[0].emote, 'puis s’efface');
+}
+
 // ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───
 {
   const C = require(path.join(__dirname, '..', 'src-zombies', 'classement.js'));
   const a = J.defiDu('2026-11-04'), b = J.defiDu('2026-11-04'), c = J.defiDu('2026-11-05');
   check(JSON.stringify(a) === JSON.stringify(b) && a.graine !== c.graine && D.ARENES[a.arene] && D.DEFI.mutateurs.some((m) => m.id === a.mutateur), `le même jour, le même défi pour tout le monde (${a.jour} : ${a.nom}, ${D.ARENES[a.arene].nom}) ; le lendemain, un autre`);
-  const vus = new Set(), arenes = new Set(); for (let k = 0; k < 120; k++) { const d = J.defiDu(new Date(Date.UTC(2026, 0, 1 + k)).toISOString().slice(0, 10)); vus.add(d.mutateur); arenes.add(d.arene); }
-  check(vus.size === D.DEFI.mutateurs.length && arenes.size === D.ORDRE_ARENES.length, `sur 120 jours, tous les mutateurs (${vus.size}) et toutes les arènes (${arenes.size}) reviennent`);
+  const vus = new Set(), arenes = new Set(); for (let k = 0; k < 200; k++) { const d = J.defiDu(new Date(Date.UTC(2026, 10, 4 + k)).toISOString().slice(0, 10)); vus.add(d.mutateur); arenes.add(d.arene); }
+  check(vus.size === D.DEFI.mutateurs.length && arenes.size === D.ORDRE_ARENES.length, `sur 200 jours, tous les mutateurs (${vus.size}) et toutes les arènes (${arenes.size}) reviennent`);
   check(D.DEFI.mutateurs.every((m) => m.nom && m.texte && (!m.arme || D.ARMES[m.arme])) && D.DEFI.mutateurs.every((m) => (m.points || 1) <= 2 && (m.nombre || 1) <= 1.5), 'chaque mutateur a son nom et son texte ; aucun ne dépasse les bornes du serveur (points ×2, nombre ×1,5)');
   const norm = J.creer({ arene: 'jardin', graine: 5, attente: 0 }), dur = J.creer({ arene: 'jardin', graine: 5, attente: 0, mod: { zVie: 1.5, zVitesse: 1.25, nombre: 1.5, points: 2, grenade: 0.4, arme: 'pompe' } });
   avancer(norm, 80); avancer(dur, 80);
@@ -342,6 +353,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;
     for (const z of jeu.zombies) { const dx = j.x - z.x, dz = j.z - z.z, d2 = dx * dx + dz * dz + 0.01; if (d2 < 49) { fx += dx / d2; fz += dz / d2; } }
     for (const o of jeu.objets) if (o.type === 'caisse') { const dx = o.x - j.x, dz = o.z - j.z, d = Math.hypot(dx, dz) + 0.1; fx += dx / d * 0.15; fz += dz / d * 0.15; }
+    for (const [lx, lz, w, d] of jeu.A.laves || []) { const dx = j.x - Math.max(lx - w / 2, Math.min(lx + w / 2, j.x)), dz = j.z - Math.max(lz - d / 2, Math.min(lz + d / 2, j.z)), d2 = dx * dx + dz * dz + 0.05; if (d2 < 9) { fx += dx / d2 * 2; fz += dz / d2 * 2; } } // (il voit la lave)
     fx += -j.x * 0.004 - j.z * 0.003; fz += -j.z * 0.004 + j.x * 0.003;
     const l = Math.hypot(fx, fz); let mx = l > 0.02 ? fx / l : 0, mz = l > 0.02 ? fz / l : 0;
     if (jeu.monde.bloque(j.x + mx * 0.8, j.z + mz * 0.8, 0.45)) { const t = mx; mx = -mz; mz = t; }
