@@ -46,8 +46,10 @@
       joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [],
       serie: { n: 0, t: -99, mult: 1 },
       stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
-      navPas: 0, evs: [], fini: false,
+      navPas: 0, evs: [], fini: false, choix: null,
     };
+    // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
+    jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
     const liste = o.joueurs && o.joueurs.length ? o.joueurs : [{ id: 'moi', pseudo: 'Moi' }];
     liste.forEach((j, k) => {
       const a = (k / liste.length) * TAU, p = monde.libreProche(A.depart[0] + (liste.length > 1 ? Math.cos(a) * 1.2 : 0), A.depart[1] + (liste.length > 1 ? Math.sin(a) * 1.2 : 0), D.JOUEUR.rayon, 6) || A.depart;
@@ -57,7 +59,8 @@
         armes: [{ id: D.ARME_DE_BASE, mun: Infinity }, null], main: 0, attente: 0, cible: 0, visee: 0,
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
-        bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}),
+        bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
+        choix: null, releve: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
@@ -206,26 +209,32 @@
     while (j.xp >= D.XP.pour(j.niveau)) { j.xp -= D.XP.pour(j.niveau); j.niveau++; j.choixAttente++; ev(jeu, { t: 'niveau', id: j.id, niveau: j.niveau }); }
     proposer(jeu);
   }
-  function proposer(jeu) { // trois atouts tirés au hasard parmi ceux qui ne sont pas au maximum
-    if (jeu.choix) return;
-    const j = jeu.joueurs.find((k) => k.choixAttente > 0 && k.vivant); if (!j) return;
-    const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max), options = [];
-    while (options.length < 3 && l.length) options.push(l.splice(Math.floor(jeu.rnd() * l.length) % l.length, 1)[0]);
-    if (!options.length) { j.choixAttente = 0; return; }
-    jeu.choix = { id: j.id, options, niveau: j.niveau - j.choixAttente + 1 };
+  function proposer(jeu) { // trois atouts tirés au hasard parmi ceux qui ne sont pas au maximum, pour chaque joueur qui a un niveau en attente
+    for (const j of jeu.joueurs) {
+      if (j.choix || j.choixAttente <= 0 || !j.vivant) continue;
+      const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max), options = [];
+      while (options.length < 3 && l.length) options.push(l.splice(Math.floor(jeu.rnd() * l.length) % l.length, 1)[0]);
+      if (!options.length) { j.choixAttente = 0; continue; }
+      j.choix = { id: j.id, options, niveau: j.niveau - j.choixAttente + 1 };
+    }
+    majChoixGlobal(jeu);
   }
+  // jeu.choix : le choix qui met la partie en pause (en solo seulement)
+  function majChoixGlobal(jeu) { const j = jeu.pauseChoix ? jeu.joueurs.find((k) => k.choix) : null; jeu.choix = j ? j.choix : null; }
   function choisirAtout(jeu, idJ, k) {
-    const c = jeu.choix; if (!c || c.id !== idJ || !c.options.includes(k)) return false;
-    const j = trouverJoueur(jeu, idJ), A = D.ATOUTS[k];
+    const j = trouverJoueur(jeu, idJ); if (!j) return false;
+    if (!j.choix && jeu.choix && jeu.choix.id === idJ) j.choix = jeu.choix; // (un choix posé tel quel sur jeu.choix)
+    const c = j.choix; if (!c || !c.options.includes(k)) return false;
+    const A = D.ATOUTS[k];
     j.atouts[k] = rang(j, k) + 1; j.choixAttente = Math.max(0, j.choixAttente - 1);
     if (k === 'vie') { j.vieMax += A.par; j.vie = Math.min(j.vieMax, j.vie + A.par); }
-    jeu.choix = null; ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k] });
+    j.choix = null; jeu.choix = null; ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k] });
     proposer(jeu);
     return true;
   }
   function grenade(jeu, idJ) {
     const j = trouverJoueur(jeu, idJ); if (!j || !j.vivant || jeu.fini) return { ok: false, raison: 'mort' };
-    if (jeu.choix) return { ok: false, raison: 'choix' };
+    if (jeu.pauseChoix && jeu.choix) return { ok: false, raison: 'choix' };
     if (j.grenadeT > 0) return { ok: false, raison: 'recharge' };
     // la cible : le zombie qui a le plus de voisins à portée (sinon droit devant)
     const G = D.GRENADE, p2 = G.portee * G.portee, s2 = G.souffle * G.souffle; let cible = null, score = -1;
@@ -281,6 +290,7 @@
       }
     }
     for (const j of jeu.joueurs) majJoueur(jeu, j, entrees[j.id] || null, dt);
+    if (jeu.joueurs.length > 1) relever(jeu, dt);
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
@@ -294,6 +304,16 @@
     return jeu.evs;
   }
 
+  // à plusieurs : un survivant à terre se relève si un copain reste près de lui (RELEVE s) ; il repart avec 40 % de sa vie
+  const RELEVE = 2.5, PRES = 1.7;
+  function relever(jeu, dt) {
+    for (const j of jeu.joueurs) {
+      if (j.vivant || j.parti) continue;
+      const aide = jeu.joueurs.find((k) => k.vivant && Math.hypot(k.x - j.x, k.z - j.z) < PRES);
+      j.releve = aide ? j.releve + dt : Math.max(0, j.releve - dt * 0.5);
+      if (j.releve >= RELEVE) { j.vivant = true; j.releve = 0; j.vie = Math.round(j.vieMax * 0.4); j.invul = 2; ev(jeu, { t: 'releve', id: j.id, par: aide.id }); }
+    }
+  }
   function majJoueur(jeu, j, e, dt) {
     if (!j.vivant) return;
     if (j.invul > 0) j.invul -= dt;
@@ -304,6 +324,8 @@
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
     j.bouge = l > 0.05 ? Math.min(1, l) : 0;
+    // en ligne, le client prédit son déplacement et envoie sa position : l'hôte l'adopte si elle est à moins de 2,5 m de la sienne
+    if (e && typeof e.x === 'number' && typeof e.z === 'number' && Number.isFinite(e.x) && Number.isFinite(e.z) && Math.hypot(e.x - j.x, e.z - j.z) < 2.5) { j.x = e.x; j.z = e.z; }
     // les défenses sont dures pour lui aussi (sauf les mines)
     for (const d of jeu.defenses) { if (d.type === 'mine') continue; pousserCercle(j, d.x, d.z, D.DEFENSES[d.type].rayon); }
     jeu.monde.pousser(j);
@@ -342,7 +364,7 @@
     if (!j.vivant || j.invul > 0) return;
     j.vie -= deg; j.invul = D.JOUEUR.invulnerable;
     ev(jeu, { t: 'blesse', id: j.id, degats: Math.round(deg) });
-    if (j.vie <= 0) { j.vie = 0; j.vivant = false; ev(jeu, { t: 'tombe', id: j.id }); }
+    if (j.vie <= 0) { j.vie = 0; j.vivant = false; j.releve = 0; j.choix = null; ev(jeu, { t: 'tombe', id: j.id }); majChoixGlobal(jeu); }
   }
 
   function majZombies(jeu, dt) {

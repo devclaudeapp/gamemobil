@@ -78,12 +78,13 @@ const ZHUD = (() => {
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
       <div class="h-degats" aria-hidden="true"></div>
+      <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -209,13 +210,29 @@ const ZHUD = (() => {
     const gr = j.grenadeT > 0 ? j.grenadeT / Math.max(0.1, ZJEU.rechargeGrenade ? ZJEU.rechargeGrenade(j) : D.GRENADE.recharge) : 0, gk = gr > 0 ? Math.ceil(gr * 20) : 0;
     if (vu.gren !== gk) { vu.gren = gk; el.grenVoile.style.height = `${Math.min(100, gr * 100)}%`; el.gren.classList.toggle('prete', gk === 0); }
     // le choix d'un atout (la partie attend)
-    const c = jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null, cc = c ? c.niveau + ':' + c.options.join() : '';
+    const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
       vu.choix = cc; el.choix.hidden = !c;
       if (c) {
         el.choixT.textContent = `NIVEAU ${c.niveau} !`;
         el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');
       }
+    }
+    // la coop : le pseudo des copains au-dessus d'eux (« à terre » et la relève en cours) ; les annonces quand quelqu'un tombe ou se relève
+    if (projeter) {
+      let k = 0;
+      for (const p of jeu.joueurs) {
+        if (p.id === idMoi || p.parti || k >= el.noms.length) continue;
+        const sp = el.noms[k++], q = projeter(p.x, 3.1, p.z), txt = p.vivant ? p.pseudo : `${p.pseudo} · à terre${p.releve > 0 ? ' ' + Math.min(100, Math.round(p.releve / 2.5 * 100)) + ' %' : ''}`;
+        if (sp.textContent !== txt) sp.textContent = txt;
+        sp.classList.toggle('terre', !p.vivant); sp.hidden = false; sp.style.transform = `translate(${q[0].toFixed(0)}px, ${q[1].toFixed(0)}px) translate(-50%, -50%)`;
+      }
+      for (; k < el.noms.length; k++) el.noms[k].hidden = true;
+    }
+    if (evs && jeu.joueurs.length > 1) for (const e of evs) {
+      const p = jeu.joueurs.find((x) => x.id === e.id);
+      if (e.t === 'tombe' && p) { if (e.id === idMoi) { if (jeu.joueurs.some((x) => x.vivant)) annonce('À TERRE', 'Un copain doit rester près de toi pour te relever', 3); } else toast(`${p.pseudo} est à terre : va le relever !`); }
+      else if (e.t === 'releve' && p) toast(e.id === idMoi ? 'Relevé ! Merci les copains' : `${p.pseudo} est relevé`);
     }
     // les chiffres de dégâts : un par zombie touché et par image (les plombs d'un même coup s'additionnent), les critiques en grand
     if (evs && projeter) {

@@ -205,6 +205,30 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(D.MEDAILLES.parVague > 0 && Object.values(D.BUNKER).every((b) => b.prix.length === b.crans && b.prix.every((x, i) => !i || x > b.prix[i - 1])), 'chaque amélioration du Bunker a un prix par cran, qui monte');
 }
 
+// ─── la coop : à plusieurs, le choix d'un atout n'arrête pas la partie ; un copain à terre se relève ; la position du client ───
+{
+  const jeu = J.creer({ arene: 'jardin', graine: 31, attente: 99, joueurs: [{ id: 'a', pseudo: 'Alice' }, { id: 'b', pseudo: 'Bob', bonus: { vie: 3 } }] }), [a, b] = jeu.joueurs;
+  check(!jeu.pauseChoix && b.vieMax === a.vieMax + 3 * D.BUNKER.vie.par, 'à plusieurs : pas de pause pour les atouts, et chacun ses bonus du Bunker');
+  a.choixAttente = 1; a.xp = 0; jeu.zombies.push({ id: 9100, type: 'trainard', x: a.x + 2, z: a.z, vie: 0.5, vieMax: 0.5, vitesse: 0, rayon: 0.42, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
+  a.xp = 1e4; let n = 0; while (!a.choix && n++ < 300) J.pas(jeu, null, PAS);
+  const t0 = jeu.t; J.pas(jeu, null, PAS);
+  check(a.choix && !jeu.choix && jeu.t > t0, 'Alice passe un niveau : ses atouts l’attendent, la partie continue');
+  check(J.choisirAtout(jeu, 'a', a.choix.options[0]) && !J.choisirAtout(jeu, 'b', 'degats'), 'Alice choisit le sien ; Bob ne peut pas choisir à sa place');
+  // Bob tombe : la partie continue ; Alice reste près de lui, il se relève avec 40 % de sa vie
+  b.vie = 1; b.invul = 0; a.x = -15; a.z = -15; jeu.zombies.length = 0; jeu.zombies.push({ id: 9200, type: 'golem', x: b.x + 1.2, z: b.z, vie: 1e9, vieMax: 1e9, vitesse: 0, rayon: 1.05, angle: 0, chemin: null, ci: 0, repense: 9, coup: 0, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
+  let evs = avancer(jeu, 20); jeu.zombies.length = 0;
+  check(!b.vivant && !jeu.fini && evs.some((e) => e.t === 'tombe' && e.id === 'b'), 'Bob tombe : la partie continue tant qu’Alice est debout');
+  a.x = b.x + 1; a.z = b.z; evs = avancer(jeu, 60 * 3);
+  check(b.vivant && b.vie === Math.round(b.vieMax * 0.4) && evs.some((e) => e.t === 'releve' && e.id === 'b' && e.par === 'a'), `Alice reste près de Bob : il se relève (${b.vie} points de vie)`);
+  // la position proposée par le client : adoptée si plausible, refusée sinon
+  const bx = b.x; J.pas(jeu, { b: { mx: 0, mz: 0, x: bx + 1, z: b.z } }, PAS);
+  check(Math.abs(b.x - (bx + 1)) < 0.05, 'la position envoyée par le client est adoptée si elle est plausible');
+  J.pas(jeu, { b: { mx: 0, mz: 0, x: b.x + 9, z: b.z } }, PAS);
+  check(Math.abs(b.x - (bx + 1)) < 0.2, 'et refusée si elle saute trop loin');
+  a.vie = 0; a.vivant = false; b.vie = 0; b.vivant = false; evs = avancer(jeu, 2);
+  check(jeu.fini && evs.some((e) => e.t === 'fin'), 'tout le monde à terre : la partie s’arrête');
+}
+
 // ─── un joueur automatique sur chaque arène : plusieurs vagues tenues, aucune bloquée ; le temps de calcul ───
 {
   function bot(jeu) {
