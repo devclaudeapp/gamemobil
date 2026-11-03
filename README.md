@@ -1,6 +1,6 @@
-# Salle de jeux · Le Fournil · Opération Poncin
+# Salle de jeux · Le Fournil · Opération Poncin · Dernier Rempart
 
-Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouvre un **écran d'accueil** (`index.html`, à la racine) qui liste les jeux, chacun dans son dossier. Le premier est **Le Fournil** (`fournil/`), le deuxième **Opération Poncin** (`poncin/`) ; une place attend le suivant.
+Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouvre un **écran d'accueil** (`index.html`, à la racine) qui liste les jeux, chacun dans son dossier. Le premier est **Le Fournil** (`fournil/`), le deuxième **Opération Poncin** (`poncin/`), le troisième **Dernier Rempart** (`zombies/`).
 
 ### L'écran d'accueil
 
@@ -16,6 +16,18 @@ Une icône du Fournil installée avant l'accueil continue d'ouvrir directement l
 3. son icône dans `SHELL` du `sw.js` de la racine, et `CACHE` passé à la version suivante (`accueil-v2`…), pour que l'accueil hors ligne la montre.
 
 Three.js est partagé dans `vendor/`. Chaque jeu choisit une clé de sauvegarde à son nom (`fournil.v2` pour Le Fournil).
+
+## Dernier Rempart
+
+Un jeu de **survie par vagues, vu de dessus** (3D low-poly, caméra inclinée qui suit le survivant) : les zombies sortent de terre aux bords de l'arène et marchent sur toi ; tu cours au pouce, ton survivant **tire tout seul** sur le plus proche. Les zombies abattus laissent de la **ferraille**, qui file vers toi quand tu passes près d'elle ; elle paie l'**atelier**, à droite de l'écran : des **défenses** posées à tes pieds (tourelle, barricade, mine, mortier, épouvantail ; leur nombre permis monte avec les vagues) et des **améliorations** pour la partie (dégâts, cadence, vie, aimant, solidité des défenses). Des **caisses d'armes** tombent à chaque vague (revolver, fusil à pompe, mitraillette, fusil d'assaut, carabine) ; leurs munitions épuisées, on repasse au pistolet sans fin. Un **boss** toutes les cinq vagues, à tour de rôle (Golem squelette, loup-garou, Golem de glace, vampire) ; tuer vite donne une **série** (points ×2, ×3, ×4). Trois arènes : **le Jardin**, puis **le Parking** (vague 5 au Jardin) et **la Ferme** (vague 8 au Parking). Il se joue **à l'horizontale** (en portrait, « Tourne ton téléphone » et la partie attend en pause ; sur Android, le paysage est verrouillé quand c'est possible), et **hors ligne** (`zombies/sw.js`).
+
+Chaque zombie abattu donne de l'**expérience** ; à chaque **niveau**, la partie s'arrête sur **trois atouts au choix** parmi douze (tir double, balles perforantes, coups critiques, régénération, vitesse, portée, grenades…, cumulables jusqu'à leur maximum). Une **grenade** part d'un bouton vers le plus gros groupe, puis se recharge. Les **dégâts s'affichent** au-dessus des zombies touchés (les coups critiques en grand, en orange ; ceux qu'on reçoit en rouge). En fin de partie, des **médailles** (vagues, zombies, boss) paient le **Bunker** : des améliorations permanentes pour les parties suivantes (vie et ferraille au départ, dégâts, expérience, recharge des grenades, une arme dès le départ).
+
+- **Les sources** (`src-zombies/`, assemblées par `build.js` en `zombies/index.html`) : `donnees.js` (armes, zombies, défenses, améliorations, vagues, arènes : on équilibre ici, sans toucher à la logique), `monde.js` (collisions, lignes de vue, balles qui passent au-dessus des obstacles bas), `jeu.js` (la simulation à pas fixe, avec graine : même graine, même partie ; les joueurs sont déjà une liste, pour les salons à venir), `modeles.js` (les modèles 3D, l'animation de la horde précalculée), `rendu.js` (Three.js : le décor fusionné, la horde instanciée), `controles.js`, `hud.js`, `sons.js`, `ui.js`.
+- **Repris d'Opération Poncin** : la navigation A*/JPS (`src-poncin/nav.js`, telle quelle : deux grilles, une pour les gros zombies), les sons synthétisés (`src-poncin/sons.js`, plus les grognements et explosions de `src-zombies/sons.js`), le joystick flottant (adapté dans `src-zombies/controles.js`).
+- **La sauvegarde** : `zombies.v1` dans localStorage (records par arène, totaux, réglages) ; la Salle de jeux y lit le meilleur record.
+- **La 3D** : des modèles CC0 dans `zombies/modeles/` — la horde, le survivant, la tourelle, le mortier et les voitures de **Kenney** (Graveyard Kit, Tower Defense Kit, Car Kit), les boss de **KayKit** (Skeletons, Mystery Series, Character Animations) — préparés par `outils/zombies/faire-modeles.mjs` (meshopt) ; le décor des arènes est fait main dans le même style. Sans les modèles (premier lancement hors ligne, fichier absent), le jeu garde des formes faites main. Licences : `zombies/LICENCE.txt`.
+- **Les tests** : `node test/zombies.test.js` (les règles, un joueur automatique sur chaque arène) et `node test/zombies-play.cjs` (Playwright, iPhone simulé, hors ligne compris), dans la tâche `zombies` de `.github/workflows/pages.yml`.
 
 ## Opération Poncin
 

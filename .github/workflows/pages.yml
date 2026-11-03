@@ -344,8 +344,33 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_PROGRESSION: '8894'
+  # Dernier Rempart (zombies/) : ses règles pures dans Node (données, monde, vagues, atelier, armes, la navigation de Poncin réutilisée, un
+  # joueur automatique sur chaque arène), puis de bout en bout sur un iPhone simulé (carte de la Salle de jeux, titre, joystick, vague,
+  # tourelle, pause, fin et record, portrait, hors ligne par le service worker). Une tâche à part : quelques minutes.
+  zombies:
+    name: Dernier Rempart (Node et Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les règles, puis le jeu au doigt
+        run: |
+          node build.js
+          node test/zombies.test.js
+          node test/zombies-play.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_ZOMBIES: '8894'
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, zombies]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -361,7 +386,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js && node test/fournil-progression.test.js && node test/fournil-garderobe.test.js && node test/fournil-chaine.test.js && node test/fournil-chaine-sim.js --court --test && node test/fournil-vignettes.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js && node test/fournil-progression.test.js && node test/fournil-garderobe.test.js && node test/fournil-chaine.test.js && node test/fournil-chaine-sim.js --court --test && node test/fournil-vignettes.test.js && node test/zombies.test.js
         env:
           TZ: Europe/Paris
       # La version d'essai : la branche du lot, construite à part (node build.js --essai n'écrit que fournil-essai/), testée, puis posée à

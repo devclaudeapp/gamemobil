@@ -1,0 +1,19 @@
+{
+  "name": "Dernier Rempart",
+  "short_name": "Rempart",
+  "description": "Tiens bon face aux vagues de zombies : ramasse la ferraille, pose tes tourelles et tes barricades, et tire !",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "../",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1F2533",
+  "theme_color": "#1F2533",
+  "categories": ["games"],
+  "icons": [
+    { "src": "../icons/zombies.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "../icons/zombies-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/zombies-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "../icons/zombies-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
