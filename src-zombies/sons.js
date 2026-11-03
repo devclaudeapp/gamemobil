@@ -45,6 +45,15 @@ const ZSONS = (() => {
       for (const [f, u] of [[98, 0], [147, 0.32]]) { const o = osc(ctx, d, 'sawtooth', f, f * 0.98, t + u, 0.9, 0.12 * v, 0.08); void o; osc(ctx, d, 'sine', f * 2, f * 2, t + u, 0.9, 0.06 * v, 0.08); }
     },
     serie(ctx, d, t, v, h) { for (let k = 0; k < 3; k++) osc(ctx, d, 'triangle', 660 * h * Math.pow(1.26, k), 660 * h * Math.pow(1.26, k), t + k * 0.06, 0.12, 0.12 * v, 0.004); },
+    // les nouvelles armes
+    flamme(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 900, 500, 0.7, t, 0.16, 0.32 * v); souffle(ctx, d, 'bandpass', 2400, 1400, 1.5, t, 0.08, 0.08 * v); },
+    cryo(ctx, d, t, v) { souffle(ctx, d, 'highpass', 3500, 5000, 0.8, t, 0.14, 0.18 * v); osc(ctx, d, 'sine', 2400, 1900, t, 0.08, 0.03 * v); },
+    tesla(ctx, d, t, v) { for (let k = 0; k < 3; k++) souffle(ctx, d, 'bandpass', 3000 + Math.random() * 3000, 1500, 4, t + k * 0.025, 0.05, 0.35 * v); osc(ctx, d, 'sawtooth', 120, 60, t, 0.18, 0.12 * v); },
+    roquette(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 1600, 300, 0.8, t, 0.45, 0.5 * v); osc(ctx, d, 'triangle', 220, 90, t, 0.25, 0.15 * v); },
+    scie(ctx, d, t, v) { const o = osc(ctx, d, 'sawtooth', 900, 1500, t, 0.35, 0.07 * v); void o; souffle(ctx, d, 'bandpass', 2500, 4000, 6, t, 0.3, 0.12 * v); },
+    laser(ctx, d, t, v) { osc(ctx, d, 'square', 1800, 300, t, 0.12, 0.08 * v, 0.003); osc(ctx, d, 'sine', 900, 200, t, 0.14, 0.12 * v, 0.003); },
+    arc(ctx, d, t, v) { souffle(ctx, d, 'bandpass', 600, 1800, 3, t, 0.09, 0.4 * v); osc(ctx, d, 'triangle', 300, 120, t, 0.06, 0.12 * v, 0.002); },
+    acide(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 700, 200, 1.5, t, 0.2, 0.4 * v); osc(ctx, d, 'sine', 140, 70, t, 0.18, 0.2 * v); },
     piece(ctx, d, t, v, h) { osc(ctx, d, 'square', 1320 * h, 1320 * h, t, 0.05, 0.05 * v, 0.002); osc(ctx, d, 'square', 1760 * h, 1760 * h, t + 0.045, 0.08, 0.05 * v, 0.002); },
   };
   function jouer(nom, v, p, h) {
@@ -54,7 +63,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -70,8 +79,12 @@ const ZSONS = (() => {
         case 'tir': {
           if (e.b) break; // une seule détonation pour les plombs d'un même coup
           const mien = e.de === idMoi, [k, p] = mien ? [1, 0] : ecoute(e.x, e.z, 30);
-          if (k > 0.02) P.jouer(CLASSE[e.arme] || 'pistolet', (mien ? 0.75 : 0.45) * k, p, e.cle === 'tourelle' ? 1.25 : 1, mien ? 0 : 0.3);
-          if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' ? 18 : 6);
+          if (k > 0.02) {
+            if (CLASSE[e.arme]) P.jouer(CLASSE[e.arme], (mien ? 0.75 : 0.45) * k, p, e.cle === 'tourelle' ? 1.25 : 1, mien ? 0 : 0.3);
+            else if (SONS[e.arme]) { const t = performance.now(); if (e.arme !== 'flamme' && e.arme !== 'cryo' || t - souffleT > 90) { souffleT = t; jouer(e.arme, (mien ? 0.9 : 0.5) * k, p); } }
+            else P.jouer('pistolet', 0.5 * k, p);
+          }
+          if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' || e.arme === 'roquette' ? 18 : e.arme === 'flamme' || e.arme === 'cryo' ? 0 : 6);
           break;
         }
         case 'touche': { const t = performance.now(); if (e.crit && e.de === idMoi && t - critT > 120) { critT = t; P.jouer('ding', 0.55); } if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }

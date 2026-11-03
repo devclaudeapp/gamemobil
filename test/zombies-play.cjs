@@ -103,6 +103,13 @@ const BASE = `http://localhost:${PORT}/`;
   // la suite du parcours ne doit pas être coupée par un vrai passage de niveau (la CI tire vite) : plus d'expérience, et un choix en cours est pris
   await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = -1e9; p.choixAttente = 0; if (j.choix) ZJEU.choisirAtout(j, j.choix.id, j.choix.options[0]); });
   await sleep(150);
+  // l'arsenal : une arme de caisse (le fusil Tesla) se tient en modèle 3D (Blaster Kit), son icône au HUD ; l'éclair saute de zombie en zombie
+  await page.waitForFunction(() => window.__zombies.stats().rendu.armes === 'pret', null, { timeout: 20000 }).catch(() => {});
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.armes[1] = { id: 'tesla', mun: 80 }; p.main = 1; });
+  await sleep(500);
+  const ars = await P(() => ({ r: window.__zombies.stats().rendu, nom: document.querySelector('.h-arme-nom').textContent, ico: !!document.querySelector('.h-slot[data-i="1"] .ico-arme svg') }));
+  check(ars.r.armes === 'pret' && ars.r.tenues.includes('tesla') && /TESLA/i.test(ars.nom) && ars.ico, `l’arme en main en modèle 3D (${ars.r.tenues.join(', ')}), son nom (« ${ars.nom} ») et son icône au HUD`);
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.armes[1] = null; p.main = 0; });
   // la grenade
   await page.tap('.h-grenade'); await sleep(200);
   const gren = await P(() => ({ obus: window.__zombies.jeu.obus.some((o) => o.grenade), recharge: window.__zombies.jeu.joueurs[0].grenadeT > 0, prete: document.querySelector('.h-grenade').classList.contains('prete') }));

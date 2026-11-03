@@ -13,15 +13,40 @@
 
   // ─── les armes ───
   // degats par balle, cadence (tirs/s), portee (m), balles par tir et dispersion (rad), munitions trouvées dans une caisse (Infinity : sans fin),
-  // perce : nombre de zombies traversés, recul : poussée sur le zombie touché, classe : le son (src-poncin/sons.js), rarete : poids dans les caisses
+  // perce : nombre de zombies traversés, recul : poussée sur le zombie touché, classe : le son, rarete : poids dans les caisses, depuis : la
+  // première vague où une caisse peut la donner ; modele : le blaster du Blaster Kit de Kenney (zombies/modeles/armes/), teinte : sa couleur ;
+  // famille : l'icône du HUD. mode : 'balle' (instantanée, par défaut), 'flamme' (un cône continu ; feu : brûlure, gel : ralentit),
+  // 'tesla' (un éclair qui saute de zombie en zombie : rebonds, saut), 'roquette' (part droit, explose : souffle), 'obus' (en cloche,
+  // explose ; flaque : une flaque qui ronge), 'scie' (un disque qui traverse tout et revient). salve : balles tirées d'affilée ;
+  // montee : secondes pour atteindre la pleine cadence ; sansPerte : traverse sans perdre de dégâts ; explose : petite explosion à l'impact.
   const ARMES = {
-    pistolet:     { nom: 'Pistolet',      degats: 14, cadence: 3.2,  portee: 9,  balles: 1, dispersion: 0.03, munitions: Infinity, perce: 0, recul: 0.25, classe: 'pistolet',     couleur: '#5B8BD9', rarete: 0,  depuis: 1 },
-    revolver:     { nom: 'Revolver',      degats: 38, cadence: 1.6,  portee: 11, balles: 1, dispersion: 0.02, munitions: 48,       perce: 1, recul: 0.6,  classe: 'pistolet',     couleur: '#C9563C', rarete: 30, depuis: 1 },
-    pompe:        { nom: 'Fusil à pompe', degats: 13, cadence: 1.15, portee: 7,  balles: 7, dispersion: 0.32, munitions: 30,       perce: 0, recul: 1.0,  classe: 'pompe',        couleur: '#8A5A2B', rarete: 26, depuis: 2 },
-    mitraillette: { nom: 'Mitraillette',  degats: 11, cadence: 10,   portee: 9,  balles: 1, dispersion: 0.09, munitions: 220,      perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#3E9C6B', rarete: 24, depuis: 3 },
-    fusil:        { nom: 'Fusil d’assaut', degats: 19, cadence: 6.5, portee: 12, balles: 1, dispersion: 0.05, munitions: 180,      perce: 1, recul: 0.2,  classe: 'fusil',        couleur: '#6C6F7D', rarete: 18, depuis: 4 },
-    precision:    { nom: 'Carabine',      degats: 95, cadence: 0.9,  portee: 16, balles: 1, dispersion: 0.0,  munitions: 28,       perce: 4, recul: 1.2,  classe: 'sniper',       couleur: '#9B6BD6', rarete: 10, depuis: 5 },
+    pistolet:      { nom: 'Pistolet',          famille: 'pistolet', modele: 'r', teinte: '#7FA8E8', degats: 14, cadence: 3.2,  portee: 9,   balles: 1,  dispersion: 0.03, munitions: Infinity, perce: 0, recul: 0.25, classe: 'pistolet',     couleur: '#5B8BD9', rarete: 0,  depuis: 1 },
+    revolver:      { nom: 'Revolver',          famille: 'pistolet', modele: 'a', teinte: '#C9C2B6', degats: 38, cadence: 1.6,  portee: 11,  balles: 1,  dispersion: 0.02, munitions: 48,  perce: 1, recul: 0.6,  classe: 'pistolet',     couleur: '#C9563C', rarete: 30, depuis: 1 },
+    jumeaux:       { nom: 'Pistolets jumeaux', famille: 'pistolet', modele: 'r', teinte: '#F2C94C', degats: 12, cadence: 7,    portee: 8.5, balles: 1,  dispersion: 0.1,  munitions: 160, perce: 0, recul: 0.2,  classe: 'pistolet',     couleur: '#E0B23A', rarete: 24, depuis: 2 },
+    mitraillette:  { nom: 'Mitraillette',      famille: 'mitraillette', modele: 'd', degats: 11, cadence: 10,  portee: 9,   balles: 1,  dispersion: 0.09, munitions: 220, perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#3E9C6B', rarete: 24, depuis: 3 },
+    vipere:        { nom: 'Vipère',            famille: 'mitraillette', modele: 'j', teinte: '#7BD389', degats: 8,  cadence: 15,  portee: 7,   balles: 1,  dispersion: 0.14, munitions: 300, perce: 0, recul: 0.1,  classe: 'mitraillette', couleur: '#5DBB63', rarete: 18, depuis: 4 },
+    pompe:         { nom: 'Fusil à pompe',     famille: 'pompe', modele: 'l', degats: 13, cadence: 1.15, portee: 7,   balles: 7,  dispersion: 0.32, munitions: 30,  perce: 0, recul: 1.0,  classe: 'pompe',        couleur: '#8A5A2B', rarete: 26, depuis: 2 },
+    doublecanon:   { nom: 'Double canon',      famille: 'pompe', modele: 'o', teinte: '#B07A48', degats: 16, cadence: 0.8,  portee: 6.5, balles: 12, dispersion: 0.5,  munitions: 20,  perce: 0, recul: 1.6,  classe: 'pompe',        couleur: '#A0522D', rarete: 14, depuis: 5 },
+    pompeauto:     { nom: 'Pompe automatique', famille: 'pompe', modele: 'q', degats: 10, cadence: 3,    portee: 6.5, balles: 6,  dispersion: 0.36, munitions: 60,  perce: 0, recul: 0.8,  classe: 'pompe',        couleur: '#7A4E2A', rarete: 10, depuis: 8 },
+    cloueuse:      { nom: 'Cloueuse',          famille: 'pompe', modele: 'q', teinte: '#9AA7B8', degats: 11, cadence: 5,    portee: 9,   balles: 3,  dispersion: 0.18, munitions: 150, perce: 1, recul: 0.3,  classe: 'mitraillette', couleur: '#8E9AAB', rarete: 12, depuis: 6 },
+    fusil:         { nom: 'Fusil d’assaut',    famille: 'fusil', modele: 'g', degats: 19, cadence: 6.5,  portee: 12,  balles: 1,  dispersion: 0.05, munitions: 180, perce: 1, recul: 0.2,  classe: 'fusil',        couleur: '#6C6F7D', rarete: 18, depuis: 4 },
+    rafale:        { nom: 'Fusil à rafales',   famille: 'fusil', modele: 'p', degats: 24, cadence: 2.2,  portee: 13,  balles: 1,  dispersion: 0.03, munitions: 150, perce: 1, recul: 0.25, classe: 'fusil',        couleur: '#4F5D75', rarete: 14, depuis: 6, salve: 3 },
+    minigun:       { nom: 'Minigun',           famille: 'mitraillette', modele: 'k', teinte: '#8C8C8C', degats: 10, cadence: 22,  portee: 10,  balles: 1,  dispersion: 0.12, munitions: 500, perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#5F6368', rarete: 6, depuis: 12, montee: 1.2 },
+    precision:     { nom: 'Carabine',          famille: 'sniper', modele: 'e', degats: 95, cadence: 0.9,  portee: 16,  balles: 1,  dispersion: 0.0,  munitions: 28,  perce: 4, recul: 1.2,  classe: 'sniper',       couleur: '#9B6BD6', rarete: 10, depuis: 5 },
+    canon:         { nom: 'Canon de précision', famille: 'sniper', modele: 'f', teinte: '#6E5AA8', degats: 240, cadence: 0.5, portee: 20,  balles: 1,  dispersion: 0.0,  munitions: 16,  perce: 10, recul: 2.0, classe: 'sniper',       couleur: '#5B3FA0', rarete: 6, depuis: 10, sansPerte: true },
+    arbalete:      { nom: 'Arbalète',          famille: 'sniper', modele: 'n', teinte: '#A47148', degats: 70, cadence: 1.4,  portee: 13,  balles: 1,  dispersion: 0.01, munitions: 40,  perce: 3, recul: 0.9,  classe: 'arc',          couleur: '#8B5A2B', rarete: 12, depuis: 3 },
+    roquettes:     { nom: 'Lance-roquettes',   famille: 'lanceur', modele: 'h', degats: 150, cadence: 0.8, portee: 14,  balles: 1,  dispersion: 0.0,  munitions: 12,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#C0392B', rarete: 8, depuis: 7, mode: 'roquette', souffle: 2.8, vitesse: 16 },
+    lancegrenades: { nom: 'Lance-grenades',    famille: 'lanceur', modele: 'm', degats: 90, cadence: 1.4,  portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 24,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#556B2F', rarete: 12, depuis: 5, mode: 'obus', souffle: 2.4 },
+    acide:         { nom: 'Lance-acide',       famille: 'lanceur', modele: 'm', teinte: '#A8E04A', degats: 25, cadence: 1.6, portee: 10,  balles: 1,  dispersion: 0.0,  munitions: 30,  perce: 0, recul: 0,    classe: 'acide',        couleur: '#8CC63F', rarete: 10, depuis: 6, mode: 'obus', souffle: 1.6, flaque: { r: 1.9, dps: 26, duree: 4 } },
+    scie:          { nom: 'Lance-scies',       famille: 'lanceur', modele: 'b', teinte: '#D0D6DE', degats: 45, cadence: 1.5, portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 30,  perce: 99, recul: 0.4, classe: 'scie',         couleur: '#B8C2CC', rarete: 9, depuis: 8, mode: 'scie', vitesse: 13 },
+    tesla:         { nom: 'Fusil Tesla',       famille: 'energie', modele: 'i', teinte: '#6FD3FF', degats: 32, cadence: 2.5, portee: 9,   balles: 1,  dispersion: 0.0,  munitions: 80,  perce: 0, recul: 0.2,  classe: 'tesla',        couleur: '#3BB7F0', rarete: 9, depuis: 6, mode: 'tesla', rebonds: 4, saut: 3.4 },
+    laser:         { nom: 'Laser',             famille: 'energie', modele: 'n', teinte: '#FF5C8A', degats: 26, cadence: 4,   portee: 16,  balles: 1,  dispersion: 0.0,  munitions: 90,  perce: 99, recul: 0.1, classe: 'laser',        couleur: '#FF3D6E', rarete: 8, depuis: 9, sansPerte: true },
+    plasma:        { nom: 'Fusil à plasma',    famille: 'energie', modele: 'c', teinte: '#B48CFF', degats: 30, cadence: 3,   portee: 12,  balles: 1,  dispersion: 0.02, munitions: 90,  perce: 0, recul: 0.3,  classe: 'laser',        couleur: '#9B6BFF', rarete: 8, depuis: 9, explose: { souffle: 1.4, degats: 28 } },
+    flammes:       { nom: 'Lance-flammes',     famille: 'flamme', modele: 'b', teinte: '#FF8A3A', degats: 6,  cadence: 10,  portee: 4.8, balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0.05, classe: 'flamme',       couleur: '#FF7A1A', rarete: 10, depuis: 4, mode: 'flamme', cone: 0.36, feu: { dps: 16, duree: 2.5 } },
+    cryo:          { nom: 'Cryo-canon',        famille: 'flamme', modele: 'c', teinte: '#9FE7FF', degats: 3,  cadence: 10,  portee: 5,   balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0,    classe: 'cryo',         couleur: '#7FD6F5', rarete: 9, depuis: 7, mode: 'flamme', cone: 0.32, gel: { ralenti: 0.4, duree: 2.5 } },
   };
+  // les raretés, d'après le poids dans les caisses (l'écran de la collection et la couleur du nom à la caisse)
+  const RARETE = (a) => (a.rarete === 0 || a.rarete >= 20 ? 'commune' : a.rarete >= 12 ? 'rare' : a.rarete >= 8 ? 'epique' : 'legendaire');
   const ARME_DE_BASE = 'pistolet';
 
   // ─── les zombies ───
@@ -179,5 +204,5 @@
     borneScore(v) { let s = 0; for (let n = 1; n <= v; n++) s += Math.ceil(VAGUES.nombre(n) * 1.5) * 40 * 4 * 2 + 600 * 4 * 2 + VAGUES.prime(n); return s; },
   };
 
-  return { DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
