@@ -420,6 +420,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hi-annonce { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); margin: 0; color: #fff; font: 700 24px/1.2 var(--titre); text-align: center; }
 .hi-bond { position: absolute; right: calc(24px + var(--hd)); bottom: calc(24px + var(--hb)); width: 96px; height: 96px; border-radius: 50%; border: 4px solid var(--encre); background: conic-gradient(rgba(31, 37, 51, .75) var(--recharge, 0%), #8FD14F 0); font: 700 16px/1 var(--titre); color: var(--encre); box-shadow: 0 5px 0 rgba(31, 37, 51, .4); }
 .hi-bond.pret { background: #8FD14F; }
+
+/* ─── le social ─── */
+.social { width: min(500px, 100%); max-height: 100%; overflow-y: auto; gap: 8px; }
+.soc-corps { display: grid; gap: 8px; text-align: left; }
+.soc-liste { max-height: 230px; }
+.en-ligne { color: #2E9E5A !important; font-weight: 700; }
+.soc-amis li { flex-wrap: wrap; }
+.soc-amis li small { color: #6B7080; }
+.soc-amis .soc-rejoindre { margin-left: auto; min-height: 36px; padding: 4px 12px; font-size: 14px; }
+.soc-etat { margin: 0; color: #5A5F6B; font-size: 13px; }
+.soc-etat:empty { display: none; }
+#b-inconnu { justify-self: center; }
+.soc-ajout input { letter-spacing: normal; text-transform: none; text-align: left; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -450,6 +463,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
         <button type="button" class="moyen" id="b-collection">Collection</button>
+        <button type="button" class="moyen" id="b-social">Social</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -489,6 +503,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <label class="champ"><span>Ton pseudo</span><input id="s-pseudo" maxlength="16" autocomplete="nickname" placeholder="Survivant"></label>
         <button type="button" class="gros" id="b-creer">Créer un salon</button>
         <div class="rejoindre"><input id="s-code" maxlength="4" placeholder="CODE" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" class="moyen" id="b-rejoindre">Rejoindre</button></div>
+        <button type="button" class="moyen" id="b-inconnu">Avec un inconnu</button>
       </div>
       <div class="salon-dedans" hidden>
         <p class="resume">Le code du salon, à donner aux copains :</p>
@@ -559,6 +574,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <button type="button" class="mode-carte" id="b-mode-cps"><b>🎯 Chacun pour soi</b><span>À plusieurs, la même arme pour tous, pas de relève : le dernier debout gagne.</span></button>
       <button type="button" class="mode-carte" id="b-mode-duel"><b>⚔️ Duel</b><span>À deux : tes zombies abattus en envoient à l’autre. Monte les huit divisions.</span><small class="duel-div"></small></button>
       <button type="button" class="moyen" id="b-modes-retour">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-social" hidden>
+    <div class="carte-ecran social">
+      <h2>Social</h2>
+      <div class="onglets soc-onglets" role="tablist"><button type="button" role="tab" data-onglet="mondial">Mondial</button><button type="button" role="tab" data-onglet="amis">Amis</button><button type="button" role="tab" data-onglet="profil">Profil</button></div>
+      <div class="soc-corps"></div>
+      <p class="soc-etat"></p>
+      <button type="button" class="moyen" id="b-soc-retour">Retour</button>
     </div>
   </section>
 
@@ -5373,7 +5398,27 @@ const ZENLIGNE = (() => {
         return nettoyerClassement(r.data, p) || { ok: false, erreur: 'erreur' };
       } catch (e) { return { ok: false, erreur: 'erreur' }; }
     }
-    return { publier, lire, disponible, etat: () => ({ pseudo: etat.pseudo, rejoint: etat.rejoint }) };
+    // ─── le social (supabase/zombies-social.sql) : il faut avoir rejoint (un pseudo) ; rejoindre() le fait au besoin ───
+    async function rejoindre(pseudo) { if (etat.rejoint && (!pseudo || pseudoPour(pseudo) === etat.pseudo)) return { ok: true }; return publier(null, { pseudo: pseudo || etat.pseudo }); }
+    const avecId = (f) => async (...a) => { try { if (!etat.rejoint || !etat.id) return { ok: false, erreur: 'inconnu' }; return await f(...a); } catch (e) { return { ok: false, erreur: 'erreur' }; } };
+    const verdict = (r) => (!r.ok ? { ok: false, erreur: r.erreur } : r.data.ok === false ? { ok: false, erreur: texte(r.data.erreur || 'erreur', 40) } : Object.assign({ ok: true, erreur: null }, r.data));
+    // le profil : valeurs (score, vague, echelon, duel, infection, tues, skin) et le statut (« menu », « jeu », « salon:ABCD:coop »)
+    const profil = avecId(async (v, statut) => { v = v || {}; const a = { p_id: etat.id, p_jeton: etat.jeton, p_statut: statut || null };
+      for (const k of ['score', 'vague', 'echelon', 'duel', 'infection', 'tues']) if (v[k] != null) a['p_' + k] = entier(v[k]); if (v.skin) a.p_skin = String(v.skin);
+      return verdict(await appeler('zombies_profil_publier', a)); });
+    async function mondial(critere) {
+      try {
+        const r = await appeler('zombies_mondial', { p_critere: critere, p_id: etat.rejoint ? etat.id : null, p_limite: 100 }); if (!r.ok) return { ok: false, erreur: r.erreur };
+        if (!Array.isArray(r.data.lignes)) return { ok: false, erreur: r.data.erreur || 'erreur' };
+        return { ok: true, erreur: null, critere, joueurs: n0(r.data.joueurs), lignes: r.data.lignes.slice(0, 1000).map((x) => ({ rang: rangDe(x.rang), pseudo: texte(x.pseudo, 40), valeur: n0(x.valeur), skin: texte(x.skin, 20), enLigne: x.en_ligne === true, moi: x.moi === true })), moi: r.data.moi ? { rang: rangDe(r.data.moi.rang), valeur: n0(r.data.moi.valeur) } : null };
+      } catch (e) { return { ok: false, erreur: 'erreur' }; }
+    }
+    const amis = avecId(async () => { const r = verdict(await appeler('zombies_amis_liste', { p_id: etat.id, p_jeton: etat.jeton })); if (!r.ok) return r;
+      return { ok: true, erreur: null, amis: (Array.isArray(r.amis) ? r.amis : []).slice(0, 100).map((x) => ({ pseudo: texte(x.pseudo, 40), skin: texte(x.skin, 20), vague: n0(x.vague), echelon: n0(x.echelon), duel: n0(x.duel), enLigne: x.en_ligne === true, statut: texte(x.statut, 24) })) }; });
+    const ami = avecId(async (pseudo, retirer) => verdict(await appeler('zombies_ami', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: String(pseudo || '').slice(0, 64), p_retirer: !!retirer })));
+    // la file pour jouer avec un inconnu : on propose son code ; on reçoit celui d'un salon qui attendait (trouve), ou on attend
+    const file = avecId(async (mode, code) => { const r = verdict(await appeler('zombies_file_rejoindre', { p_id: etat.id, p_jeton: etat.jeton, p_mode: mode, p_code: code || null })); if (!r.ok) return r; return { ok: true, erreur: null, code: /^[A-Z]{4}$/.test(String(r.code || '')) ? r.code : null, trouve: r.trouve === true }; });
+    return { publier, lire, disponible, rejoindre, profil, mondial, amis, ami, file, etat: () => ({ pseudo: etat.pseudo, rejoint: etat.rejoint }) };
   }
 
   return { creer, jourParis, lundiDe, verifierPseudo, pseudoPour, nettoyerClassement, nettoyerPublication, REGLES, CLE };
@@ -5520,7 +5565,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -5675,7 +5720,7 @@ const ZENLIGNE = (() => {
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
-    finAscension(); finMode();
+    finAscension(); finMode(); if (CL.etat().rejoint) publierProfil('menu').catch(() => {});
     const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
     const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
@@ -6040,6 +6085,61 @@ const ZENLIGNE = (() => {
     }
   }
 
+  // ─── le social (supabase/zombies-social.sql) : classement mondial, amis (statut, invitations), profil ; jouer avec un inconnu ───
+  let ongletSoc = 'mondial', critereSoc = 'vague', statutPublie = '', statutT = 0;
+  const CRITERES = { vague: 'Meilleure vague', score: 'Meilleur score', echelon: 'Échelon de l’Ascension', duel: 'Points de duel', infection: 'Victoires d’Infection', tues: 'Zombies abattus' };
+  const MESSAGES_SOC = { absent: 'Le social demande le réseau (et Supabase).', 'hors-ligne': 'Pas de réseau pour l’instant.', 'pas-installe': 'Le social n’est pas encore ouvert (supabase/zombies-social.sql à installer).', inconnu: 'Choisis un pseudo (Défi du jour) pour entrer dans le social.', erreur: 'Indisponible pour l’instant.', lent: 'Le serveur ne répond pas.', soi: 'C’est toi !', complet: '100 amis au plus.', jeton: 'Identité refusée.', pseudo_pris: 'Ce pseudo est déjà pris.', pseudo_invalide: 'Pseudo : 2 à 16 lettres ou chiffres.' };
+  const valeursProfil = () => ({ score: Math.max(0, ...Object.values(save.records).map((r) => r.score || 0)), vague: Math.max(save.total.vagueMax || 0, ...Object.values(save.records).map((r) => r.vague || 0)), echelon: Math.max(0, save.ascension.echelon - 1), duel: save.duel.points, infection: save.infection.victoires, tues: save.total.tues, skin: save.collection.skin });
+  async function publierProfil(statut) { if (!CL.disponible() || !pseudoClassement()) return null; const r = await CL.rejoindre(save.pseudo); if (!r.ok) return r; return CL.profil(valeursProfil(), statut || statutCourant()); }
+  const statutCourant = () => (salon && !partie && salon.code ? `salon:${salon.code}:${modeSalon}` : jeu && ecran === 'jeu' ? 'jeu' : 'menu');
+  function majStatut() { // le statut en direct : quand il change, ou toutes les 2 minutes (les amis voient « en ligne » pendant 4)
+    if (!CL.disponible() || !save.pseudo || !CL.etat().rejoint) return;
+    const s = statutCourant(), t = performance.now(); if (s === statutPublie && t - statutT < 120e3) return;
+    statutPublie = s; statutT = t; CL.profil(null, s).catch(() => {});
+  }
+  setInterval(majStatut, 5000);
+  function ouvrirSocial() { for (const k in ecrans) ecrans[k].hidden = true; montrer('social'); remplirSocial(); publierProfil().catch(() => {}); }
+  async function remplirSocial() {
+    const box = $('.soc-corps'), etat = $('.soc-etat'); etat.textContent = '';
+    document.querySelectorAll('.soc-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletSoc)));
+    if (ongletSoc === 'profil') {
+      const v = valeursProfil();
+      box.innerHTML = `<dl class="asc-carte">${[['Pseudo', save.pseudo || '—'], ['Survivant', D.SURVIVANTS[v.skin].nom], ['Meilleure vague', v.vague], ['Meilleur score', v.score], ['Échelon', v.echelon], ['Duel', `${division(v.duel)} (${v.duel} pts)`], ['Infection', `${v.infection} victoire${v.infection > 1 ? 's' : ''}`], ['Zombies abattus', v.tues]].map(([a, b]) => `<dt>${a}</dt><dd>${echap(b)}</dd>`).join('')}</dl>`;
+      return;
+    }
+    if (!CL.disponible()) { box.innerHTML = ''; etat.textContent = MESSAGES_SOC.absent; return; }
+    if (ongletSoc === 'mondial') {
+      box.innerHTML = `<label class="champ"><span>Classé par</span><select id="soc-critere">${Object.keys(CRITERES).map((k) => `<option value="${k}"${k === critereSoc ? ' selected' : ''}>${CRITERES[k]}</option>`).join('')}</select></label><ol class="defi-liste soc-liste"></ol>`;
+      $('#soc-critere').addEventListener('change', (e) => { critereSoc = CRITERES[e.target.value] ? e.target.value : 'vague'; remplirSocial(); });
+      etat.textContent = 'Chargement…';
+      const r = await CL.mondial(critereSoc); if (ongletSoc !== 'mondial') return;
+      if (!r.ok) { etat.textContent = MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; return; }
+      $('.soc-liste').innerHTML = r.lignes.map((l) => `<li class="${l.moi ? 'moi' : ''}"><b>${l.rang}</b><span>${echap(l.pseudo)}${l.enLigne ? ' <small class="en-ligne">● en ligne</small>' : ''}</span><span class="score">${nf(l.valeur)}</span></li>`).join('') + (r.moi && !r.lignes.some((l) => l.moi) ? `<li class="moi loin"><b>${r.moi.rang}</b><span>Toi</span><span class="score">${nf(r.moi.valeur)}</span></li>` : '');
+      etat.textContent = `${pluriel(r.joueurs, 'joueur')} classé${r.joueurs > 1 ? 's' : ''} · top 1000`;
+    } else {
+      box.innerHTML = `<div class="rejoindre soc-ajout"><input id="soc-pseudo" maxlength="16" placeholder="Pseudo d’un ami" autocomplete="off"><button type="button" class="moyen" id="b-soc-ajout">Ajouter</button></div><ul class="liste-joueurs soc-amis"></ul>`;
+      $('#b-soc-ajout').addEventListener('click', async () => { const r = await CL.ami($('#soc-pseudo').value); etat.textContent = r.ok ? 'Ami ajouté.' : MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; if (r.ok) remplirSocial(); });
+      const r = await CL.amis(); if (ongletSoc !== 'amis') return;
+      if (!r.ok) { etat.textContent = MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; return; }
+      const statutTexte = (s) => (s === 'absent' ? 'hors ligne' : s === 'jeu' ? 'en partie' : /^salon:/.test(s) ? `attend dans son salon (${TITRES_SALON[s.split(':')[2]] || 'à plusieurs'})` : 'au menu');
+      $('.soc-amis').innerHTML = r.amis.map((a, i) => `<li><b>${echap(a.pseudo)}</b><small class="${a.enLigne ? 'en-ligne' : ''}">${statutTexte(a.statut)}</small>${/^salon:[A-Z]{4}:/.test(a.statut) ? `<button type="button" class="moyen soc-rejoindre" data-i="${i}">Rejoindre</button>` : ''}</li>`).join('') || '<li>Pas encore d’amis : ajoute-les par leur pseudo.</li>';
+      $('.soc-amis').querySelectorAll('.soc-rejoindre').forEach((b) => b.addEventListener('click', () => { const s = r.amis[+b.dataset.i].statut.split(':'); modeSalon = s[2]; ouvrirSalon(); $('#s-code').value = s[1]; entrerSalon(false); }));
+    }
+  }
+  // jouer avec un inconnu : on ouvre son salon et on le propose ; si quelqu'un attendait déjà dans ce mode, on rejoint le sien
+  let fileT = null;
+  async function avecInconnu() {
+    if (!CL.disponible()) { erreurSalon(MESSAGES_SOC.absent); return; }
+    if (!pseudoClassement() && ($('#s-pseudo').value || '').trim()) { save.pseudo = ZCLASSEMENT.pseudoPour($('#s-pseudo').value) || save.pseudo; ecrire(); }
+    const rj = await CL.rejoindre(save.pseudo); if (!rj.ok) { erreurSalon(MESSAGES_SOC[rj.erreur] || MESSAGES_SOC.inconnu); return; }
+    await entrerSalon(true); if (!salon) return;
+    const r = await CL.file(modeSalon, salon.code);
+    if (!r.ok) { erreurSalon(MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur); return; }
+    if (r.trouve && r.code) { quitterSalon(); $('#s-code').value = r.code; await entrerSalon(false); return; }
+    $('.salon-etat').hidden = false; $('.salon-etat').textContent = 'On cherche un inconnu… (le salon reste ouvert : donne aussi le code aux copains)';
+    clearInterval(fileT); fileT = setInterval(() => { if (!salon || partie || salon.joueurs().length > 1) { clearInterval(fileT); CL.file(modeSalon, null).catch(() => {}); if (salon) $('.salon-etat').hidden = true; return; } CL.file(modeSalon, salon.code).catch(() => {}); }, 30e3);
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -6059,6 +6159,10 @@ const ZENLIGNE = (() => {
   clic('#b-collection', ouvrirCollection);
   clic('#b-progression', ouvrirProgression);
   clic('#b-modes', ouvrirModes);
+  clic('#b-social', ouvrirSocial);
+  clic('#b-soc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  clic('#b-inconnu', avecInconnu);
+  document.querySelectorAll('.soc-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletSoc = b.dataset.onglet; PSONS.ui('tap'); remplirSocial(); }));
   clic('#b-mode-inf', () => { verrouiller(); demarrerInfection(); });
   clic('#b-mode-cps', () => { modeSalon = 'cps'; ouvrirSalon(); });
   clic('#b-mode-duel', () => { modeSalon = 'duel'; ouvrirSalon(); });
@@ -6153,7 +6257,7 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

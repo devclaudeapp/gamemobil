@@ -175,7 +175,27 @@
         return nettoyerClassement(r.data, p) || { ok: false, erreur: 'erreur' };
       } catch (e) { return { ok: false, erreur: 'erreur' }; }
     }
-    return { publier, lire, disponible, etat: () => ({ pseudo: etat.pseudo, rejoint: etat.rejoint }) };
+    // ─── le social (supabase/zombies-social.sql) : il faut avoir rejoint (un pseudo) ; rejoindre() le fait au besoin ───
+    async function rejoindre(pseudo) { if (etat.rejoint && (!pseudo || pseudoPour(pseudo) === etat.pseudo)) return { ok: true }; return publier(null, { pseudo: pseudo || etat.pseudo }); }
+    const avecId = (f) => async (...a) => { try { if (!etat.rejoint || !etat.id) return { ok: false, erreur: 'inconnu' }; return await f(...a); } catch (e) { return { ok: false, erreur: 'erreur' }; } };
+    const verdict = (r) => (!r.ok ? { ok: false, erreur: r.erreur } : r.data.ok === false ? { ok: false, erreur: texte(r.data.erreur || 'erreur', 40) } : Object.assign({ ok: true, erreur: null }, r.data));
+    // le profil : valeurs (score, vague, echelon, duel, infection, tues, skin) et le statut (« menu », « jeu », « salon:ABCD:coop »)
+    const profil = avecId(async (v, statut) => { v = v || {}; const a = { p_id: etat.id, p_jeton: etat.jeton, p_statut: statut || null };
+      for (const k of ['score', 'vague', 'echelon', 'duel', 'infection', 'tues']) if (v[k] != null) a['p_' + k] = entier(v[k]); if (v.skin) a.p_skin = String(v.skin);
+      return verdict(await appeler('zombies_profil_publier', a)); });
+    async function mondial(critere) {
+      try {
+        const r = await appeler('zombies_mondial', { p_critere: critere, p_id: etat.rejoint ? etat.id : null, p_limite: 100 }); if (!r.ok) return { ok: false, erreur: r.erreur };
+        if (!Array.isArray(r.data.lignes)) return { ok: false, erreur: r.data.erreur || 'erreur' };
+        return { ok: true, erreur: null, critere, joueurs: n0(r.data.joueurs), lignes: r.data.lignes.slice(0, 1000).map((x) => ({ rang: rangDe(x.rang), pseudo: texte(x.pseudo, 40), valeur: n0(x.valeur), skin: texte(x.skin, 20), enLigne: x.en_ligne === true, moi: x.moi === true })), moi: r.data.moi ? { rang: rangDe(r.data.moi.rang), valeur: n0(r.data.moi.valeur) } : null };
+      } catch (e) { return { ok: false, erreur: 'erreur' }; }
+    }
+    const amis = avecId(async () => { const r = verdict(await appeler('zombies_amis_liste', { p_id: etat.id, p_jeton: etat.jeton })); if (!r.ok) return r;
+      return { ok: true, erreur: null, amis: (Array.isArray(r.amis) ? r.amis : []).slice(0, 100).map((x) => ({ pseudo: texte(x.pseudo, 40), skin: texte(x.skin, 20), vague: n0(x.vague), echelon: n0(x.echelon), duel: n0(x.duel), enLigne: x.en_ligne === true, statut: texte(x.statut, 24) })) }; });
+    const ami = avecId(async (pseudo, retirer) => verdict(await appeler('zombies_ami', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: String(pseudo || '').slice(0, 64), p_retirer: !!retirer })));
+    // la file pour jouer avec un inconnu : on propose son code ; on reçoit celui d'un salon qui attendait (trouve), ou on attend
+    const file = avecId(async (mode, code) => { const r = verdict(await appeler('zombies_file_rejoindre', { p_id: etat.id, p_jeton: etat.jeton, p_mode: mode, p_code: code || null })); if (!r.ok) return r; return { ok: true, erreur: null, code: /^[A-Z]{4}$/.test(String(r.code || '')) ? r.code : null, trouve: r.trouve === true }; });
+    return { publier, lire, disponible, rejoindre, profil, mondial, amis, ami, file, etat: () => ({ pseudo: etat.pseudo, rejoint: etat.rejoint }) };
   }
 
   return { creer, jourParis, lundiDe, verifierPseudo, pseudoPour, nettoyerClassement, nettoyerPublication, REGLES, CLE };

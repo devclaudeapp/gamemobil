@@ -185,6 +185,43 @@ async function base(PGlite) {
     check((await C.creer({}).lire('jour')).erreur === 'absent', 'sans configuration : « absent »');
   }
 
+  // ─── le social (supabase/zombies-social.sql, collé après) ───
+  titre('le social');
+  {
+    const SOC = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'zombies-social.sql'), 'utf8');
+    try { await db.exec('set role proprio'); await db.exec(SOC); await db.exec(SOC); await db.exec('reset role'); check(true, 'supabase/zombies-social.sql se colle (deux fois) après celui du défi'); } catch (err) { await db.exec('reset role'); check(false, 'zombies-social.sql : ' + err.message); }
+    await installerHorloge(); await vider(); await heure('2026-11-05T10:00:00Z');
+    const f = await sup(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname like 'zombies\\_%' and has_function_privilege('anon', oid, 'execute') order by 1`);
+    check(f.map((x) => x.proname).join() === 'zombies_ami,zombies_amis_liste,zombies_classement,zombies_file_rejoindre,zombies_mondial,zombies_profil_publier,zombies_publier', `anon n’appelle que les fonctions publiques (${f.map((x) => x.proname).join(', ')})`);
+    const rpc = async (nom, a) => (await comme('anon', `select public.${nom}(${Object.keys(a).map((k, i) => `${k} => $${i + 1}`).join(', ')}) as r`, Object.values(a)))[0].r;
+    const A = joueur(), B = joueur(), Cc = joueur();
+    await publier(A, 'Alice', null); await publier(B, 'Bob', null); await publier(Cc, 'Chloé', null);
+    const p1 = await rpc('zombies_profil_publier', { p_id: A.id, p_jeton: A.jeton, p_statut: 'menu', p_score: 12000, p_vague: 14, p_echelon: 9, p_duel: 140, p_tues: 3000, p_skin: 'pirate' });
+    check(p1.ok, 'Alice publie son profil');
+    check((await rpc('zombies_profil_publier', { p_id: A.id, p_jeton: A.jeton, p_score: 13000, p_vague: 14 })).erreur === 'trop_vite', 'pas plus d’un profil toutes les 10 s');
+    check((await rpc('zombies_profil_publier', { p_id: B.id, p_jeton: B.jeton, p_score: 900000000, p_vague: 2 })).erreur === 'valeur', 'un score impossible pour sa vague : refusé');
+    check((await rpc('zombies_profil_publier', { p_id: B.id, p_jeton: A.jeton, p_vague: 2 })).erreur === 'jeton', 'le jeton d’un autre : refusé');
+    await rpc('zombies_profil_publier', { p_id: B.id, p_jeton: B.jeton, p_score: 20000, p_vague: 18, p_echelon: 3 });
+    const m = await rpc('zombies_mondial', { p_critere: 'vague', p_id: A.id, p_limite: 1000 });
+    check(m.joueurs === 2 && m.lignes[0].pseudo === 'Bob' && m.lignes[1].moi && m.moi.rang === 2 && JSON.stringify(m).indexOf(A.jeton) < 0, `le classement mondial (vague) : ${m.lignes.map((l) => l.rang + '. ' + l.pseudo + ' ' + l.valeur).join(', ')}`);
+    check((await rpc('zombies_mondial', { p_critere: 'echelon', p_id: null, p_limite: 5000 })).lignes[0].pseudo === 'Alice' && (await rpc('zombies_mondial', { p_critere: 'n_importe', p_id: null, p_limite: 5 })).erreur === 'critere', 'par échelon, par duel… ; un critère inconnu refusé');
+    check((await rpc('zombies_ami', { p_id: A.id, p_jeton: A.jeton, p_pseudo: 'BOB', p_retirer: false })).ok && (await rpc('zombies_ami', { p_id: A.id, p_jeton: A.jeton, p_pseudo: 'Personne', p_retirer: false })).erreur === 'inconnu' && (await rpc('zombies_ami', { p_id: A.id, p_jeton: A.jeton, p_pseudo: 'Alice', p_retirer: false })).erreur === 'soi', 'ajouter un ami par son pseudo (inconnu, soi-même : refusés)');
+    await avancer(30); await rpc('zombies_profil_publier', { p_id: B.id, p_jeton: B.jeton, p_statut: 'salon:WXYZ:duel' });
+    let l = await rpc('zombies_amis_liste', { p_id: A.id, p_jeton: A.jeton });
+    check(l.ok && l.amis.length === 1 && l.amis[0].pseudo === 'Bob' && l.amis[0].en_ligne && l.amis[0].statut === 'salon:WXYZ:duel', 'ses amis : Bob est en ligne, il attend dans son salon WXYZ (en duel)');
+    await rpc('zombies_profil_publier', { p_id: B.id, p_jeton: B.jeton, p_statut: 'salon:<script>' }); l = await rpc('zombies_amis_liste', { p_id: A.id, p_jeton: A.jeton });
+    check(l.amis[0].statut === 'menu', 'un statut farfelu redevient « menu »');
+    await avancer(300); l = await rpc('zombies_amis_liste', { p_id: A.id, p_jeton: A.jeton });
+    check(!l.amis[0].en_ligne && l.amis[0].statut === 'absent', 'cinq minutes sans nouvelles : hors ligne');
+    const f1 = await rpc('zombies_file_rejoindre', { p_id: B.id, p_jeton: B.jeton, p_mode: 'duel', p_code: 'ABCD' });
+    const f2 = await rpc('zombies_file_rejoindre', { p_id: Cc.id, p_jeton: Cc.jeton, p_mode: 'coop', p_code: 'EFGH' });
+    const f3 = await rpc('zombies_file_rejoindre', { p_id: A.id, p_jeton: A.jeton, p_mode: 'duel', p_code: 'IJKL' });
+    check(f1.ok && !f1.trouve && f2.ok && !f2.trouve && f3.trouve && f3.code === 'ABCD', 'jouer avec un inconnu : Bob attend en duel (ABCD) ; Alice arrive en duel et reçoit ABCD ; Chloé, en coop, attend');
+    await avancer(100);
+    check((await rpc('zombies_file_rejoindre', { p_id: A.id, p_jeton: A.jeton, p_mode: 'coop', p_code: 'MNOP' })).trouve === false, 'après 90 s, la file oublie ceux qui attendaient');
+    check((await rpc('zombies_file_rejoindre', { p_id: A.id, p_jeton: A.jeton, p_mode: 'coop', p_code: 'abc' })).erreur === 'valeur', 'un code mal formé : refusé');
+  }
+
   await db.close();
   console.log(fails ? `\n${fails} échec(s).` : '\nTout passe (Dernier Rempart, SQL du défi).');
   process.exit(fails ? 1 : 0);

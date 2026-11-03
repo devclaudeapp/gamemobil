@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -162,7 +162,7 @@
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
     finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
-    finAscension(); finMode();
+    finAscension(); finMode(); if (CL.etat().rejoint) publierProfil('menu').catch(() => {});
     const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
     const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
@@ -527,6 +527,61 @@
     }
   }
 
+  // ─── le social (supabase/zombies-social.sql) : classement mondial, amis (statut, invitations), profil ; jouer avec un inconnu ───
+  let ongletSoc = 'mondial', critereSoc = 'vague', statutPublie = '', statutT = 0;
+  const CRITERES = { vague: 'Meilleure vague', score: 'Meilleur score', echelon: 'Échelon de l’Ascension', duel: 'Points de duel', infection: 'Victoires d’Infection', tues: 'Zombies abattus' };
+  const MESSAGES_SOC = { absent: 'Le social demande le réseau (et Supabase).', 'hors-ligne': 'Pas de réseau pour l’instant.', 'pas-installe': 'Le social n’est pas encore ouvert (supabase/zombies-social.sql à installer).', inconnu: 'Choisis un pseudo (Défi du jour) pour entrer dans le social.', erreur: 'Indisponible pour l’instant.', lent: 'Le serveur ne répond pas.', soi: 'C’est toi !', complet: '100 amis au plus.', jeton: 'Identité refusée.', pseudo_pris: 'Ce pseudo est déjà pris.', pseudo_invalide: 'Pseudo : 2 à 16 lettres ou chiffres.' };
+  const valeursProfil = () => ({ score: Math.max(0, ...Object.values(save.records).map((r) => r.score || 0)), vague: Math.max(save.total.vagueMax || 0, ...Object.values(save.records).map((r) => r.vague || 0)), echelon: Math.max(0, save.ascension.echelon - 1), duel: save.duel.points, infection: save.infection.victoires, tues: save.total.tues, skin: save.collection.skin });
+  async function publierProfil(statut) { if (!CL.disponible() || !pseudoClassement()) return null; const r = await CL.rejoindre(save.pseudo); if (!r.ok) return r; return CL.profil(valeursProfil(), statut || statutCourant()); }
+  const statutCourant = () => (salon && !partie && salon.code ? `salon:${salon.code}:${modeSalon}` : jeu && ecran === 'jeu' ? 'jeu' : 'menu');
+  function majStatut() { // le statut en direct : quand il change, ou toutes les 2 minutes (les amis voient « en ligne » pendant 4)
+    if (!CL.disponible() || !save.pseudo || !CL.etat().rejoint) return;
+    const s = statutCourant(), t = performance.now(); if (s === statutPublie && t - statutT < 120e3) return;
+    statutPublie = s; statutT = t; CL.profil(null, s).catch(() => {});
+  }
+  setInterval(majStatut, 5000);
+  function ouvrirSocial() { for (const k in ecrans) ecrans[k].hidden = true; montrer('social'); remplirSocial(); publierProfil().catch(() => {}); }
+  async function remplirSocial() {
+    const box = $('.soc-corps'), etat = $('.soc-etat'); etat.textContent = '';
+    document.querySelectorAll('.soc-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletSoc)));
+    if (ongletSoc === 'profil') {
+      const v = valeursProfil();
+      box.innerHTML = `<dl class="asc-carte">${[['Pseudo', save.pseudo || '—'], ['Survivant', D.SURVIVANTS[v.skin].nom], ['Meilleure vague', v.vague], ['Meilleur score', v.score], ['Échelon', v.echelon], ['Duel', `${division(v.duel)} (${v.duel} pts)`], ['Infection', `${v.infection} victoire${v.infection > 1 ? 's' : ''}`], ['Zombies abattus', v.tues]].map(([a, b]) => `<dt>${a}</dt><dd>${echap(b)}</dd>`).join('')}</dl>`;
+      return;
+    }
+    if (!CL.disponible()) { box.innerHTML = ''; etat.textContent = MESSAGES_SOC.absent; return; }
+    if (ongletSoc === 'mondial') {
+      box.innerHTML = `<label class="champ"><span>Classé par</span><select id="soc-critere">${Object.keys(CRITERES).map((k) => `<option value="${k}"${k === critereSoc ? ' selected' : ''}>${CRITERES[k]}</option>`).join('')}</select></label><ol class="defi-liste soc-liste"></ol>`;
+      $('#soc-critere').addEventListener('change', (e) => { critereSoc = CRITERES[e.target.value] ? e.target.value : 'vague'; remplirSocial(); });
+      etat.textContent = 'Chargement…';
+      const r = await CL.mondial(critereSoc); if (ongletSoc !== 'mondial') return;
+      if (!r.ok) { etat.textContent = MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; return; }
+      $('.soc-liste').innerHTML = r.lignes.map((l) => `<li class="${l.moi ? 'moi' : ''}"><b>${l.rang}</b><span>${echap(l.pseudo)}${l.enLigne ? ' <small class="en-ligne">● en ligne</small>' : ''}</span><span class="score">${nf(l.valeur)}</span></li>`).join('') + (r.moi && !r.lignes.some((l) => l.moi) ? `<li class="moi loin"><b>${r.moi.rang}</b><span>Toi</span><span class="score">${nf(r.moi.valeur)}</span></li>` : '');
+      etat.textContent = `${pluriel(r.joueurs, 'joueur')} classé${r.joueurs > 1 ? 's' : ''} · top 1000`;
+    } else {
+      box.innerHTML = `<div class="rejoindre soc-ajout"><input id="soc-pseudo" maxlength="16" placeholder="Pseudo d’un ami" autocomplete="off"><button type="button" class="moyen" id="b-soc-ajout">Ajouter</button></div><ul class="liste-joueurs soc-amis"></ul>`;
+      $('#b-soc-ajout').addEventListener('click', async () => { const r = await CL.ami($('#soc-pseudo').value); etat.textContent = r.ok ? 'Ami ajouté.' : MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; if (r.ok) remplirSocial(); });
+      const r = await CL.amis(); if (ongletSoc !== 'amis') return;
+      if (!r.ok) { etat.textContent = MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur; return; }
+      const statutTexte = (s) => (s === 'absent' ? 'hors ligne' : s === 'jeu' ? 'en partie' : /^salon:/.test(s) ? `attend dans son salon (${TITRES_SALON[s.split(':')[2]] || 'à plusieurs'})` : 'au menu');
+      $('.soc-amis').innerHTML = r.amis.map((a, i) => `<li><b>${echap(a.pseudo)}</b><small class="${a.enLigne ? 'en-ligne' : ''}">${statutTexte(a.statut)}</small>${/^salon:[A-Z]{4}:/.test(a.statut) ? `<button type="button" class="moyen soc-rejoindre" data-i="${i}">Rejoindre</button>` : ''}</li>`).join('') || '<li>Pas encore d’amis : ajoute-les par leur pseudo.</li>';
+      $('.soc-amis').querySelectorAll('.soc-rejoindre').forEach((b) => b.addEventListener('click', () => { const s = r.amis[+b.dataset.i].statut.split(':'); modeSalon = s[2]; ouvrirSalon(); $('#s-code').value = s[1]; entrerSalon(false); }));
+    }
+  }
+  // jouer avec un inconnu : on ouvre son salon et on le propose ; si quelqu'un attendait déjà dans ce mode, on rejoint le sien
+  let fileT = null;
+  async function avecInconnu() {
+    if (!CL.disponible()) { erreurSalon(MESSAGES_SOC.absent); return; }
+    if (!pseudoClassement() && ($('#s-pseudo').value || '').trim()) { save.pseudo = ZCLASSEMENT.pseudoPour($('#s-pseudo').value) || save.pseudo; ecrire(); }
+    const rj = await CL.rejoindre(save.pseudo); if (!rj.ok) { erreurSalon(MESSAGES_SOC[rj.erreur] || MESSAGES_SOC.inconnu); return; }
+    await entrerSalon(true); if (!salon) return;
+    const r = await CL.file(modeSalon, salon.code);
+    if (!r.ok) { erreurSalon(MESSAGES_SOC[r.erreur] || MESSAGES_SOC.erreur); return; }
+    if (r.trouve && r.code) { quitterSalon(); $('#s-code').value = r.code; await entrerSalon(false); return; }
+    $('.salon-etat').hidden = false; $('.salon-etat').textContent = 'On cherche un inconnu… (le salon reste ouvert : donne aussi le code aux copains)';
+    clearInterval(fileT); fileT = setInterval(() => { if (!salon || partie || salon.joueurs().length > 1) { clearInterval(fileT); CL.file(modeSalon, null).catch(() => {}); if (salon) $('.salon-etat').hidden = true; return; } CL.file(modeSalon, salon.code).catch(() => {}); }, 30e3);
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
@@ -546,6 +601,10 @@
   clic('#b-collection', ouvrirCollection);
   clic('#b-progression', ouvrirProgression);
   clic('#b-modes', ouvrirModes);
+  clic('#b-social', ouvrirSocial);
+  clic('#b-soc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  clic('#b-inconnu', avecInconnu);
+  document.querySelectorAll('.soc-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletSoc = b.dataset.onglet; PSONS.ui('tap'); remplirSocial(); }));
   clic('#b-mode-inf', () => { verrouiller(); demarrerInfection(); });
   clic('#b-mode-cps', () => { modeSalon = 'cps'; ouvrirSalon(); });
   clic('#b-mode-duel', () => { modeSalon = 'duel'; ouvrirSalon(); });
@@ -640,7 +699,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },
