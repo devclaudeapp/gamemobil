@@ -261,6 +261,21 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   { const r = essai('plasma', 2, 1, 0.3); r.p.armes[1] = null; r.p.main = 0; const evs = avancer(r.jeu, 30, { mx: 0, mz: 0 }); check(!evs.some((e) => e.t === 'boum'), 'repassé au pistolet : plus d’explosion (rien ne reste de l’arme d’avant)'); }
 }
 
+// ─── le bestiaire : chaque talent ───
+{
+  const mkz = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: Z.vitesse, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 0, coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const scene = (type, opts) => { const jeu = J.creer({ arene: 'jardin', graine: 5, attente: 99 }), p = jeu.joueurs[0]; p.vie = p.vieMax = 500; p.xp = -1e9; jeu.zombies.push(mkz(9000, type, p.x + ((opts && opts.d) || 7), p.z, opts && opts.vie)); return { jeu, p }; };
+  const types = ['kamikaze', 'sauteur', 'flammeur', 'sabreur', 'geolier', 'invocateur'];
+  check(types.every((t) => D.ZOMBIES[t] && D.ZOMBIES[t].depuis > 4 && D.ZOMBIES[t].teinte) && Object.keys(D.ZOMBIES).filter((k) => !D.ZOMBIES[k].boss).length >= 10, `le bestiaire : ${Object.keys(D.ZOMBIES).filter((k) => !D.ZOMBIES[k].boss).map((k) => D.ZOMBIES[k].nom).join(', ')}`);
+  { const { jeu, p } = scene('kamikaze', { d: 2.5 }); jeu.joueurs[0].armes[0] = null; p.cible = 99; const evs = avancer(jeu, 120, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'detone') && evs.some((e) => e.t === 'boum') && p.vie < 500 && !jeu.zombies.length, 'le kamikaze explose à ton contact (et te blesse)'); }
+  { const { jeu } = scene('kamikaze', { d: 6, vie: 1 }); jeu.zombies.push(mkz(9100, 'trainard', jeu.joueurs[0].x + 6.5, jeu.joueurs[0].z + 0.6, 20)); const evs = avancer(jeu, 120, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'boum') && evs.filter((e) => e.t === 'mort').length >= 2, 'abattu, il explose aussi, et emporte ses voisins'); }
+  { const { jeu } = scene('sauteur', { d: 7 }); const evs = avancer(jeu, 150, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'saute') && evs.some((e) => e.t === 'atterrit'), 'le sauteur bondit vers toi, par-dessus tout'); }
+  { const { jeu, p } = scene('flammeur', { d: 3 }); const evs = avancer(jeu, 90, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'souffle') && evs.filter((e) => e.t === 'blesse').length > 4 && p.vie < 500, 'le cracheur de feu souffle des flammes, de près'); }
+  { const { jeu } = scene('sabreur', { d: 5 }); jeu.zombies[0].vitesse = 0; jeu.zombies[0].angle = Math.PI; const evs = avancer(jeu, 240, { mx: 0, mz: 0 }); const pare = evs.filter((e) => e.t === 'pare').length, tirs = evs.filter((e) => e.t === 'tir').length; check(pare > tirs * 0.3 && pare < tirs, `le sabreur pare les balles qui arrivent de face (${pare} sur ${tirs})`); }
+  { const { jeu, p } = scene('geolier', { d: 6.5 }); jeu.zombies[0].crochetT = 0; jeu.zombies[0].vitesse = 0; const x0 = p.x; const evs = avancer(jeu, 70, { mx: -1, mz: 0 }); check(evs.some((e) => e.t === 'crochet') && evs.some((e) => e.t === 'accroche') && p.x > x0 + 1, `le geôlier lance sa chaîne et te tire vers lui (${(p.x - x0).toFixed(1)} m)`); }
+  { const { jeu } = scene('invocateur', { d: 8 }); jeu.zombies[0].invoqueT = 0; jeu.morts.push({ x: jeu.joueurs[0].x + 6, z: 0, t: 0 }, { x: jeu.joueurs[0].x + 6, z: 1, t: 0 }); const evs = avancer(jeu, 30, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'invoque' && e.pts.length === 2) && jeu.zombies.filter((z) => z.type === 'trainard').length + evs.filter((e) => e.t === 'mort' && e.type === 'trainard').length === 2, 'l’invocateur relève les morts tout près'); }
+}
+
 // ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───
 {
   const C = require(path.join(__dirname, '..', 'src-zombies', 'classement.js'));

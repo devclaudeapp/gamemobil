@@ -63,7 +63,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -112,6 +112,12 @@ const ZSONS = (() => {
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
         case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
+        case 'pare': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('impactMetal', 0.6 * k, p); break; }
+        case 'souffle': { const t = performance.now(); if (t - souffleZT > 160) { souffleZT = t; const [k, p] = ecoute(e.x, e.z, 18); if (k > 0.05) jouer('flamme', 0.7 * k, p); } break; }
+        case 'saute': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('arc', 0.5 * k, p); break; }
+        case 'crochet': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('scie', 0.5 * k, p); break; }
+        case 'accroche': if (e.id === idMoi) { P.jouer('impactMetal', 0.9); P.vibrer(40); } break;
+        case 'invoque': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('grogne', 0.9 * k + 0.1, p, 0.6); jouer('vague', 0.25 * k, p); } break; }
       }
     }
   }

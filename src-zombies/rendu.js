@@ -219,7 +219,7 @@ const ZRENDU = (() => {
       inst.setMatrixAt(i, _part); if (couleur) inst.setColorAt(i, couleur);
     }
     function majZombies(jeu, dt) {
-      let n = 0; const temps = performance.now() / 1000;
+      let n = 0; const temps = performance.now() / 1000; for (const k in nAcc) nAcc[k] = 0;
       const dessiner = (type, x, y, z, a, marche, attaque, flash, chute, id, naissance) => {
         if (n >= MAX_Z) return;
         const Zd = D.ZOMBIES[type], k = Zd.taille * ECHELLE, large = type === 'costaud' || Zd.boss ? 1.25 : type === 'coureur' ? 0.85 : 1, C = couleurs[type];
@@ -247,13 +247,15 @@ const ZRENDU = (() => {
         const r = rendusZ.get(zb.id) || nouveauRZ(zb);
         r.vu = true; r.ph += dt * zb.vitesse * 3.2 * (zb.bouge ? 1 : 0.15);
         // sortir de terre : les 0,7 premières secondes
-        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0;
+        const age = jeu.t - zb.naissance, y = (age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0) + (zb.saut > 0 && Zd.saut ? Math.sin((1 - zb.saut / Zd.saut.duree) * Math.PI) * 1.8 : 0);
+        const clignote = Zd.kamikaze && Math.floor(temps * (zb.bouge ? 7 : 3) + zb.id) % 2 === 0;
         if (KZ && !Zd.boss) {
           // le zombie Kenney : marche (sprint pour le Coureur), le geste d'attraper quand il frappe, l'immobilité sinon
           const course = zb.type === 'coureur' && zb.bouge, clip = zb.attaque > 0 ? 'pick-up' : !zb.bouge ? 'idle' : course ? 'sprint' : 'walk';
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, clip, r.t * (zb.gel > 0 ? 0.5 : 1), zb.flash > 0 && !(zb.feu > 0), zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
+          if (ACC[zb.type]) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
@@ -265,6 +267,7 @@ const ZRENDU = (() => {
         else dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, Math.min(1, c.t / 0.35), 0);
       }
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+      for (const k in ACC) { ACC[k].count = nAcc[k] || 0; ACC[k].instanceMatrix.needsUpdate = true; }
       if (KZ) { const comptes = dessinerMorceaux(nk, dt); KZ.inst.forEach((m, p) => { m.count = comptes[p]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }); }
     }
 
@@ -278,6 +281,25 @@ const ZRENDU = (() => {
       KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
     const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A');
+    // les accessoires qui font reconnaître un type d'un coup d'œil : le sabre du sabreur, la bombe du kamikaze, le boulet du geôlier, l'aura
+    // de l'invocateur (des maillages instanciés, posés à côté du zombie, dans son repère)
+    const mkAcc = (geo, couleur, base) => { const m = new T.InstancedMesh(geo, base || new T.MeshLambertMaterial({ color: couleur }), 32); m.frustumCulled = false; m.count = 0; m.castShadow = !base; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
+    const ACC = {
+      sabreur: mkAcc(new T.BoxGeometry(0.08, 0.08, 1.05).translate(0, 0, 0.45), '#D8E2EC'),
+      kamikaze: mkAcc(new T.SphereGeometry(0.27, 8, 6), '#E04030'),
+      geolier: mkAcc(new T.IcosahedronGeometry(0.24, 0), '#3A3540'),
+      invocateur: mkAcc(new T.RingGeometry(0.75, 0.95, 20).rotateX(-Math.PI / 2), null, new T.MeshBasicMaterial({ color: '#B57CFF', transparent: true, opacity: 0.55, depthWrite: false })),
+    };
+    const nAcc = {}; const _ao = new T.Vector3();
+    function accessoire(type, x, y, z, a, temps, Zd) {
+      const m = ACC[type]; if (!m || (nAcc[type] || 0) >= 32) return; const i = nAcc[type] = (nAcc[type] || 0); nAcc[type]++;
+      const k = Zd.taille, ca = Math.cos(a), sa = Math.sin(a);
+      if (type === 'sabreur') { _ao.set(x + ca * 0.25 * k - sa * 0.38 * k, y + 0.95 * k, z + sa * 0.25 * k + ca * 0.38 * k); _q.setFromEuler(_e.set(-0.35, Math.PI / 2 - a, 0)); }
+      else if (type === 'kamikaze') { _ao.set(x - ca * 0.42 * k, y + 1.25 * k + Math.sin(temps * 9) * 0.04, z - sa * 0.42 * k); _q.identity(); }
+      else if (type === 'geolier') { _ao.set(x - sa * -0.5 * k + ca * 0.1, y + 0.35, z + ca * -0.5 * k + sa * 0.1); _q.setFromEuler(_e.set(temps, temps * 0.7, 0)); }
+      else { _ao.set(x, 0.04, z); _q.setFromEuler(_e.set(0, temps * 1.5, 0)); }
+      _s.set(1, 1, 1); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base);
+    }
     function poserKenney(i, type, x, y, z, a, clip, t, flash, etat) {
       const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille, large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
@@ -628,6 +650,14 @@ const ZRENDU = (() => {
       // les zombies qui brûlent fument, ceux qui sont gelés givrent
       for (const zb of jeu.zombies) { if (zb.feu > 0 && Math.random() < dt * 10) particule(zb.x + (Math.random() - 0.5) * 0.4, 1.2 + Math.random() * 0.6, zb.z + (Math.random() - 0.5) * 0.4, 0, 1.6, 0, 0.45, 0.14, Math.random() < 0.6 ? '#FF8A2A' : '#FFD06A', 0); else if (zb.gel > 0 && Math.random() < dt * 5) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.0 + Math.random() * 0.8, zb.z + (Math.random() - 0.5) * 0.5, 0, -0.3, 0, 0.5, 0.08, '#E6FAFF', 0); }
     }
+    const chaines = []; for (let i = 0; i < 6; i++) { const m = new T.Mesh(BOITE, new T.MeshLambertMaterial({ color: '#5A5560' })); m.visible = false; m.castShadow = true; scene.add(m); const c = new T.Mesh(new T.TorusGeometry(0.16, 0.05, 5, 8), new T.MeshLambertMaterial({ color: '#8A8590' })); c.visible = false; scene.add(c); chaines.push({ m, c }); }
+    function majChaines(jeu) {
+      let n = 0;
+      const tendre = (x0, z0, x1, z1, crochet) => { if (n >= chaines.length) return; const o = chaines[n++]; _pa.set(x0, 1.1, z0); _pb.set(x1, 1.0, z1); const l = _pa.distanceTo(_pb); o.m.position.copy(_pa).add(_pb).multiplyScalar(0.5); o.m.lookAt(_pb); o.m.scale.set(0.06, 0.06, l); o.m.visible = true; o.c.visible = crochet; if (crochet) { o.c.position.copy(_pb); o.c.lookAt(_pa); } };
+      for (const c of jeu.crochets || []) { const g = jeu.zombies.find((z) => z.id === c.de); if (g) tendre(g.x, g.z, c.x, c.z, true); }
+      for (const j of jeu.joueurs) if (j.tire) { const g = jeu.zombies.find((z) => z.id === j.tire.de); if (g) tendre(g.x, g.z, j.x, j.z, false); }
+      for (; n < chaines.length; n++) { chaines[n].m.visible = false; chaines[n].c.visible = false; }
+    }
     const matBoum = new T.MeshBasicMaterial({ color: '#FFB347', transparent: true, opacity: 0.9, depthWrite: false });
     const geoBoum = new T.IcosahedronGeometry(1, 1);
     const boums = []; for (let i = 0; i < MAX_BOUMS; i++) { const m = new T.Mesh(geoBoum, matBoum.clone()); m.visible = false; scene.add(m); boums.push({ m, t: 0, r: 1 }); }
@@ -765,6 +795,11 @@ const ZRENDU = (() => {
           case 'boum': boum(e.x, e.z, e.r, e.petite); if (!e.petite) flaque(e.x, e.z, e.r * 0.55, '#4A4A3A'); break;
           case 'flaque': flaque(e.x, e.z, 0.7, '#A6D63A'); break;
           case 'blesse': secousse = Math.max(secousse, 0.18); break;
+          case 'souffle': for (let k = 0; k < 4; k++) { const a = e.a + (Math.random() - 0.5) * 0.7, v = 5 + Math.random() * 3; particule(e.x + Math.cos(e.a) * 0.4, 1.2, e.z + Math.sin(e.a) * 0.4, Math.cos(a) * v, 0.5 + Math.random(), Math.sin(a) * v, 0.55 + Math.random() * 0.2, 0.2 + Math.random() * 0.15, k % 2 ? '#FF7A1A' : '#FFC24A', 0); } break;
+          case 'pare': for (let k = 0; k < 7; k++) particule(e.x, 1.1, e.z, (Math.random() - 0.5) * 6, 1.5 + Math.random() * 3, (Math.random() - 0.5) * 6, 0.3, 0.07, k % 2 ? '#FFFFFF' : '#FFE07A', 0.3); break;
+          case 'saute': case 'atterrit': for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; particule(e.x + Math.cos(a) * 0.3, 0.15, e.z + Math.sin(a) * 0.3, Math.cos(a) * 2, 0.6, Math.sin(a) * 2, 0.45, 0.14, '#C8B48A', 0); } if (e.t === 'atterrit') secousse = Math.max(secousse, 0.12); break;
+          case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
+          case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
           case 'casse': boum(e.x, e.z, 1.0); break;
         }
       }
@@ -775,6 +810,7 @@ const ZRENDU = (() => {
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
+      majChaines(jeu);
       majFlaques(dt);
       majParticules(dt);
       for (const o of tracantes) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.m.visible = false; }
