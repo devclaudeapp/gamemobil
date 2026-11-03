@@ -19,8 +19,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ─── le joystick ─── */
 .joy { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 2; }
-.joy-base { position: absolute; width: 130px; height: 130px; left: -65px; top: -65px; border-radius: 50%; background: rgba(255, 255, 255, .18); border: 3px solid rgba(255, 255, 255, .55); }
-.joy-pouce { position: absolute; left: 0; top: 0; width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 3px 0 rgba(31, 37, 51, .35); transform: translate(-50%, -50%); }
+.joy-base { position: absolute; width: calc(130px * var(--joy, 1)); height: calc(130px * var(--joy, 1)); left: calc(-65px * var(--joy, 1)); top: calc(-65px * var(--joy, 1)); border-radius: 50%; background: rgba(255, 255, 255, .18); border: 3px solid rgba(255, 255, 255, .55); }
+.joy.fixe .joy-base { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .4); }
+.joy-pouce { position: absolute; left: 0; top: 0; width: calc(58px * var(--joy, 1)); height: calc(58px * var(--joy, 1)); border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 3px 0 rgba(31, 37, 51, .35); transform: translate(-50%, -50%); }
 
 /* ─── le HUD ─── */
 #hud { position: absolute; inset: 0; pointer-events: none; z-index: 3; font-family: var(--titre); }
@@ -311,3 +312,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ─── les armes : icône de famille à la couleur de l'arme ; dégâts cumulés (flammes, brûlure, acide) plus discrets ─── */
 .ico-arme { display: block; line-height: 0; }
 .h-degats .num.petit { font-size: 14px; color: #FFD9A0; }
+
+.regle select { min-height: 36px; padding: 0 10px; border-radius: 10px; border: 2.5px solid var(--encre); background: #fff; font: 700 15px/1 var(--titre); color: var(--encre); }

@@ -180,6 +180,31 @@ const BASE = `http://localhost:${PORT}/`;
   const grace = await page.waitForFunction(() => { const s = window.__zombies.stats(); return s.ralenti && s.rendu.cinema ? s : null; }, null, { timeout: 15000, polling: 50 }).then((h) => h.jsonValue()).catch(() => null);
   check(!!grace, 'le coup de grâce sur le boss : ralenti et plongée de la caméra');
   await page.screenshot({ path: out + '/02d-coup-de-grace.png' });
+  // ─── à la manette (une manette simulée : Gamepad API) : le stick fait courir, Start met en pause, A reprend ───
+  await P(() => {
+    const pad = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    window.__pad = pad; navigator.getGamepads = () => [pad]; window.dispatchEvent(new Event('gamepadconnected'));
+    const j = window.__zombies.demarrer('jardin', 21); j.joueurs[0].vie = j.joueurs[0].vieMax = 1e6;
+  });
+  await sleep(300);
+  const mx0 = await P(() => window.__zombies.jeu.joueurs[0].x);
+  await P(() => { window.__pad.axes[0] = 1; }); await sleep(700); await P(() => { window.__pad.axes[0] = 0; });
+  const mx1 = await P(() => window.__zombies.jeu.joueurs[0].x);
+  await P(() => { window.__pad.buttons[9].pressed = true; }); await sleep(150); await P(() => { window.__pad.buttons[9].pressed = false; }); await sleep(150);
+  const mPause = await P(() => window.__zombies.enPause);
+  await P(() => { window.__pad.buttons[0].pressed = true; }); await sleep(150); await P(() => { window.__pad.buttons[0].pressed = false; }); await sleep(200);
+  const repris = await P(() => !window.__zombies.enPause);
+  check(mx1 > mx0 + 1.5 && mPause && repris, `à la manette : le stick fait courir (${mx0.toFixed(1)} → ${mx1.toFixed(1)} m), Start met en pause, A reprend`);
+  await P(() => { navigator.getGamepads = () => []; });
+  // le joystick fixe (Réglages) : sa base attend en bas à gauche, le pouce posé dessus fait courir
+  await page.tap('.h-pause'); await sleep(150); await page.tap('#b-pause-reglages'); await sleep(150);
+  await page.selectOption('#r-joy', 'fixe'); await page.selectOption('#r-joyt', 'grand'); await page.tap('#b-reglages-ok'); await sleep(150); await page.tap('#b-reprendre'); await sleep(250);
+  const fixe = await P(() => { const j = document.querySelector('.joy'), r = j.getBoundingClientRect(); return { vu: !j.hidden && j.classList.contains('fixe'), x: r.left, y: r.top, k: getComputedStyle(j).getPropertyValue('--joy'), save: window.__zombies.save.reglages }; });
+  const fx0 = await P(() => window.__zombies.jeu.joueurs[0].x);
+  await toucher('touchStart', [[fixe.x, fixe.y, 5]]); await toucher('touchMove', [[fixe.x + 70, fixe.y, 5]]); await sleep(600); await toucher('touchEnd', []);
+  const fx1 = await P(() => window.__zombies.jeu.joueurs[0].x);
+  check(fixe.vu && fixe.x < 300 && fixe.y > 200 && +fixe.k > 1.2 && fixe.save.joy === 'fixe' && fixe.save.joyt === 'grand' && fx1 > fx0 + 1, `commandes réglables : joystick fixe en bas à gauche, en grand (${fx0.toFixed(1)} → ${fx1.toFixed(1)} m)`);
+  await P(() => ZCONTROLES.regler({ fixe: false, taille: 'normal' }));
   // ─── en portrait : « Tourne ton téléphone », la partie attend en pause ───
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});

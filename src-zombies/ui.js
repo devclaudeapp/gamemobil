@@ -15,7 +15,7 @@
     return { v: 1, records: {}, total: { parties: 0, tues: 0, temps: 0 }, derniere: 0, arene: 'jardin', reglages: { son: true, vibre: true, eco: false } };
   }
   const save = lire();
-  save.reglages = Object.assign({ son: true, vibre: true, eco: false }, save.reglages || {});
+  save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal' }, save.reglages || {});
   save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
   function ecrire() { try { localStorage.setItem(CLE, JSON.stringify(save)); } catch (e) { /* stockage plein ou refusé : la partie continue */ } }
@@ -34,7 +34,12 @@
   const evs = [];
 
   // ─── les commandes et le HUD ───
+  const reglerJoy = () => ZCONTROLES.regler({ fixe: save.reglages.joy === 'fixe', taille: save.reglages.joyt });
   ZCONTROLES.init($('#zone'), { surTouche(n) {
+    if (n === 'valider') { // la manette dans les menus : le bouton principal de l'écran affiché
+      if (ecran === 'jeu' && !enPause && !(jeu && jeu.fini)) return;
+      const b = [...document.querySelectorAll('.ecran:not([hidden]) .gros')].find((x) => !x.hidden && x.offsetParent !== null); if (b) b.click(); return;
+    }
     if (ecran !== 'jeu') return;
     if (n === 'pause') { if (enPause) reprendre(); else pause(); }
     else if (enPause) return;
@@ -43,6 +48,7 @@
     else if (n === 'grenade') lancerGrenade();
     else if (n === 'arme0' || n === 'arme1') faire('arme', +n.slice(-1));
   } });
+  reglerJoy();
   const raisons = { ferraille: 'Pas assez de ferraille', max: 'Tu en as déjà le maximum pour cette vague', verrou: 'Pas encore : plus tard dans la partie', place: 'Pas de place ici : écarte-toi des murs', mort: '' };
   ZHUD.init($('#hud'), {
     construire(type) { if (!jeu || (enPause && !partie)) return; const r = faire('construire', type); if (!r.ok && raisons[r.raison]) { ZHUD.toast(raisons[r.raison]); PSONS.jouer('refus', 0.6); } },
@@ -295,7 +301,7 @@
   clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
-    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco;
+    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco; $('#r-joy').value = save.reglages.joy; $('#r-joyt').value = save.reglages.joyt;
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
@@ -315,6 +321,7 @@
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;
     const eco = $('#r-eco').checked; if (eco !== save.reglages.eco) { save.reglages.eco = eco; rendu.qualite(eco ? 'eco' : 'haute'); }
+    save.reglages.joy = $('#r-joy').value === 'fixe' ? 'fixe' : 'flottant'; save.reglages.joyt = ['petit', 'normal', 'grand'].includes($('#r-joyt').value) ? $('#r-joyt').value : 'normal'; reglerJoy();
     ecrire(); reglerSons(); ecrans.reglages.hidden = true;
     if (retourReglages === 'pause') ecrans.pause.hidden = false; else ecrans.titre.hidden = false;
   });
