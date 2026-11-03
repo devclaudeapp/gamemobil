@@ -1330,10 +1330,11 @@
   ];
   const TROPHEES_ANCIENS = TROPHEES.findIndex((t) => t.id === 'medaille'); // 37 : les trophées d'avant le lot « progression » (vérifiés à chaque pas de jeu, les autres toutes les 10 s)
   // ─── les trophées qui rapportent : familles, dorés, secrets (lot « progression », contrat § 3) ───
-  // +0,1 % de gains par trophée, +0,1 % par trophée doré, +0,3 % par famille complète, +0,3 % par famille complète en or (décision du joueur,
-  // 2 nov. : recalibré de 1 / 1 / 3 / 3 à 0,1 / 0,1 / 0,3 / 0,3 pour garder test/longevite.js --test dans ses bornes, contrat § 3.4) ;
-  // au plus +17,4 % (48 trophées, 48 dorés, 13 familles). Un facteur de revenuBase (comme gainsParcours), calculé une fois par changement.
-  const TROPHEES_BONUS = { trophee: 0.1, dore: 0.1, famille: 0.3, familleDoree: 0.3 };
+  // +0,05 % de gains par trophée, +0,05 % par trophée doré, +0,15 % par famille complète, +0,15 % par famille complète en or (décisions du
+  // joueur : 2 nov., recalibré de 1 / 1 / 3 / 3 à 0,1 / 0,1 / 0,3 / 0,3 pour garder test/longevite.js --test dans ses bornes, contrat § 3.4 ;
+  // 3 nov., divisé par deux, le départ du 1er décembre échouait à 0,1) ; au plus +8,7 % (48 trophées, 48 dorés, 13 familles).
+  // Un facteur de revenuBase (comme gainsParcours), calculé une fois par changement.
+  const TROPHEES_BONUS = { trophee: 0.05, dore: 0.05, famille: 0.15, familleDoree: 0.15 };
   const FAMILLES = {
     fournees: { nom: 'Les fournées', ids: ['premiere', 'cent', 'dixmille', 'million'] },
     equipe: { nom: 'L’équipe', ids: ['equipe', 'grande-equipe', 'grade', 'brigade'] },

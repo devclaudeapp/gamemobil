@@ -4075,10 +4075,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   ];
   const TROPHEES_ANCIENS = TROPHEES.findIndex((t) => t.id === 'medaille'); // 37 : les trophées d'avant le lot « progression » (vérifiés à chaque pas de jeu, les autres toutes les 10 s)
   // ─── les trophées qui rapportent : familles, dorés, secrets (lot « progression », contrat § 3) ───
-  // +0,1 % de gains par trophée, +0,1 % par trophée doré, +0,3 % par famille complète, +0,3 % par famille complète en or (décision du joueur,
-  // 2 nov. : recalibré de 1 / 1 / 3 / 3 à 0,1 / 0,1 / 0,3 / 0,3 pour garder test/longevite.js --test dans ses bornes, contrat § 3.4) ;
-  // au plus +17,4 % (48 trophées, 48 dorés, 13 familles). Un facteur de revenuBase (comme gainsParcours), calculé une fois par changement.
-  const TROPHEES_BONUS = { trophee: 0.1, dore: 0.1, famille: 0.3, familleDoree: 0.3 };
+  // +0,05 % de gains par trophée, +0,05 % par trophée doré, +0,15 % par famille complète, +0,15 % par famille complète en or (décisions du
+  // joueur : 2 nov., recalibré de 1 / 1 / 3 / 3 à 0,1 / 0,1 / 0,3 / 0,3 pour garder test/longevite.js --test dans ses bornes, contrat § 3.4 ;
+  // 3 nov., divisé par deux, le départ du 1er décembre échouait à 0,1) ; au plus +8,7 % (48 trophées, 48 dorés, 13 familles).
+  // Un facteur de revenuBase (comme gainsParcours), calculé une fois par changement.
+  const TROPHEES_BONUS = { trophee: 0.05, dore: 0.05, famille: 0.15, familleDoree: 0.15 };
   const FAMILLES = {
     fournees: { nom: 'Les fournées', ids: ['premiere', 'cent', 'dixmille', 'million'] },
     equipe: { nom: 'L’équipe', ids: ['equipe', 'grande-equipe', 'grade', 'brigade'] },
@@ -28010,7 +28011,7 @@ const UI = (() => {
   //     des boulangeries rivales, les chantiers du quartier. Les règles sont dans GAME (paliers, trophées) et PROGRESSION (src/progression.js :
   //     le second, les rivales, les projets) : l'écran ne calcule ni seuil ni prix, et tout ce qui se paie passe par elles (payerRivales,
   //     rattraperPaliers). Sans elles (une page d'avant ce lot), rien de tout cela ne se montre. ═══
-  const virgule = (x) => String(Math.round((+x || 0) * 10) / 10).replace('.', ','); // 3.14 → « 3,1 »
+  const virgule = (x) => String(Math.round((+x || 0) * 100) / 100).replace('.', ','); // les petits pourcentages des trophées : 0.05 → « 0,05 », 2.65 → « 2,65 », 3.1 → « 3,1 »
   const titreB = (s) => (G.titreBoulanger ? G.titreBoulanger(s) : G.titreParcours(s)); // le plus haut titre gagné (palier, sinon parcours)
   const minuscule = (t) => String(t || '').replace(/^(L[ea]s?|L’|Le|La|Les)\b/, (m) => m.toLowerCase()); // « La fontaine » → « la fontaine »
   // l'objet rare d'un palier ({ type: tenue | compagnon | deco, id, nom, teinte }) : son image (la pièce de la garde-robe si elle existe déjà,
@@ -28136,7 +28137,7 @@ const UI = (() => {
     return trophCarte('trophees', t.id, gagne, t.nom, t.desc, attr, dore ? 'dore' : '');
   }
   function carteTropheesFamilles() {
-    const tr = st.trophees || {}, dr = st.dores || {}, bt = G.bilanTrophees(st), B = G.TROPHEES_BONUS || { famille: 0.3 }, T = G.TROPHEES;
+    const tr = st.trophees || {}, dr = st.dores || {}, bt = G.bilanTrophees(st), B = G.TROPHEES_BONUS || { famille: 0.15 }, T = G.TROPHEES;
     const famille = (f, x, gagnes) => { const l = x.ids.map((id) => T.find((t) => t.id === id)).filter(Boolean), n = l.filter((t) => tr[t.id]).length, complete = n === l.length, enOr = complete && l.every((t) => dr[t.id]);
       const liste = l.filter((t) => !!tr[t.id] === gagnes); if (!liste.length) return '';
       return `<div class="tr-fam${complete ? ' complete' : ''}${enOr ? ' en-or' : ''}" data-fam="${esc(f)}"><h4 class="sous-titre tr-fam-t"><span>${esc(x.nom)}</span><small>${n}/${l.length}${complete ? ` · +${virgule(B.famille)} %${enOr ? ` · en or +${virgule(B.familleDoree != null ? B.familleDoree : B.famille)} %` : ''}` : ''}</small></h4><div class="trophees">${liste.map((t) => trophFamille(t, tr, dr)).join('')}</div></div>`; };
@@ -28145,7 +28146,7 @@ const UI = (() => {
       <p class="tr-bonus">Tes trophées : <b>+${virgule(bt.pct)} % de gains</b>${bt.dores ? ` · ${bt.dores} doré${bt.dores > 1 ? 's' : ''}` : ''}${bt.familles ? ` · ${bt.familles} famille${bt.familles > 1 ? 's' : ''} complète${bt.familles > 1 ? 's' : ''}` : ''}</p>
       ${bt.trophees ? fams.map(([f, x]) => famille(f, x, true)).join('') : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
       ${aGagner ? `<details class="repli"><summary><span>${aGagner === 1 ? 'Le dernier à gagner' : `Les ${aGagner} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary>${fams.map(([f, x]) => famille(f, x, false)).join('')}</details>` : ''}
-      <p class="note">Chaque trophée : +${virgule(B.trophee != null ? B.trophee : 0.1)} % de gains, sa version dorée aussi ; une famille complète : +${virgule(B.famille)} %. Touche un trophée pour voir sa version dorée.</p>`;
+      <p class="note">Chaque trophée : +${virgule(B.trophee != null ? B.trophee : 0.05)} % de gains, sa version dorée aussi ; une famille complète : +${virgule(B.famille)} %. Touche un trophée pour voir sa version dorée.</p>`;
   }
   function sheetTrophee(id) {
     const t = G.TROPHEES.find((x) => x.id === id); if (!t) return;
@@ -28156,8 +28157,8 @@ const UI = (() => {
     openSheet(`<div class="tr-fiche${dore ? ' dore' : ''}${cache ? ' secret' : ''}">${img}<div><h2>${cache ? '???' : esc(t.nom)}</h2><p class="sous">${cache ? 'Un trophée secret : il se découvre en jouant.' : esc(t.desc)}</p></div></div>
       <div class="stat"><span>Le trophée</span><b>${gagne ? `gagné${quand(tr[id]) ? ` le ${quand(tr[id])}` : ''}` : 'à gagner'}</b></div>
       ${D ? `<div class="stat tr-dore"><span>Sa version dorée</span><b>${dore ? `gagnée${quand(dr[id]) ? ` le ${quand(dr[id])}` : ''}` : cache ? '???' : 'à gagner'}</b></div>${cache ? '' : `<p class="note">${dore ? '✓ ' : ''}${esc(D[0])}${gagne || dore ? '' : ' (après le trophée)'}</p>`}` : ''}
-      ${F ? `<div class="stat"><span>Sa famille : ${esc(F.nom)}</span><b>${n}/${F.ids.length}</b></div><p class="note">Complète : +${virgule(B.famille != null ? B.famille : 0.3)} % de gains ; toute en or : +${virgule(B.familleDoree != null ? B.familleDoree : 0.3)} % de plus.</p>` : ''}
-      <p class="note">Chaque trophée rapporte +${virgule(B.trophee != null ? B.trophee : 0.1)} % de gains, pour toujours ; sa version dorée aussi.</p>${btnRetour()}`);
+      ${F ? `<div class="stat"><span>Sa famille : ${esc(F.nom)}</span><b>${n}/${F.ids.length}</b></div><p class="note">Complète : +${virgule(B.famille != null ? B.famille : 0.15)} % de gains ; toute en or : +${virgule(B.familleDoree != null ? B.familleDoree : 0.15)} % de plus.</p>` : ''}
+      <p class="note">Chaque trophée rapporte +${virgule(B.trophee != null ? B.trophee : 0.05)} % de gains, pour toujours ; sa version dorée aussi.</p>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
   }
 

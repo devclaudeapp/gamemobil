@@ -223,8 +223,8 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
     const s = await ouvrir(sauvegarde(8, { trophees: tr, plus: { dores: { premiere: t }, stats: Object.assign(G.newState(Date.now()).stats, { ventes: 1.5e5 }) } })), { page, ev } = s;
     await toutFermer(page); await ev(() => window.__fournil.boulanger()); await ev(() => window.__fournil.tiroir('ouvert')); await sleep(600);
     const b = await ev(() => { const c = document.querySelector('#page-boulanger .trophees-carte'); return c ? { compte: c.querySelector('.compte').textContent, bonus: c.querySelector('.tr-bonus').textContent, fams: [...c.querySelectorAll(':scope > .tr-fam .tr-fam-t')].map((h) => h.textContent.replace(/\s+/g, ' ')), dores: c.querySelectorAll('.troph.dore').length, n: GAME.TROPHEES.length, bilan: GAME.bilanTrophees(window.__fournil.st) } : null; });
-    check(b && b.n === 48 && new RegExp(`^${b.bilan.trophees}/48 · \\+`).test(b.compte) && /Tes trophées : \+[\d,]+ % de gains/.test(b.bonus), `l’en-tête : « ${b && b.compte} », « ${b && b.bonus} »`);
-    check(b && b.fams.some((x) => /Les fournées.*4\/4.*\+0,3 %/.test(x)) && b.fams.some((x) => /Les mains.*3\/3/.test(x)), `les familles (complètes : +0,3 %) : ${b && b.fams.join(' | ')}`);
+    check(b && b.n === 48 && new RegExp(`^${b.bilan.trophees}/48 · \\+`).test(b.compte) && /Tes trophées : \+[\d,]+ % de gains/.test(b.bonus) && b.bonus.includes(`+${String(Math.round(b.bilan.pct * 100) / 100).replace('.', ',')} % de gains`) && Math.abs(b.bilan.pct - 0.8) < 1e-9, `l’en-tête (9 trophées, 1 doré, 2 familles : +0,8 %) : « ${b && b.compte} », « ${b && b.bonus} »`);
+    check(b && b.fams.some((x) => /Les fournées.*4\/4.*\+0,15 %/.test(x)) && b.fams.some((x) => /Les mains.*3\/3/.test(x)), `les familles (complètes : +0,15 %) : ${b && b.fams.join(' | ')}`);
     check(b && b.dores === 1, `un trophée doré (liseré or) : ${b && b.dores}`);
     await ev(() => document.querySelector('#page-boulanger .trophees-carte').scrollIntoView({ block: 'start' })); await sleep(250);
     await page.screenshot({ path: `${out}/9-trophees-familles.png` });

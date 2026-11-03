@@ -181,7 +181,7 @@ titre('les trophées qui rapportent');
   const F = Object.values(G.FAMILLES);
   check(F.length === 13 && F.map((f) => f.ids.length).join() === '4,4,6,3,3,3,4,3,2,3,2,3,8' && egal(F.flatMap((f) => f.ids).sort(), ids.slice().sort()) && G.TROPHEES.every((t) => t.fam && G.FAMILLES[t.fam].ids.includes(t.id)), '13 familles qui couvrent les 48 (chaque trophée a sa famille, fam)');
   check(ids.every((id) => Array.isArray(G.DORES[id]) && typeof G.DORES[id][0] === 'string' && typeof G.DORES[id][1] === 'function') && Object.keys(G.DORES).length === 48, 'chaque trophée a sa version dorée');
-  check(egal(G.TROPHEES_BONUS, { trophee: 0.1, dore: 0.1, famille: 0.3, familleDoree: 0.3 }) && Math.abs(G.bilanTrophees(neuf()).max - 17.4) < 1e-9, 'la décision du joueur : +0,1 % par trophée et par doré, +0,3 % par famille complète (au plus +17,4 %)');
+  check(egal(G.TROPHEES_BONUS, { trophee: 0.05, dore: 0.05, famille: 0.15, familleDoree: 0.15 }) && Math.abs(G.bilanTrophees(neuf()).max - 8.7) < 1e-9, 'la décision du joueur (3 nov.) : +0,05 % par trophée et par doré, +0,15 % par famille complète (au plus +8,7 %)');
   // dorés après le trophée
   const st = neuf(); st.stats.ventes = 2e5;
   const v1 = G.verifierTrophees(st);
@@ -193,15 +193,15 @@ titre('les trophées qui rapportent');
   const b = neuf(); b.stations[0].niv = 10; const r0 = G.revenuBase(b, 0);
   for (const id of ['saison1', 'saisons4', 'compagnon', 'mof']) b.trophees[id] = T0; b.dores = { compagnon: T0, mof: T0 }; b.now += 1;
   const bil = G.bilanTrophees(b);
-  check(bil.trophees === 4 && bil.dores === 2 && bil.familles === 2 && bil.famillesDorees === 1 && Math.abs(bil.pct - 1.5) < 1e-9 && Math.abs(G.tropheesMult(b) - 1.015) < 1e-12, 'bilanTrophees : 4 trophées, 2 dorés, 2 familles, 1 famille dorée → +1,5 %');
-  check(Math.abs(G.revenuBase(b, 0) / r0 - 1.015) < 1e-12, 'revenuBase : ×1,015');
+  check(bil.trophees === 4 && bil.dores === 2 && bil.familles === 2 && bil.famillesDorees === 1 && Math.abs(bil.pct - 0.75) < 1e-9 && Math.abs(G.tropheesMult(b) - 1.0075) < 1e-12, 'bilanTrophees : 4 trophées, 2 dorés, 2 familles, 1 famille dorée → +0,75 %');
+  check(Math.abs(G.revenuBase(b, 0) / r0 - 1.0075) < 1e-12, 'revenuBase : ×1,0075');
   for (const t of G.TROPHEES) { b.trophees[t.id] = T0; b.dores[t.id] = T0; } b.now += 1;
-  check(Math.abs(G.tropheesMult(b) - 1.174) < 1e-12 && Math.abs(G.revenuBase(b, 0) / r0 - 1.174) < 1e-12, 'tout gagné : ×1,174');
+  check(Math.abs(G.tropheesMult(b) - 1.087) < 1e-12 && Math.abs(G.revenuBase(b, 0) / r0 - 1.087) < 1e-12, 'tout gagné : ×1,087');
   // le cache : recalculé quand le nombre change (trophée gagné, sauvegarde relue)
   const c = neuf(); c.stations[0].niv = 10; check(G.tropheesMult(c) === 1, 'aucun trophée : ×1');
-  c.stats.ventes = 1; G.verifierTrophees(c); check(Math.abs(G.tropheesMult(c) - 1.001) < 1e-12, 'un trophée gagné (même heure de jeu) : ×1,001 tout de suite');
-  c.trophees = Object.assign({}, c.trophees, { cent: T0 }); check(Math.abs(G.tropheesMult(c) - 1.002) < 1e-12, 'une autre liste (une sauvegarde relue) : recomptée');
-  c.trophees.dixmille = T0; c.now += 16; check(Math.abs(G.tropheesMult(c) - 1.003) < 1e-12, 'un trophée posé à la main : recompté au pas de jeu suivant');
+  c.stats.ventes = 1; G.verifierTrophees(c); check(Math.abs(G.tropheesMult(c) - 1.0005) < 1e-12, 'un trophée gagné (même heure de jeu) : ×1,0005 tout de suite');
+  c.trophees = Object.assign({}, c.trophees, { cent: T0 }); check(Math.abs(G.tropheesMult(c) - 1.001) < 1e-12, 'une autre liste (une sauvegarde relue) : recomptée');
+  c.trophees.dixmille = T0; c.now += 16; check(Math.abs(G.tropheesMult(c) - 1.0015) < 1e-12, 'un trophée posé à la main : recompté au pas de jeu suivant');
   // la vérification lente du pas de jeu : les 37 anciens à chaque pas, les nouveaux et les dorés toutes les 10 s
   const l = neuf(); l.secrets.visites = 10; l.stats.ventes = 2e5;
   const L = { lent: true };

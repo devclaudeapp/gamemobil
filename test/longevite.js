@@ -10,8 +10,9 @@ const G = require('../src/game.js');
 const { PRODUITS, AMELIORATIONS } = G;
 const seeded = (a) => { let s = a; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; };
 const H = 3600 * 1000, T0 = Date.UTC(2026, 9, 4, 22, 0); // lundi 5 octobre 2026, minuit à Paris (le rapport détaillé)
-// les départs du test, minuit à Paris : la citrouille d'Halloween, la bûche de Noël, un printemps sans saison puis Pâques, les glaces de l'été
-const DEPARTS = { '5 oct.': T0, '1er nov.': Date.UTC(2026, 9, 31, 23, 0), '1er mars': Date.UTC(2027, 1, 28, 23, 0), '7 juin': Date.UTC(2027, 5, 6, 22, 0) };
+// les départs du test, minuit à Paris : la citrouille d'Halloween, la bûche de Noël (deux fois : le 1er décembre la tient dès le premier
+// jour, et passe le 1er janvier dans son premier mois), un printemps sans saison puis Pâques, les glaces de l'été
+const DEPARTS = { '5 oct.': T0, '1er nov.': Date.UTC(2026, 9, 31, 23, 0), '1er déc.': Date.UTC(2026, 10, 30, 23, 0), '1er mars': Date.UTC(2027, 1, 28, 23, 0), '7 juin': Date.UTC(2027, 5, 6, 22, 0) };
 const PROFILS = {
   occasionnel: { sessions: [[8, 5], [20.5, 12]] },
   regulier: { sessions: [[7.75, 8], [12.5, 8], [21, 20]] },
