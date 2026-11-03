@@ -973,6 +973,67 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(m.resume().serie.jours === 0 && m.resume().serie.bonus === 10, 'deux jours sans envoi : la série affichée retombe à 0 (les points de la semaine restent)');
     const m2 = moteur(r, { stockage: st }); check(m2.resume().serie.jours === 0 && CL.lireEtat(st).dernier.serie.jours === 3, 'relue depuis le stockage (une autre fenêtre) : la même vue');
     horloge += 20e3; const q = await m.quitter(); check(q.etat === 'ok' && !m.resume().rejoint && m.resume().serie === null, 'après avoir quitté : null'); }
+  console.log('── version 6.8 : les projets de quartier (nettoyerProjets, projets(), projetsVu(), projetApport()) ──');
+  { const brut = { version: 1, semaine: '2026-11-02', cette_semaine: 6000, en_cours: { rang: 3, cout: 84000, total: 40200, pourcent: 47, actifs: 80, depuis: '2026-11-30' },
+      finis: [{ rang: 1, semaine: '2026-11-30', fini: '2026-12-01T11:00:00.000Z' }, { rang: 2, semaine: '2026-11-30', fini: '2026-12-01T11:00:00Z' }] };
+    check(egal(CL.nettoyerProjets(brut), { version: 1, semaine: '2026-11-02', cette_semaine: 6000, en_cours: { rang: 3, cout: 84000, total: 40200, pourcent: 47, actifs: 80, depuis: '2026-11-30' },
+      finis: [{ rang: 1, semaine: '2026-11-30', fini: '2026-12-01T11:00:00.000Z' }, { rang: 2, semaine: '2026-11-30', fini: '2026-12-01T11:00:00.000Z' }] }), 'la réponse de fournil_projets() relue telle quelle (version 1, entiers, lundis, horodatages ISO)');
+    check([null, 'x', [1], {}, { version: 2, en_cours: null, finis: [] }, { version: '1' }].every((d) => CL.nettoyerProjets(d) === null), 'pas une réponse de la version 1 (null, texte, tableau, version 2 ou absente) : null');
+    const sale = CL.nettoyerProjets({ version: 1, semaine: '2026-11-02<script>', cette_semaine: -5, en_cours: { rang: 2.7, cout: 1e15, total: 9e15, pourcent: 400, actifs: -1, depuis: 'hier' },
+      finis: [{ rang: 1, semaine: 'x', fini: 'jamais' }, { rang: 1, semaine: '2026-11-02' }, null, 'x', { rang: 0 }, { rang: 5 }, { rang: -3 }] });
+    check(sale && sale.semaine === '' && sale.cette_semaine === 0 && egal(sale.en_cours, { rang: 2, cout: 2e9, total: 2e9, pourcent: 100, actifs: 0, depuis: '' }) && egal(sale.finis, [{ rang: 1, semaine: '', fini: '' }]),
+      `une réponse piégée : bornée champ par champ, dates fausses vidées, doublons, rangs nuls et chantiers « finis » après celui en cours écartés (${JSON.stringify(sale)})`);
+    const sansEnCours = CL.nettoyerProjets({ version: 1, semaine: '2026-11-02', en_cours: { rang: 0, cout: 0 }, finis: [] }), calc = CL.nettoyerProjets({ version: 1, semaine: '2026-11-02', en_cours: { rang: 1, cout: 6000, total: 1500 }, finis: [] });
+    check(sansEnCours.en_cours === null && calc.en_cours.pourcent === 25, 'un chantier sans rang ni prix : aucun en cours ; un pourcentage absent : recalculé (1 500 / 6 000 = 25 %)');
+    const beaucoup = CL.nettoyerProjets({ version: 1, semaine: '2026-11-02', en_cours: null, finis: Array.from({ length: 450 }, (_, k) => ({ rang: 450 - k, semaine: '2026-11-02', fini: T })) });
+    check(beaucoup.finis.length === CL.PROJETS_FINIS && beaucoup.finis[0].rang === 251 && beaucoup.finis[199].rang === 450, `${CL.PROJETS_FINIS} chantiers finis au plus, rangés par rang, les plus récents gardés`);
+    check(egal(CL.apportProjet(CL.nettoyerProjets(brut), { lundi: '2026-11-02', points: 300 }), { points: 300, part: 5 }) && CL.apportProjet(CL.nettoyerProjets(brut), { lundi: '2026-10-26', points: 300 }) === null && CL.apportProjet(CL.nettoyerProjets(brut), null) === null && CL.apportProjet(CL.nettoyerProjets(brut), { lundi: '2026-11-02', rang: 3 }) === null,
+      'son apport : ses points comptés par le serveur cette semaine (300 sur 6 000 : 5 %) ; une autre semaine, rien envoyé, ou un serveur qui ne dit pas ses points : null'); }
+  { // le moteur : fournil_projets lu une fois toutes les 5 min ; le patch pas encore collé → « pas-ouvert », sans cacher les copains
+    horloge = T; let mode = 'absent', n = 0; const sv = serveur6();
+    const reponse = { version: 1, semaine: '2026-10-05', cette_semaine: 150, en_cours: { rang: 1, cout: 6000, total: 2150, pourcent: 35, actifs: 4, depuis: '2026-09-28' }, finis: [] };
+    const r = faux((url, init, c) => { if (url.endsWith('/fournil_projets')) { n++; if (mode === 'absent') return rep(404, { code: 'PGRST202' }); if (mode === 'panne') return rep(500, { code: 'XX000' }); if (mode === 'faux') return rep(200, { version: 7 }); return rep(200, reponse); } if (url.endsWith('/fournil_publier')) return rep(200, { ok: true, erreur: null, version: 6, semaine: '2026-10-05', rang_semaine: 1, rang_total: 1, joueurs: 3, points_semaine: 40 }); return sv.gerer(url, init, c); });
+    const st = inscrit(), m = moteur(r, { stockage: st });
+    check(m.projetsVu() === null, 'rien de lu : projetsVu() = null');
+    let p = await m.projets(); const a0 = r.appels[0];
+    check(p.etat === 'pas-ouvert' && m.projetsVu().etat === 'pas-ouvert' && m.copains() && a0.url.endsWith('/rest/v1/rpc/fournil_projets') && egal(a0.corps, {}) && a0.init.headers.apikey === CLEF,
+      'le patch v6.8 pas encore collé (404) : « pas-ouvert », les copains restent proposés ; l’appel : POST /rest/v1/rpc/fournil_projets, corps {}, la clé publique');
+    check((await m.objectif()).etat === 'ok', 'et l’objectif commun marche toujours (pasInstalle n’a pas été déclenché)');
+    await m.projets(); check(n === 1, 'redemandé aussitôt : la lecture gardée (aucun appel)');
+    horloge += 5 * 60e3; mode = 'ok'; p = await m.projets();
+    check(n === 2 && p.etat === 'ok' && m.projetsVu() === p && p.data.en_cours.total === 2150 && p.quand === horloge, '5 min plus tard, le patch collé entre-temps : le chantier se lit (2 150 / 6 000), projetsVu() rend la même lecture (même objet : l’écran la reconnaît)');
+    const [p1, p2] = [m.projets({ ecart: 0 }), m.projets({ ecart: 0 })]; check(p1 === p2 && (await p1) && n === 3, 'deux demandes en même temps : un seul appel');
+    const avant = m.projetsVu(); horloge += 6 * 60e3; mode = 'panne'; p = await m.projets();
+    check(p.etat === 'erreur' && m.projetsVu() === avant, 'une panne du serveur : l’erreur est rendue, la dernière bonne lecture reste');
+    horloge += 6 * 60e3; mode = 'faux'; p = await m.projets();
+    check(p.etat === 'erreur' && p.detail === 'reponse' && m.projetsVu() === avant, 'une réponse d’une autre version : écartée, la dernière bonne lecture reste');
+    check(m.projetApport() === null, 'rien envoyé cette semaine : pas d’apport');
+    horloge += 20e3; fortune += 10; await moteur(r, { stockage: st, points: () => ({ points: 40, lundi: '2026-10-05' }) }).envoyer('feuille');
+    const m2 = moteur(r, { stockage: st }); horloge += 1; mode = 'ok'; await m2.projets({ ecart: 0 });
+    check(egal(m2.projetApport(), { points: 40, part: 26.7 }), `après un envoi (40 points comptés par le serveur) : son apport au chantier, 40 sur les 150 de la semaine (${JSON.stringify(m2.projetApport())})`);
+    const m3 = CL.creerMoteur({ config: () => null, fetch: r.fetch, stockage: memoire(), ...temps }); const n0 = r.appels.length;
+    check((await m3.projets()).etat === 'absent' && r.appels.length === n0 && m3.projetsVu() === null, 'sans configuration (l’artefact) : « absent », aucun appel'); }
+
+  console.log('── version 6.8 : la photo porte le rang de palier (tp) et les trophées dorés (x.td) ──');
+  { const titres = ['', 'Boulanger étoilé', 'Légende de la farine', 'Seigneur du levain'];
+    const Gp = Object.assign(Object.create(G), { rangPalier: (n) => (n >= 40 ? Math.floor((n - 30) / 10) : 0), titrePalier: (k) => titres[k] || `Empereur ${k}` }); // les règles du lot (GAME.rangPalier, titrePalier), jouées ici
+    const st = G.newState(T); st.boutiques = 47; st.dores = { premiere: T, cent: T, salon: T };
+    const p = CL.photo(st, { G: Gp });
+    check(p && p.tp === 1 && p.x.td === 3, `la boutique n°47 (palier 1) avec 3 dorés : tp = ${p && p.tp}, x.td = ${p && p.x.td}`);
+    const b = CL.boutiqueDepuisPhoto(p, { G: Gp, maintenant: T });
+    check(b && b.st.finitionFixe === 1 && b.palier === 1 && b.titrePalier === 'Boulanger étoilé' && b.stats.td === 3, 'la visite : st.finitionFixe = 1 (la scène pose la finition), le titre du palier, ses dorés dans la fiche');
+    st.boutiques = 39; const p39 = CL.photo(st, { G: Gp });
+    check(p39 && !('tp' in p39) && CL.boutiqueDepuisPhoto(p39, { G: Gp, maintenant: T }).st.finitionFixe === 0 && CL.boutiqueDepuisPhoto(p39, { G: Gp, maintenant: T }).titrePalier === null, 'avant la n°40 : pas de tp ; la visite : finition 0, pas de titre de palier');
+    const sansLot = CL.photo(Object.assign(G.newState(T), { boutiques: 80 }), { G: Object.assign(Object.create(G), { rangPalier: undefined }) }), ancien = CL.photo(Object.assign(G.newState(T), { boutiques: 80, dores: undefined }), { G: Object.assign(Object.create(G), { rangPalier: undefined }) });
+    check(sansLot && !('tp' in sansLot) && ancien && !('td' in ancien.x), 'un jeu sans les règles du lot : ni tp, ni x.td (rien n’échoue)');
+    const sale = CL.nettoyerPhoto(Object.assign({}, p, { tp: 1e9, x: Object.assign({}, p.x, { td: 9999 }) })), nul = CL.nettoyerPhoto(Object.assign({}, p, { tp: 'x', x: Object.assign({}, p.x, { td: -4 }) }));
+    check(sale.tp === 1e4 && sale.x.td === 200 && !('tp' in nul) && nul.x.td === 0 && !('td' in CL.nettoyerPhoto({ v: 1, x: { e: 1 } }).x), 'venus du réseau : tp borné à 10 000 (0 ou absurde : absent), td borné de 0 à 200 ; une photo d’avant : sans td');
+    check(CL.clePhoto(p) !== CL.clePhoto(Object.assign({}, p, { tp: 2 })), 'un palier de plus : la clé de la photo change (elle repart)');
+    // le pire cas d'avant (plus haut), avec un palier énorme et 200 dorés : toujours sous 2 Ko, rien de retiré
+    const pire = G.newState(T); pire.nomBoutique = 'Ω'.repeat(400); pire.boutiques = 1e5; pire.dores = Object.fromEntries(Array.from({ length: 200 }, (_, k) => ['d' + k, T])); pire.stations.forEach((x) => { x.niv = 1e9; x.staff = true; }); for (const m of G.MOBILIER) pire.mobilier[m.id] = m.max;
+    pire.etoiles = 1e12; pire.stats.ventes = 1e20; pire.stats.serieMax = 1e9; pire.lifetime = 1e300; pire.distinctions = ['legende-manoir'];
+    const pp = CL.photo(pire, { G: Gp, coupes: Array(12).fill('or'), badge: true });
+    check(pp && CL.octetsJson(pp) <= 2048 && pp.tp === 9997 && pp.x.td === 200 && pp.k.length === 12, `un palier énorme et 200 dorés : ${pp && CL.octetsJson(pp)} octets ≤ 2048, rien de retiré`); }
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });
