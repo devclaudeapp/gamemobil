@@ -13,6 +13,7 @@
       <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
       <div class="boutons">
         <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
@@ -38,6 +39,7 @@
       <h2>Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <p class="fin-defi" hidden></p>
       <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
       <dl class="fin-chiffres"></dl>
       <button type="button" class="gros" id="b-rejouer">Rejouer</button>
@@ -65,6 +67,25 @@
       <p class="salon-etat" hidden></p>
       <p class="salon-erreur" role="alert" hidden></p>
       <button type="button" class="moyen" id="b-salon-quitter">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-defi" hidden>
+    <div class="carte-ecran defi">
+      <div class="defi-gauche">
+        <h2>Défi du jour</h2>
+        <p class="defi-date"></p>
+        <div class="defi-carte"><b class="defi-mut"></b><span class="defi-texte"></span><small class="defi-arene"></small></div>
+        <p class="defi-perso"></p>
+        <label class="champ"><span>Ton pseudo pour le classement</span><input id="d-pseudo" maxlength="16" autocomplete="nickname" placeholder="Survivant"></label>
+        <button type="button" class="gros" id="b-defi-jouer">Relever le défi</button>
+        <button type="button" class="moyen" id="b-defi-retour">Retour</button>
+      </div>
+      <div class="defi-droite">
+        <div class="onglets" role="tablist"><button type="button" role="tab" data-periode="jour" aria-selected="true">Aujourd’hui</button><button type="button" role="tab" data-periode="semaine" aria-selected="false">Cette semaine</button></div>
+        <ol class="defi-liste"></ol>
+        <p class="defi-etat"></p>
+      </div>
     </div>
   </section>
 

@@ -44,8 +44,17 @@ const ZHUD = (() => {
     fusil: '<svg viewBox="0 0 64 32"><path d="M2 12l14-3h44v5H44l-2 4h-6v9h-7v-9h-6l-3 5h-7l2-6H2z" fill="#6C6F7D" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/></svg>',
     precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
   };
+  // les familles (les armes sans silhouette à elles) : la couleur vient de l'arme
+  const FAMILLE_ICO = {
+    pistolet: ARME_ICO.pistolet.replace('#5B8BD9', 'currentColor'), mitraillette: ARME_ICO.mitraillette.replace('#3E9C6B', 'currentColor'), pompe: ARME_ICO.pompe.replace('#8A5A2B', 'currentColor'),
+    fusil: ARME_ICO.fusil.replace('#6C6F7D', 'currentColor'), sniper: ARME_ICO.precision.replace('#9B6BD6', 'currentColor'),
+    lanceur: '<svg viewBox="0 0 64 32"><path d="M4 9h48l6 3v6l-6 3H34l-2 8h-8l2-8H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><circle cx="12" cy="15" r="3" fill="#1F2533"/></svg>',
+    energie: '<svg viewBox="0 0 64 32"><path d="M6 10h38l10-4v20l-10-4H34l-3 7h-8l2-7H6z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><path d="M40 9l-5 7h5l-4 7" stroke="#FFF" stroke-width="2" fill="none"/></svg>',
+    flamme: '<svg viewBox="0 0 64 32"><path d="M4 12h30l8-3h10v14H42l-8-3h-4l-2 9h-8l2-9H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="8" y="18" width="12" height="8" rx="3" fill="#C0392B" stroke="#1F2533" stroke-width="2"/></svg>',
+  };
+  const iconeArme = (id) => { const A = ZDONNEES.ARMES[id]; if (ARME_ICO[id]) return ARME_ICO[id]; if (!A) return ''; return `<span class="ico-arme" style="color:${A.couleur}">${FAMILLE_ICO[A.famille] || FAMILLE_ICO.pistolet}</span>`; };
   const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
-  const NB_CHIFFRES = 40, chiffres = [], derniers = []; let iChiffre = 0, projeter = null, nbChiffres = 0;
+  const NB_CHIFFRES = 40, chiffres = [], derniers = [], cumul = new Map(); let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
   const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
@@ -77,6 +86,7 @@ const ZHUD = (() => {
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
+      <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
@@ -109,6 +119,8 @@ const ZHUD = (() => {
     const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
     el.info.innerHTML = `<b>${d.nom}</b> ${d.desc}`; el.info.hidden = false; infoT = 2.2;
   }
+  // un éclair blanc (le coup de grâce sur un boss)
+  function flash() { const f = R.querySelector('.h-flash'); if (!f) return; f.classList.remove('vu'); void f.offsetWidth; f.classList.add('vu'); }
   function toast(t) { el.toast.textContent = t; el.toast.hidden = false; el.toast.classList.remove('vu'); void el.toast.offsetWidth; el.toast.classList.add('vu'); toastT = 1.8; }
   function annonce(t, s, duree) { el.annB.textContent = t; el.annS.textContent = s || ''; el.annonce.hidden = false; el.annonce.classList.remove('vu'); void el.annonce.offsetWidth; el.annonce.classList.add('vu'); annonceT = duree || 2.2; }
 
@@ -178,7 +190,7 @@ const ZHUD = (() => {
       const s = j.armes[i], b = el.slots[i], cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}` : 'vide';
       if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
       b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
-      b.innerHTML = s ? `${ARME_ICO[s.id] || ''}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
+      b.innerHTML = s ? `${iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
@@ -238,11 +250,13 @@ const ZHUD = (() => {
     if (evs && projeter) {
       const parCible = new Map();
       for (const e of evs) {
-        if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
+        if (e.t === 'touche' && e.petit) { const q = cumul.get(e.cible) || { x: e.x, z: e.z, d: 0, t: 0.45, boss: e.boss }; q.d += e.degats; q.x = e.x; q.z = e.z; cumul.set(e.cible, q); } // (flammes, brûlure, acide : cumulés)
+        else if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
+      for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
     }
     for (const c2 of chiffres) {
       if (c2.t <= 0) continue; c2.t -= dt;
@@ -259,5 +273,5 @@ const ZHUD = (() => {
     nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
   function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  return { init, maj, annonce, toast, flash, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, iconeArme, get atelierOuvert() { return ouvert; } };
 })();

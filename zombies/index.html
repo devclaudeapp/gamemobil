@@ -177,6 +177,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .logo-2 { font-size: 52px; }
   .arene { min-height: 0; padding: 8px 10px; width: 156px; }
   .aide { display: none; }
+  .accroche { display: none; } /* (la place pour la rangée de boutons ; l'aide et l'accroche restent en portrait et sur grand écran) */
+  .boutons .moyen { padding: 8px 14px; }
 }
 /* ─── en portrait : le score passe sous la vague, l'atelier se replie volontiers, la mini-carte rapetisse ─── */
 @media (orientation: portrait) {
@@ -278,6 +280,60 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .h-noms { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .h-noms span { position: absolute; left: 0; top: 0; padding: 1px 8px; border-radius: 999px; background: rgba(31, 37, 51, .7); color: #fff; font: 700 12px/1.4 var(--titre); white-space: nowrap; }
 .h-noms span.terre { background: #C8412C; }
+/* l'éclair blanc du coup de grâce */
+.h-flash { position: absolute; inset: 0; background: #FFF8E0; opacity: 0; pointer-events: none; }
+.h-flash.vu { animation: eclair .7s ease-out; }
+@keyframes eclair { 0% { opacity: .85; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .h-flash.vu { animation: none; } }
+
+/* ─── le défi du jour ─── */
+.defi-bouton { flex-direction: column; gap: 2px; background: #FFE9A8; }
+.defi-bouton small { font: 600 11px/1.1 var(--texte); color: #6B5A1E; }
+.defi-bouton small:empty { display: none; }
+.defi { width: min(760px, 100%); max-height: 100%; overflow-y: auto; grid-template-columns: 1fr; align-items: start; }
+.defi-gauche, .defi-droite { display: grid; gap: 8px; }
+.defi-date { margin: -4px 0 0; color: #5A5F6B; font-size: 14px; text-transform: capitalize; }
+.defi-carte { display: grid; gap: 3px; padding: 10px 14px; border-radius: 16px; background: var(--encre); color: #fff; text-align: left; }
+.defi-mut { font: 700 20px/1.1 var(--titre); color: var(--jaune); }
+.defi-texte { font-size: 14px; }
+.defi-arene { color: #B9C0CE; font-size: 12px; }
+.defi-perso { margin: 0; font-weight: 700; }
+.onglets { display: flex; gap: 6px; justify-content: center; }
+.onglets button { flex: 1; min-height: 38px; border-radius: 999px; border: 2.5px solid var(--encre); background: #fff; font: 700 14px/1 var(--titre); color: var(--encre); }
+.onglets button[aria-selected="true"] { background: var(--jaune); }
+.defi-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 230px; overflow-y: auto; }
+.defi-liste li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: #fff; text-align: left; font-size: 14px; }
+.defi-liste li b { font: 700 16px/1 var(--titre); color: #8A6A10; text-align: center; }
+.defi-liste li .score { font-weight: 700; }
+.defi-liste li small { display: block; color: #8A8F9A; font-size: 11px; }
+.defi-liste li.moi { box-shadow: inset 0 0 0 2.5px var(--jaune); }
+.defi-liste li.moi.loin { margin-top: 6px; }
+.defi-etat { margin: 0; color: #5A5F6B; font-size: 13px; }
+.defi-etat:empty { display: none; }
+.fin-defi { margin: 0; padding: 6px 12px; border-radius: 12px; background: var(--encre); color: var(--jaune); font-weight: 700; }
+@media (min-width: 620px) { .defi { grid-template-columns: 1fr 1fr; gap: 16px; } }
+@media (max-height: 460px) { .defi h2 { font-size: 24px; } .defi .gros { padding: 8px 24px; font-size: 20px; min-height: 42px; } .defi .champ input { min-height: 38px; } .defi-liste { max-height: 200px; } }
+.fin-medailles svg { width: 22px; height: 22px; vertical-align: -4px; }
+/* en paysage sur un téléphone : l'écran de fin sur deux colonnes de chiffres, les boutons côte à côte */
+@media (max-height: 460px) and (orientation: landscape) {
+  #ecran-fin .carte-ecran { width: min(560px, 100%); grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 12px 16px 14px; }
+  #ecran-fin .carte-ecran > :not(#b-rejouer):not(#b-menu) { grid-column: 1 / -1; }
+  #ecran-fin h2 { font-size: 24px; margin: 0; }
+  #ecran-fin .fin-chiffres { grid-template-columns: 1fr auto 1fr auto; gap: 2px 12px; font-size: 14px; }
+  #ecran-fin .fin-chiffres dd { font-size: 16px; }
+  #ecran-fin .gros { padding: 8px 20px; font-size: 20px; min-height: 44px; }
+}
+@media (max-height: 460px) and (orientation: landscape) {
+  .defi { padding: 12px 16px 14px; }
+  .defi-gauche { grid-template-columns: 1fr auto; gap: 6px 8px; }
+  .defi-gauche > :not(#b-defi-jouer):not(#b-defi-retour) { grid-column: 1 / -1; }
+  .defi-perso { font-size: 14px; }
+  .defi-carte { padding: 8px 12px; }
+  .defi-liste { max-height: 250px; }
+}
+/* ─── les armes : icône de famille à la couleur de l'arme ; dégâts cumulés (flammes, brûlure, acide) plus discrets ─── */
+.ico-arme { display: block; line-height: 0; }
+.h-degats .num.petit { font-size: 14px; color: #FFD9A0; }
 </style>
 </head>
 <body>
@@ -296,6 +352,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
       <div class="boutons">
         <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
@@ -321,6 +378,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <h2>Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <p class="fin-defi" hidden></p>
       <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
       <dl class="fin-chiffres"></dl>
       <button type="button" class="gros" id="b-rejouer">Rejouer</button>
@@ -348,6 +406,25 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <p class="salon-etat" hidden></p>
       <p class="salon-erreur" role="alert" hidden></p>
       <button type="button" class="moyen" id="b-salon-quitter">Retour</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-defi" hidden>
+    <div class="carte-ecran defi">
+      <div class="defi-gauche">
+        <h2>Défi du jour</h2>
+        <p class="defi-date"></p>
+        <div class="defi-carte"><b class="defi-mut"></b><span class="defi-texte"></span><small class="defi-arene"></small></div>
+        <p class="defi-perso"></p>
+        <label class="champ"><span>Ton pseudo pour le classement</span><input id="d-pseudo" maxlength="16" autocomplete="nickname" placeholder="Survivant"></label>
+        <button type="button" class="gros" id="b-defi-jouer">Relever le défi</button>
+        <button type="button" class="moyen" id="b-defi-retour">Retour</button>
+      </div>
+      <div class="defi-droite">
+        <div class="onglets" role="tablist"><button type="button" role="tab" data-periode="jour" aria-selected="true">Aujourd’hui</button><button type="button" role="tab" data-periode="semaine" aria-selected="false">Cette semaine</button></div>
+        <ol class="defi-liste"></ol>
+        <p class="defi-etat"></p>
+      </div>
     </div>
   </section>
 
@@ -1620,15 +1697,40 @@ const PRESEAU = (() => {
 
   // ─── les armes ───
   // degats par balle, cadence (tirs/s), portee (m), balles par tir et dispersion (rad), munitions trouvées dans une caisse (Infinity : sans fin),
-  // perce : nombre de zombies traversés, recul : poussée sur le zombie touché, classe : le son (src-poncin/sons.js), rarete : poids dans les caisses
+  // perce : nombre de zombies traversés, recul : poussée sur le zombie touché, classe : le son, rarete : poids dans les caisses, depuis : la
+  // première vague où une caisse peut la donner ; modele : le blaster du Blaster Kit de Kenney (zombies/modeles/armes/), teinte : sa couleur ;
+  // famille : l'icône du HUD. mode : 'balle' (instantanée, par défaut), 'flamme' (un cône continu ; feu : brûlure, gel : ralentit),
+  // 'tesla' (un éclair qui saute de zombie en zombie : rebonds, saut), 'roquette' (part droit, explose : souffle), 'obus' (en cloche,
+  // explose ; flaque : une flaque qui ronge), 'scie' (un disque qui traverse tout et revient). salve : balles tirées d'affilée ;
+  // montee : secondes pour atteindre la pleine cadence ; sansPerte : traverse sans perdre de dégâts ; explose : petite explosion à l'impact.
   const ARMES = {
-    pistolet:     { nom: 'Pistolet',      degats: 14, cadence: 3.2,  portee: 9,  balles: 1, dispersion: 0.03, munitions: Infinity, perce: 0, recul: 0.25, classe: 'pistolet',     couleur: '#5B8BD9', rarete: 0,  depuis: 1 },
-    revolver:     { nom: 'Revolver',      degats: 38, cadence: 1.6,  portee: 11, balles: 1, dispersion: 0.02, munitions: 48,       perce: 1, recul: 0.6,  classe: 'pistolet',     couleur: '#C9563C', rarete: 30, depuis: 1 },
-    pompe:        { nom: 'Fusil à pompe', degats: 13, cadence: 1.15, portee: 7,  balles: 7, dispersion: 0.32, munitions: 30,       perce: 0, recul: 1.0,  classe: 'pompe',        couleur: '#8A5A2B', rarete: 26, depuis: 2 },
-    mitraillette: { nom: 'Mitraillette',  degats: 11, cadence: 10,   portee: 9,  balles: 1, dispersion: 0.09, munitions: 220,      perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#3E9C6B', rarete: 24, depuis: 3 },
-    fusil:        { nom: 'Fusil d’assaut', degats: 19, cadence: 6.5, portee: 12, balles: 1, dispersion: 0.05, munitions: 180,      perce: 1, recul: 0.2,  classe: 'fusil',        couleur: '#6C6F7D', rarete: 18, depuis: 4 },
-    precision:    { nom: 'Carabine',      degats: 95, cadence: 0.9,  portee: 16, balles: 1, dispersion: 0.0,  munitions: 28,       perce: 4, recul: 1.2,  classe: 'sniper',       couleur: '#9B6BD6', rarete: 10, depuis: 5 },
+    pistolet:      { nom: 'Pistolet',          famille: 'pistolet', modele: 'r', teinte: '#7FA8E8', degats: 14, cadence: 3.2,  portee: 9,   balles: 1,  dispersion: 0.03, munitions: Infinity, perce: 0, recul: 0.25, classe: 'pistolet',     couleur: '#5B8BD9', rarete: 0,  depuis: 1 },
+    revolver:      { nom: 'Revolver',          famille: 'pistolet', modele: 'a', teinte: '#C9C2B6', degats: 38, cadence: 1.6,  portee: 11,  balles: 1,  dispersion: 0.02, munitions: 48,  perce: 1, recul: 0.6,  classe: 'pistolet',     couleur: '#C9563C', rarete: 30, depuis: 1 },
+    jumeaux:       { nom: 'Pistolets jumeaux', famille: 'pistolet', modele: 'r', teinte: '#F2C94C', degats: 12, cadence: 7,    portee: 8.5, balles: 1,  dispersion: 0.1,  munitions: 160, perce: 0, recul: 0.2,  classe: 'pistolet',     couleur: '#E0B23A', rarete: 24, depuis: 2 },
+    mitraillette:  { nom: 'Mitraillette',      famille: 'mitraillette', modele: 'd', degats: 11, cadence: 10,  portee: 9,   balles: 1,  dispersion: 0.09, munitions: 220, perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#3E9C6B', rarete: 24, depuis: 3 },
+    vipere:        { nom: 'Vipère',            famille: 'mitraillette', modele: 'j', teinte: '#7BD389', degats: 8,  cadence: 15,  portee: 7,   balles: 1,  dispersion: 0.14, munitions: 300, perce: 0, recul: 0.1,  classe: 'mitraillette', couleur: '#5DBB63', rarete: 18, depuis: 4 },
+    pompe:         { nom: 'Fusil à pompe',     famille: 'pompe', modele: 'l', degats: 13, cadence: 1.15, portee: 7,   balles: 7,  dispersion: 0.32, munitions: 30,  perce: 0, recul: 1.0,  classe: 'pompe',        couleur: '#8A5A2B', rarete: 26, depuis: 2 },
+    doublecanon:   { nom: 'Double canon',      famille: 'pompe', modele: 'o', teinte: '#B07A48', degats: 16, cadence: 0.8,  portee: 6.5, balles: 12, dispersion: 0.5,  munitions: 20,  perce: 0, recul: 1.6,  classe: 'pompe',        couleur: '#A0522D', rarete: 14, depuis: 5 },
+    pompeauto:     { nom: 'Pompe automatique', famille: 'pompe', modele: 'q', degats: 10, cadence: 3,    portee: 6.5, balles: 6,  dispersion: 0.36, munitions: 60,  perce: 0, recul: 0.8,  classe: 'pompe',        couleur: '#7A4E2A', rarete: 10, depuis: 8 },
+    cloueuse:      { nom: 'Cloueuse',          famille: 'pompe', modele: 'q', teinte: '#9AA7B8', degats: 11, cadence: 5,    portee: 9,   balles: 3,  dispersion: 0.18, munitions: 150, perce: 1, recul: 0.3,  classe: 'mitraillette', couleur: '#8E9AAB', rarete: 12, depuis: 6 },
+    fusil:         { nom: 'Fusil d’assaut',    famille: 'fusil', modele: 'g', degats: 19, cadence: 6.5,  portee: 12,  balles: 1,  dispersion: 0.05, munitions: 180, perce: 1, recul: 0.2,  classe: 'fusil',        couleur: '#6C6F7D', rarete: 18, depuis: 4 },
+    rafale:        { nom: 'Fusil à rafales',   famille: 'fusil', modele: 'p', degats: 24, cadence: 2.2,  portee: 13,  balles: 1,  dispersion: 0.03, munitions: 150, perce: 1, recul: 0.25, classe: 'fusil',        couleur: '#4F5D75', rarete: 14, depuis: 6, salve: 3 },
+    minigun:       { nom: 'Minigun',           famille: 'mitraillette', modele: 'k', teinte: '#8C8C8C', degats: 10, cadence: 22,  portee: 10,  balles: 1,  dispersion: 0.12, munitions: 500, perce: 0, recul: 0.12, classe: 'mitraillette', couleur: '#5F6368', rarete: 6, depuis: 12, montee: 1.2 },
+    precision:     { nom: 'Carabine',          famille: 'sniper', modele: 'e', degats: 95, cadence: 0.9,  portee: 16,  balles: 1,  dispersion: 0.0,  munitions: 28,  perce: 4, recul: 1.2,  classe: 'sniper',       couleur: '#9B6BD6', rarete: 10, depuis: 5 },
+    canon:         { nom: 'Canon de précision', famille: 'sniper', modele: 'f', teinte: '#6E5AA8', degats: 240, cadence: 0.5, portee: 20,  balles: 1,  dispersion: 0.0,  munitions: 16,  perce: 10, recul: 2.0, classe: 'sniper',       couleur: '#5B3FA0', rarete: 6, depuis: 10, sansPerte: true },
+    arbalete:      { nom: 'Arbalète',          famille: 'sniper', modele: 'n', teinte: '#A47148', degats: 70, cadence: 1.4,  portee: 13,  balles: 1,  dispersion: 0.01, munitions: 40,  perce: 3, recul: 0.9,  classe: 'arc',          couleur: '#8B5A2B', rarete: 12, depuis: 3 },
+    roquettes:     { nom: 'Lance-roquettes',   famille: 'lanceur', modele: 'h', degats: 150, cadence: 0.8, portee: 14,  balles: 1,  dispersion: 0.0,  munitions: 12,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#C0392B', rarete: 8, depuis: 7, mode: 'roquette', souffle: 2.8, vitesse: 16 },
+    lancegrenades: { nom: 'Lance-grenades',    famille: 'lanceur', modele: 'm', degats: 90, cadence: 1.4,  portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 24,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#556B2F', rarete: 12, depuis: 5, mode: 'obus', souffle: 2.4 },
+    acide:         { nom: 'Lance-acide',       famille: 'lanceur', modele: 'm', teinte: '#A8E04A', degats: 25, cadence: 1.6, portee: 10,  balles: 1,  dispersion: 0.0,  munitions: 30,  perce: 0, recul: 0,    classe: 'acide',        couleur: '#8CC63F', rarete: 10, depuis: 6, mode: 'obus', souffle: 1.6, flaque: { r: 1.9, dps: 26, duree: 4 } },
+    scie:          { nom: 'Lance-scies',       famille: 'lanceur', modele: 'b', teinte: '#D0D6DE', degats: 45, cadence: 1.5, portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 30,  perce: 99, recul: 0.4, classe: 'scie',         couleur: '#B8C2CC', rarete: 9, depuis: 8, mode: 'scie', vitesse: 13 },
+    tesla:         { nom: 'Fusil Tesla',       famille: 'energie', modele: 'i', teinte: '#6FD3FF', degats: 32, cadence: 2.5, portee: 9,   balles: 1,  dispersion: 0.0,  munitions: 80,  perce: 0, recul: 0.2,  classe: 'tesla',        couleur: '#3BB7F0', rarete: 9, depuis: 6, mode: 'tesla', rebonds: 4, saut: 3.4 },
+    laser:         { nom: 'Laser',             famille: 'energie', modele: 'n', teinte: '#FF5C8A', degats: 26, cadence: 4,   portee: 16,  balles: 1,  dispersion: 0.0,  munitions: 90,  perce: 99, recul: 0.1, classe: 'laser',        couleur: '#FF3D6E', rarete: 8, depuis: 9, sansPerte: true },
+    plasma:        { nom: 'Fusil à plasma',    famille: 'energie', modele: 'c', teinte: '#B48CFF', degats: 30, cadence: 3,   portee: 12,  balles: 1,  dispersion: 0.02, munitions: 90,  perce: 0, recul: 0.3,  classe: 'laser',        couleur: '#9B6BFF', rarete: 8, depuis: 9, explose: { souffle: 1.4, degats: 28 } },
+    flammes:       { nom: 'Lance-flammes',     famille: 'flamme', modele: 'b', teinte: '#FF8A3A', degats: 6,  cadence: 10,  portee: 4.8, balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0.05, classe: 'flamme',       couleur: '#FF7A1A', rarete: 10, depuis: 4, mode: 'flamme', cone: 0.36, feu: { dps: 16, duree: 2.5 } },
+    cryo:          { nom: 'Cryo-canon',        famille: 'flamme', modele: 'c', teinte: '#9FE7FF', degats: 3,  cadence: 10,  portee: 5,   balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0,    classe: 'cryo',         couleur: '#7FD6F5', rarete: 9, depuis: 7, mode: 'flamme', cone: 0.32, gel: { ralenti: 0.4, duree: 2.5 } },
   };
+  // les raretés, d'après le poids dans les caisses (l'écran de la collection et la couleur du nom à la caisse)
+  const RARETE = (a) => (a.rarete === 0 || a.rarete >= 20 ? 'commune' : a.rarete >= 12 ? 'rare' : a.rarete >= 8 ? 'epique' : 'legendaire');
   const ARME_DE_BASE = 'pistolet';
 
   // ─── les zombies ───
@@ -1639,6 +1741,15 @@ const PRESEAU = (() => {
     coureur:    { nom: 'Coureur',    vie: 22,   vitesse: 3.6,  degats: 6,  cadence: 1.6, rayon: 0.36, ferraille: 1,  points: 15,  taille: 0.88, peau: '#A6C97A', haut: '#D9824B', bas: '#3F3F4A', depuis: 2, poids: 5, teinte: '#F2E2A0' },
     costaud:    { nom: 'Costaud',    vie: 180,  vitesse: 1.1,  degats: 22, cadence: 0.7, rayon: 0.7,  ferraille: 4,  points: 40,  taille: 1.45, peau: '#6FA35A', haut: '#5A6E8C', bas: '#3B3B3B', depuis: 3, poids: 2, teinte: '#9FB0C8' },
     cracheur:   { nom: 'Cracheur',   vie: 46,   vitesse: 1.35, degats: 7,  cadence: 1.0, rayon: 0.42, ferraille: 2,  points: 25,  taille: 1.0,  peau: '#B7D35A', haut: '#4E8A6E', bas: '#5C4A3A', depuis: 4, poids: 2, crache: { portee: 7.5, cadence: 0.45, degats: 10, vitesse: 7 }, teinte: '#C8F07A' },
+    // les talents : kamikaze (explose au contact ou à sa mort : souffle, degats), saut (bondit par-dessus les obstacles vers sa proie),
+    // flamme (souffle du feu de près), pare (chance de parer une balle qui arrive de face), crochet (lance une chaîne qui tire le survivant
+    // vers lui), invoque (relève les morts récents en traînards)
+    kamikaze:   { nom: 'Kamikaze',   vie: 30,   vitesse: 2.7,  degats: 6,  cadence: 1.0, rayon: 0.4,  ferraille: 2,  points: 20,  taille: 0.95, peau: '#C9D86A', haut: '#C0392B', bas: '#3B3B3B', depuis: 6, poids: 2.5, teinte: '#FF8A6A', kamikaze: { souffle: 2.3, degats: 32 } },
+    sauteur:    { nom: 'Sauteur',    vie: 40,   vitesse: 2.2,  degats: 8,  cadence: 1.4, rayon: 0.38, ferraille: 2,  points: 22,  taille: 0.9,  peau: '#9BCB5A', haut: '#5B7F3A', bas: '#3F3F4A', depuis: 7, poids: 2.5, teinte: '#B8F58A', saut: { portee: 9, duree: 0.6, recharge: 3.5, degats: 12 } },
+    flammeur:   { nom: 'Cracheur de feu', vie: 70, vitesse: 1.4, degats: 8,  cadence: 1.0, rayon: 0.45, ferraille: 3,  points: 30,  taille: 1.05, peau: '#C9B26A', haut: '#8C3A1C', bas: '#4A3A2A', depuis: 8, poids: 1.8, teinte: '#FFB060', flamme: { portee: 4.2, cone: 0.42, dps: 18 } },
+    sabreur:    { nom: 'Sabreur',    vie: 90,   vitesse: 1.9,  degats: 16, cadence: 1.2, rayon: 0.45, ferraille: 3,  points: 35,  taille: 1.05, peau: '#A9C08A', haut: '#4A5A78', bas: '#2B2F3A', depuis: 9, poids: 1.6, teinte: '#9DB8E8', pare: 0.6 },
+    geolier:    { nom: 'Geôlier',    vie: 150,  vitesse: 1.25, degats: 14, cadence: 0.9, rayon: 0.55, ferraille: 4,  points: 45,  taille: 1.2,  peau: '#8FA878', haut: '#4A3A5A', bas: '#2B2230', depuis: 11, poids: 1.1, teinte: '#B49AD8', crochet: { portee: 9, vitesse: 15, recharge: 5.5, degats: 8 } },
+    invocateur: { nom: 'Invocateur', vie: 110,  vitesse: 1.15, degats: 8,  cadence: 0.8, rayon: 0.45, ferraille: 5,  points: 55,  taille: 1.12, peau: '#D8E0C8', haut: '#5A2A6A', bas: '#2B2230', depuis: 12, poids: 0.9, teinte: '#E8D8FF', invoque: { portee: 11, recharge: 6, nombre: 3, distance: 6.5 } },
     // les boss : un toutes les cinq vagues, à tour de rôle (VAGUES.boss) ; modèles KayKit (src-zombies/modeles.js), squelette « large » ou « medium »
     golem:      { nom: 'Golem squelette', vie: 1400, vitesse: 1.0,  degats: 35, cadence: 0.6, rayon: 1.05, ferraille: 25, points: 400, taille: 2.2,  peau: '#C9C2B0', haut: '#5A6070', bas: '#3B3B44', depuis: 5, poids: 0, boss: true, modele: 'golem', rig: 'large' },
     loupgarou:  { nom: 'Loup-garou',      vie: 1000, vitesse: 2.3,  degats: 24, cadence: 1.1, rayon: 0.9,  ferraille: 25, points: 450, taille: 1.9,  peau: '#8A7560', haut: '#C0392B', bas: '#3B4A6B', depuis: 10, poids: 0, boss: true, modele: 'loup-garou', rig: 'medium' },
@@ -1768,7 +1879,25 @@ const PRESEAU = (() => {
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
   const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
 
-  return { BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
+  // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)
+  const DEFI = {
+    mutateurs: [
+      { id: 'ruee', nom: 'Ruée', texte: 'Les zombies courent 25 % plus vite. Points ×1,25.', zVitesse: 1.25, points: 1.25 },
+      { id: 'cuir', nom: 'Peau dure', texte: 'Zombies 50 % plus résistants. Points ×1,5.', zVie: 1.5, points: 1.5 },
+      { id: 'maree', nom: 'Marée', texte: '50 % de zombies en plus à chaque vague.', nombre: 1.5 },
+      { id: 'artificier', nom: 'Artificier', texte: 'La grenade se recharge 2,5 fois plus vite.', grenade: 0.4 },
+      { id: 'chevrotine', nom: 'Chevrotine', texte: 'Tu pars avec le fusil à pompe.', arme: 'pompe' },
+      { id: 'lynx', nom: 'Œil de faucon', texte: 'Tu pars avec la carabine.', arme: 'precision' },
+      { id: 'ferrailleur', nom: 'Ferrailleur', texte: 'Deux fois plus de ferraille sur les zombies.', ferraille: 2 },
+      { id: 'disette', nom: 'Disette', texte: 'Moitié moins de ferraille, mais points ×2.', ferraille: 0.5, points: 2 },
+    ],
+    // le score le plus haut possible en atteignant la vague v (le serveur refuse au-delà) : chaque zombie compté comme un Costaud
+    // (40 pts) en série ×4 avec les points ×2, la vague à 1,5 fois son nombre, un boss par vague (600 × 4 × 2), et la prime
+    borneScore(v) { let s = 0; for (let n = 1; n <= v; n++) s += Math.ceil(VAGUES.nombre(n) * 1.5) * 40 * 4 * 2 + 600 * 4 * 2 + VAGUES.prime(n); return s; },
+  };
+
+  return { RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -1934,10 +2063,12 @@ const PRESEAU = (() => {
       arene: id, A, monde, nav, navGros, rnd, graine: (o.graine >>> 0) || 1,
       t: 0, n: 0, prochainId: 1,
       vague: 0, phase: 'pause', chrono: o.attente != null ? o.attente : 4, aSortir: 0, totalVague: 0, sortieT: 0, bossAVenir: false,
-      joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [],
+      joueurs: [], zombies: [], defenses: [], objets: [], crachats: [], obus: [], disques: [], zones: [], crochets: [], morts: [],
       serie: { n: 0, t: -99, mult: 1 },
       stats: { tues: 0, ferraille: 0, tirs: 0, construits: 0, parType: {} },
       navPas: 0, evs: [], fini: false, choix: null,
+      // le mutateur (défi du jour) : vie, vitesse et nombre des zombies, ferraille, points, recharge de la grenade, arme de départ
+      mod: Object.assign({ zVie: 1, zVitesse: 1, nombre: 1, ferraille: 1, points: 1, grenade: 1, arme: null }, o.mod || {}),
     };
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
     jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
@@ -1951,13 +2082,15 @@ const PRESEAU = (() => {
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
-        choix: null, releve: 0,
+        choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
       });
     });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
     for (const j of jeu.joueurs) {
       const B = D.BUNKER, b = j.bonus;
       j.vieMax += b.vie * B.vie.par; j.vie = j.vieMax; j.ferraille += b.ferraille * B.ferraille.par;
+      j.mGrenade = jeu.mod.grenade;
+      if (jeu.mod.arme && D.ARMES[jeu.mod.arme]) { j.armes[1] = { id: jeu.mod.arme, mun: D.ARMES[jeu.mod.arme].munitions }; j.main = 1; continue; }
       if (b.arme > 0) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= 2), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; }
     }
     return jeu;
@@ -1971,7 +2104,7 @@ const PRESEAU = (() => {
   const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par);
   const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
   const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
-  const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par);
+  const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
   const aimant = (j) => D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par;
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
@@ -1984,7 +2117,7 @@ const PRESEAU = (() => {
   // ─── les vagues ───
   function lancerVague(jeu) {
     const V = D.VAGUES; jeu.vague++; jeu.phase = 'vague';
-    jeu.totalVague = V.nombre(jeu.vague); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
+    jeu.totalVague = Math.ceil(V.nombre(jeu.vague) * jeu.mod.nombre); jeu.aSortir = jeu.totalVague; jeu.sortieT = 0.6; jeu.bossAVenir = V.boss(jeu.vague);
     for (let k = 0; k < V.caisse(jeu.vague); k++) poserCaisse(jeu);
     ev(jeu, { t: 'vague', n: jeu.vague, total: jeu.totalVague, boss: jeu.bossAVenir });
   }
@@ -2014,9 +2147,9 @@ const PRESEAU = (() => {
     const l = bonnes.length ? bonnes : A.sorties, s = l[Math.floor(rnd() * l.length) % l.length];
     const p = jeu.monde.libreProche(s[0] + (rnd() - 0.5) * 2, s[1] + (rnd() - 0.5) * 2, Z.rayon, 5); if (!p) return false;
     const kv = D.VAGUES.vie(jeu.vague), kx = D.VAGUES.vitesse(jeu.vague) * (0.92 + rnd() * 0.16);
-    const vie = Math.round(Z.vie * kv * (Z.boss ? 1 + Math.max(0, jeu.joueurs.length - 1) * 0.6 : 1));
+    const vie = Math.round(Z.vie * kv * jeu.mod.zVie * (Z.boss ? 1 + Math.max(0, jeu.joueurs.length - 1) * 0.6 : 1));
     jeu.zombies.push({
-      id: nouvelId(jeu), type, x: p[0], z: p[1], vie, vieMax: vie, vitesse: Z.vitesse * kx, rayon: Z.rayon, angle: 0,
+      id: nouvelId(jeu), type, x: p[0], z: p[1], vie, vieMax: vie, vitesse: Z.vitesse * kx * jeu.mod.zVitesse, rayon: Z.rayon, angle: 0,
       chemin: null, ci: 0, repense: rnd() * 0.4, coinceT: 0, coince: 0, cx: p[0], cz: p[1], coup: 0.3 + rnd() * 0.5, crache: 1 + rnd(), flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: jeu.t,
     });
     return true;
@@ -2051,22 +2184,90 @@ const PRESEAU = (() => {
       let l = portee, n = 0;
       for (const [t, zb] of _touches) {
         if (n > arme.perce) break;
+        const Zp = D.ZOMBIES[zb.type];
+        if (Zp.pare && estJoueur && jeu.t - zb.naissance > SORTIE && ecartAngle(zb.angle, ab + Math.PI) < 1.0 && rnd() < Zp.pare) { ev(jeu, { t: 'pare', id: zb.id, x: zb.x, z: zb.z }); l = t; n = arme.perce + 1; break; } // parée : la balle s'arrête là
         const crit = !!tireur && rnd() < chanceCritique(tireur);
-        const deg = arme.degats * mult * (estJoueur && n > 0 ? 0.7 : 1) * (crit ? D.CRITIQUE.mult : 1);
+        const deg = arme.degats * mult * (estJoueur && n > 0 && !arme.sansPerte ? 0.7 : 1) * (crit ? D.CRITIQUE.mult : 1);
         blesserZombie(jeu, zb, deg, dx * arme.recul, dz * arme.recul, de, crit);
         n++; l = t;
       }
-      if (n > arme.perce) { /* arrêtée par le dernier zombie traversé */ } else l = portee;
+      if (n > arme.perce) { /* arrêtée par le dernier zombie traversé (ou parée) */ } else l = portee;
+      if (arme.explose && (n > 0 || l < arme.portee - 0.05)) explosion(jeu, x + dx * l, z + dz * l, arme.explose.souffle, arme.explose.degats * mult, de, true);
       jeu.stats.tirs++;
       ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a: ab, l, touche: n > 0, b });
     }
   }
-  function blesserZombie(jeu, zb, deg, px, pz, de, crit) {
+  // un tir de survivant, selon le mode de l'arme
+  function tirer(jeu, j, arme, cible, cle) {
+    const bx = j.x + Math.cos(j.angle) * 0.5, bz = j.z + Math.sin(j.angle) * 0.5, mult = multDegats(j), A = remplir(_armeTir, arme, { cle });
+    if (arme.mode === 'flamme') souffler(jeu, j.id, bx, bz, j.angle, A, mult);
+    else if (arme.mode === 'tesla') eclair(jeu, j.id, bx, bz, j.angle, A, mult, j, cible);
+    else if (arme.mode === 'roquette' || arme.mode === 'obus') lancer(jeu, j.id, bx, bz, j.angle, A, mult, cible);
+    else if (arme.mode === 'scie') scier(jeu, j.id, bx, bz, j.angle, A, mult);
+    else rafale(jeu, j.id, bx, bz, j.angle, A, mult, true, j);
+  }
+  // le cône du lance-flammes (et du cryo-canon) : tout ce qui est dedans, à portée et en vue, prend un peu, et brûle (ou gèle)
+  function souffler(jeu, de, x, z, a, arme, mult) {
+    const portee = jeu.monde.tir(x, z, Math.cos(a), Math.sin(a), arme.portee);
+    for (const zb of jeu.zombies) {
+      if (zb.vie <= 0) continue;
+      const fx = zb.x - x, fz = zb.z - z, d = Math.hypot(fx, fz); if (d > portee + zb.rayon) continue;
+      if (ecartAngle(a, Math.atan2(fz, fx)) > arme.cone + zb.rayon / Math.max(d, 0.6)) continue;
+      if (!jeu.monde.vue(x, z, zb.x, zb.z)) continue;
+      if (arme.feu) { zb.feu = arme.feu.duree; zb.feuDps = Math.max(zb.feuDps || 0, arme.feu.dps * mult); zb.feuDe = de; }
+      if (arme.gel) zb.gel = Math.max(zb.gel || 0, arme.gel.duree);
+      blesserZombie(jeu, zb, arme.degats * mult, Math.cos(a) * arme.recul, Math.sin(a) * arme.recul, de, false, false, true);
+    }
+    jeu.stats.tirs++;
+    ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a, l: portee, touche: true, b: 0 });
+  }
+  // l'éclair du fusil Tesla : la cible, puis le zombie le plus proche de celle-ci (en vue, à « saut » mètres au plus), et ainsi de suite
+  const r2j = (v) => Math.round(v * 100) / 100;
+  function eclair(jeu, de, x, z, a, arme, mult, tireur, cible) {
+    const pts = [[r2j(x), r2j(z)]], deja = new Set();
+    let cur = cible && cible.vie > 0 && Math.hypot(cible.x - x, cible.z - z) <= arme.portee + cible.rayon ? cible : null, px = x, pz = z;
+    for (let k = 0; cur && k <= arme.rebonds; k++) {
+      deja.add(cur.id); pts.push([r2j(cur.x), r2j(cur.z)]);
+      const crit = !!tireur && jeu.rnd() < chanceCritique(tireur), n = Math.hypot(cur.x - px, cur.z - pz) || 1;
+      const nx = cur.x, nz = cur.z;
+      blesserZombie(jeu, cur, arme.degats * mult * Math.pow(0.85, k) * (crit ? D.CRITIQUE.mult : 1), (cur.x - px) / n * 0.3, (cur.z - pz) / n * 0.3, de, crit);
+      px = nx; pz = nz; let best = arme.saut * arme.saut, suivant = null;
+      for (const o of jeu.zombies) { if (o.vie <= 0 || deja.has(o.id)) continue; const d2 = (o.x - px) ** 2 + (o.z - pz) ** 2; if (d2 < best && jeu.monde.vue(px, pz, o.x, o.z)) { best = d2; suivant = o; } }
+      cur = suivant;
+    }
+    jeu.stats.tirs++;
+    ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a, l: 0, touche: pts.length > 1, b: 0, pts });
+  }
+  // la roquette part droit jusqu'au premier zombie (ou au mur) ; la grenade (et l'acide) part en cloche vers la cible
+  function lancer(jeu, de, x, z, a, arme, mult, cible) {
+    const dx = Math.cos(a), dz = Math.sin(a); let d;
+    if (arme.mode === 'roquette') {
+      d = jeu.monde.tir(x, z, dx, dz, arme.portee);
+      for (const zb of jeu.zombies) {
+        if (zb.vie <= 0) continue;
+        const fx = zb.x - x, fz = zb.z - z, t = fx * dx + fz * dz; if (t < 0 || t > d) continue;
+        const px = fx - t * dx, pz = fz - t * dz; if (px * px + pz * pz < (zb.rayon + 0.15) ** 2) d = Math.max(0.3, t - zb.rayon * 0.5);
+      }
+    } else d = cible ? Math.min(arme.portee, Math.hypot(cible.x - x, cible.z - z)) : arme.portee * 0.7;
+    const x1 = x + dx * d, z1 = z + dz * d;
+    jeu.obus.push({ x0: x, z0: z, x1, z1, t: 0, duree: arme.mode === 'roquette' ? d / arme.vitesse : 0.35 + d * 0.04, degats: arme.degats * mult, souffle: arme.souffle, de,
+      droit: arme.mode === 'roquette', flaque: arme.flaque ? { r: arme.flaque.r, dps: arme.flaque.dps * mult, duree: arme.flaque.duree } : null, cle: arme.cle || '' });
+    jeu.stats.tirs++;
+    ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a, l: 0, touche: false, b: 0 });
+  }
+  // le disque du lance-scies : il file, traverse tout (un coup par zombie toutes les 0,35 s), rebondit sur les murs, puis revient
+  function scier(jeu, de, x, z, a, arme, mult) {
+    jeu.disques.push({ id: nouvelId(jeu), x, z, vx: Math.cos(a) * arme.vitesse, vz: Math.sin(a) * arme.vitesse, v: arme.vitesse, t: 0, aller: arme.portee / arme.vitesse, degats: arme.degats * mult, recul: arme.recul, de, vus: {} });
+    jeu.stats.tirs++;
+    ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a, l: 0, touche: false, b: 0 });
+  }
+  function blesserZombie(jeu, zb, deg, px, pz, de, crit, souffle, petit) {
     if (zb.vie <= 0) return;
     zb.vie -= deg; zb.flash = 0.12;
+    zb.dernier = { px, pz, fort: !!crit || !!souffle || deg >= 60 }; // le dernier coup : d'où il vient, et s'il était fort (le rendu fait voler les morceaux)
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
-    ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.max(1, Math.round(deg)), crit: !!crit, de, boss: !!D.ZOMBIES[zb.type].boss });
+    ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.max(1, Math.round(deg)), crit: !!crit, de, boss: !!D.ZOMBIES[zb.type].boss, petit: !!petit });
     if (zb.vie <= 0) tuer(jeu, zb, de);
   }
   function tuer(jeu, zb, de) {
@@ -2076,15 +2277,16 @@ const PRESEAU = (() => {
     S.n = jeu.t - S.t <= D.SERIE.fenetre ? S.n + 1 : 1; S.t = jeu.t;
     S.mult = 1; for (const [seuil, m] of D.SERIE.paliers) if (S.n >= seuil) { S.mult = m; break; }
     if (S.mult > avant) ev(jeu, { t: 'serie', mult: S.mult, n: S.n });
-    const points = Z.points * S.mult;
+    const points = Math.round(Z.points * S.mult * jeu.mod.points);
     // le tueur (un survivant, ou une défense : les points vont au plus proche des survivants)
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
     if (j) { j.score += points; j.tues++; if (Z.boss) j.boss++; gagnerXp(jeu, j, Z.points * D.XP.parPoint); }
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
+    if (!Z.boss && zb.type !== 'kamikaze') { jeu.morts.push({ x: zb.x, z: zb.z, t: jeu.t }); if (jeu.morts.length > 24) jeu.morts.shift(); }
     // ce qu'il laisse : de la ferraille (en quelques morceaux), parfois un soin
     const fouille = j ? rang(j, 'butin') * D.ATOUTS.butin.par : 0;
-    let reste = Math.floor(Z.ferraille * (1 + fouille) + rnd() * 0.999 * (Z.ferraille * fouille % 1 ? 1 : 0)); const total = reste; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
+    let reste = Math.floor(Z.ferraille * jeu.mod.ferraille * (1 + fouille) + rnd() * 0.999 * (Z.ferraille * fouille % 1 ? 1 : 0)); const total = reste; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
     for (let k = 0; k < morceaux && jeu.objets.length < MAX_OBJETS; k++) {
       const v = k === morceaux - 1 ? reste : Math.ceil(total / morceaux); reste -= v;
       const a = rnd() * TAU, r = morceaux > 1 ? 0.3 + rnd() * 0.6 : 0;
@@ -2092,7 +2294,9 @@ const PRESEAU = (() => {
     }
     if (rnd() < (Z.boss ? 1 : 0.035) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'soin', x: zb.x + 0.4, z: zb.z, valeur: 30, age: 0, vole: false });
     if (Z.boss) poserCaisse(jeu);
-    ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss });
+    const dc = zb.dernier || { px: 0, pz: 0, fort: false };
+    ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss, kx: Math.round(dc.px * 100) / 100, kz: Math.round(dc.pz * 100) / 100, fort: dc.fort });
+    if (Z.kamikaze) detoner(jeu, zb, de);
   }
   // ─── l'expérience, les niveaux et les atouts ───
   function gagnerXp(jeu, j, x) {
@@ -2142,16 +2346,23 @@ const PRESEAU = (() => {
     return { ok: true };
   }
 
-  function explosion(jeu, x, z, r, degats, de) {
+  function explosion(jeu, x, z, r, degats, de, petite) {
     for (const zb of jeu.zombies) {
       if (zb.vie <= 0) continue;
       const d = Math.hypot(zb.x - x, zb.z - z); if (d > r + zb.rayon) continue;
       const k = 1 - Math.min(1, d / (r + zb.rayon)) * 0.6, n = d > 1e-3 ? 1 / d : 0;
-      blesserZombie(jeu, zb, degats * k, (zb.x - x) * n * 1.5, (zb.z - z) * n * 1.5, de);
+      blesserZombie(jeu, zb, degats * k, (zb.x - x) * n * 1.5, (zb.z - z) * n * 1.5, de, false, true);
     }
-    ev(jeu, { t: 'boum', x, z, r });
+    ev(jeu, { t: 'boum', x, z, r, petite: !!petite });
   }
 
+  // le kamikaze : il souffle tout autour de lui (les zombies aussi, et les autres kamikazes : ça peut s'enchaîner)
+  function detoner(jeu, zb, de) {
+    const K = D.ZOMBIES.kamikaze.kamikaze;
+    for (const j of jeu.joueurs) { if (!j.vivant) continue; const d = Math.hypot(j.x - zb.x, j.z - zb.z); if (d < K.souffle + j.rayon) blesserJoueur(jeu, j, K.degats * (1 - Math.min(1, d / (K.souffle + j.rayon)) * 0.5)); }
+    for (const d of jeu.defenses) if (d.type !== 'mine' && Math.hypot(d.x - zb.x, d.z - zb.z) < K.souffle + 0.5) { d.vie -= K.degats * 1.5; d.flash = 0.15; }
+    explosion(jeu, zb.x, zb.z, K.souffle, K.degats * 1.2, de || 'kamikaze');
+  }
   // ─── un pas de simulation ───
   function pas(jeu, entrees, dt) {
     dt = dt || 1 / 60; jeu.evs.length = 0;
@@ -2208,23 +2419,29 @@ const PRESEAU = (() => {
   function majJoueur(jeu, j, e, dt) {
     if (!j.vivant) return;
     if (j.invul > 0) j.invul -= dt;
+    // tiré par la chaîne d'un geôlier : il glisse vers lui (ses pas ne comptent plus le temps du tirage)
+    if (j.tire) {
+      const g = jeu.zombies.find((z) => z.id === j.tire.de && z.vie > 0); j.tire.t -= dt;
+      if (!g || j.tire.t <= 0) j.tire = null;
+      else { const ex = g.x - j.x, ez = g.z - j.z, d = Math.hypot(ex, ez); if (d > g.rayon + j.rayon + 0.3) { j.x += ex / d * 10 * dt; j.z += ez / d * 10 * dt; } else j.tire = null; }
+    }
     // le déplacement
-    let mx = e ? +e.mx || 0 : 0, mz = e ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
+    let mx = e && !j.tire ? +e.mx || 0 : 0, mz = e && !j.tire ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par);
     if (j.grenadeT > 0) j.grenadeT = Math.max(0, j.grenadeT - dt);
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
     j.bouge = l > 0.05 ? Math.min(1, l) : 0;
     // en ligne, le client prédit son déplacement et envoie sa position : l'hôte l'adopte si elle est à moins de 2,5 m de la sienne
-    if (e && typeof e.x === 'number' && typeof e.z === 'number' && Number.isFinite(e.x) && Number.isFinite(e.z) && Math.hypot(e.x - j.x, e.z - j.z) < 2.5) { j.x = e.x; j.z = e.z; }
+    if (e && !j.tire && typeof e.x === 'number' && typeof e.z === 'number' && Number.isFinite(e.x) && Number.isFinite(e.z) && Math.hypot(e.x - j.x, e.z - j.z) < 2.5) { j.x = e.x; j.z = e.z; }
     // les défenses sont dures pour lui aussi (sauf les mines)
     for (const d of jeu.defenses) { if (d.type === 'mine') continue; pousserCercle(j, d.x, d.z, D.DEFENSES[d.type].rayon); }
     jeu.monde.pousser(j);
     // la cible : le zombie le plus proche à portée et en vue (relue tous les 0,1 s)
-    const base = armeDe(j), arme = Object.assign(_armeJ, base, { portee: base.portee * (1 + rang(j, 'portee') * D.ATOUTS.portee.par), perce: base.perce + rang(j, 'perce') });
+    const base = armeDe(j), arme = remplir(_armeJ, base, { portee: base.portee * (1 + rang(j, 'portee') * D.ATOUTS.portee.par), perce: base.perce + rang(j, 'perce') });
     j.cible -= dt;
     if (j.cible <= 0) {
-      j.cible = 0.1; j.viseId = 0; let best = arme.portee * arme.portee;
+      j.cible = 0.1; j.viseId = 0; let best = Math.max(arme.portee, D.ARMES[D.ARME_DE_BASE].portee) ** 2; // (au-delà de la portée de l'arme en main : le pistolet d'appoint)
       for (const zb of jeu.zombies) {
         if (zb.vie <= 0) continue;
         const d2 = (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2; if (d2 >= best) continue;
@@ -2236,24 +2453,39 @@ const PRESEAU = (() => {
     const voulu = cible ? Math.atan2(cible.z - j.z, cible.x - j.x) : (l > 0.05 ? Math.atan2(mz, mx) : j.angle);
     j.angle = angleVers(j.angle, voulu, 14 * dt);
     j.visee = cible ? 1 : 0;
-    // le tir automatique
+    // le tir automatique (le minigun monte en cadence tant qu'il tire ; le fusil à rafales tire ses balles d'affilée) ; une cible hors de
+    // portée de l'arme en main (lance-flammes, fusil à pompe…) : le pistolet d'appoint, sans dépenser de munitions
     if (j.attente > 0) j.attente -= dt;
-    if (cible && j.attente <= 0 && ecartAngle(j.angle, voulu) < 0.35) {
+    if (cible && j.main !== 0 && Math.hypot(cible.x - j.x, cible.z - j.z) > arme.portee + cible.rayon) {
+      j.salve = 0; j.chauffe = Math.max(0, j.chauffe - dt * 2);
+      const P = remplir(_armeA, D.ARMES[D.ARME_DE_BASE], { perce: D.ARMES[D.ARME_DE_BASE].perce + rang(j, 'perce') });
+      if (j.attente <= 0 && ecartAngle(j.angle, voulu) < 0.35) { j.attente += 1 / (P.cadence * multCadence(j)); if (j.attente < 0) j.attente = 0; tirer(jeu, j, P, cible, D.ARME_DE_BASE); }
+      return;
+    }
+    j.chauffe = arme.montee && cible ? Math.min(arme.montee, j.chauffe + dt) : Math.max(0, j.chauffe - dt * 2);
+    const cad = arme.cadence * multCadence(j) * (arme.montee ? 0.25 + 0.75 * j.chauffe / arme.montee : 1);
+    const unTir = () => {
       const s = j.armes[j.main];
-      j.attente += 1 / (arme.cadence * multCadence(j)); if (j.attente < 0) j.attente = 0;
-      const bx = j.x + Math.cos(j.angle) * 0.5, bz = j.z + Math.sin(j.angle) * 0.5;
-      rafale(jeu, j.id, bx, bz, j.angle, Object.assign(_armeTir, arme, { cle: s ? s.id : D.ARME_DE_BASE }), multDegats(j), true, j);
-      if (s && s.mun !== Infinity) { s.mun--; if (s.mun <= 0) { j.armes[j.main] = null; j.main = 0; ev(jeu, { t: 'vide', id: j.id }); } }
+      tirer(jeu, j, arme, cible, s ? s.id : D.ARME_DE_BASE);
+      if (s && s.mun !== Infinity) { s.mun--; if (s.mun <= 0) { j.armes[j.main] = null; j.main = 0; j.salve = 0; ev(jeu, { t: 'vide', id: j.id }); } }
+    };
+    if (j.salve > 0) { j.salveT -= dt; if (j.salveT <= 0) { j.salve--; j.salveT = 0.075; if (cible) unTir(); } }
+    else if (cible && j.attente <= 0 && ecartAngle(j.angle, voulu) < 0.35) {
+      j.attente += 1 / cad; if (j.attente < 0) j.attente = 0;
+      if (arme.salve > 1) { j.salve = arme.salve - 1; j.salveT = 0.075; }
+      unTir();
     }
   }
-  const _armeTir = {}, _armeJ = {};
+  const _armeTir = {}, _armeJ = {}, _armeA = {};
+  // (des objets réutilisés à chaque tir : vidés d'abord, pour qu'une arme ne garde rien de la précédente)
+  function remplir(o, ...l) { for (const k in o) delete o[k]; return Object.assign(o, ...l); }
   function pousserCercle(c, x, z, R) {
     const ex = c.x - x, ez = c.z - z, d2 = ex * ex + ez * ez, m = R + c.rayon; if (d2 >= m * m) return false;
     const d = Math.sqrt(d2) || 1e-6, k = (m - d) / d; c.x += (d2 > 1e-12 ? ex : 1) * k; c.z += (d2 > 1e-12 ? ez : 0) * k; return true;
   }
-  function blesserJoueur(jeu, j, deg) {
-    if (!j.vivant || j.invul > 0) return;
-    j.vie -= deg; j.invul = D.JOUEUR.invulnerable;
+  function blesserJoueur(jeu, j, deg, continu) {
+    if (!j.vivant || (j.invul > 0 && !continu) || (continu && j.invul > D.JOUEUR.invulnerable)) return; // (relevé : vraiment invulnérable)
+    j.vie -= deg; if (!continu) j.invul = D.JOUEUR.invulnerable;
     ev(jeu, { t: 'blesse', id: j.id, degats: Math.round(deg) });
     if (j.vie <= 0) { j.vie = 0; j.vivant = false; j.releve = 0; j.choix = null; ev(jeu, { t: 'tombe', id: j.id }); majChoixGlobal(jeu); }
   }
@@ -2266,6 +2498,9 @@ const PRESEAU = (() => {
       const Z = D.ZOMBIES[zb.type];
       if (zb.flash > 0) zb.flash -= dt;
       if (jeu.t - zb.naissance < SORTIE) { zb.bouge = 0; continue; } // il sort de terre : ni pas ni coup
+      // il brûle (un peu toutes les 0,33 s), il est gelé (il avance moins vite)
+      if (zb.feu > 0) { zb.feu -= dt; zb.feuT = (zb.feuT || 0) - dt; if (zb.feuT <= 0) { zb.feuT = 0.33; blesserZombie(jeu, zb, zb.feuDps * 0.33, 0, 0, zb.feuDe, false, false, true); if (zb.vie <= 0) continue; } }
+      const lent = zb.gel > 0 ? (zb.gel -= dt, D.ARMES.cryo.gel.ralenti) : 1;
       // la proie : le survivant le plus proche, ou un épouvantail tout près
       let cx = 0, cz = 0, proie = null, best = Infinity;
       for (const j of vivants) { const d = (j.x - zb.x) ** 2 + (j.z - zb.z) ** 2; if (d < best) { best = d; proie = j; } }
@@ -2299,8 +2534,56 @@ const PRESEAU = (() => {
       }
       const dx = tx - zb.x, dz = tz - zb.z, l = Math.hypot(dx, dz) || 1;
       const contact = dist < zb.rayon + (proie.rayon || D.DEFENSES.epouvantail.rayon) + 0.25;
+      // ─── les talents ───
+      const estJ = proie.vivant !== undefined;
+      if (Z.kamikaze && dist < zb.rayon + (proie.rayon || 0.6) + 0.45) { zb.vie = 0; zb.dernier = { px: 0, pz: 0, fort: true }; ev(jeu, { t: 'detone', id: zb.id, x: zb.x, z: zb.z }); detoner(jeu, zb, 'kamikaze'); continue; }
+      if (Z.saut) {
+        if (zb.saut > 0) { // en l'air : il file vers son point de chute, par-dessus tout
+          zb.saut -= dt; const k = 1 - Math.max(0, zb.saut) / Z.saut.duree;
+          zb.x = zb.sx + (zb.tx2 - zb.sx) * k; zb.z = zb.sz + (zb.tz2 - zb.sz) * k; zb.bouge = 1;
+          if (zb.saut <= 0) { zb.saut = 0; ev(jeu, { t: 'atterrit', id: zb.id, x: zb.x, z: zb.z }); for (const j of vivants) if (Math.hypot(j.x - zb.x, j.z - zb.z) < 1.3) blesserJoueur(jeu, j, Z.saut.degats); }
+          continue;
+        }
+        zb.sautT = (zb.sautT == null ? 0.4 + jeu.rnd() : zb.sautT) - dt;
+        if (zb.sautT <= 0 && estJ && dist > 2.6 && dist < Z.saut.portee) {
+          const p = monde.libreProche(cx - (cx - zb.x) / dist * 0.9, cz - (cz - zb.z) / dist * 0.9, zb.rayon, 3);
+          if (p) { zb.saut = Z.saut.duree; zb.sx = zb.x; zb.sz = zb.z; zb.tx2 = p[0]; zb.tz2 = p[1]; zb.sautT = Z.saut.recharge; zb.chemin = null; ev(jeu, { t: 'saute', id: zb.id, x: zb.x, z: zb.z }); continue; }
+          zb.sautT = 0.6;
+        }
+      }
+      if (Z.flamme && estJ && dist < Z.flamme.portee && monde.vue(zb.x, zb.z, cx, cz)) {
+        avance = dist > Z.flamme.portee * 0.55;
+        zb.flammeT = (zb.flammeT || 0) - dt;
+        if (zb.flammeT <= 0) {
+          zb.flammeT = 0.2; const a = Math.atan2(cz - zb.z, cx - zb.x); zb.attaque = 0.3;
+          ev(jeu, { t: 'souffle', id: zb.id, x: zb.x, z: zb.z, a });
+          for (const j of vivants) { const d = Math.hypot(j.x - zb.x, j.z - zb.z); if (d < Z.flamme.portee + j.rayon && ecartAngle(a, Math.atan2(j.z - zb.z, j.x - zb.x)) < Z.flamme.cone) blesserJoueur(jeu, j, Z.flamme.dps * 0.2, true); }
+          for (const d of jeu.defenses) if (d.type !== 'mine' && Math.hypot(d.x - zb.x, d.z - zb.z) < Z.flamme.portee && ecartAngle(a, Math.atan2(d.z - zb.z, d.x - zb.x)) < Z.flamme.cone) { d.vie -= Z.flamme.dps * 0.2; d.flash = 0.1; }
+        }
+      }
+      if (Z.crochet && estJ) {
+        zb.crochetT = (zb.crochetT == null ? 2 + jeu.rnd() * 2 : zb.crochetT) - dt;
+        if (zb.crochetT <= 0 && dist > 3.2 && dist < Z.crochet.portee && monde.vue(zb.x, zb.z, cx, cz) && !jeu.crochets.some((c) => c.de === zb.id)) {
+          zb.crochetT = Z.crochet.recharge; const a = Math.atan2(cz - zb.z, cx - zb.x); zb.attaque = 0.3;
+          jeu.crochets.push({ id: nouvelId(jeu), de: zb.id, x: zb.x, z: zb.z, vx: Math.cos(a) * Z.crochet.vitesse, vz: Math.sin(a) * Z.crochet.vitesse, vie: Z.crochet.portee / Z.crochet.vitesse * 1.15 });
+          ev(jeu, { t: 'crochet', id: zb.id, x: zb.x, z: zb.z });
+        }
+      }
+      if (Z.invoque) {
+        if (estJ) avance = avance && dist > Z.invoque.distance;
+        zb.invoqueT = (zb.invoqueT == null ? 2 + jeu.rnd() * 2 : zb.invoqueT) - dt;
+        if (zb.invoqueT <= 0) {
+          zb.invoqueT = 1.5;
+          const proches = jeu.morts.filter((m) => jeu.t - m.t < 25 && Math.hypot(m.x - zb.x, m.z - zb.z) < Z.invoque.portee).slice(-Z.invoque.nombre);
+          if (proches.length && jeu.zombies.length < 64) {
+            zb.invoqueT = Z.invoque.recharge; zb.attaque = 0.3; const pts = [];
+            for (const m of proches) { jeu.morts.splice(jeu.morts.indexOf(m), 1); const p = monde.libreProche(m.x, m.z, 0.42, 2); if (!p) continue; const vie = Math.round(D.ZOMBIES.trainard.vie * D.VAGUES.vie(jeu.vague) * 0.7); jeu.zombies.push({ id: nouvelId(jeu), type: 'trainard', x: p[0], z: p[1], vie, vieMax: vie, vitesse: D.ZOMBIES.trainard.vitesse * D.VAGUES.vitesse(jeu.vague) * jeu.mod.zVitesse, rayon: 0.42, angle: 0, chemin: null, ci: 0, repense: 0.2, coinceT: 0, coince: 0, cx: p[0], cz: p[1], coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: jeu.t, releve: true }); pts.push([Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]); }
+            ev(jeu, { t: 'invoque', id: zb.id, x: zb.x, z: zb.z, pts });
+          }
+        }
+      }
       let vx = 0, vz = 0;
-      if (avance && !contact) { vx = dx / l * zb.vitesse; vz = dz / l * zb.vitesse; }
+      if (avance && !contact) { vx = dx / l * zb.vitesse * lent; vz = dz / l * zb.vitesse * lent; }
       zb.angle = angleVers(zb.angle, Math.atan2(contact ? cz - zb.z : dz, contact ? cx - zb.x : dx), 8 * dt);
       // le recul des balles s'éteint vite
       zb.x += (vx + zb.rx) * dt; zb.z += (vz + zb.rz) * dt;
@@ -2329,9 +2612,9 @@ const PRESEAU = (() => {
     }
     // ils se poussent entre eux, et poussent un peu les survivants
     for (let i = 0; i < Zs.length; i++) {
-      const a = Zs[i]; if (a.vie <= 0) continue;
+      const a = Zs[i]; if (a.vie <= 0 || a.saut > 0) continue;
       for (let k = i + 1; k < Zs.length; k++) {
-        const b = Zs[k]; if (b.vie <= 0) continue;
+        const b = Zs[k]; if (b.vie <= 0 || b.saut > 0) continue;
         const ex = b.x - a.x, ez = b.z - a.z, m = a.rayon + b.rayon; if (ex > m || ex < -m || ez > m || ez < -m) continue;
         const d2 = ex * ex + ez * ez; if (d2 >= m * m) continue;
         const d = Math.sqrt(d2) || 1e-4, p = (m - d) / d * 0.5, ma = a.rayon * a.rayon, mb = b.rayon * b.rayon, ka = mb / (ma + mb), kb = ma / (ma + mb);
@@ -2370,7 +2653,7 @@ const PRESEAU = (() => {
           const a = Math.atan2(cible.z - d.z, cible.x - d.x); d.angle = angleVers(d.angle, a, 9 * dt);
           if (d.attente <= 0 && ecartAngle(d.angle, a) < 0.25) {
             d.attente = 1 / T.cadence;
-            if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, Object.assign(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
+            if (d.type === 'tourelle') rafale(jeu, 'def' + d.id, d.x + Math.cos(d.angle) * 0.5, d.z + Math.sin(d.angle) * 0.5, d.angle, remplir(_armeTir, { degats: T.degats, balles: 1, dispersion: 0.06, portee: T.portee, perce: 0, recul: 0.15, classe: 'mitraillette', cle: 'tourelle' }), km, false);
             else { const duree = 0.9 + Math.hypot(cible.x - d.x, cible.z - d.z) * 0.04; jeu.obus.push({ x0: d.x, z0: d.z, x1: cible.x + (jeu.rnd() - 0.5), z1: cible.z + (jeu.rnd() - 0.5), t: 0, duree, degats: T.degats * km, souffle: T.souffle }); ev(jeu, { t: 'mortier', x: d.x, z: d.z }); }
           }
         } else if (d.attente < 0) d.attente = 0;
@@ -2394,7 +2677,46 @@ const PRESEAU = (() => {
     }
     for (let i = jeu.obus.length - 1; i >= 0; i--) {
       const o = jeu.obus[i]; o.t += dt;
-      if (o.t >= o.duree) { jeu.obus.splice(i, 1); explosion(jeu, o.x1, o.z1, o.souffle, o.degats, o.de || 'mortier'); }
+      if (o.t >= o.duree) {
+        jeu.obus.splice(i, 1); explosion(jeu, o.x1, o.z1, o.souffle, o.degats, o.de || 'mortier');
+        if (o.flaque) { jeu.zones.push({ id: nouvelId(jeu), x: o.x1, z: o.z1, r: o.flaque.r, dps: o.flaque.dps, vie: o.flaque.duree, duree: o.flaque.duree, de: o.de, tick: 0 }); ev(jeu, { t: 'acide', x: o.x1, z: o.z1, r: o.flaque.r }); }
+      }
+    }
+    // les crochets des geôliers : ils volent ; celui qui touche un survivant le tire vers son geôlier
+    for (let i = jeu.crochets.length - 1; i >= 0; i--) {
+      const c = jeu.crochets[i]; c.vie -= dt; c.x += c.vx * dt; c.z += c.vz * dt;
+      const g = jeu.zombies.find((z) => z.id === c.de && z.vie > 0);
+      let fini = !g || c.vie <= 0 || jeu.monde.bloque(c.x, c.z, 0.05);
+      if (!fini) for (const j of jeu.joueurs) if (j.vivant && Math.hypot(j.x - c.x, j.z - c.z) < j.rayon + 0.25) { blesserJoueur(jeu, j, D.ZOMBIES.geolier.crochet.degats); j.tire = { de: c.de, t: 0.55 }; ev(jeu, { t: 'accroche', id: j.id, par: c.de }); fini = true; break; }
+      if (fini) jeu.crochets.splice(i, 1);
+    }
+    // les disques du lance-scies
+    for (let i = jeu.disques.length - 1; i >= 0; i--) {
+      const d = jeu.disques[i]; d.t += dt;
+      const j = trouverJoueur(jeu, d.de);
+      if (d.t > d.aller) { // le retour vers le tireur
+        if (!j || !j.vivant || d.t > d.aller * 3.5) { jeu.disques.splice(i, 1); continue; }
+        const ex = j.x - d.x, ez = j.z - d.z, l = Math.hypot(ex, ez) || 1;
+        if (l < 0.6) { jeu.disques.splice(i, 1); continue; }
+        d.vx = ex / l * d.v * 1.15; d.vz = ez / l * d.v * 1.15;
+      }
+      const nx = d.x + d.vx * dt, nz = d.z + d.vz * dt;
+      if (jeu.monde.bloque(nx, nz, 0.15) && d.t <= d.aller) { d.t = d.aller + 1e-3; } // un mur : il rebondit et revient
+      else { d.x = nx; d.z = nz; }
+      for (const zb of jeu.zombies) {
+        if (zb.vie <= 0) continue;
+        if ((zb.x - d.x) ** 2 + (zb.z - d.z) ** 2 > (zb.rayon + 0.45) ** 2) continue;
+        if (d.vus[zb.id] !== undefined && d.t - d.vus[zb.id] < 0.35) continue;
+        d.vus[zb.id] = d.t; const l = Math.hypot(d.vx, d.vz) || 1;
+        blesserZombie(jeu, zb, d.degats, d.vx / l * d.recul, d.vz / l * d.recul, d.de, false);
+      }
+    }
+    // les flaques d'acide : elles rongent ce qui marche dedans
+    for (let i = jeu.zones.length - 1; i >= 0; i--) {
+      const z = jeu.zones[i]; z.vie -= dt; z.tick -= dt;
+      if (z.vie <= 0) { jeu.zones.splice(i, 1); continue; }
+      if (z.tick > 0) continue; z.tick = 0.3;
+      for (const zb of jeu.zombies) if (zb.vie > 0 && (zb.x - z.x) ** 2 + (zb.z - z.z) ** 2 < (z.r + zb.rayon * 0.5) ** 2) blesserZombie(jeu, zb, z.dps * 0.3, 0, 0, z.de, false, false, true);
     }
   }
 
@@ -2476,7 +2798,15 @@ const PRESEAU = (() => {
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
 
-  return { creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  // le défi du jour : la date (« 2026-11-03 », heure de Paris) donne la graine, l'arène et le mutateur, les mêmes pour tout le monde
+  function defiDu(jour) {
+    let h = 0x811c9dc5; const t = 'rempart:' + jour;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    const L = D.DEFI.mutateurs, r = mulberry32(h);
+    const arene = D.ORDRE_ARENES[Math.floor(r() * D.ORDRE_ARENES.length) % D.ORDRE_ARENES.length], m = L[Math.floor(r() * L.length) % L.length];
+    return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
+  }
+  return { tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
 
 /* ── src-zombies/modeles.js ── */
@@ -2503,7 +2833,10 @@ const ZMODELES = (() => {
     'medium-marche': 'kaykit/anims-medium-marche.glb', 'medium-general': 'kaykit/anims-medium-general.glb', 'medium-coups': 'kaykit/anims-medium-coups.glb',
   };
   const VOITURES = ['voiture-sedan', 'voiture-police', 'voiture-suv', 'voiture-taxi', 'voiture-van', 'voiture-hatchback-sports'];
-  const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] } };
+  const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] }, blasters: {} };
+  // les armes (Blaster Kit de Kenney) : chargées après le reste, sans le bloquer ; une arme sans modèle garde sa forme faite main
+  const BLASTERS = 'abcdefghijklmnopqr'.split('');
+  let etatArmes = 'attente';
   let etat = 'attente', promesse = null;
 
   // un matériau Lambert (moins cher que le PBR des fichiers, comme le reste du jeu) qui garde la palette du pack
@@ -2565,11 +2898,30 @@ const ZMODELES = (() => {
     const cles = Object.keys(FICHIERS);
     promesse = Promise.all(cles.map((k) => lire(FICHIERS[k]))).then((l) => {
       const g = {}; cles.forEach((k, i) => { g[k] = l[i]; });
-      preparer(g); etat = 'pret'; return true;
+      preparer(g); etat = 'pret';
+      etatArmes = 'charge';
+      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; });
+      return true;
     }).catch((e) => { etat = 'erreur'; if (typeof console !== 'undefined') console.warn('Dernier Rempart : modèles 3D indisponibles, formes faites main', e && e.message); return false; });
     return promesse;
   }
-  return { charger, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
+  // une arme prête à tenir : le blaster de l'arme (sa teinte), le canon vers +z, long de « longueur » ; null sans modèle
+  const armesFaites = new Map();
+  function arme(id, longueur) {
+    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele];
+    if (!src) return null;
+    let base = armesFaites.get(id);
+    if (!base) {
+      const mats = new Map();
+      base = src.clone(true);
+      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
+      const b = new T.Box3().setFromObject(base), c = new T.Vector3(); b.getCenter(c);
+      const g = new T.Group(); base.position.sub(c); base.rotation.y = Math.PI; base.position.x = -base.position.x; base.position.z = -base.position.z; g.add(base);
+      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(id, base);
+    }
+    const o = base.clone(true); o.scale.setScalar(longueur / base.userData.long); return o;
+  }
+  return { charger, arme, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
 })();
 
 /* ── src-zombies/rendu.js ── */
@@ -2591,7 +2943,7 @@ const ZRENDU = (() => {
   const T = typeof THREE !== 'undefined' ? THREE : null;
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null;
   const ECHELLE = 1.3; // les personnages un peu plus grands que nature : on les lit mieux vus de haut
-  const MAX_Z = 70, MAX_FERRAILLE = 160, MAX_FLAQUES = 90, MAX_TRACANTES = 48, MAX_BOUMS = 8, MAX_CORPS = 24;
+  const MAX_Z = 70, MAX_MORCEAUX = 108, MAX_PARTICULES = 260, MAX_FERRAILLE = 160, MAX_FLAQUES = 90, MAX_TRACANTES = 48, MAX_BOUMS = 8, MAX_CORPS = 24;
 
   // ─── fabrique low-poly : des morceaux colorés fusionnés en une géométrie à facettes ───
   const _m = T ? new T.Matrix4() : null, _q = T ? new T.Quaternion() : null, _e = T ? new T.Euler() : null, _v = T ? new T.Vector3() : null, _s = T ? new T.Vector3() : null, _c = T ? new T.Color() : null;
@@ -2794,7 +3146,7 @@ const ZRENDU = (() => {
       inst.setMatrixAt(i, _part); if (couleur) inst.setColorAt(i, couleur);
     }
     function majZombies(jeu, dt) {
-      let n = 0; const temps = performance.now() / 1000;
+      let n = 0; const temps = performance.now() / 1000; for (const k in nAcc) nAcc[k] = 0;
       const dessiner = (type, x, y, z, a, marche, attaque, flash, chute, id, naissance) => {
         if (n >= MAX_Z) return;
         const Zd = D.ZOMBIES[type], k = Zd.taille * ECHELLE, large = type === 'costaud' || Zd.boss ? 1.25 : type === 'coureur' ? 0.85 : 1, C = couleurs[type];
@@ -2822,13 +3174,15 @@ const ZRENDU = (() => {
         const r = rendusZ.get(zb.id) || nouveauRZ(zb);
         r.vu = true; r.ph += dt * zb.vitesse * 3.2 * (zb.bouge ? 1 : 0.15);
         // sortir de terre : les 0,7 premières secondes
-        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0;
+        const age = jeu.t - zb.naissance, y = (age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0) + (zb.saut > 0 && Zd.saut ? Math.sin((1 - zb.saut / Zd.saut.duree) * Math.PI) * 1.8 : 0);
+        const clignote = Zd.kamikaze && Math.floor(temps * (zb.bouge ? 7 : 3) + zb.id) % 2 === 0;
         if (KZ && !Zd.boss) {
           // le zombie Kenney : marche (sprint pour le Coureur), le geste d'attraper quand il frappe, l'immobilité sinon
           const course = zb.type === 'coureur' && zb.bouge, clip = zb.attaque > 0 ? 'pick-up' : !zb.bouge ? 'idle' : course ? 'sprint' : 'walk';
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, clip, r.t, zb.flash > 0);
+          if (ACC[zb.type]) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
@@ -2840,7 +3194,8 @@ const ZRENDU = (() => {
         else dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, Math.min(1, c.t / 0.35), 0);
       }
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
-      if (KZ) for (const m of KZ.inst) { m.count = nk; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+      for (const k in ACC) { ACC[k].count = nAcc[k] || 0; ACC[k].instanceMatrix.needsUpdate = true; }
+      if (KZ) { const comptes = dessinerMorceaux(nk, dt); KZ.inst.forEach((m, p) => { m.count = comptes[p]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }); }
     }
 
     // ─── la horde en modèles Kenney (ZMODELES) : six maillages instanciés, une pièce chacun, posés avec les matrices cuites ───
@@ -2850,16 +3205,94 @@ const ZRENDU = (() => {
     const _m2 = new T.Matrix4();
     function brancherHorde() {
       const Mz = MOD.M.zombie;
-      KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
+      KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
-    function poserKenney(i, type, x, y, z, a, clip, t, flash) {
+    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A');
+    // les accessoires qui font reconnaître un type d'un coup d'œil : le sabre du sabreur, la bombe du kamikaze, le boulet du geôlier, l'aura
+    // de l'invocateur (des maillages instanciés, posés à côté du zombie, dans son repère)
+    const mkAcc = (geo, couleur, base) => { const m = new T.InstancedMesh(geo, base || new T.MeshLambertMaterial({ color: couleur }), 32); m.frustumCulled = false; m.count = 0; m.castShadow = !base; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
+    const ACC = {
+      sabreur: mkAcc(new T.BoxGeometry(0.08, 0.08, 1.05).translate(0, 0, 0.45), '#D8E2EC'),
+      kamikaze: mkAcc(new T.SphereGeometry(0.27, 8, 6), '#E04030'),
+      geolier: mkAcc(new T.IcosahedronGeometry(0.24, 0), '#3A3540'),
+      invocateur: mkAcc(new T.RingGeometry(0.75, 0.95, 20).rotateX(-Math.PI / 2), null, new T.MeshBasicMaterial({ color: '#B57CFF', transparent: true, opacity: 0.55, depthWrite: false })),
+    };
+    const nAcc = {}; const _ao = new T.Vector3();
+    function accessoire(type, x, y, z, a, temps, Zd) {
+      const m = ACC[type]; if (!m || (nAcc[type] || 0) >= 32) return; const i = nAcc[type] = (nAcc[type] || 0); nAcc[type]++;
+      const k = Zd.taille, ca = Math.cos(a), sa = Math.sin(a);
+      if (type === 'sabreur') { _ao.set(x + ca * 0.25 * k - sa * 0.38 * k, y + 0.95 * k, z + sa * 0.25 * k + ca * 0.38 * k); _q.setFromEuler(_e.set(-0.35, Math.PI / 2 - a, 0)); }
+      else if (type === 'kamikaze') { _ao.set(x - ca * 0.42 * k, y + 1.25 * k + Math.sin(temps * 9) * 0.04, z - sa * 0.42 * k); _q.identity(); }
+      else if (type === 'geolier') { _ao.set(x - sa * -0.5 * k + ca * 0.1, y + 0.35, z + ca * -0.5 * k + sa * 0.1); _q.setFromEuler(_e.set(temps, temps * 0.7, 0)); }
+      else { _ao.set(x, 0.04, z); _q.setFromEuler(_e.set(0, temps * 1.5, 0)); }
+      _s.set(1, 1, 1); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base);
+    }
+    function poserKenney(i, type, x, y, z, a, clip, t, flash, etat) {
       const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille, large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
       const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
       let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
-      const couleur = flash ? FLASH : teintes[type];
+      const couleur = flash ? FLASH : etat === 2 ? GEL : etat === 1 ? FEU : teintes[type];
       for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
     }
+
+    // ─── les zombies en morceaux : à la mort, les six pièces du zombie Kenney s'envolent (poussées par le dernier coup), rebondissent,
+    // puis s'enfoncent dans le sol. Elles réutilisent les maillages instanciés de la horde (des instances en plus, aucun appel de dessin en plus).
+    const morceaux = [], _p3 = new T.Vector3(), _q2 = new T.Quaternion(), _s3 = new T.Vector3(), _qd = new T.Quaternion(), _ax = new T.Vector3();
+    function eclater(e) {
+      const Zd = D.ZOMBIES[e.type], C = KZ.M.cuits.walk, np = KZ.M.pieces.length, s = KZ.k * Zd.taille, large = e.type === 'costaud' ? 1.22 : e.type === 'coureur' ? 0.9 : 1;
+      _q.setFromEuler(_e.set(0, Math.PI / 2 - (e.a || 0), 0)); _v.set(e.x, 0, e.z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s);
+      let kx = +e.kx || 0, kz = +e.kz || 0; const kl = Math.hypot(kx, kz); if (kl > 1e-3) { kx /= kl; kz /= kl; } else { const a = Math.random() * 6.28; kx = Math.cos(a); kz = Math.sin(a); }
+      const force = e.fort ? 1.5 : 1;
+      while (morceaux.length + np > MAX_MORCEAUX) morceaux.shift();
+      for (let p = 0; p < np; p++) {
+        _m2.fromArray(C.mats, p * 16); _part.multiplyMatrices(_base, _m2); _part.decompose(_p3, _q2, _s3);
+        const tete = /head/.test(KZ.M.pieces[p].nom), v = (2 + Math.random() * 3) * force;
+        morceaux.push({ p, type: e.type, x: _p3.x, y: _p3.y, z: _p3.z, q: _q2.clone(), sc: _s3.clone(), sol: 0.06 * s,
+          vx: kx * v + (Math.random() - 0.5) * 3, vy: (tete ? 6 : 3) * force + Math.random() * 3, vz: kz * v + (Math.random() - 0.5) * 3,
+          ax: new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), w: (6 + Math.random() * 10) * (Math.random() < 0.5 ? -1 : 1), t: 0 });
+      }
+      for (let k = 0; k < 10; k++) particule(e.x, 0.9, e.z, (Math.random() - 0.5) * 5 + kx * 2, 2 + Math.random() * 4, (Math.random() - 0.5) * 5 + kz * 2, 0.7, 0.12, '#6FA338', 0.3);
+    }
+    function dessinerMorceaux(nk, dt) {
+      const comptes = KZ.inst.map(() => nk);
+      for (let i = morceaux.length - 1; i >= 0; i--) {
+        const m = morceaux[i]; m.t += dt;
+        if (m.t > 3.2) { morceaux.splice(i, 1); continue; }
+        if (m.t < 2.3) {
+          m.vy -= 18 * dt; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+          if (m.y < m.sol) { m.y = m.sol; m.vy = Math.abs(m.vy) > 1.5 ? -m.vy * 0.35 : 0; m.vx *= 0.55; m.vz *= 0.55; m.w *= 0.5; }
+          _qd.setFromAxisAngle(m.ax, m.w * dt); m.q.premultiply(_qd);
+        } else m.y -= dt * 0.5; // il s'enfonce
+      }
+      for (const m of morceaux) {
+        const n = comptes[m.p]; if (n >= MAX_Z + MAX_MORCEAUX) continue;
+        _p3.set(m.x, m.y, m.z); _part.compose(_p3, m.q, m.sc); KZ.inst[m.p].setMatrixAt(n, _part); KZ.inst[m.p].setColorAt(n, teintes[m.type]); comptes[m.p] = n + 1;
+      }
+      return comptes;
+    }
+    // ─── les particules : douilles, gouttes, étincelles (un seul maillage instancié, une couleur par instance) ───
+    const particules = [], geoPart = new T.BoxGeometry(1, 1, 1);
+    const instPart = new T.InstancedMesh(geoPart, new T.MeshBasicMaterial({ color: '#FFFFFF' }), MAX_PARTICULES); instPart.frustumCulled = false; instPart.count = 0; instPart.setColorAt(0, BLANC); scene.add(instPart);
+    function particule(x, y, z, vx, vy, vz, vie, taille, couleur, rebond) {
+      if (particules.length >= MAX_PARTICULES) particules.shift();
+      particules.push({ x, y, z, vx, vy, vz, vie, t: 0, taille, c: new T.Color(couleur), rebond: rebond || 0, r: Math.random() * 6 });
+    }
+    function majParticules(dt) {
+      let n = 0;
+      for (let i = particules.length - 1; i >= 0; i--) { const p = particules[i]; p.t += dt; if (p.t >= p.vie) particules.splice(i, 1); }
+      for (const p of particules) {
+        p.vy -= 16 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.r += dt * 9;
+        if (p.y < 0.03) { p.y = 0.03; p.vy = -p.vy * p.rebond; p.vx *= 0.5; p.vz *= 0.5; }
+        const k = p.taille * (p.t > p.vie * 0.7 ? Math.max(0.05, (p.vie - p.t) / (p.vie * 0.3)) : 1);
+        _q.setFromEuler(_e.set(p.r, p.r * 0.7, 0)); _v.set(p.x, p.y, p.z); _s.set(k, k * 0.6, k * 1.6); _base.compose(_v, _q, _s);
+        instPart.setMatrixAt(n, _base); instPart.setColorAt(n, p.c); n++;
+      }
+      instPart.count = n; instPart.instanceMatrix.needsUpdate = true; if (instPart.instanceColor) instPart.instanceColor.needsUpdate = true;
+    }
+    // la caméra de cinéma : elle plonge sur un point (le boss abattu) puis revient
+    let cine = null;
+    function cinema(x, z, duree) { cine = { x, z, t: 0, duree: duree || 1.8 }; }
 
     // ─── les boss en modèles KayKit : de vrais personnages à squelette, un seul à la fois à l'écran ───
     const bossVus = new Map(); // id du zombie → { o, mixer, actions, act, mats, type, mort, coup }
@@ -2952,12 +3385,20 @@ const ZRENDU = (() => {
       changer(s, 'jambes', j.bouge > 0.05 ? 'marche' : 'repos'); if (s.act.marche) s.act.marche.timeScale = 0.6 + j.bouge * 0.9;
       changer(s, 'haut', j.visee ? 'tir' : 'tenir');
       const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
-      if (id !== s.armeId) { s.armeId = id; const L = (LONGUEUR[id] || 0.4) * 1.2; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
+      if (id !== s.armeId || s.armesVues !== MOD.armesPretes) {
+        s.armeId = id; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
+        if (s.blaster) { s.blaster.parent.remove(s.blaster); s.blaster = null; }
+        const b = MOD.arme(id, L / s.k);
+        if (b) { b.position.set(0, 0.06 / s.k, (0.22 + L / 2) / s.k); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
+        else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
+      }
       s.mixer.update(dt);
       s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
     }
     const survivants = new Map();
-    const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95 };
+    const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95, canon: 1.05, minigun: 0.85, doublecanon: 0.78, roquettes: 0.95 };
+    const PAR_FAMILLE = { pistolet: 0.36, mitraillette: 0.55, pompe: 0.72, fusil: 0.8, sniper: 0.95, lanceur: 0.8, energie: 0.7, flamme: 0.75 };
+    const longueur = (id) => LONGUEUR[id] || (D.ARMES[id] && PAR_FAMILLE[D.ARMES[id].famille]) || 0.4;
     function majSurvivants(jeu, idMoi, dt) {
       const vus = new Set();
       for (const j of jeu.joueurs) {
@@ -2973,7 +3414,7 @@ const ZRENDU = (() => {
         // jambes : dans le sens de la marche, même si l'on vise ailleurs (on pivote leur angle relatif)
         s.jg.rotation.z = sw; s.jd.rotation.z = -sw;
         const s2 = j.armes[j.main], id = s2 ? s2.id : 'pistolet';
-        if (id !== s.armeId) { s.armeId = id; const L = LONGUEUR[id] || 0.4; s.arme.scale.set(L, 0.12, 0.1); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); s.longueur = L; }
+        if (id !== s.armeId) { s.armeId = id; const L = longueur(id); s.arme.scale.set(L, 0.12, 0.1); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); s.longueur = L; }
         s.recul = Math.max(0, (s.recul || 0) - dt * 8);
         s.bg.rotation.z = -Math.PI / 2 + 0.05 + s.recul * 0.3; s.bd.rotation.z = -Math.PI / 2 + 0.05 + s.recul * 0.3;
         s.bg.position.z = 0.22; s.bd.position.z = -0.22;
@@ -3088,16 +3529,67 @@ const ZRENDU = (() => {
     let iTrace = 0;
     function tracante(x, z, a, l, arme) {
       const o = tracantes[iTrace]; iTrace = (iTrace + 1) % MAX_TRACANTES;
-      o.t = arme === 'sniper' ? 0.12 : 0.06; o.m.visible = true;
+      const gros = arme === 'sniper' || arme === 'laser', ep = arme === 'laser' ? 0.11 : gros ? 0.07 : 0.045;
+      o.t = gros ? 0.12 : 0.06; o.m.visible = true;
       o.m.position.set(x + Math.cos(a) * l / 2, 1.0, z + Math.sin(a) * l / 2); o.m.rotation.set(0, -a, 0);
-      o.m.scale.set(l, arme === 'sniper' ? 0.07 : 0.045, arme === 'sniper' ? 0.07 : 0.045); o.m.material.opacity = 0.95;
-      o.m.material.color.set(arme === 'tourelle' ? '#9AE6FF' : '#FFE89A');
+      o.m.scale.set(l, ep, ep); o.m.material.opacity = 0.95;
+      o.m.material.color.set(COULEUR_TRACE[arme] || '#FFE89A');
+    }
+    // l'effet d'un tir, selon l'arme : traçante, rayon laser, cône de flammes ou de givre, éclair (lignes brisées), rien (roquette, scie : le projectile se voit)
+    const COULEUR_TRACE = { tourelle: '#9AE6FF', laser: '#FF5C8A', sniper: '#FFE89A', arc: '#E8D2A6' };
+    function effetTir(e) {
+      const A = D.ARMES[e.cle];
+      if (e.arme === 'flamme' || e.arme === 'cryo') {
+        const feu = e.arme === 'flamme';
+        for (let k = 0; k < 6; k++) { const a = e.a + (Math.random() - 0.5) * 0.62, v = 6 + Math.random() * 5, vie = Math.max(0.12, e.l / v) * (0.6 + Math.random() * 0.5); particule(e.x + Math.cos(e.a) * 0.3, 0.9 + Math.random() * 0.3, e.z + Math.sin(e.a) * 0.3, Math.cos(a) * v, 0.4 + Math.random() * 1.2, Math.sin(a) * v, vie, 0.22 + Math.random() * 0.2, feu ? (k % 3 === 0 ? '#FFE08A' : k % 3 === 1 ? '#FFB347' : '#FF5A14') : (k % 2 ? '#E6FAFF' : '#8FDDFF'), 0); }
+        return;
+      }
+      if (e.arme === 'tesla') { if (e.pts) eclair(e.pts); return; }
+      if (e.arme === 'roquette' || e.arme === 'scie' || e.arme === 'acide') return;
+      const cle = e.cle === 'tourelle' ? 'tourelle' : A && A.classe === 'laser' ? 'laser' : e.arme;
+      tracante(e.x, e.z, e.a, e.l, cle);
+    }
+    // les éclairs : des segments brisés, en boîtes fines additives (les lignes WebGL n'ont qu'un pixel)
+    const MAX_SEG = 72, matSeg = new T.MeshBasicMaterial({ color: '#BFF0FF', transparent: true, opacity: 1, blending: T.AdditiveBlending, depthWrite: false });
+    const segs = []; for (let i = 0; i < MAX_SEG; i++) { const m = new T.Mesh(BOITE, matSeg.clone()); m.visible = false; m.frustumCulled = false; scene.add(m); segs.push({ m, t: 0 }); }
+    let iSeg = 0; const _pa = new T.Vector3(), _pb = new T.Vector3();
+    function segment(x0, y0, z0, x1, y1, z1, ep, couleur, duree) {
+      const o = segs[iSeg]; iSeg = (iSeg + 1) % MAX_SEG; _pa.set(x0, y0, z0); _pb.set(x1, y1, z1);
+      const l = _pa.distanceTo(_pb); o.m.position.copy(_pa).add(_pb).multiplyScalar(0.5); o.m.lookAt(_pb); o.m.scale.set(ep, ep, l);
+      o.m.material.color.set(couleur); o.m.material.opacity = 1; o.t = o.d = duree; o.m.visible = true;
+    }
+    function eclair(pts) {
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], parts = 4; let px = x0, py = 1.0, pz = z0;
+        for (let k = 1; k <= parts; k++) { const f = k / parts, j = k === parts ? 0 : 0.45; const nx = x0 + (x1 - x0) * f + (Math.random() - 0.5) * j, ny = 1.0 + (Math.random() - 0.5) * j, nz = z0 + (z1 - z0) * f + (Math.random() - 0.5) * j; segment(px, py, pz, nx, ny, nz, 0.09, '#9FE6FF', 0.16); segment(px, py, pz, nx, ny, nz, 0.035, '#FFFFFF', 0.12); px = nx; py = ny; pz = nz; }
+        for (let k = 0; k < 4; k++) particule(x1, 1.0, z1, (Math.random() - 0.5) * 4, 1 + Math.random() * 2, (Math.random() - 0.5) * 4, 0.3, 0.1, '#DFF8FF', 0);
+      }
+    }
+    // les disques du lance-scies et les flaques d'acide (des listes de l'état du jeu)
+    const disques = new T.InstancedMesh(new T.CylinderGeometry(0.36, 0.36, 0.06, 10), new T.MeshBasicMaterial({ color: '#E8EEF4' }), 16); disques.frustumCulled = false; disques.count = 0; disques.castShadow = true; scene.add(disques);
+    const zonesM = new T.InstancedMesh(new T.CircleGeometry(1, 16).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#9BE33A', transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 16); zonesM.frustumCulled = false; zonesM.count = 0; scene.add(zonesM);
+    function majDisquesZones(jeu, dt) {
+      let n = 0; const tps = performance.now() / 1000;
+      for (const d of jeu.disques || []) { if (n >= 16) break; _q.setFromEuler(_e.set(0, tps * 25 + d.id, 0)); _v.set(d.x, 0.9, d.z); _s.set(1, 1, 1); _base.compose(_v, _q, _s); disques.setMatrixAt(n++, _base); }
+      disques.count = n; disques.instanceMatrix.needsUpdate = true; n = 0;
+      for (const z of jeu.zones || []) { if (n >= 16) break; const k = z.r * Math.min(1, (z.duree - z.vie) * 5 + 0.3) * (z.vie < 0.6 ? z.vie / 0.6 : 1); _q.identity(); _v.set(z.x, 0.03, z.z); _s.set(k, 1, k); _base.compose(_v, _q, _s); zonesM.setMatrixAt(n++, _base); if (Math.random() < dt * 6) particule(z.x + (Math.random() - 0.5) * z.r, 0.1, z.z + (Math.random() - 0.5) * z.r, 0, 0.8 + Math.random(), 0, 0.6, 0.08, '#C6F56A', 0); }
+      zonesM.count = n; zonesM.instanceMatrix.needsUpdate = true;
+      // les zombies qui brûlent fument, ceux qui sont gelés givrent
+      for (const zb of jeu.zombies) { if (zb.feu > 0 && Math.random() < dt * 10) particule(zb.x + (Math.random() - 0.5) * 0.4, 1.2 + Math.random() * 0.6, zb.z + (Math.random() - 0.5) * 0.4, 0, 1.6, 0, 0.45, 0.14, Math.random() < 0.6 ? '#FF8A2A' : '#FFD06A', 0); else if (zb.gel > 0 && Math.random() < dt * 5) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.0 + Math.random() * 0.8, zb.z + (Math.random() - 0.5) * 0.5, 0, -0.3, 0, 0.5, 0.08, '#E6FAFF', 0); }
+    }
+    const chaines = []; for (let i = 0; i < 6; i++) { const m = new T.Mesh(BOITE, new T.MeshLambertMaterial({ color: '#5A5560' })); m.visible = false; m.castShadow = true; scene.add(m); const c = new T.Mesh(new T.TorusGeometry(0.16, 0.05, 5, 8), new T.MeshLambertMaterial({ color: '#8A8590' })); c.visible = false; scene.add(c); chaines.push({ m, c }); }
+    function majChaines(jeu) {
+      let n = 0;
+      const tendre = (x0, z0, x1, z1, crochet) => { if (n >= chaines.length) return; const o = chaines[n++]; _pa.set(x0, 1.1, z0); _pb.set(x1, 1.0, z1); const l = _pa.distanceTo(_pb); o.m.position.copy(_pa).add(_pb).multiplyScalar(0.5); o.m.lookAt(_pb); o.m.scale.set(0.06, 0.06, l); o.m.visible = true; o.c.visible = crochet; if (crochet) { o.c.position.copy(_pb); o.c.lookAt(_pa); } };
+      for (const c of jeu.crochets || []) { const g = jeu.zombies.find((z) => z.id === c.de); if (g) tendre(g.x, g.z, c.x, c.z, true); }
+      for (const j of jeu.joueurs) if (j.tire) { const g = jeu.zombies.find((z) => z.id === j.tire.de); if (g) tendre(g.x, g.z, j.x, j.z, false); }
+      for (; n < chaines.length; n++) { chaines[n].m.visible = false; chaines[n].c.visible = false; }
     }
     const matBoum = new T.MeshBasicMaterial({ color: '#FFB347', transparent: true, opacity: 0.9, depthWrite: false });
     const geoBoum = new T.IcosahedronGeometry(1, 1);
     const boums = []; for (let i = 0; i < MAX_BOUMS; i++) { const m = new T.Mesh(geoBoum, matBoum.clone()); m.visible = false; scene.add(m); boums.push({ m, t: 0, r: 1 }); }
     let iBoum = 0;
-    function boum(x, z, r) { const o = boums[iBoum]; iBoum = (iBoum + 1) % MAX_BOUMS; o.t = 0.45; o.r = r; o.m.position.set(x, 0.4, z); o.m.visible = true; secousse = Math.max(secousse, 0.35); }
+    function boum(x, z, r, petite) { const o = boums[iBoum]; iBoum = (iBoum + 1) % MAX_BOUMS; o.t = 0.45; o.r = r; o.m.position.set(x, 0.4, z); o.m.visible = true; secousse = Math.max(secousse, petite ? 0.08 : 0.35); }
     // les flaques (sang vert des zombies, acide des crachats, traces de brûlé) : un cercle instancié, en anneau
     const flaques = new T.InstancedMesh(new T.CircleGeometry(0.5, 9).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: '#FFFFFF', polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: false, transparent: true, opacity: 0.85 }), MAX_FLAQUES);
     flaques.frustumCulled = false; flaques.receiveShadow = true; flaques.count = 0; flaques.instanceMatrix.setUsage(T.DynamicDrawUsage); flaques.setColorAt(0, BLANC); scene.add(flaques);
@@ -3120,7 +3612,11 @@ const ZRENDU = (() => {
       let n = 0;
       for (const c of jeu.crachats) { if (n >= 24) break; _base.makeTranslation(c.x, 0.9, c.z); crachats.setMatrixAt(n++, _base); }
       crachats.count = n; crachats.instanceMatrix.needsUpdate = true; n = 0;
-      for (const o of jeu.obus) { if (n >= 12) break; const k = Math.min(1, o.t / o.duree), h = 0.8 + Math.sin(k * Math.PI) * 6; _base.makeTranslation(o.x0 + (o.x1 - o.x0) * k, h, o.z0 + (o.z1 - o.z0) * k); _r.makeScale(1.4, 1.4, 1.4); _base.multiply(_r); obus.setMatrixAt(n++, _base); }
+      for (const o of jeu.obus) {
+        if (n >= 12) break; const k = Math.min(1, o.t / o.duree), h = o.droit ? 1.0 : 0.8 + Math.sin(k * Math.PI) * (o.grenade || o.de === 'mortier' || !o.de ? 6 : 3), x = o.x0 + (o.x1 - o.x0) * k, z = o.z0 + (o.z1 - o.z0) * k;
+        _base.makeTranslation(x, h, z); _r.makeScale(o.droit ? 1.0 : 1.4, o.droit ? 1.0 : 1.4, o.droit ? 1.0 : 1.4); _base.multiply(_r); obus.setMatrixAt(n++, _base);
+        if (o.droit && Math.random() < 0.8) particule(x, h, z, (Math.random() - 0.5) * 0.4, 0.5, (Math.random() - 0.5) * 0.4, 0.5, 0.12, Math.random() < 0.3 ? '#FFB347' : '#B8B8B8', 0);
+      }
       obus.count = n; obus.instanceMatrix.needsUpdate = true;
     }
 
@@ -3193,9 +3689,14 @@ const ZRENDU = (() => {
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
       if (!cam.init) { cam.x = tx; cam.z = tz; cam.init = true; }
       const k = 1 - Math.exp(-6 * dt); cam.x += (tx - cam.x) * k; cam.z += (tz - cam.z) * k;
-      const portrait = H > W, haut = portrait ? 30 : 22, recul = portrait ? 12 : 12;
+      const portrait = H > W; let haut = portrait ? 30 : 22, recul = portrait ? 12 : 12, fx = cam.x, fz = cam.z;
+      if (cine) { // plongée : la caméra descend vers le point, puis remonte (courbe en cloche)
+        cine.t += dt; const u = Math.min(1, cine.t / cine.duree), w = Math.sin(u * Math.PI);
+        fx = cam.x + (cine.x - cam.x) * w; fz = cam.z + (cine.z - cam.z) * w; haut -= 11 * w; recul -= 5 * w;
+        if (u >= 1) cine = null;
+      }
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
-      camera.position.set(cam.x + sx, haut, cam.z + recul + sz); camera.lookAt(cam.x + sx, 0, cam.z + sz - (portrait ? 0 : 0.5));
+      camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
       soleil.position.set(cam.x - 9, 22, cam.z + 12); soleil.target.position.set(cam.x, 0, cam.z);
     }
@@ -3206,12 +3707,26 @@ const ZRENDU = (() => {
       if (!arene || arene !== jeu.A) charger(jeu);
       if (evs) for (const e of evs) {
         switch (e.t) {
-          case 'tir': tracante(e.x, e.z, e.a, e.l, e.cle === 'tourelle' ? 'tourelle' : e.arme); { const s = survivants.get(e.de); if (s) s.recul = 1; } break;
-          case 'mort': corps.push({ type: e.type, x: e.x, z: e.z, a: e.a || 0, t: 0 }); if (corps.length > MAX_CORPS) corps.shift(); flaque(e.x, e.z, D.ZOMBIES[e.type].taille * 1.1, '#5E8C2E'); break;
+          case 'tir': {
+            effetTir(e); const s = survivants.get(e.de);
+            if (s) { s.recul = 1; if (!e.b) { const a = e.a + Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1) * 0.9; particule(e.x, 1.0, e.z, Math.cos(a) * 2.5, 2.5 + Math.random() * 1.5, Math.sin(a) * 2.5, 1.3, 0.07, '#E0B040', 0.4); } } // une douille
+            break;
+          }
+          case 'mort':
+            flaque(e.x, e.z, D.ZOMBIES[e.type].taille * 1.1, '#5E8C2E');
+            if (e.boss) { cinema(e.x, e.z, 1.9); secousse = Math.max(secousse, 0.6); for (let k = 0; k < 60; k++) particule(e.x, 1.5, e.z, (Math.random() - 0.5) * 9, 5 + Math.random() * 8, (Math.random() - 0.5) * 9, 1.6 + Math.random(), 0.11, k % 3 ? '#FFD84A' : '#FFF4C0', 0.45); }
+            if (KZ && !D.ZOMBIES[e.type].boss && (e.fort || Math.random() < 0.45)) eclater(e); // en morceaux
+            else { corps.push({ type: e.type, x: e.x, z: e.z, a: e.a || 0, t: 0 }); if (corps.length > MAX_CORPS) corps.shift(); }
+            break;
           case 'touche': if (Math.random() < 0.25) flaque(e.x + (Math.random() - 0.5) * 0.6, e.z + (Math.random() - 0.5) * 0.6, 0.35, '#6F9A38'); break;
-          case 'boum': boum(e.x, e.z, e.r); flaque(e.x, e.z, e.r * 0.55, '#4A4A3A'); break;
+          case 'boum': boum(e.x, e.z, e.r, e.petite); if (!e.petite) flaque(e.x, e.z, e.r * 0.55, '#4A4A3A'); break;
           case 'flaque': flaque(e.x, e.z, 0.7, '#A6D63A'); break;
           case 'blesse': secousse = Math.max(secousse, 0.18); break;
+          case 'souffle': for (let k = 0; k < 4; k++) { const a = e.a + (Math.random() - 0.5) * 0.7, v = 5 + Math.random() * 3; particule(e.x + Math.cos(e.a) * 0.4, 1.2, e.z + Math.sin(e.a) * 0.4, Math.cos(a) * v, 0.5 + Math.random(), Math.sin(a) * v, 0.55 + Math.random() * 0.2, 0.2 + Math.random() * 0.15, k % 2 ? '#FF7A1A' : '#FFC24A', 0); } break;
+          case 'pare': for (let k = 0; k < 7; k++) particule(e.x, 1.1, e.z, (Math.random() - 0.5) * 6, 1.5 + Math.random() * 3, (Math.random() - 0.5) * 6, 0.3, 0.07, k % 2 ? '#FFFFFF' : '#FFE07A', 0.3); break;
+          case 'saute': case 'atterrit': for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; particule(e.x + Math.cos(a) * 0.3, 0.15, e.z + Math.sin(a) * 0.3, Math.cos(a) * 2, 0.6, Math.sin(a) * 2, 0.45, 0.14, '#C8B48A', 0); } if (e.t === 'atterrit') secousse = Math.max(secousse, 0.12); break;
+          case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
+          case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
           case 'casse': boum(e.x, e.z, 1.0); break;
         }
       }
@@ -3221,8 +3736,12 @@ const ZRENDU = (() => {
       majObjets(jeu);
       majDefenses(jeu, dt);
       majProjectiles(jeu);
+      majDisquesZones(jeu, dt);
+      majChaines(jeu);
       majFlaques(dt);
+      majParticules(dt);
       for (const o of tracantes) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.m.visible = false; }
+      for (const o of segs) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / o.d); if (o.t <= 0) o.m.visible = false; }
       for (const o of boums) if (o.m.visible) { o.t -= dt; const k = 1 - o.t / 0.45; o.m.scale.setScalar(o.r * (0.3 + k * 0.9)); o.m.material.opacity = Math.max(0, 0.9 * (1 - k)); o.m.material.color.set(k < 0.3 ? '#FFE07A' : '#FF8A3A'); if (o.t <= 0) o.m.visible = false; }
       majCamera(jeu, idMoi, dt);
       renderer.render(scene, camera);
@@ -3237,7 +3756,7 @@ const ZRENDU = (() => {
     }
     const _p = T ? new T.Vector3() : null;
     function ecranDe(x, z, y) { _p.set(x, y || 0, z).project(camera); return [(_p.x + 1) / 2 * W, (1 - _p.y) / 2 * H]; }
-    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length }; }
+    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine, armes: MOD ? MOD.etatArmes : 'absent', tenues: [...survivants.values()].filter((x) => x.blaster).map((x) => x.armeId) }; }
     // les modèles 3D arrivent : la horde passe en Kenney, le survivant, les défenses et l'arène (ses voitures) sont refaits avec eux
     if (MOD) MOD.charger().then((ok) => {
       if (!ok) return;
@@ -3246,7 +3765,7 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, renderer, scene, camera };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();
@@ -3373,6 +3892,15 @@ const ZSONS = (() => {
       for (const [f, u] of [[98, 0], [147, 0.32]]) { const o = osc(ctx, d, 'sawtooth', f, f * 0.98, t + u, 0.9, 0.12 * v, 0.08); void o; osc(ctx, d, 'sine', f * 2, f * 2, t + u, 0.9, 0.06 * v, 0.08); }
     },
     serie(ctx, d, t, v, h) { for (let k = 0; k < 3; k++) osc(ctx, d, 'triangle', 660 * h * Math.pow(1.26, k), 660 * h * Math.pow(1.26, k), t + k * 0.06, 0.12, 0.12 * v, 0.004); },
+    // les nouvelles armes
+    flamme(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 900, 500, 0.7, t, 0.16, 0.32 * v); souffle(ctx, d, 'bandpass', 2400, 1400, 1.5, t, 0.08, 0.08 * v); },
+    cryo(ctx, d, t, v) { souffle(ctx, d, 'highpass', 3500, 5000, 0.8, t, 0.14, 0.18 * v); osc(ctx, d, 'sine', 2400, 1900, t, 0.08, 0.03 * v); },
+    tesla(ctx, d, t, v) { for (let k = 0; k < 3; k++) souffle(ctx, d, 'bandpass', 3000 + Math.random() * 3000, 1500, 4, t + k * 0.025, 0.05, 0.35 * v); osc(ctx, d, 'sawtooth', 120, 60, t, 0.18, 0.12 * v); },
+    roquette(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 1600, 300, 0.8, t, 0.45, 0.5 * v); osc(ctx, d, 'triangle', 220, 90, t, 0.25, 0.15 * v); },
+    scie(ctx, d, t, v) { const o = osc(ctx, d, 'sawtooth', 900, 1500, t, 0.35, 0.07 * v); void o; souffle(ctx, d, 'bandpass', 2500, 4000, 6, t, 0.3, 0.12 * v); },
+    laser(ctx, d, t, v) { osc(ctx, d, 'square', 1800, 300, t, 0.12, 0.08 * v, 0.003); osc(ctx, d, 'sine', 900, 200, t, 0.14, 0.12 * v, 0.003); },
+    arc(ctx, d, t, v) { souffle(ctx, d, 'bandpass', 600, 1800, 3, t, 0.09, 0.4 * v); osc(ctx, d, 'triangle', 300, 120, t, 0.06, 0.12 * v, 0.002); },
+    acide(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 700, 200, 1.5, t, 0.2, 0.4 * v); osc(ctx, d, 'sine', 140, 70, t, 0.18, 0.2 * v); },
     piece(ctx, d, t, v, h) { osc(ctx, d, 'square', 1320 * h, 1320 * h, t, 0.05, 0.05 * v, 0.002); osc(ctx, d, 'square', 1760 * h, 1760 * h, t + 0.045, 0.08, 0.05 * v, 0.002); },
   };
   function jouer(nom, v, p, h) {
@@ -3382,7 +3910,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -3398,8 +3926,12 @@ const ZSONS = (() => {
         case 'tir': {
           if (e.b) break; // une seule détonation pour les plombs d'un même coup
           const mien = e.de === idMoi, [k, p] = mien ? [1, 0] : ecoute(e.x, e.z, 30);
-          if (k > 0.02) P.jouer(CLASSE[e.arme] || 'pistolet', (mien ? 0.75 : 0.45) * k, p, e.cle === 'tourelle' ? 1.25 : 1, mien ? 0 : 0.3);
-          if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' ? 18 : 6);
+          if (k > 0.02) {
+            if (CLASSE[e.arme]) P.jouer(CLASSE[e.arme], (mien ? 0.75 : 0.45) * k, p, e.cle === 'tourelle' ? 1.25 : 1, mien ? 0 : 0.3);
+            else if (SONS[e.arme]) { const t = performance.now(); if (e.arme !== 'flamme' && e.arme !== 'cryo' || t - souffleT > 90) { souffleT = t; jouer(e.arme, (mien ? 0.9 : 0.5) * k, p); } }
+            else P.jouer('pistolet', 0.5 * k, p);
+          }
+          if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' || e.arme === 'roquette' ? 18 : e.arme === 'flamme' || e.arme === 'cryo' ? 0 : 6);
           break;
         }
         case 'touche': { const t = performance.now(); if (e.crit && e.de === idMoi && t - critT > 120) { critT = t; P.jouer('ding', 0.55); } if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
@@ -3427,6 +3959,12 @@ const ZSONS = (() => {
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
         case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
+        case 'pare': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('impactMetal', 0.6 * k, p); break; }
+        case 'souffle': { const t = performance.now(); if (t - souffleZT > 160) { souffleZT = t; const [k, p] = ecoute(e.x, e.z, 18); if (k > 0.05) jouer('flamme', 0.7 * k, p); } break; }
+        case 'saute': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('arc', 0.5 * k, p); break; }
+        case 'crochet': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('scie', 0.5 * k, p); break; }
+        case 'accroche': if (e.id === idMoi) { P.jouer('impactMetal', 0.9); P.vibrer(40); } break;
+        case 'invoque': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('grogne', 0.9 * k + 0.1, p, 0.6); jouer('vague', 0.25 * k, p); } break; }
       }
     }
   }
@@ -3481,8 +4019,17 @@ const ZHUD = (() => {
     fusil: '<svg viewBox="0 0 64 32"><path d="M2 12l14-3h44v5H44l-2 4h-6v9h-7v-9h-6l-3 5h-7l2-6H2z" fill="#6C6F7D" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/></svg>',
     precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
   };
+  // les familles (les armes sans silhouette à elles) : la couleur vient de l'arme
+  const FAMILLE_ICO = {
+    pistolet: ARME_ICO.pistolet.replace('#5B8BD9', 'currentColor'), mitraillette: ARME_ICO.mitraillette.replace('#3E9C6B', 'currentColor'), pompe: ARME_ICO.pompe.replace('#8A5A2B', 'currentColor'),
+    fusil: ARME_ICO.fusil.replace('#6C6F7D', 'currentColor'), sniper: ARME_ICO.precision.replace('#9B6BD6', 'currentColor'),
+    lanceur: '<svg viewBox="0 0 64 32"><path d="M4 9h48l6 3v6l-6 3H34l-2 8h-8l2-8H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><circle cx="12" cy="15" r="3" fill="#1F2533"/></svg>',
+    energie: '<svg viewBox="0 0 64 32"><path d="M6 10h38l10-4v20l-10-4H34l-3 7h-8l2-7H6z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><path d="M40 9l-5 7h5l-4 7" stroke="#FFF" stroke-width="2" fill="none"/></svg>',
+    flamme: '<svg viewBox="0 0 64 32"><path d="M4 12h30l8-3h10v14H42l-8-3h-4l-2 9h-8l2-9H4z" fill="currentColor" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="8" y="18" width="12" height="8" rx="3" fill="#C0392B" stroke="#1F2533" stroke-width="2"/></svg>',
+  };
+  const iconeArme = (id) => { const A = ZDONNEES.ARMES[id]; if (ARME_ICO[id]) return ARME_ICO[id]; if (!A) return ''; return `<span class="ico-arme" style="color:${A.couleur}">${FAMILLE_ICO[A.famille] || FAMILLE_ICO.pistolet}</span>`; };
   const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
-  const NB_CHIFFRES = 40, chiffres = [], derniers = []; let iChiffre = 0, projeter = null, nbChiffres = 0;
+  const NB_CHIFFRES = 40, chiffres = [], derniers = [], cumul = new Map(); let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
   const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
@@ -3514,6 +4061,7 @@ const ZHUD = (() => {
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
+      <div class="h-flash"></div>
       <div class="h-degats" aria-hidden="true"></div>
       <div class="h-noms" aria-hidden="true"><span hidden></span><span hidden></span><span hidden></span><span hidden></span></div>
       <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
@@ -3546,6 +4094,8 @@ const ZHUD = (() => {
     const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
     el.info.innerHTML = `<b>${d.nom}</b> ${d.desc}`; el.info.hidden = false; infoT = 2.2;
   }
+  // un éclair blanc (le coup de grâce sur un boss)
+  function flash() { const f = R.querySelector('.h-flash'); if (!f) return; f.classList.remove('vu'); void f.offsetWidth; f.classList.add('vu'); }
   function toast(t) { el.toast.textContent = t; el.toast.hidden = false; el.toast.classList.remove('vu'); void el.toast.offsetWidth; el.toast.classList.add('vu'); toastT = 1.8; }
   function annonce(t, s, duree) { el.annB.textContent = t; el.annS.textContent = s || ''; el.annonce.hidden = false; el.annonce.classList.remove('vu'); void el.annonce.offsetWidth; el.annonce.classList.add('vu'); annonceT = duree || 2.2; }
 
@@ -3615,7 +4165,7 @@ const ZHUD = (() => {
       const s = j.armes[i], b = el.slots[i], cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}` : 'vide';
       if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
       b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
-      b.innerHTML = s ? `${ARME_ICO[s.id] || ''}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
+      b.innerHTML = s ? `${iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
@@ -3675,11 +4225,13 @@ const ZHUD = (() => {
     if (evs && projeter) {
       const parCible = new Map();
       for (const e of evs) {
-        if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
+        if (e.t === 'touche' && e.petit) { const q = cumul.get(e.cible) || { x: e.x, z: e.z, d: 0, t: 0.45, boss: e.boss }; q.d += e.degats; q.x = e.x; q.z = e.z; cumul.set(e.cible, q); } // (flammes, brûlure, acide : cumulés)
+        else if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
+      for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
     }
     for (const c2 of chiffres) {
       if (c2.t <= 0) continue; c2.t -= dt;
@@ -3696,7 +4248,7 @@ const ZHUD = (() => {
     nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
   function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  return { init, maj, annonce, toast, flash, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, iconeArme, get atelierOuvert() { return ouvert; } };
 })();
 
 /* ── src-zombies/enligne.js ── */
@@ -3736,12 +4288,15 @@ const ZENLIGNE = (() => {
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0]),
-      z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse)]),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0]),
+      z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0]),
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
       o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
       cr: jeu.crachats.map((c) => [r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
-      ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0]),
+      ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0, o.droit ? 1 : 0]),
+      ch: jeu.crochets.map((c) => [c.id, c.de, r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
+      di: jeu.disques.map((d) => [d.id, r2(d.x), r2(d.z), r2(d.vx), r2(d.vz)]),
+      zo: jeu.zones.map((z) => [z.id, r2(z.x), r2(z.z), r2(z.r), r1(z.vie), r1(z.duree)]),
     };
   }
   // ─── la copie du client, écrite par un instantané (les objets gardent leur identité : le rendu les suit par id) ───
@@ -3757,7 +4312,7 @@ const ZENLIGNE = (() => {
       if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
-      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23];
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null;
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -3765,12 +4320,15 @@ const ZENLIGNE = (() => {
       for (const l of lignes) { let x = parId.get(l[0]); if (!x) x = faire(l); maj(x, l); liste.push(x); }
     };
     garder(jeu.zombies, e.z, (l) => ({ id: l[0], x: l[2], z: l[3], rx: 0, rz: 0 }), (z, l) => {
-      z.type = TZ[l[1]]; z.tx = l[2]; z.tz = l[3]; z.angle = l[4]; z.vie = l[5]; z.vieMax = l[6]; z.flash = l[7] ? 0.1 : 0; z.attaque = l[8]; z.bouge = l[9]; z.naissance = l[10]; z.vitesse = l[11]; z.rayon = D.ZOMBIES[z.type].rayon;
+      z.type = TZ[l[1]]; z.tx = l[2]; z.tz = l[3]; z.angle = l[4]; z.vie = l[5]; z.vieMax = l[6]; z.flash = l[7] ? 0.1 : 0; z.attaque = l[8]; z.bouge = l[9]; z.naissance = l[10]; z.vitesse = l[11]; z.rayon = D.ZOMBIES[z.type].rayon; z.feu = l[12] ? 1 : 0; z.gel = l[13] ? 1 : 0; z.saut = l[14] || 0;
     });
     garder(jeu.defenses, e.d, (l) => ({ id: l[0] }), (d, l) => { d.type = TD[l[1]]; d.x = l[2]; d.z = l[3]; d.angle = l[4]; d.vie = l[5]; d.vieMax = l[6]; d.flash = l[7] ? 0.1 : 0; });
     garder(jeu.objets, e.o, (l) => ({ id: l[0], x: l[2], z: l[3] }), (o, l) => { o.type = TO[l[1]]; o.tx = l[2]; o.tz = l[3]; o.valeur = l[4]; o.vole = !!l[5]; o.age = l[6]; if (!o.vole) { o.x = l[2]; o.z = l[3]; } });
     jeu.crachats.length = 0; for (const c of e.cr) jeu.crachats.push({ x: c[0], z: c[1], vx: c[2], vz: c[3] });
-    jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6] });
+    jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6], droit: !!o[7] });
+    garder(jeu.crochets, e.ch || [], (l) => ({ id: l[0] }), (c, l) => { c.de = l[1]; c.x = l[2]; c.z = l[3]; c.vx = l[4]; c.vz = l[5]; });
+    garder(jeu.disques, e.di || [], (l) => ({ id: l[0], x: l[1], z: l[2] }), (d, l) => { d.x = l[1]; d.z = l[2]; d.vx = l[3]; d.vz = l[4]; });
+    garder(jeu.zones, e.zo || [], (l) => ({ id: l[0] }), (z, l) => { z.x = l[1]; z.z = l[2]; z.r = l[3]; z.vie = l[4]; z.duree = l[5]; });
   }
   // entre deux instantanés : zombies, copains et ferraille glissent vers leur dernière position ; les projectiles avancent
   function lisser(jeu, dt, idMoi) {
@@ -3780,6 +4338,8 @@ const ZENLIGNE = (() => {
     for (const o of jeu.objets) if (o.vole && o.tx != null) { o.x += (o.tx - o.x) * k; o.z += (o.tz - o.z) * k; }
     for (const c of jeu.crachats) { c.x += c.vx * dt; c.z += c.vz * dt; }
     for (const o of jeu.obus) o.t = Math.min(o.duree, o.t + dt);
+    for (const d of jeu.disques) { d.x += d.vx * dt; d.z += d.vz * dt; }
+    for (const c of jeu.crochets) { c.x += c.vx * dt; c.z += c.vz * dt; }
     jeu.t += dt;
   }
 
@@ -3897,6 +4457,190 @@ const ZENLIGNE = (() => {
   return { ouvrir, instantane, appliquer, codeBonus, lireBonus, MAX_JOUEURS, PREFIXE };
 })();
 
+/* ── src-zombies/classement.js ── */
+/* DERNIER REMPART — le classement du DÉFI DU JOUR. Après chaque partie de défi, le téléphone publie { jour, score, vague, tues } ;
+   le serveur (supabase/zombies-defi.sql) garde le meilleur score de chacun pour chaque jour et range « Aujourd'hui » (le meilleur
+   score du défi du jour) et « Cette semaine » (la somme des meilleurs scores de chaque jour, du lundi au dimanche, heure de Paris).
+   Une partie pure (le jour à Paris, les pseudos, les réponses nettoyées), testée dans Node, et une partie réseau : les fonctions
+   Supabase appelées par supabase-js (window.supabase) avec la clé PUBLIQUE de zombies/config.js. Sans configuration, sans
+   supabase-js, sans réseau ou sans le SQL collé sur le projet, rien ne part et le jeu marche comme avant (le meilleur score du jour
+   reste gardé sur le téléphone, et part à la prochaine occasion).
+   Toutes les fonctions rendent une promesse qui ne rejette JAMAIS : { ok, erreur, … } ; erreur : null, ou 'absent', 'hors-ligne',
+   'lent' (8 s), 'pas-installe' (le SQL n'est pas collé), 'erreur', 'periode', ou la réponse du serveur : 'jeton', 'pseudo_invalide',
+   'pseudo_pris', 'jour', 'valeur', 'trop_vite', 'quota', 'complet'.
+   L'identité (id tiré au hasard, jeton secret de 64 chiffres hexadécimaux dont le serveur ne garde que l'empreinte) vit dans
+   localStorage sous sa propre clé, 'zombies.classement' (pas dans la sauvegarde 'zombies.v1', que ui.js réécrit en entier).
+   API : ZCLASSEMENT.creer(env) → { publier(partie | null, { pseudo }), lire('jour' | 'semaine', jour), etat(), disponible() } ;
+         ZCLASSEMENT.jourParis(t), .lundiDe(jour), .verifierPseudo(p), .pseudoPour(p). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.ZCLASSEMENT = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const CLE = 'zombies.classement', VERSION = 1, PERIODES = ['jour', 'semaine'];
+  const REGLES = { delaiMax: 8e3, limite: 50 };
+  const fin = (v) => typeof v === 'number' && v - v === 0;
+  const entier = (v) => (fin(+v) && v !== null && v !== '' ? Math.max(0, Math.round(+v)) : 0);
+  const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+  // le jour à Paris (« 2026-11-03 »), heure d'été comme d'hiver ; sans Intl : UTC + 1 h
+  function jourParis(t) {
+    const d = new Date(fin(t) ? t : Date.now());
+    try {
+      const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+      const v = (k) => (p.find((x) => x.type === k) || {}).value;
+      const s = `${v('year')}-${v('month')}-${v('day')}`;
+      if (JOUR.test(s)) return s;
+    } catch (e) { /* repli */ }
+    return new Date(d.getTime() + 3600e3).toISOString().slice(0, 10);
+  }
+  function lundiDe(jour) { // le lundi de la semaine de ce jour (« AAAA-MM-JJ »)
+    const d = new Date(jour + 'T12:00:00Z'); if (!fin(d.getTime())) return '';
+    const k = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - k); return d.toISOString().slice(0, 10);
+  }
+
+  // les pseudos : les mêmes règles que le serveur (et que Poncin et le Fournil)
+  const PSEUDO_MIN = 2, PSEUDO_MAX = 16;
+  const LETTRES = '0-9A-Za-zÀ-ÖØ-öø-İĴ-ķĹ-ľŁ-ňŊ-ž';
+  const PSEUDO_OK = new RegExp(`^[${LETTRES} _'.-]+$`), UNE_LETTRE = new RegExp(`[${LETTRES}]`), INTERDIT = new RegExp(`[^${LETTRES} _'.-]`, 'g');
+  function normaliserPseudo(p) {
+    let s = String(p == null ? '' : p);
+    try { s = s.normalize('NFC'); } catch (e) { /* rien */ }
+    return s.replace(/[‘’ʼ`´]/g, "'").replace(/[\s\u0085]+/g, ' ').trim();
+  }
+  function verifierPseudo(p) {
+    const pseudo = normaliserPseudo(p), n = Array.from(pseudo).length;
+    if (!n) return { ok: false, pseudo, raison: 'vide' };
+    if (n < PSEUDO_MIN) return { ok: false, pseudo, raison: 'court' };
+    if (n > PSEUDO_MAX) return { ok: false, pseudo, raison: 'long' };
+    if (!PSEUDO_OK.test(pseudo)) return { ok: false, pseudo, raison: 'caracteres' };
+    if (!UNE_LETTRE.test(pseudo)) return { ok: false, pseudo, raison: 'lettre' };
+    return { ok: true, pseudo };
+  }
+  function pseudoPour(brut) {
+    let s = normaliserPseudo(normaliserPseudo(brut).replace(INTERDIT, ' '));
+    if (Array.from(s).length > PSEUDO_MAX) s = Array.from(s).slice(0, PSEUDO_MAX).join('').trim();
+    const v = verifierPseudo(s);
+    return v.ok ? v.pseudo : null;
+  }
+
+  // l'identité
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
+  function lireEtat(stockage) {
+    const e = { v: VERSION, id: null, jeton: null, pseudo: '', rejoint: false };
+    let s = null;
+    try { const brut = stockage ? stockage.getItem(CLE) : null; s = brut ? JSON.parse(brut) : null; } catch (err) { s = null; }
+    if (!s || typeof s !== 'object') return e;
+    if (typeof s.id === 'string' && UUID.test(s.id) && typeof s.jeton === 'string' && JETON.test(s.jeton)) { e.id = s.id.toLowerCase(); e.jeton = s.jeton; }
+    if (typeof s.pseudo === 'string' && verifierPseudo(s.pseudo).ok) e.pseudo = s.pseudo;
+    e.rejoint = s.rejoint === true && !!e.id && !!e.pseudo;
+    return e;
+  }
+  function octets(n) {
+    const b = new Uint8Array(n);
+    try { if (typeof crypto !== 'undefined' && crypto && crypto.getRandomValues) { crypto.getRandomValues(b); return b; } } catch (e) { /* repli */ }
+    for (let i = 0; i < n; i++) b[i] = Math.floor(Math.random() * 256);
+    return b;
+  }
+  const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  function nouvelId() {
+    try { if (typeof crypto !== 'undefined' && crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID(); } catch (e) { /* repli */ }
+    const b = octets(16); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80; const h = hex(b);
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+
+  // les réponses nettoyées (rien d'inattendu n'arrive jusqu'à l'écran)
+  const n0 = (v) => (fin(v) && v >= 0 ? v : 0);
+  const rangDe = (v) => (Number.isInteger(v) && v > 0 ? v : null);
+  const texte = (v, max) => String(v == null ? '' : v).slice(0, max);
+  const ligneDe = (x) => ({ rang: rangDe(x.rang), pseudo: texte(x.pseudo, 40), score: n0(x.score), vague: n0(x.vague), parties: n0(x.parties), moi: x.moi === true });
+  function nettoyerClassement(d, periode) {
+    if (!d || typeof d !== 'object' || !Array.isArray(d.lignes)) return null;
+    const lignes = d.lignes.slice(0, 100).filter((x) => x && typeof x === 'object').map(ligneDe);
+    const moi = d.moi && typeof d.moi === 'object' ? Object.assign(ligneDe(d.moi), { moi: true, pseudo: '' }) : null;
+    return { ok: true, erreur: null, periode, jour: JOUR.test(String(d.jour || '')) ? d.jour : '', lundi: JOUR.test(String(d.lundi || '')) ? d.lundi : '',
+      joueurs: Math.max(n0(d.joueurs), lignes.length), lignes, moi };
+  }
+  function nettoyerPublication(d) {
+    return { ok: d.ok === true, erreur: d.ok === true ? null : texte(d.erreur || 'erreur', 40), jour: JOUR.test(String(d.jour || '')) ? d.jour : '',
+      record: d.record === true, meilleur: n0(d.meilleur), vague: n0(d.vague), parties: n0(d.parties), rang: rangDe(d.rang), joueurs: n0(d.joueurs) };
+  }
+
+  function creer(env) {
+    const E = env || {};
+    const val = (x) => { try { return typeof x === 'function' ? x() : x; } catch (e) { return null; } };
+    let etat = lireEtat(E.stockage), client = null, clientDe = '';
+    const sauver = () => { try { if (E.stockage) E.stockage.setItem(CLE, JSON.stringify(etat)); } catch (e) { /* rien */ } };
+    function config() {
+      const c = val(E.config);
+      if (!c || typeof c !== 'object') return null;
+      const url = typeof c.supabaseUrl === 'string' ? c.supabaseUrl.trim().replace(/\/+$/, '') : '', key = typeof c.supabaseKey === 'string' ? c.supabaseKey.trim() : '';
+      return /^https?:\/\/\S+$/.test(url) && key ? { url, key } : null;
+    }
+    function obtenirClient() {
+      const c = config(), L = val(E.supabase);
+      if (!c || !L || typeof L.createClient !== 'function') return null;
+      if (client && clientDe === c.url + ' ' + c.key) return client;
+      try { client = L.createClient(c.url, c.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'zombies-classement' } }); clientDe = c.url + ' ' + c.key; } catch (e) { client = null; }
+      return client && typeof client.rpc === 'function' ? client : null;
+    }
+    const disponible = () => !!config() && !!val(E.supabase) && typeof val(E.supabase).createClient === 'function';
+
+    async function appeler(nom, args) {
+      const cl = obtenirClient();
+      if (!cl) return { ok: false, erreur: 'absent' };
+      if (typeof E.enLigne === 'function' && val(E.enLigne) === false) return { ok: false, erreur: 'hors-ligne' };
+      let minuteur = null;
+      const delai = new Promise((res) => { minuteur = setTimeout(() => res({ lent: true }), fin(E.delaiMax) ? E.delaiMax : REGLES.delaiMax); });
+      try {
+        const r = await Promise.race([Promise.resolve().then(() => cl.rpc(nom, args)), delai]);
+        if (!r || r.lent) return { ok: false, erreur: 'lent' };
+        if (r.error) {
+          const e = r.error, m = String((e && (e.message || e.details)) || e || '');
+          if ((e && e.code === 'PGRST202') || r.status === 404 || /could not find the function/i.test(m)) return { ok: false, erreur: 'pas-installe' };
+          if (/fetch|network|load failed|offline/i.test(m)) return { ok: false, erreur: 'hors-ligne' };
+          return { ok: false, erreur: 'erreur' };
+        }
+        return r.data && typeof r.data === 'object' ? { ok: true, data: r.data } : { ok: false, erreur: 'erreur' };
+      } catch (e) {
+        return { ok: false, erreur: /fetch|network|load failed/i.test(String(e && e.message)) ? 'hors-ligne' : 'erreur' };
+      } finally { clearTimeout(minuteur); }
+    }
+
+    // publier une partie de défi ({ jour, score, vague, tues }), ou seulement rejoindre / changer de pseudo (partie null)
+    async function publier(partie, o) {
+      try {
+        const pseudo = pseudoPour(o && o.pseudo != null ? o.pseudo : etat.pseudo);
+        if (!pseudo) return { ok: false, erreur: 'pseudo_invalide' };
+        if (partie && (!JOUR.test(String(partie.jour || '')) || !(entier(partie.vague) >= 1))) return { ok: false, erreur: 'valeur' };
+        if (!obtenirClient()) return { ok: false, erreur: 'absent' };
+        if (!etat.id || !etat.jeton) { etat.id = nouvelId().toLowerCase(); etat.jeton = hex(octets(32)); etat.rejoint = false; sauver(); }
+        const args = { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo };
+        if (partie) Object.assign(args, { p_jour: partie.jour, p_score: entier(partie.score), p_vague: entier(partie.vague), p_tues: entier(partie.tues) });
+        const r = await appeler('zombies_publier', args);
+        if (!r.ok) return { ok: false, erreur: r.erreur };
+        const p = nettoyerPublication(r.data);
+        if (p.ok) { etat.pseudo = pseudo; etat.rejoint = true; sauver(); }
+        p.pseudo = p.ok ? pseudo : etat.pseudo;
+        return p;
+      } catch (e) { return { ok: false, erreur: 'erreur' }; }
+    }
+    async function lire(periode, jour) {
+      try {
+        const p = periode == null ? 'jour' : periode;
+        if (PERIODES.indexOf(p) < 0) return { ok: false, erreur: 'periode' };
+        const r = await appeler('zombies_classement', { p_periode: p, p_jour: JOUR.test(String(jour || '')) ? jour : null, p_id: etat.rejoint ? etat.id : null, p_limite: REGLES.limite });
+        if (!r.ok) return { ok: false, erreur: r.erreur };
+        return nettoyerClassement(r.data, p) || { ok: false, erreur: 'erreur' };
+      } catch (e) { return { ok: false, erreur: 'erreur' }; }
+    }
+    return { publier, lire, disponible, etat: () => ({ pseudo: etat.pseudo, rejoint: etat.rejoint }) };
+  }
+
+  return { creer, jourParis, lundiDe, verifierPseudo, pseudoPour, nettoyerClassement, nettoyerPublication, REGLES, CLE };
+});
+
 /* ── src-zombies/ui.js ── */
 /* DERNIER REMPART — l'interface et la boucle : les écrans (titre avec la partie de démonstration en fond, pause, fin, réglages), la
    sauvegarde (localStorage « zombies.v1 » : records par arène, totaux, réglages ; lue en lecture seule par la Salle de jeux), et la
@@ -3907,7 +4651,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -3984,7 +4728,7 @@ const ZENLIGNE = (() => {
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); }
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -4007,7 +4751,7 @@ const ZENLIGNE = (() => {
     ZJEU.construire(demo, 'moi', 'tourelle');
   }
   function demarrer(id, graine) {
-    arene = D.ARENES[id] ? id : arene;
+    arene = D.ARENES[id] ? id : arene; defi = null;
     jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
@@ -4028,12 +4772,13 @@ const ZENLIGNE = (() => {
     try { PSONS.suspendre(false); } catch (e) { /* rien */ }
   }
   function finir() {
-    const j = moi(), r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
-    const record = j.score > r.score || jeu.vague > r.vague;
+    const j = moi(), r = defi ? { vague: 0, score: 0, tues: 0, parties: 0 } : save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
+    const record = !defi && (j.score > r.score || jeu.vague > r.vague);
     r.parties++; r.vague = Math.max(r.vague, jeu.vague); r.score = Math.max(r.score, j.score); r.tues = Math.max(r.tues, j.tues);
     const M = D.MEDAILLES, medailles = jeu.vague * M.parVague + Math.floor(j.tues / M.parZombies) + j.boss * M.parBoss;
     save.meta.medailles += medailles; save.meta.gagnees += medailles;
-    save.records[arene] = r; save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
+    if (!defi) save.records[arene] = r;
+    save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
@@ -4044,6 +4789,7 @@ const ZENLIGNE = (() => {
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
+    finDefi(j);
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
@@ -4082,7 +4828,7 @@ const ZENLIGNE = (() => {
     $('.salon-arene').textContent = `Arène : ${D.ARENES[arene].nom}`;
   }
   function demarrerPartie(p) {
-    partie = p; jeu = p.jeu; idMoi = p.idMoi; arene = p.arene; demo = null; enPause = false; finVu = false; acc = 0;
+    partie = p; jeu = p.jeu; idMoi = p.idMoi; defi = null; arene = p.arene; demo = null; enPause = false; finVu = false; acc = 0;
     for (const k in ecrans) ecrans[k].hidden = true;
     ZHUD.reinit(); ZCONTROLES.reinit(); montrer('jeu');
     ZHUD.annonce('EN COOP', `${jeu.joueurs.length} survivant${jeu.joueurs.length > 1 ? 's' : ''} · ${D.ARENES[arene].nom}`, 2.4);
@@ -4106,13 +4852,91 @@ const ZENLIGNE = (() => {
     try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
   });
 
+  // ─── le défi du jour : la même partie pour tout le monde aujourd'hui (heure de Paris) ; le meilleur score part au classement ───
+  const stock = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const CL = ZCLASSEMENT.creer({ config: () => window.ZOMBIES_CONFIG || window.PONCIN_CONFIG, supabase: () => window.supabase, stockage: stock, enLigne: () => navigator.onLine !== false });
+  let defi = null, periode = 'jour', lecture = 0;
+  const echap = (t) => String(t == null ? '' : t).replace(/[<>&"]/g, '');
+  const nf = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  const defiActuel = () => ZJEU.defiDu(ZCLASSEMENT.jourParis());
+  function monDefi(jour) { if (!save.defi || save.defi.jour !== jour) save.defi = { jour, meilleur: 0, vague: 0, tues: 0, parties: 0, envoye: true }; return save.defi; }
+  function majBoutonDefi() { const d = defiActuel(), m = monDefi(d.jour); $('.defi-sous').textContent = `${d.nom} · ${m.parties ? 'ton meilleur : ' + nf(m.meilleur) : 'pas encore joué'}`; }
+  const MESSAGES = {
+    absent: 'Classement indisponible ici : ton meilleur score reste gardé sur ce téléphone.', 'hors-ligne': 'Pas de réseau : ton score partira dès que tu seras en ligne.',
+    lent: 'Le classement ne répond pas : réessaie plus tard.', 'pas-installe': 'Le classement n’est pas encore ouvert : ton score est gardé.',
+    pseudo_pris: 'Ce pseudo est déjà pris : choisis-en un autre.', pseudo_invalide: 'Pseudo : 2 à 16 lettres ou chiffres.', trop_vite: 'Doucement ! Réessaie dans quelques secondes.',
+    quota: 'Assez de parties pour aujourd’hui !', complet: 'Le classement est complet.', erreur: 'Classement indisponible pour l’instant.',
+  };
+  function retenirPseudo() { const v = ZCLASSEMENT.verifierPseudo($('#d-pseudo').value); if (v.ok && v.pseudo !== save.pseudo) { save.pseudo = v.pseudo; ecrire(); } }
+  function pseudoClassement() { const p = ZCLASSEMENT.pseudoPour(save.pseudo || ''); return p; }
+  // le meilleur score du jour qui n'est pas encore parti (pas de réseau, pas de pseudo…) part à la prochaine occasion
+  async function envoyerEnAttente(renommer) {
+    const m = save.defi, pseudo = pseudoClassement();
+    if (!pseudo || !CL.disponible()) return null;
+    if (m && m.parties && !m.envoye && m.jour >= ZCLASSEMENT.jourParis(Date.now() - 86400e3)) {
+      const r = await CL.publier({ jour: m.jour, score: m.meilleur, vague: m.vague, tues: m.tues }, { pseudo });
+      if (r.ok || r.erreur === 'valeur' || r.erreur === 'jour') { m.envoye = true; ecrire(); }
+      if (!r.ok && MESSAGES[r.erreur]) $('.defi-etat').textContent = MESSAGES[r.erreur];
+      return r;
+    }
+    if (renommer && CL.etat().rejoint && CL.etat().pseudo !== pseudo) { const r = await CL.publier(null, { pseudo }); if (!r.ok && MESSAGES[r.erreur]) $('.defi-etat').textContent = MESSAGES[r.erreur]; return r; }
+    return null;
+  }
+  function ouvrirDefi() {
+    const d = defiActuel(), m = monDefi(d.jour);
+    let date = d.jour; try { date = new Date(d.jour + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }); } catch (e) { /* la date brute */ }
+    $('.defi-date').textContent = date;
+    $('.defi-mut').textContent = d.nom; $('.defi-texte').textContent = d.texte;
+    $('.defi-arene').textContent = `${D.ARENES[d.arene].nom} · la même partie pour tout le monde · sans les bonus du Bunker`;
+    $('.defi-perso').textContent = m.parties ? `Ton meilleur aujourd’hui : ${nf(m.meilleur)} pts (vague ${m.vague}) · ${pluriel(m.parties, 'partie')}` : 'Pas encore joué aujourd’hui : le meilleur score de la journée compte.';
+    $('#d-pseudo').value = save.pseudo || CL.etat().pseudo || '';
+    for (const k in ecrans) ecrans[k].hidden = true;
+    montrer('defi');
+    chargerClassement().then(() => envoyerEnAttente()).then((r) => { if (r && r.ok) chargerClassement(); });
+  }
+  async function chargerClassement() {
+    const n = ++lecture, box = $('.defi-liste'), etat = $('.defi-etat');
+    document.querySelectorAll('.onglets [data-periode]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.periode === periode)));
+    if (!CL.disponible()) { box.innerHTML = ''; etat.textContent = MESSAGES.absent; return; }
+    etat.textContent = 'Chargement du classement…';
+    const r = await CL.lire(periode, ZCLASSEMENT.jourParis()); if (n !== lecture) return;
+    if (!r.ok) { box.innerHTML = ''; etat.textContent = MESSAGES[r.erreur] || MESSAGES.erreur; return; }
+    const li = (l, loin) => `<li class="${l.moi ? 'moi' : ''}${loin ? ' loin' : ''}"><b>${l.rang || '–'}</b><span>${l.moi && !l.pseudo ? 'Toi' : echap(l.pseudo)}<small>${periode === 'jour' ? `vague ${l.vague} · ${pluriel(l.parties, 'partie')}` : `${pluriel(l.parties, 'jour')} · vague ${l.vague} au mieux`}</small></span><span class="score">${nf(l.score)}</span></li>`;
+    box.innerHTML = r.lignes.map((l) => li(l)).join('') + (r.moi && !r.lignes.some((l) => l.moi) ? li(r.moi, true) : '');
+    etat.textContent = r.lignes.length ? `${pluriel(r.joueurs, 'joueur')} ${periode === 'jour' ? 'aujourd’hui' : 'cette semaine'}${pseudoClassement() ? '' : ' · choisis un pseudo pour y entrer'}` : 'Personne encore : sois le premier !';
+  }
+  function demarrerDefi() {
+    const d = defiActuel(); defi = d;
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [{ id: idMoi, pseudo: 'Moi' }] }); // sans les bonus du Bunker : la même partie pour tous
+    demo = null; enPause = false; acc = 0; debut = Date.now();
+    ZHUD.reinit(); ZCONTROLES.reinit();
+    montrer('jeu');
+    ZHUD.annonce('DÉFI DU JOUR', `${d.nom} · ${D.ARENES[d.arene].nom}`, 2.6);
+    return jeu;
+  }
+  // l'écran de fin d'un défi : le score, le meilleur du jour, puis la place au classement
+  function finDefi(j) {
+    const box = $('.fin-defi');
+    box.hidden = !defi || !!partie; if (box.hidden) return;
+    const m = monDefi(defi.jour), meilleur = j.score > m.meilleur || !m.parties;
+    m.parties++; if (meilleur) { m.meilleur = j.score; m.vague = jeu.vague; m.tues = j.tues; m.envoye = false; }
+    ecrire(); $('.fin-record').hidden = true;
+    const base = `Défi du jour : ${nf(j.score)} pts${meilleur && m.parties > 1 ? ' — ton meilleur aujourd’hui !' : ''}`;
+    box.textContent = base;
+    if (!pseudoClassement()) { if (CL.disponible()) box.textContent = base + ' · choisis un pseudo (Défi du jour) pour entrer au classement'; return; }
+    const lire = () => CL.lire('jour', defi.jour).then((r) => { if (r.ok && r.moi && r.moi.rang) box.textContent = `${base} · ${r.moi.rang === 1 ? '1er' : r.moi.rang + 'e'} sur ${r.joueurs}`; });
+    if (meilleur) envoyerEnAttente().then((r) => { if (r && r.ok && r.rang) box.textContent = `${base} · ${r.rang === 1 ? '1er' : r.rang + 'e'} sur ${r.joueurs}`; else if (r && !r.ok && MESSAGES[r.erreur]) box.textContent = `${base} · ${MESSAGES[r.erreur]}`; });
+    else lire();
+  }
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
   clic('#b-reprendre', reprendre);
-  clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } demarrer(arene); });
+  clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-quitter', quitter);
-  clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; demarrer(arene); });
+  clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene); return; } ecrans.fin.hidden = true; if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
     retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco;
@@ -4120,6 +4944,11 @@ const ZENLIGNE = (() => {
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
   clic('#b-multi', ouvrirSalon);
+  clic('#b-defi', ouvrirDefi);
+  clic('#b-defi-jouer', () => { verrouiller(); retenirPseudo(); demarrerDefi(); });
+  clic('#b-defi-retour', () => { retenirPseudo(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
+  document.querySelectorAll('.onglets [data-periode]').forEach((b) => b.addEventListener('click', () => { periode = b.dataset.periode; try { PSONS.ui('tap'); } catch (e) { /* rien */ } chargerClassement(); }));
+  $('#d-pseudo').addEventListener('change', () => { retenirPseudo(); envoyerEnAttente(true).then(chargerClassement); });
   clic('#b-creer', () => entrerSalon(true));
   clic('#b-rejoindre', () => entrerSalon(false));
   clic('#b-lancer', () => { if (salon) { verrouiller(); salon.lancer(arene); } });
@@ -4151,6 +4980,15 @@ const ZENLIGNE = (() => {
     if (n === 5) acc = 0;
   }
   const entrees = { moi: null };
+  // le coup de grâce sur un boss : 1,6 s au ralenti (×0,3), l'éclair blanc ; une explosion : une micro-pause de 45 ms
+  let ralentiJusque = 0, arretJusque = 0;
+  const facteurTemps = () => { const t = performance.now(); return t < arretJusque ? 0 : t < ralentiJusque ? 0.3 : 1; };
+  function effetsTemps(l) {
+    for (const e of l) {
+      if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
+      else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
+    }
+  }
   let fige = false, finVu = false;
   function boucle(t) {
     requestAnimationFrame(boucle);
@@ -4158,7 +4996,7 @@ const ZENLIGNE = (() => {
     if (document.hidden) return;
     if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (partie && jeu && (ecran === 'jeu' || ecran === 'fin')) { // la coop : l'hôte simule, le client suit ; la pause n'arrête rien
-      const e = partie.etape(dt, enPause || estPortrait ? null : ZCONTROLES.lire());
+      const e = partie.etape(partie.estHote ? dt * facteurTemps() : dt, enPause || estPortrait ? null : ZCONTROLES.lire()); effetsTemps(e);
       ZSONS.evenements(e, jeu, idMoi, dt); ZHUD.maj(jeu, idMoi, dt, e); rendu.image(jeu, idMoi, dt, e);
       if (jeu.fini && !finVu) { finVu = true; finir(); }
       return;
@@ -4167,7 +5005,7 @@ const ZENLIGNE = (() => {
       if (enPause) { if (!fige) { rendu.image(jeu, idMoi, 0, null); fige = true; } return; }
       fige = false;
       if (!jeu.fini) {
-        entrees.moi = ZCONTROLES.lire(); avancer(jeu, entrees, dt);
+        entrees.moi = ZCONTROLES.lire(); avancer(jeu, entrees, dt * facteurTemps()); effetsTemps(evs);
         ZSONS.evenements(evs, jeu, idMoi, dt);
         ZHUD.maj(jeu, idMoi, dt, evs);
         rendu.image(jeu, idMoi, dt, evs);
@@ -4187,9 +5025,9 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    demarrer, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    demarrer, demarrerDefi, ouvrirDefi, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
-    stats() { return { rendu: rendu.stats(), ecran, arene }; },
+    stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z),
   };
 })();

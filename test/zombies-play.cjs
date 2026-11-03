@@ -97,15 +97,28 @@ const BASE = `http://localhost:${PORT}/`;
   await sleep(400);
   check(choix.visible && choix.cartes.join() === 'Tir double,Œil de lynx,Cuir épais' && /NIVEAU 2/.test(choix.titre) && (await P(() => window.__zombies.jeu.t)) === choix.t, `niveau 2 : trois atouts au choix (${choix.cartes.join(', ')}), la partie attend`);
   await page.screenshot({ path: out + '/02c-atout.png' });
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.xp = -1e9; p.choixAttente = 1; }); // (pas d'autre niveau en attente derrière celui-ci)
   await page.tap('[data-atout="multi"]'); await sleep(300);
   check(await P(() => window.__zombies.jeu.joueurs[0].atouts.multi === 1 && !window.__zombies.jeu.choix && document.querySelector('.h-choix').hidden), 'toucher « Tir double » le prend, la partie repart');
   // la suite du parcours ne doit pas être coupée par un vrai passage de niveau (la CI tire vite) : plus d'expérience, et un choix en cours est pris
   await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = -1e9; p.choixAttente = 0; if (j.choix) ZJEU.choisirAtout(j, j.choix.id, j.choix.options[0]); });
   await sleep(150);
+  // l'arsenal : une arme de caisse (le fusil Tesla) se tient en modèle 3D (Blaster Kit), son icône au HUD ; l'éclair saute de zombie en zombie
+  await page.waitForFunction(() => window.__zombies.stats().rendu.armes === 'pret', null, { timeout: 20000 }).catch(() => {});
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.armes[1] = { id: 'tesla', mun: 80 }; p.main = 1; });
+  await sleep(500);
+  const ars = await P(() => ({ r: window.__zombies.stats().rendu, nom: document.querySelector('.h-arme-nom').textContent, ico: !!document.querySelector('.h-slot[data-i="1"] .ico-arme svg') }));
+  check(ars.r.armes === 'pret' && ars.r.tenues.includes('tesla') && /TESLA/i.test(ars.nom) && ars.ico, `l’arme en main en modèle 3D (${ars.r.tenues.join(', ')}), son nom (« ${ars.nom} ») et son icône au HUD`);
+  await P(() => { const p = window.__zombies.jeu.joueurs[0]; p.armes[1] = null; p.main = 0; });
   // la grenade
   await page.tap('.h-grenade'); await sleep(200);
   const gren = await P(() => ({ obus: window.__zombies.jeu.obus.some((o) => o.grenade), recharge: window.__zombies.jeu.joueurs[0].grenadeT > 0, prete: document.querySelector('.h-grenade').classList.contains('prete') }));
   check(gren.obus && gren.recharge && !gren.prete, 'le bouton grenade la lance, puis se recharge (grisé)');
+  // les zombies en morceaux : un groupe soufflé par une grenade vole en éclats
+  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.grenadeT = 0; for (let k = 0; k < 6; k++) j.zombies.push({ id: 9700 + k, type: 'trainard', x: p.x + 5 + (k % 3) * 0.5, z: p.z + Math.floor(k / 3) * 0.5, vie: 20, vieMax: 20, vitesse: 0.01, rayon: 0.42, angle: Math.PI, chemin: null, ci: 0, repense: 99, coup: 99, crache: 99, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 }); });
+  await page.tap('.h-grenade');
+  const eclats = await page.waitForFunction(() => window.__zombies.stats().rendu.morceaux > 0 && window.__zombies.stats().rendu.morceaux, null, { timeout: 8000 }).then((h) => h.jsonValue()).catch(() => 0);
+  check(eclats > 0, `la grenade fait voler les zombies en morceaux (${eclats} morceaux)`);
   // en paysage, le HUD tient sans chevauchement (vie, niveau, mini-carte, vague, atelier, armes, grenade)
   const paysage = await P(() => {
     const r = (s) => document.querySelector(s).getBoundingClientRect(), dans = (b) => b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1;
@@ -162,6 +175,11 @@ const BASE = `http://localhost:${PORT}/`;
   check(boss.v === 5 && boss.rendu.boss.includes('golem') && boss.barre && boss.nom === 'GOLEM SQUELETTE', `vague 5 : le Golem squelette arrive en modèle KayKit, sa barre de vie porte son nom (« ${boss.nom} »)`);
   check(boss.rendu.calls <= 70, `${boss.rendu.calls} appels de dessin avec le boss et la horde (≤ 70)`);
   await page.screenshot({ path: out + '/02b-boss.png' });
+  // le coup de grâce : le boss tombe au ralenti, la caméra plonge
+  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = -1e9; p.choixAttente = 0; j.choix = null; p.choix = null; for (const zb of j.zombies) if (zb.type !== 'golem') zb.vie = 0; j.zombies = j.zombies.filter((zb) => zb.vie > 0); const g = j.zombies.find((zb) => zb.type === 'golem'); if (g) { g.vie = 3; g.x = p.x + 4; g.z = p.z; g.naissance = -9; } });
+  const grace = await page.waitForFunction(() => { const s = window.__zombies.stats(); return s.ralenti && s.rendu.cinema ? s : null; }, null, { timeout: 15000, polling: 50 }).then((h) => h.jsonValue()).catch(() => null);
+  check(!!grace, 'le coup de grâce sur le boss : ralenti et plongée de la caméra');
+  await page.screenshot({ path: out + '/02d-coup-de-grace.png' });
   // ─── en portrait : « Tourne ton téléphone », la partie attend en pause ───
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});

@@ -366,11 +366,17 @@ jobs:
           node test/zombies.test.js
           node test/zombies-play.cjs
           node test/zombies-coop.cjs
+          node test/zombies-defi.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_ZOMBIES: '8894'
           PORT_ZOMBIES_COOP: '8895'
+          PORT_ZOMBIES_DEFI: '8896'
+      - name: Le SQL du classement du défi, dans un vrai Postgres (PGlite)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pglite" --no-save --no-package-lock --no-audit --no-fund @electric-sql/pglite@0.5.8
+          node test/zombies-defi-sql.cjs "$RUNNER_TEMP/pglite"
   deploy:
     needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, zombies]
     runs-on: ubuntu-latest
