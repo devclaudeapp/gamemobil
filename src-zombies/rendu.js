@@ -200,6 +200,47 @@ const ZRENDU = (() => {
     soleil.shadow.mapSize.set(2048, 2048); const sc = soleil.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 70; soleil.shadow.bias = -0.0008; soleil.shadow.normalBias = 0.02;
     scene.add(soleil); scene.add(soleil.target);
     const matVC = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    // ─── la météo (l'Ascension) : lumières, brume (comptée depuis la caméra, à 25 m du sol : pres > 22), la lampe du survivant, la torche du black-out, la pluie ───
+    const lampe = new T.PointLight('#FFD9A0', 0, 11, 1.4); scene.add(lampe);
+    const torche = new T.SpotLight('#FFF2D0', 0, 18, 0.6, 0.45, 1.1); scene.add(torche); scene.add(torche.target);
+    const AMB = {
+      clair: { hemi: 1.15, soleil: 1.9, pres: 34, loin: 75 },
+      crepuscule: { hemi: 0.85, soleil: 1.5, couleurSoleil: '#FFB070', teinte: '#FFD8B8', brume: '#E8B48A', pres: 30, loin: 75 },
+      nuit: { hemi: 0.3, soleil: 0.35, couleurSoleil: '#9FB8FF', teinte: '#8FA8D8', brume: '#18202E', pres: 27, loin: 50, lampe: 6 },
+      brouillard: { hemi: 1.0, soleil: 0.8, brume: '#C9CDD2', pres: 19, loin: 36 },
+      orage: { hemi: 0.5, soleil: 0.55, couleurSoleil: '#BFD0FF', teinte: '#B8C4DC', brume: '#465060', pres: 26, loin: 60, pluie: true, lampe: 5 },
+      meteores: { hemi: 0.75, soleil: 1.2, couleurSoleil: '#FF9A6A', teinte: '#FFC8A8', brume: '#A8705A', pres: 28, loin: 70 },
+      blackout: { hemi: 0.05, soleil: 0.0, teinte: '#8090B0', brume: '#05070C', pres: 26, loin: 40, torche: 110, lampe: 4 },
+    };
+    let meteoVue = null, eclairT = 0, hemiBase = 1.15;
+    function ambiance(m) {
+      const a = AMB[m] || AMB.clair; hemiBase = a.hemi; hemi.intensity = a.hemi; hemi.color.set(a.teinte || '#FFFFFF');
+      soleil.intensity = a.soleil; soleil.color.set(a.couleurSoleil || '#FFF3DC'); const b = a.brume || (arene ? arene.brume : '#CFE7D9');
+      if (scene.background && scene.background.isColor) scene.background.set(b); if (scene.fog) { scene.fog.color.set(b); scene.fog.near = a.pres; scene.fog.far = a.loin; }
+      lampe.intensity = a.lampe || 0; torche.intensity = a.torche || 0; pluie.visible = !!a.pluie; meteoVue = m;
+    }
+    const pluie = new T.InstancedMesh(new T.BoxGeometry(0.025, 0.7, 0.025), new T.MeshBasicMaterial({ color: '#C8D8F0', transparent: true, opacity: 0.45, depthWrite: false }), 240); pluie.frustumCulled = false; pluie.visible = false; scene.add(pluie);
+    const gouttes = []; for (let i = 0; i < 240; i++) gouttes.push({ x: (Math.random() - 0.5) * 34, y: Math.random() * 14, z: (Math.random() - 0.5) * 26 });
+    function majMeteo(jeu, idMoi, dt) {
+      if (jeu.meteo !== meteoVue) ambiance(jeu.meteo);
+      const j = jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0];
+      if (j && (lampe.intensity || torche.intensity)) { lampe.position.set(j.x, 2.4, j.z); torche.position.set(j.x - Math.cos(j.angle) * 0.3, 2.6, j.z - Math.sin(j.angle) * 0.3); torche.target.position.set(j.x + Math.cos(j.angle) * 7, 0, j.z + Math.sin(j.angle) * 7); }
+      if (eclairT > 0) { eclairT -= dt; hemi.intensity = hemiBase + Math.max(0, eclairT) * 12; } else if (hemi.intensity !== hemiBase) hemi.intensity = hemiBase;
+      if (pluie.visible) {
+        let n = 0; for (const g of gouttes) { g.y -= dt * 18; if (g.y < 0) { g.y += 14; g.x = (Math.random() - 0.5) * 34; g.z = (Math.random() - 0.5) * 26; } _base.makeTranslation(cam.x + g.x, g.y, cam.z + g.z); pluie.setMatrixAt(n++, _base); }
+        pluie.count = n; pluie.instanceMatrix.needsUpdate = true;
+      }
+    }
+    // les chutes annoncées : un cercle rouge au sol qui se resserre ; le météore tombe du ciel ; la foudre frappe d'un coup
+    const alertes = [], anneaux = []; for (let i = 0; i < 8; i++) { const m = new T.Mesh(new T.RingGeometry(0.85, 1, 28).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#FF3B2F', transparent: true, opacity: 0.8, depthWrite: false })); m.visible = false; scene.add(m); const r = new T.Mesh(new T.IcosahedronGeometry(0.45, 0), new T.MeshLambertMaterial({ color: '#5A3A2A', emissive: '#FF5A1A', emissiveIntensity: 0.9 })); r.visible = false; scene.add(r); anneaux.push({ m, r }); }
+    function majAlertes(dt) {
+      for (let i = alertes.length - 1; i >= 0; i--) { const a = alertes[i]; a.t += dt; if (a.t >= a.delai) alertes.splice(i, 1); }
+      anneaux.forEach((o, i) => {
+        const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && a.meteo === 'meteores'; if (!a) return;
+        const k = a.t / a.delai; o.m.position.set(a.x, 0.04, a.z); o.m.scale.setScalar(a.r * (1.25 - k * 0.25)); o.m.material.opacity = 0.45 + 0.45 * Math.abs(Math.sin(a.t * 14));
+        if (o.r.visible) { o.r.position.set(a.x + (1 - k) * 4, 0.3 + (1 - k) * 14, a.z - (1 - k) * 2); o.r.rotation.set(a.t * 5, a.t * 3, 0); if (Math.random() < 0.6) particule(o.r.position.x, o.r.position.y, o.r.position.z, 0, 0.5, 0, 0.5, 0.2, Math.random() < 0.5 ? '#FF8A3A' : '#8A8A8A', 0); }
+      });
+    }
     const P = pieces();
     let arene = null; const enArene = []; // ce qui appartient à l'arène chargée (jeté au changement)
 
@@ -255,7 +296,7 @@ const ZRENDU = (() => {
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
           if (ACC[zb.type]) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
@@ -280,7 +321,7 @@ const ZRENDU = (() => {
       const Mz = MOD.M.zombie;
       KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
-    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A');
+    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A'), OR = new T.Color('#FFD24A');
     // les accessoires qui font reconnaître un type d'un coup d'œil : le sabre du sabreur, la bombe du kamikaze, le boulet du geôlier, l'aura
     // de l'invocateur (des maillages instanciés, posés à côté du zombie, dans son repère)
     const mkAcc = (geo, couleur, base) => { const m = new T.InstancedMesh(geo, base || new T.MeshLambertMaterial({ color: couleur }), 32); m.frustumCulled = false; m.count = 0; m.castShadow = !base; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
@@ -301,11 +342,11 @@ const ZRENDU = (() => {
       _s.set(1, 1, 1); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base);
     }
     function poserKenney(i, type, x, y, z, a, clip, t, flash, etat) {
-      const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille, large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
+      const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille * (etat === 3 ? 1.3 : 1), large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
       const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
       let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
-      const couleur = flash ? FLASH : etat === 2 ? GEL : etat === 1 ? FEU : teintes[type];
+      const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : teintes[type];
       for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
     }
 
@@ -718,7 +759,7 @@ const ZRENDU = (() => {
       corps.length = 0; for (const o of fl) if (o) o.t = 99; rendusZ.clear();
       const A = jeu.A; arene = A; const demi = A.taille / 2;
       scene.background = new T.Color(A.brume); scene.fog = new T.Fog(A.brume, 34, 75);
-      hemi.groundColor.set(A.sol2);
+      hemi.groundColor.set(A.sol2); meteoVue = null;
       // le sol : une grande plaque à facettes (dedans plus clair, dehors plus sombre)
       const n = 48, cote = A.taille + 60, gsol = new T.PlaneGeometry(cote, cote, n, n).rotateX(-Math.PI / 2).toNonIndexed();
       const pp = gsol.attributes.position, cc = new Float32Array(pp.count * 3), c1 = new T.Color(A.sol), c2 = new T.Color(A.sol2), c3 = new T.Color(A.sol2).multiplyScalar(0.82), tmp = new T.Color();
@@ -817,6 +858,11 @@ const ZRENDU = (() => {
           case 'saute': case 'atterrit': for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; particule(e.x + Math.cos(a) * 0.3, 0.15, e.z + Math.sin(a) * 0.3, Math.cos(a) * 2, 0.6, Math.sin(a) * 2, 0.45, 0.14, '#C8B48A', 0); } if (e.t === 'atterrit') secousse = Math.max(secousse, 0.12); break;
           case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
           case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
+          case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo }); break;
+          case 'impact':
+            if (e.meteo === 'orage') { let px = e.x + (Math.random() - 0.5) * 2, py = 16, pz = e.z + (Math.random() - 0.5) * 2; for (let k = 1; k <= 6; k++) { const f = k / 6, nx = e.x + (Math.random() - 0.5) * (1 - f) * 2.5, ny = 16 * (1 - f), nz = e.z + (Math.random() - 0.5) * (1 - f) * 2.5; segment(px, py, pz, nx, ny, nz, 0.16, '#E8F4FF', 0.22); px = nx; py = ny; pz = nz; } eclairT = 0.15; }
+            else flaque(e.x, e.z, 1.6, '#2A2420');
+            break;
           case 'casse': boum(e.x, e.z, 1.0); break;
         }
       }
@@ -828,6 +874,8 @@ const ZRENDU = (() => {
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
+      majMeteo(jeu, idMoi, dt);
+      majAlertes(dt);
       majFlaques(dt);
       majParticules(dt);
       for (const o of tracantes) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.m.visible = false; }

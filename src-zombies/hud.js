@@ -76,6 +76,7 @@ const ZHUD = (() => {
         <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
         <div class="h-vague"><span class="h-v">V1</span><span class="h-rest contour">—</span></div>
         <div class="h-serie" hidden>SÉRIE ×2</div>
+        <div class="h-objectif contour" hidden></div>
       </div>
       <div class="h-score contour">SCORE <b>0</b></div>
       <button class="h-pause" type="button" aria-label="Pause">${ICO.pause}</button>
@@ -100,7 +101,7 @@ const ZHUD = (() => {
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
-      annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
+      objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
       defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
@@ -201,10 +202,14 @@ const ZHUD = (() => {
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
-    // le boss
-    const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss);
+    // l'objectif de l'échelon (l'Ascension)
+    const O = jeu.objectif, mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    const txtO = !O ? '' : O.type === 'vagues' ? `Vagues tenues ${O.fait || 0}/${O.n}` : O.type === 'tues' ? `Zombies ${Math.min(O.n, O.fait || 0)}/${O.n}` : O.type === 'chrono' ? `Tiens encore ${mmss(Math.max(0, O.s - (jeu.tempsVague || 0)))}` : O.type === 'contrat' ? (O.lance ? `Contrat : ${mmss(O.reste == null ? O.s : O.reste)}` : `Contrat : ${D.ZOMBIES[O.cible].nom} d’élite`) : `Générateur ${Math.round((O.vie == null ? 1 : O.vie) * 100)} % · vagues ${O.fait || 0}/${O.n}`;
+    if (vu.obj !== txtO) { vu.obj = txtO; el.objectif.textContent = txtO; el.objectif.hidden = !txtO; el.objectif.classList.toggle('urgent', !!O && ((O.type === 'contrat' && O.reste != null && O.reste < 15) || (O.type === 'generateur' && O.vie < 0.3))); }
+    // le boss (ou l'élite d'un contrat)
+    const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss) || jeu.zombies.find((z) => z.elite && z.vie > 0);
     if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
-    if (boss && vu.bossNom !== boss.type) { vu.bossNom = boss.type; el.bossN.textContent = D.ZOMBIES[boss.type].nom.toUpperCase(); }
+    if (boss && vu.bossNom !== boss.type + (boss.elite ? 'e' : '')) { vu.bossNom = boss.type + (boss.elite ? 'e' : ''); el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '')).toUpperCase(); }
     if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
     // les événements : rougeur, annonces, messages
     if (evs) for (const e of evs) {

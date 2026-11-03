@@ -13,6 +13,7 @@
       <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
       <div class="boutons">
         <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen defi-bouton" id="b-ascension"><span>L’Ascension</span><small class="asc-sous"></small></button>
         <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
         <button type="button" class="moyen" id="b-multi">À plusieurs</button>
         <button type="button" class="moyen" id="b-bunker">Bunker</button>
@@ -36,7 +37,7 @@
 
   <section class="ecran voile" id="ecran-fin" hidden>
     <div class="carte-ecran">
-      <h2>Submergé !</h2>
+      <h2 class="fin-titre">Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
       <p class="fin-defi" hidden></p>
@@ -86,6 +87,16 @@
         <ol class="defi-liste"></ol>
         <p class="defi-etat"></p>
       </div>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-ascension" hidden>
+    <div class="carte-ecran ascension">
+      <h2>L’Ascension</h2>
+      <p class="asc-n"></p>
+      <dl class="asc-carte"></dl>
+      <p class="asc-recomp"></p>
+      <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
     </div>
   </section>
 
