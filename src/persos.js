@@ -219,6 +219,8 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     quartier: { tissu: '#2E2B3A', fonce: '#E1496C', clair: '#56516B', bijou: '#D3DCE6' }, 'quartier-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
     // la Maison hantée : violet nuit et orange citrouille ; en or (le podium final) : noir et or ; et trois costumes de l'équipe du manoir
     hantee: { tissu: '#4B2F7A', fonce: '#FF8A3D', clair: '#8E6BD8', bijou: '#FFC84A' }, 'hantee-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
+    // les paliers au-delà de la n°30 (lot « progression ») : la tenue étoilée, bleu nuit et or
+    etoile: { tissu: '#1F2B5C', fonce: '#D9A23A', clair: '#3C5196', bijou: '#FFC84A' },
     fantome: { tissu: '#F6F3FF', fonce: '#D9D2FF', clair: '#FFFFFF', bijou: '#D9D2FF' }, vampire: { tissu: '#1E1824', fonce: '#C2243F', clair: '#3A2440', bijou: '#C2243F' }, sorciere: { tissu: '#2E2547', fonce: '#5FD3A4', clair: '#4B3D73', bijou: '#5FD3A4' },
     // les déguisements des clients de la boutique hantée : plus clairs, pour se lire dans une salle sombre
     'sorciere-c': { tissu: '#6A4BB8', fonce: '#7CD992', clair: '#9A7FE0', bijou: '#FFC84A' }, 'vampire-c': { tissu: '#2E2238', fonce: '#E1496C', clair: '#B8314F', bijou: '#FFC84A' } };
@@ -640,6 +642,36 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       patte: () => pattePendue(1.7, 7, '#5FD3A4', '#FFF3C4'),
       ailes: () => { const p = []; for (const sx of [-1, 1]) { const rz = -sx * (HP - 0.6); p.push(M.part(M.cone(3.2, 9, 3), '#9A84F0', { x: sx * 1.2, rz, sz: 0.18 }), M.part(M.capsule(0.45, 8.4, 5), '#C7B8FF', { x: sx * (1.2 + Math.sin(-rz) * 4.6), y: Math.cos(rz) * 4.6, z: 0.5, rz })); } return p; },
     },
+    // ─── les compagnons rares des paliers au-delà de la n°30 (lot « progression » : GAME.COMPAGNONS, sans bonus) ───
+    // le paon (palier 2, n°50) : le corps et le long cou bleu roi, le poitrail turquoise, les ailes vert-de-gris, l'aigrette dorée, le masque blanc
+    // autour de l'œil ; sa queue (q1) : la roue, dix plumes vert paon en éventail derrière lui, chacune son œil d'or et de bleu ; elle se balance
+    // quand il marche, et il fait le beau assis (la roue s'ouvre et se referme un peu, animerCompagnon)
+    paon: {
+      lp: 6.2, py: -4.2, hanches: [[-1.9, 0.5], [1.9, 0.5]], tp: [9.8, 5.4], queue: [3.4, -4.4, -0.35], lq1: 0, q2r: null, demiH: 5.4, assis: 'debout', dort: 'couche',
+      corps: () => { const bleu = '#2E64C8', p = [M.part(M.sphere(5.6, 14), bleu, { sx: 0.88, sy: 0.95, sz: 1.2 }), M.part(M.sphere(4, 12), '#2FA5A0', { y: -1.6, z: 2.4, sz: 0.85 }), M.part(M.capsule(1.9, 5.2, 8), bleu, { y: 5, z: 3.8, rx: 0.3 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(3.4, 10), '#3E7D6E', { x: sx * 4.4, y: 0.6, z: -1, sx: 0.38, sy: 0.8, sz: 1.3, rx: -0.15 })); // les ailes
+        return p; },
+      tete: (f) => { const p = [M.part(M.sphere(2.7, 12), '#3A73D9'), M.part(M.cone(0.75, 2.2, 6), '#E8C08A', { y: -0.5, z: 2.6, rx: HP })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(0.95, 6), '#FFFFFF', { x: sx * 1.55, y: 0.45, z: 1.8, sz: 0.4 })); // le masque blanc
+        for (const a of [-0.35, 0, 0.35]) p.push(M.part(M.cylindre(0.18, 0.18, 3.2, 4), '#2E64C8', { y: 2.3, z: -0.3, rz: a }), M.part(M.sphere(0.6, 6), '#FFC84A', { x: -Math.sin(a) * 3.3, y: 2.3 + Math.cos(a) * 3.3, z: -0.3 })); // l'aigrette
+        yeux(p, 1.5, 0.5, 2.35, 0.6, f); return p; },
+      q1: () => { const p = []; for (let i = 0; i < 10; i++) { const a = -1.3 + i * 2.6 / 9, dx = -Math.sin(a), dy = Math.cos(a);
+          p.push(M.part(M.capsule(1.6, 9, 5), i % 2 ? '#2FA5A0' : '#3BB58A', { x: dx * 6.6, y: dy * 6.6, rz: a, sz: 0.35 }), M.part(M.cylindre(1.25, 1.25, 0.3, 6), '#FFC84A', { x: dx * 11.2, y: dy * 11.2, z: 0.45, rx: HP }), M.part(M.cylindre(0.7, 0.7, 0.3, 6), '#2E64C8', { x: dx * 11.2, y: dy * 11.2, z: 0.75, rx: HP })); }
+        return p; },
+      q2: null,
+      patte: () => [M.part(pendu(0.5, 5, 0.2), '#9AA3B2'), M.part(M.sphere(1.3, 8), '#9AA3B2', { y: 0.25 - 6.2, z: 0.6, sy: 0.3, sz: 1.4 })],
+    },
+    // le renard argenté (palier 5, n°80) : la robe d'argent, le poitrail, les joues et le bout de la queue blancs, le museau pointu et sa truffe
+    // noire, les grandes oreilles pointues au creux sombre, les « chaussettes » anthracite ; la queue en panache (deux segments), qui balaie
+    renard: {
+      lp: 7, py: -3, hanches: [[-2.3, 6.2], [2.3, 6.2], [-2.3, -6.2], [2.3, -6.2]], tp: [5.2, 11.6], queue: [2.4, -9.4, -1], lq1: 6, q2r: 0.45, R: 4.6, D: 10.4, demiH: 4, assis: 'assis', a: -0.5, dort: 'couche',
+      corps: () => { const robe = '#BCC5D2', blanc = '#F8FAFC'; return [M.part(M.capsule(4.6, 11, 12), robe, { rx: HP }), M.part(arcCyl(4.72, 11, 1.8, 0), blanc, { rx: HP }), M.part(patchS(4.8, 1.9, 1.3, 1.4), blanc, { z: 6.4 }), M.part(M.sphere(3, 10), '#9AA4B4', { y: 3.4, z: -2.5, sy: 0.35, sx: 1.2, sz: 1.8 })]; },
+      tete: (f) => { const robe = '#BCC5D2', blanc = '#F8FAFC', p = [M.part(M.sphere(4.2, 14), robe, { sx: 1.1, sy: 0.92 }), M.part(M.cone(2.3, 5.4, 10), robe, { y: -1.2, z: 2.2, rx: HP }), M.part(M.sphere(2.2, 10), blanc, { y: -2, z: 2.4, sx: 1.25, sy: 0.6 }), M.part(M.sphere(0.8, 8), L, { y: -1.2, z: 7.5, sy: 0.8 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.cone(1.9, 4.6, 5), robe, { x: sx * 2.6, y: 2.6, z: -0.6, rz: -sx * 0.28 }), M.part(M.cone(1.05, 3, 5), '#4A4558', { x: sx * 2.5, y: 2.9, z: -0.15, rz: -sx * 0.28 }), M.part(M.sphere(1.5, 8), blanc, { x: sx * 2.6, y: -1.4, z: 1.6, sx: 0.8, sy: 0.7, sz: 0.6 })); // les oreilles, les joues
+        yeux(p, 1.8, 0.9, 3.7, 0.8, f); return p; },
+      q1: () => [M.part(M.capsule(2.4, 5, 8), '#BCC5D2', { y: 3.2 })], q2: () => [M.part(M.capsule(2.3, 3, 8), '#BCC5D2', { y: 1.5 }), M.part(calotte(2.35, 1.2, 10), '#F8FAFC', { y: 3 })],
+      patte: () => pattePendue(1.4, 7, '#BCC5D2', '#4A4558'),
+    },
   };
   const AILES_P = [0, 4, 1.5]; // la place des ailes sur la racine (le mini-dragon ; la chauve-souris a la sienne, ailesP)
   const VOL_CS = 105, CS_R = 9; // la chauve-souris en vol : sa hauteur au-dessus du sol (près du plafond) et le rayon de ses petits cercles
@@ -713,6 +745,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(A.pp[k]); p.rotation.fromArray(A.pr[k]); p.scale.fromArray(A.ps[k]); p.visible = A.pv && k < n; }
     const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
     if (ai) ai.scale.set(1, 1, 1);
+    if (id === 'paon') q1.scale.x = q1.scale.y = 1; // (la roue : sa taille de toujours, sauf quand il fait le beau)
     const chien = id === 'chien' || id === 'teckel' || id === 'chien-quartier';
     if (id === 'chauve-souris') { // la chauve-souris : endormie, elle se pose (sur le comptoir : la scène l'y met), les ailes repliées, et respire ;
       // sinon elle vole en petits cercles près du plafond au-dessus de sa place (plus vite quand le compagnon se promène), penchée dans le virage,
@@ -748,6 +781,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       else if (id === 'herisson') { h.rotation._x = -0.15 + Math.sin(t * 6) * 0.06; tourner(h); } // il renifle
       else if (id === 'dragon' && ai) { const k = Math.sin(t * 0.8); ai.scale.y = k > 0.6 ? 0.3 + 0.35 * (1 + Math.cos(t * 14)) : 1; } // de temps en temps, un battement d'ailes
       else if (id === 'pigeon') { let k = Math.max(0, Math.sin(t * 1.9)); k *= k; c.scale.x = c.scale.z = 1 + 0.06 * k; h.position.y += 0.7 * k; h.rotation._x = -0.25 * k; tourner(h); } // il roucoule : la gorge se gonfle, la tête se rengorge
+      else if (id === 'paon') { const k = 0.88 + 0.12 * Math.max(0, Math.sin(t * 0.8)); q1.scale.x = q1.scale.y = k; } // il fait la roue : elle s'ouvre et se referme un peu
     } else if (e === 'saut') { // en l'air : la queue pour l'équilibre, les ailes battent
       q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
       if (ai) ai.scale.y = 0.3 + 0.35 * (1 + Math.cos(t * 16));

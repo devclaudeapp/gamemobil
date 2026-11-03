@@ -528,6 +528,16 @@ const EQUIPE3D = (() => {
       const kc = new T.Vector3(cx, y0 + Math.max(0.045 * u, hF * 0.36), 0), rk = rB * 0.985 + (rH - rB * 0.985) * ((kc.y - (y0 - hB * 0.1)) / (hF + hB * 0.1)) + 0.004 * u; kc.z = cz + rk;
       for (const p of cleDoree(0.075 * u)) parts.push(Object.assign(p, { m: new T.Matrix4().setPosition(kc).multiply(p.m || new T.Matrix4()), os: 'accToque', role: p.role || 'bijou' }));
     }
+    if (v === 'etoile') { // la toque étoilée (les paliers après la n°30, lot « progression ») : bleu nuit, deux galons d'or, l'anneau d'or sous le bouffant, et
+      // cinq étoiles d'or semées autour du fût, dans sa moitié basse (elles ne bougent pas quand il grandit), la plus grande devant
+      parts.push(galon(yB + hB * 0.1, yB + hB * 0.36, 'bijou'), galon(yB + hB * 0.72, yB + hB * 0.84, 'bijou'));
+      parts.push(pc(nappe([anneau(cx, y1 - hF * 0.05, cz, rH * 1.0, rH * 1.0, N, pli(0.05)), anneau(cx, y1 + rH * 0.03, cz, rH * 1.07, rH * 1.07, N, pli(0.06))]), 'bijou', null, 'accToqueHaut'));
+      const rr = (yy) => { const k = (yy - (y0 - hB * 0.1)) / (hF + hB * 0.1); return (rB * 0.985 + (rH - rB * 0.985) * k) + 0.005 * u; };
+      for (const [a, h, k] of [[-0.95, 0.16, 0.75], [-0.48, 0.38, 0.9], [0, 0.2, 1.2], [0.48, 0.38, 0.9], [0.95, 0.16, 0.75]]) {
+        const yy = y0 + Math.min(hF * 0.46, Math.max(0.014 * u, hF * h)), r0 = rr(yy), R = 0.034 * u * k;
+        parts.push(pc(etoile(R, R * 0.45, 0.008 * u), 'bijou', new T.Matrix4().makeRotationY(a).setPosition(cx + Math.sin(a) * r0, yy, cz + Math.cos(a) * r0), 'accToque'));
+      }
+    }
     return { parts, info: { bord: yB, rayon: rB * 0.96, toque: T0 } };
   }
   // une petite clé plate (l'anneau, la tige, le panneton à deux dents), de hauteur h, dressée dans le plan xy, l'anneau en haut, face à +z
@@ -678,6 +688,16 @@ const EQUIPE3D = (() => {
     if (v === 'parcours') { // une poche par quartier : quatre, leur rabat cuivré, deux rivets
       const yc = yT - 0.15 * u;
       for (const k of [-1.5, -0.5, 0.5, 1.5]) { const xc = cx + k * 0.104 * u; parts.push(yield* piece(xc, yc, 0.086 * u, 0.085 * u, 'poche', 0.003 * u), yield* piece(xc, yc + 0.0425 * u - 0.008 * u, 0.086 * u, 0.016 * u, 'fonce', 0.005 * u)); for (const s of [-1, 1]) { const [p] = surFacade(pr, xc + s * 0.034 * u, yc + 0.034 * u, e + 0.008 * u); parts.push(pc(new T.SphereGeometry(0.0055 * u, 6, 4), 'bijou', { x: p.x, y: p.y, z: p.z, sz: 0.6 }, wF)); } yield; }
+    }
+    if (v === 'etoile') { // le tablier étoilé (les paliers après la n°30, lot « progression ») : une pluie d'étoiles d'or semées sur le bleu de la nuit, de la
+      // bavette aux genoux, et le liseré d'or de la bavette
+      for (const [fx, fy, k] of [[-0.42, 0.1, 0.8], [0.45, 0.2, 0.9], [0, 0.31, 1.15], [-0.6, 0.48, 0.85], [0.55, 0.54, 1], [-0.12, 0.64, 0.8], [0.28, 0.78, 0.95], [-0.48, 0.84, 1], [0.66, 0.9, 0.8]]) {
+        const y = yH + (yK - yH) * fy, x = cx + fx * largeur(y) * 0.78, [p, n] = surFacade(pr, x, y, e + 0.004 * u), R = 0.026 * u * k;
+        parts.push(pc(etoile(R, R * 0.45, 0.006 * u), 'bijou', surSurface(p, n, null, fx * 0.5), (xx, yy) => wF(xx, yy)));
+      }
+      yield;
+      for (const s of [1, -1]) { const pts = []; for (let k = 0; k <= 6; k++) { const y = yH - 0.008 * u - (yH - yT - 0.01 * u) * k / 6, x = cx + s * (largeur(y) - 0.006 * u); pts.push(new T.Vector3(x, y, f.zA(x, y) + e + 0.002 * u)); } parts.push(pc(tube(pts, 0.0045 * u, 4, 12), 'bijou', null, (x, y) => wF(x, y))); }
+      yield;
     }
     if (podium) { // le cartouche brodé : son cadre, son fond, les initiales de la boutique
       const yc = yT + 0.105 * u, a = 0.064 * u, bb = 0.046 * u, ell = (k) => (y) => a * k * Math.sqrt(Math.max(0.04, 1 - Math.pow((y - yc) / (bb * k), 2)));
@@ -1081,8 +1101,8 @@ const EQUIPE3D = (() => {
   // des 4 et 5, le liseré doré du 5) changent leurs couleurs et leurs os, pas leur géométrie
   const HABIT_APPRENTI = { tete: 'toque', hc: 6, haut: 'tablier', pieds: 'chaussures', acc: null, lunettes: false, moustache: false, colTri: false, foulardTitre: false, sueur: false, etoile: true, cle: true, pate: true, apprenti: true, col: { tete: 'base', haut: 'base', pieds: 'base', acc: null } };
   // la variante d'un kit, d'après la collection de sa pièce
-  const varToque = (c) => (c === 'base' || !c ? 'base' : PODIUM.includes(c) || c === 'parcours' || c === 'chaine' ? c : 'metal');
-  const varTablier = (c) => (c === 'base' || !c ? 'base' : PODIUM.includes(c) || c === 'parcours' ? c : 'metal');
+  const varToque = (c) => (c === 'base' || !c ? 'base' : PODIUM.includes(c) || c === 'parcours' || c === 'chaine' || c === 'etoile' ? c : 'metal');
+  const varTablier = (c) => (c === 'base' || !c ? 'base' : PODIUM.includes(c) || c === 'parcours' || c === 'etoile' ? c : 'metal'); // (etoile : la tenue étoilée des paliers, lot « progression »)
   // les kits d'une tenue : [clé, emplacement, fabrique] ; la clé dit tout ce qui change la géométrie (les couleurs viennent de la palette)
   function kitsDe(h) {
     const l = [], app = !!h.apprenti, c = h.col;

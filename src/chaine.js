@@ -399,6 +399,14 @@
     { id: 'saison', nom: 'Les recettes de saison', items: G.RECETTES_SAISON.map((r) => ({ id: r.id, nom: r.nom, obtenir: `La saison : ${r.saison || 'à sa date'}, cent fournées pour la maîtriser` })), possede: (st, id) => !!(st.collection && st.collection[id] && st.collection[id].maitrisee) },
     { id: 'cartes', nom: 'Les cartes postales des régions', items: QUARTIERS.map((q, k) => ({ id: 'carte-' + q.id, nom: `Carte postale : ${q.nom}`, obtenir: q.boutique ? `Ouvrir la boutique n°${q.boutique}, puis la photographier sur la petite planète` : 'Une boutique dans ce quartier, photographiée sur la petite planète' })),
       possede: (st, id) => !!(st.chaine && Array.isArray(st.chaine.cartes) && st.chaine.cartes.includes(id.slice(6))) },
+    // les décos rares des paliers au-delà de la n°30 (lot « progression » : GAME.RARES_PALIER, données par donnerPalier ; possédées : GAME.rarePossede,
+    // sous l'id du palier, rare) : elles se posent comme les autres (src/meubles.js NEUVES). Ajoutée en dernier : le code des photos (ORDRE) ne change
+    // pas pour les décos d'avant. Première livraison, les paliers 1 à 6 : l'horloge comtoise (palier 3) et le piano à queue (palier 6) ; la
+    // fontaine de chocolat et l'orgue de Barbarie viendront avec leur modèle. (« horloge-comtoise » : « horloge » est déjà l'horloge du mur)
+    { id: 'palier', nom: 'Les paliers', posable: true, items: [['horloge-comtoise', 'horloge', 'L’horloge comtoise', { anime: true }], ['piano', 'piano', 'Le piano à queue', {}]].map(([id, rare, nom, o]) => {
+      const k = G.RARES_PALIER ? G.RARES_PALIER.findIndex((r) => r.id === rare) + 1 : 0;
+      return Object.assign({ id, rare, nom, place: 'sol', mesure: null, obtenir: k > 0 && G.boutiqueDuPalier ? `Le palier n°${G.boutiqueDuPalier(k)} (${G.titrePalier(k)})` : 'Un palier après la boutique n°30' }, o);
+    }), possede: (st, id) => { const x = id === 'horloge-comtoise' ? 'horloge' : id; return !!(G.rarePossede && G.rarePossede(st, x)); } },
   ];
   // (les trophées et les skins du casino s'ajoutent quand src/casino.js est chargé : CASINO.TROPHEES, CASINO.SKINS ; voir familleCasino)
   function familleCasino(C) {
