@@ -255,3 +255,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .h-noms { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .h-noms span { position: absolute; left: 0; top: 0; padding: 1px 8px; border-radius: 999px; background: rgba(31, 37, 51, .7); color: #fff; font: 700 12px/1.4 var(--titre); white-space: nowrap; }
 .h-noms span.terre { background: #C8412C; }
+/* l'éclair blanc du coup de grâce */
+.h-flash { position: absolute; inset: 0; background: #FFF8E0; opacity: 0; pointer-events: none; }
+.h-flash.vu { animation: eclair .7s ease-out; }
+@keyframes eclair { 0% { opacity: .85; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .h-flash.vu { animation: none; } }

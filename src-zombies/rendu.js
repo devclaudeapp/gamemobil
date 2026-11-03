@@ -16,7 +16,7 @@ const ZRENDU = (() => {
   const T = typeof THREE !== 'undefined' ? THREE : null;
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null;
   const ECHELLE = 1.3; // les personnages un peu plus grands que nature : on les lit mieux vus de haut
-  const MAX_Z = 70, MAX_FERRAILLE = 160, MAX_FLAQUES = 90, MAX_TRACANTES = 48, MAX_BOUMS = 8, MAX_CORPS = 24;
+  const MAX_Z = 70, MAX_MORCEAUX = 108, MAX_PARTICULES = 160, MAX_FERRAILLE = 160, MAX_FLAQUES = 90, MAX_TRACANTES = 48, MAX_BOUMS = 8, MAX_CORPS = 24;
 
   // ─── fabrique low-poly : des morceaux colorés fusionnés en une géométrie à facettes ───
   const _m = T ? new T.Matrix4() : null, _q = T ? new T.Quaternion() : null, _e = T ? new T.Euler() : null, _v = T ? new T.Vector3() : null, _s = T ? new T.Vector3() : null, _c = T ? new T.Color() : null;
@@ -265,7 +265,7 @@ const ZRENDU = (() => {
         else dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, Math.min(1, c.t / 0.35), 0);
       }
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
-      if (KZ) for (const m of KZ.inst) { m.count = nk; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+      if (KZ) { const comptes = dessinerMorceaux(nk, dt); KZ.inst.forEach((m, p) => { m.count = comptes[p]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }); }
     }
 
     // ─── la horde en modèles Kenney (ZMODELES) : six maillages instanciés, une pièce chacun, posés avec les matrices cuites ───
@@ -275,7 +275,7 @@ const ZRENDU = (() => {
     const _m2 = new T.Matrix4();
     function brancherHorde() {
       const Mz = MOD.M.zombie;
-      KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
+      KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
     function poserKenney(i, type, x, y, z, a, clip, t, flash) {
       const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille, large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
@@ -285,6 +285,64 @@ const ZRENDU = (() => {
       const couleur = flash ? FLASH : teintes[type];
       for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
     }
+
+    // ─── les zombies en morceaux : à la mort, les six pièces du zombie Kenney s'envolent (poussées par le dernier coup), rebondissent,
+    // puis s'enfoncent dans le sol. Elles réutilisent les maillages instanciés de la horde (des instances en plus, aucun appel de dessin en plus).
+    const morceaux = [], _p3 = new T.Vector3(), _q2 = new T.Quaternion(), _s3 = new T.Vector3(), _qd = new T.Quaternion(), _ax = new T.Vector3();
+    function eclater(e) {
+      const Zd = D.ZOMBIES[e.type], C = KZ.M.cuits.walk, np = KZ.M.pieces.length, s = KZ.k * Zd.taille, large = e.type === 'costaud' ? 1.22 : e.type === 'coureur' ? 0.9 : 1;
+      _q.setFromEuler(_e.set(0, Math.PI / 2 - (e.a || 0), 0)); _v.set(e.x, 0, e.z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s);
+      let kx = +e.kx || 0, kz = +e.kz || 0; const kl = Math.hypot(kx, kz); if (kl > 1e-3) { kx /= kl; kz /= kl; } else { const a = Math.random() * 6.28; kx = Math.cos(a); kz = Math.sin(a); }
+      const force = e.fort ? 1.5 : 1;
+      while (morceaux.length + np > MAX_MORCEAUX) morceaux.shift();
+      for (let p = 0; p < np; p++) {
+        _m2.fromArray(C.mats, p * 16); _part.multiplyMatrices(_base, _m2); _part.decompose(_p3, _q2, _s3);
+        const tete = /head/.test(KZ.M.pieces[p].nom), v = (2 + Math.random() * 3) * force;
+        morceaux.push({ p, type: e.type, x: _p3.x, y: _p3.y, z: _p3.z, q: _q2.clone(), sc: _s3.clone(), sol: 0.06 * s,
+          vx: kx * v + (Math.random() - 0.5) * 3, vy: (tete ? 6 : 3) * force + Math.random() * 3, vz: kz * v + (Math.random() - 0.5) * 3,
+          ax: new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), w: (6 + Math.random() * 10) * (Math.random() < 0.5 ? -1 : 1), t: 0 });
+      }
+      for (let k = 0; k < 10; k++) particule(e.x, 0.9, e.z, (Math.random() - 0.5) * 5 + kx * 2, 2 + Math.random() * 4, (Math.random() - 0.5) * 5 + kz * 2, 0.7, 0.12, '#6FA338', 0.3);
+    }
+    function dessinerMorceaux(nk, dt) {
+      const comptes = KZ.inst.map(() => nk);
+      for (let i = morceaux.length - 1; i >= 0; i--) {
+        const m = morceaux[i]; m.t += dt;
+        if (m.t > 3.2) { morceaux.splice(i, 1); continue; }
+        if (m.t < 2.3) {
+          m.vy -= 18 * dt; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+          if (m.y < m.sol) { m.y = m.sol; m.vy = Math.abs(m.vy) > 1.5 ? -m.vy * 0.35 : 0; m.vx *= 0.55; m.vz *= 0.55; m.w *= 0.5; }
+          _qd.setFromAxisAngle(m.ax, m.w * dt); m.q.premultiply(_qd);
+        } else m.y -= dt * 0.5; // il s'enfonce
+      }
+      for (const m of morceaux) {
+        const n = comptes[m.p]; if (n >= MAX_Z + MAX_MORCEAUX) continue;
+        _p3.set(m.x, m.y, m.z); _part.compose(_p3, m.q, m.sc); KZ.inst[m.p].setMatrixAt(n, _part); KZ.inst[m.p].setColorAt(n, teintes[m.type]); comptes[m.p] = n + 1;
+      }
+      return comptes;
+    }
+    // ─── les particules : douilles, gouttes, étincelles (un seul maillage instancié, une couleur par instance) ───
+    const particules = [], geoPart = new T.BoxGeometry(1, 1, 1);
+    const instPart = new T.InstancedMesh(geoPart, new T.MeshBasicMaterial({ color: '#FFFFFF' }), MAX_PARTICULES); instPart.frustumCulled = false; instPart.count = 0; instPart.setColorAt(0, BLANC); scene.add(instPart);
+    function particule(x, y, z, vx, vy, vz, vie, taille, couleur, rebond) {
+      if (particules.length >= MAX_PARTICULES) particules.shift();
+      particules.push({ x, y, z, vx, vy, vz, vie, t: 0, taille, c: new T.Color(couleur), rebond: rebond || 0, r: Math.random() * 6 });
+    }
+    function majParticules(dt) {
+      let n = 0;
+      for (let i = particules.length - 1; i >= 0; i--) { const p = particules[i]; p.t += dt; if (p.t >= p.vie) particules.splice(i, 1); }
+      for (const p of particules) {
+        p.vy -= 16 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.r += dt * 9;
+        if (p.y < 0.03) { p.y = 0.03; p.vy = -p.vy * p.rebond; p.vx *= 0.5; p.vz *= 0.5; }
+        const k = p.taille * (p.t > p.vie * 0.7 ? Math.max(0.05, (p.vie - p.t) / (p.vie * 0.3)) : 1);
+        _q.setFromEuler(_e.set(p.r, p.r * 0.7, 0)); _v.set(p.x, p.y, p.z); _s.set(k, k * 0.6, k * 1.6); _base.compose(_v, _q, _s);
+        instPart.setMatrixAt(n, _base); instPart.setColorAt(n, p.c); n++;
+      }
+      instPart.count = n; instPart.instanceMatrix.needsUpdate = true; if (instPart.instanceColor) instPart.instanceColor.needsUpdate = true;
+    }
+    // la caméra de cinéma : elle plonge sur un point (le boss abattu) puis revient
+    let cine = null;
+    function cinema(x, z, duree) { cine = { x, z, t: 0, duree: duree || 1.8 }; }
 
     // ─── les boss en modèles KayKit : de vrais personnages à squelette, un seul à la fois à l'écran ───
     const bossVus = new Map(); // id du zombie → { o, mixer, actions, act, mats, type, mort, coup }
@@ -618,9 +676,14 @@ const ZRENDU = (() => {
       const tx = j.x + j.vx * 0.25, tz = j.z + j.vz * 0.25;
       if (!cam.init) { cam.x = tx; cam.z = tz; cam.init = true; }
       const k = 1 - Math.exp(-6 * dt); cam.x += (tx - cam.x) * k; cam.z += (tz - cam.z) * k;
-      const portrait = H > W, haut = portrait ? 30 : 22, recul = portrait ? 12 : 12;
+      const portrait = H > W; let haut = portrait ? 30 : 22, recul = portrait ? 12 : 12, fx = cam.x, fz = cam.z;
+      if (cine) { // plongée : la caméra descend vers le point, puis remonte (courbe en cloche)
+        cine.t += dt; const u = Math.min(1, cine.t / cine.duree), w = Math.sin(u * Math.PI);
+        fx = cam.x + (cine.x - cam.x) * w; fz = cam.z + (cine.z - cam.z) * w; haut -= 11 * w; recul -= 5 * w;
+        if (u >= 1) cine = null;
+      }
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
-      camera.position.set(cam.x + sx, haut, cam.z + recul + sz); camera.lookAt(cam.x + sx, 0, cam.z + sz - (portrait ? 0 : 0.5));
+      camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
       soleil.position.set(cam.x - 9, 22, cam.z + 12); soleil.target.position.set(cam.x, 0, cam.z);
     }
@@ -631,8 +694,17 @@ const ZRENDU = (() => {
       if (!arene || arene !== jeu.A) charger(jeu);
       if (evs) for (const e of evs) {
         switch (e.t) {
-          case 'tir': tracante(e.x, e.z, e.a, e.l, e.cle === 'tourelle' ? 'tourelle' : e.arme); { const s = survivants.get(e.de); if (s) s.recul = 1; } break;
-          case 'mort': corps.push({ type: e.type, x: e.x, z: e.z, a: e.a || 0, t: 0 }); if (corps.length > MAX_CORPS) corps.shift(); flaque(e.x, e.z, D.ZOMBIES[e.type].taille * 1.1, '#5E8C2E'); break;
+          case 'tir': {
+            tracante(e.x, e.z, e.a, e.l, e.cle === 'tourelle' ? 'tourelle' : e.arme); const s = survivants.get(e.de);
+            if (s) { s.recul = 1; if (!e.b) { const a = e.a + Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1) * 0.9; particule(e.x, 1.0, e.z, Math.cos(a) * 2.5, 2.5 + Math.random() * 1.5, Math.sin(a) * 2.5, 1.3, 0.07, '#E0B040', 0.4); } } // une douille
+            break;
+          }
+          case 'mort':
+            flaque(e.x, e.z, D.ZOMBIES[e.type].taille * 1.1, '#5E8C2E');
+            if (e.boss) { cinema(e.x, e.z, 1.9); secousse = Math.max(secousse, 0.6); for (let k = 0; k < 60; k++) particule(e.x, 1.5, e.z, (Math.random() - 0.5) * 9, 5 + Math.random() * 8, (Math.random() - 0.5) * 9, 1.6 + Math.random(), 0.11, k % 3 ? '#FFD84A' : '#FFF4C0', 0.45); }
+            if (KZ && !D.ZOMBIES[e.type].boss && (e.fort || Math.random() < 0.45)) eclater(e); // en morceaux
+            else { corps.push({ type: e.type, x: e.x, z: e.z, a: e.a || 0, t: 0 }); if (corps.length > MAX_CORPS) corps.shift(); }
+            break;
           case 'touche': if (Math.random() < 0.25) flaque(e.x + (Math.random() - 0.5) * 0.6, e.z + (Math.random() - 0.5) * 0.6, 0.35, '#6F9A38'); break;
           case 'boum': boum(e.x, e.z, e.r); flaque(e.x, e.z, e.r * 0.55, '#4A4A3A'); break;
           case 'flaque': flaque(e.x, e.z, 0.7, '#A6D63A'); break;
@@ -647,6 +719,7 @@ const ZRENDU = (() => {
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majFlaques(dt);
+      majParticules(dt);
       for (const o of tracantes) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.m.visible = false; }
       for (const o of boums) if (o.m.visible) { o.t -= dt; const k = 1 - o.t / 0.45; o.m.scale.setScalar(o.r * (0.3 + k * 0.9)); o.m.material.opacity = Math.max(0, 0.9 * (1 - k)); o.m.material.color.set(k < 0.3 ? '#FFE07A' : '#FF8A3A'); if (o.t <= 0) o.m.visible = false; }
       majCamera(jeu, idMoi, dt);
@@ -662,7 +735,7 @@ const ZRENDU = (() => {
     }
     const _p = T ? new T.Vector3() : null;
     function ecranDe(x, z, y) { _p.set(x, y || 0, z).project(camera); return [(_p.x + 1) / 2 * W, (1 - _p.y) / 2 * H]; }
-    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length }; }
+    function stats() { const i = renderer.info; return { webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine }; }
     // les modèles 3D arrivent : la horde passe en Kenney, le survivant, les défenses et l'arène (ses voitures) sont refaits avec eux
     if (MOD) MOD.charger().then((ok) => {
       if (!ok) return;
@@ -671,7 +744,7 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, renderer, scene, camera };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();
