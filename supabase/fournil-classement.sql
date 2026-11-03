@@ -8,8 +8,9 @@
 --  sont remis d'aplomb.
 --
 --  Version 6.8 (3 nov. 2026) : LES PROJETS DE QUARTIER, des chantiers financés par les points de boulanger de tous (le même code que
---  le patch supabase/fournil-projets-v68.sql, collé par-dessus la v6.7.1). Rien d'autre ne change : ni fournil_publier, ni fournil_figer,
---  ni l'objectif commun ; les téléphones n'envoient rien de nouveau (les points sont déjà plafonnés par joueur).
+--  le patch supabase/fournil-projets-v68.sql, collé par-dessus la v6.7.1), et l'enveloppe des gains plausibles relevée de 1e18 à
+--  1e21 € (fournil_paliers, § 3 : l'acharné du lot « progression » y était plafonné). Rien d'autre ne change : ni fournil_publier, ni
+--  fournil_figer, ni l'objectif commun ; les téléphones n'envoient rien de nouveau (les points sont déjà plafonnés par joueur).
 --    · la table fermée fournil_projets (une ligne par chantier : rang, prix, actifs, semaine d'ouverture, points déjà versés au chantier
 --      d'avant cette semaine-là, fin) ;
 --    · fournil_projets() (lisible par tous) : fige la semaine passée, verse dans le chantier en cours le total des points de chaque
@@ -672,17 +673,27 @@ $$;
 --     l'acharné et le marathon qui fixent la limite), pris une demi-décade plus haut et arrondi vers le haut à chaque décade ;
 --   · puis l'algorithme ci-dessous (avec sa réserve de 24 h) a été rejoué sur chaque trajectoire : envois toutes les 10 s,
 --     toutes les 5 min, une fois par session ou une fois par jour, en arrivant au jour 0, 10 ou 40. En DIVISANT ces rythmes,
---     le premier envoi plafonné n'apparaît qu'à ÷3,9 pour le marathon 24 h/24, ÷4,8 pour l'acharné, ÷17 pour l'assidu, ÷19
---     pour le régulier et ÷20 pour l'occasionnel : la marge est d'au moins ×3,9 sur le joueur le plus acharné qu'on puisse
---     imaginer, et de ×17 sur les profils du jeu. Un joueur honnête n'est jamais plafonné.
+--     le premier envoi plafonné n'apparaissait qu'à ÷3,9 pour le marathon 24 h/24, ÷4,8 pour l'acharné, ÷17 pour l'assidu, ÷19
+--     pour le régulier et ÷20 pour l'occasionnel (le jeu de la version 6).
+--   · version 6.8 : le jeu a accéléré depuis (recettes, chaîne, puis le lot « progression » : trophées qui rapportent, paliers
+--     au-delà de la n°30, pas d'étoiles). Rejoué le 3 novembre 2026 de la même façon (envois toutes les 5 min, réserve de 24 h),
+--     30 jours depuis le 5 oct., le 1er nov., le 1er déc., le 1er mars et le 7 juin : l'acharné passe 1e19 € vers le 13e jour,
+--     1e20 € vers le 16e, et l'ancienne table le plafonnait SANS division (5 oct., 1er déc., 7 juin : jusqu'à 0,7 % de ses gains
+--     perdus ; sans le lot, la marge était déjà de moins de ×1,1) ; le marathon y perdait 4,8 %. La v6.8 relève donc les paliers
+--     de 1e18 à 1e21 € (+0,05, +0,15, +0,2 et +0,2 en log10 : ×1,1 à ×1,6), puis rejoint l'ancienne pente à 1e22 € : l'acharné
+--     n'est plus jamais plafonné, même l'enveloppe divisée par 1,3 (les cinq départs), ni le marathon (5 oct.), même divisée par
+--     1,2. Les profils du jeu restent loin dessous (test/fournil-classement-sql.cjs : l'assidu tient à ÷3).
+--   Un joueur honnête n'est jamais plafonné.
 --
---   fortune L        rythme accepté R(L)     repères (joueurs simulés)
+--   fortune L        rythme accepté R(L)     repères (joueurs simulés ; jusqu'à 1e16 €, le jeu de la version 6)
 --   ≤ 1e4 €          5e5 €/s (le plancher)   au premier jour, tout le monde passe 1e7 € en un quart d'heure
 --   1e10 €           1,3e7 €/s               l'assidu au jour 2, le marathon après quelques heures
 --   1e13 €           5e9 €/s                 l'assidu au jour 5
 --   1e16 €           2,5e12 €/s              l'assidu au jour 10, le marathon au jour 9
---   1e19 €           1,3e14 €/s              l'assidu au jour 60, le marathon au jour 25
---   1e20 €           4e14 €/s                l'acharné au jour 50 ; au-delà, R grandit comme L (+1,4 % par heure)
+--   1e19 €           1,8e14 €/s (1,3e14      l'acharné au jour 13 (le lot « progression » ; l'assidu de la version 6 : au jour 60)
+--                    avant la v6.8)
+--   1e20 €           6,3e14 €/s (4e14)       l'acharné au jour 16 ; jusqu'à 1e21 €, R grandit comme L (+2,3 % par heure), puis
+--                                            rejoint à 1e22 € l'ancienne pente (au-delà, +1,4 % par heure, comme avant la v6.8)
 --
 -- La réserve : le temps d'enveloppe qu'un envoi n'a pas utilisé est gardé (24 h au plus) pour les envois suivants. Elle
 -- absorbe les gros coups d'un instant (prime du défi de la semaine, trois défis du jour réclamés d'un coup, commande livrée)
@@ -698,21 +709,23 @@ $$;
 -- comme L). 1e20 est le plus bas plafond qui garde la marge : rejoués en arrivant aux jours 0, 10, 40, 59 et 90 (l'acharné
 -- dépasse 1e20 vers le jour 50, 9e20 au jour 120), les honnêtes gardent une marge d'au moins ×3,8 (×1,6 avec un plafond à 1e19).
 --
--- Ce qu'il reste à un tricheur obstiné (il envoie sans arrêt, toujours à la limite) : au mieux ~4 fois le joueur parfait
--- 24 h/24. Réserve pleine de l'arrivée comprise, en arrivant avec une fausse fortune de 1e6 € : 1e18 € tout de suite (ce que
--- l'enveloppe ajoute en 24 h), 8e18 € au bout d'un jour, 2e20 € au bout d'une semaine ; en arrivant avec 1e20 € ou plus (le
--- pire cas) : 4e19 € tout de suite, 1e20 € au bout d'un jour, 1,5e21 € au bout d'une semaine (il faut deux mois à l'assidu
--- pour 1e19 €, 25 jours au marathon). C'est la limite de ce qu'un serveur peut savoir sans voir la partie ; un intrus se
--- retire à la main.
+-- Ce qu'il reste à un tricheur obstiné (il envoie sans arrêt, toujours à la limite) : au mieux ~4 fois plus vite que le joueur
+-- parfait 24 h/24. Réserve pleine de l'arrivée comprise (chiffres de la v6.8 ; avant, entre parenthèses), en arrivant avec une
+-- fausse fortune de 1e6 € : 1,1e18 € tout de suite (ce que l'enveloppe ajoute en 24 h), 1,2e19 € au bout d'un jour, 7e20 € au bout
+-- d'une semaine (1e18, 8e18, 2e20) ; en arrivant avec 1e20 € ou plus (le pire cas) : 7e19 € tout de suite, 2e20 € au bout d'un jour,
+-- 5,5e21 € au bout d'une semaine (4e19, 1e20, 1,5e21). Depuis 1e6 €, l'enveloppe atteint 1e20 € en 4 jours et demi ; il en faut 16
+-- à l'acharné (16 h par jour) du lot « progression ». C'est la limite de ce qu'un serveur peut savoir sans voir la partie ; un
+-- intrus se retire à la main.
 
--- les paliers {log10 fortune, log10 rythme en €/s}
+-- les paliers {log10 fortune, log10 rythme en €/s} (v6.8 : relevés de 1e18 à 1e21 €, un palier de plus à 1e21 et à 1e22 ;
+-- avant : …{18,13.7},{19,14.1},{20,14.6},{24,18.6})
 create or replace function public.fournil_paliers()
 returns double precision[]
 language sql
 immutable
 set search_path = ''
 as $$
-  select '{{4,5.7},{5,5.8},{6,5.9},{7,6.0},{8,6.1},{9,6.5},{10,7.1},{11,7.7},{12,8.7},{13,9.7},{14,10.4},{15,11.1},{16,12.4},{17,13.2},{18,13.7},{19,14.1},{20,14.6},{24,18.6}}'::double precision[]
+  select '{{4,5.7},{5,5.8},{6,5.9},{7,6.0},{8,6.1},{9,6.5},{10,7.1},{11,7.7},{12,8.7},{13,9.7},{14,10.4},{15,11.1},{16,12.4},{17,13.2},{18,13.75},{19,14.25},{20,14.8},{21,15.8},{22,16.6},{24,18.6}}'::double precision[]
 $$;
 
 -- le segment k de l'enveloppe (0 = sous le premier palier, n = au-delà du dernier) : de « de » à « a », R = c · L^b

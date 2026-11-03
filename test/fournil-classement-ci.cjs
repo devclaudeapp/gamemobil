@@ -568,14 +568,15 @@ function arreter(message, conclusion) {
     check(r.data && r.data.ok === true && r.data.podiums.length === 0, `ses récompenses sur le serveur : plus rien (${r.texte.slice(0, 80)})`);
 
     // une sauvegarde bricolée : arrivée avec 7e23 €, puis 1e24 € dix secondes plus tard. La fortune d'arrivée ne sert d'échelle
-    // que jusqu'à 1e20 € : au plus ~4,1e19 € comptés (sans ce plafond : 2,9e23 €). C est retiré aussitôt.
+    // que jusqu'à 1e20 € : au plus ~7,3e19 € comptés (~4,1e19 € avant la v6.8, qui relève l'enveloppe ; sans ce plafond : 2,9e23 €).
+    // C est retiré aussitôt.
     const C = joueurTest();
     r = await publier(C, 7e23);
     check(r.data && r.data.ok === true && r.data.compte === 0, `C arrive avec 7e23 € (sauvegarde bricolée) : accepté, rien de compté (${r.texte.slice(0, 120)})`);
     log('  (10,5 s)');
     await attendre(10500);
     r = await publier(C, 1e24);
-    check(r.data && r.data.ok === true && r.data.plafonne === true && r.data.compte > 0 && r.data.compte < 5e19,
+    check(r.data && r.data.ok === true && r.data.plafonne === true && r.data.compte > 0 && r.data.compte < 8e19,
       `10 s plus tard, 1e24 € : ${Number(r.data && r.data.compte).toExponential(2)} € comptés au plus (échelle d'arrivée plafonnée à 1e20 €), pas 2,9e23`);
     r = await rpc('fournil_retirer', { p_id: C.id, p_jeton: C.jeton });
     check(r.data && r.data.ok === true, `C quitte le classement (${r.texte})`);

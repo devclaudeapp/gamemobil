@@ -9,7 +9,8 @@
 //     ne grandit pas avec un saut inventé, ni avec une énorme fortune d'arrivée (plafonnée à 1e20 €), envoyer souvent ne rapporte pas plus qu'envoyer une fois, la réserve plafonne à 24 h,
 //     et l'enveloppe SQL est la même que son miroir en JavaScript ;
 //   · des joueurs HONNÊTES de test/longevite.js rejoués à leur rythme réel (envois toutes les 5 min ou toutes les minutes) :
-//     jamais plafonnés, même avec une enveloppe divisée par 3 ;
+//     jamais plafonnés, même avec une enveloppe divisée par 3 ; l'acharné (16 h par jour) sur 25 jours, lot « progression » compris
+//     (il passe 1e20 € vers le 16e jour), même avec l'enveloppe divisée par 1,3 ;
 //   · les semaines (nuit de dimanche à lundi à Paris, heure d'été / d'hiver), fortune qui baisse, triches sur « Cette semaine » ;
 //   · le palmarès (figé une fois, ex æquo, semaine sans joueur, joueur qui a sauté une semaine, semaine où personne n'est venu),
 //     les récompenses, la toque du podium dans le classement, le retrait qui efface le palmarès, l'heure du serveur ;
@@ -45,7 +46,8 @@
 //   · le patch v6.8 (supabase/fournil-projets-v68.sql : les projets de quartier, des chantiers financés par les points de tous) collé deux
 //     fois par-dessus la v6.7.1 : aucune donnée ni autre fonction ne bouge, la requête de contrôle, la table et les fonctions internes
 //     fermées (anon et authenticated refusés), le scénario de l'essai semaine après semaine (prix, semaine vide, reste au chantier suivant,
-//     plafond de 60 actifs), au plus 20 chantiers finis par appel ; le fichier complet porte le même code ; le vrai moteur lit le chantier.
+//     plafond de 60 actifs), au plus 20 chantiers finis par appel ; l'enveloppe relevée de 1e18 à 1e21 € (fournil_paliers : jamais
+//     abaissée, toujours interne) ; le fichier complet porte le même code ; le vrai moteur lit le chantier.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -464,7 +466,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   await avancer(10);
   r = garde(await publier(Gros, 'Arrivée bricolée', 1e24));
   const permisGros = await borneSQL(1e20, 86410) - 1e20;
-  check(r.plafonne === true && r.compte <= permisGros * (1 + 1e-9) && proche(r.compte, permisGros) && r.compte < 5e19, `10 s plus tard, 1e24 € : ${e(r.compte)} € comptés au plus (borne depuis 1e20 €), pas les 2,9e23 € qu'aurait donnés l'échelle de 7e23 €`);
+  // (7,3e19 € depuis la v6.8, qui relève l'enveloppe de 1e18 à 1e21 € pour l'acharné du lot « progression » ; 4,1e19 € avant)
+  check(r.plafonne === true && r.compte <= permisGros * (1 + 1e-9) && proche(r.compte, permisGros) && r.compte < 8e19, `10 s plus tard, 1e24 € : ${e(r.compte)} € comptés au plus (borne depuis 1e20 €), pas les 2,9e23 € qu'aurait donnés l'échelle de 7e23 €`);
   // l'échelle de la borne est la fortune plausible, pas le sommet envoyé
   const Sa = joueur();
   await publier(Sa, 'Sauteur', 1e6);
@@ -520,13 +523,20 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   {
     let t0 = Date.now();
     const reg = trajectoire('regulier', 30, '5 oct.', 300), ass = trajectoire('assidu', 30, '1er nov.', 300), ach = trajectoire('acharne', 4, '7 juin', 60);
-    check(reg.length > 200 && ass.length > 400 && ach.length > 2000, `trajectoires simulées par test/longevite.js en ${((Date.now() - t0) / 1000).toFixed(1)} s : régulier 30 j, assidu 30 j, acharné (16 h par jour) 4 j`);
+    const t1 = Date.now(), ach25 = trajectoire('acharne', 25, '5 oct.', 300);
+    check(reg.length > 200 && ass.length > 400 && ach.length > 2000 && ach25.length > 4000 && ach25[ach25.length - 1][1] > 3e20,
+      `trajectoires simulées par test/longevite.js en ${((Date.now() - t0) / 1000).toFixed(1)} s : régulier 30 j, assidu 30 j, acharné (16 h par jour) 4 j, et 25 j (${((Date.now() - t1) / 1000).toFixed(1)} s, ${e(ach25[ach25.length - 1][1])} € au 25e jour)`);
     t0 = Date.now();
     await rejouer('Régulière', reg, 'régulière (36 min par jour, 30 jours dès le 5 oct.), envois toutes les 5 min');
     await diviserEnveloppe(3);
     check(proche(await borneSQL(1e15, 3600), enveloppe(PALIERS.map(([a, b]) => [a, b - Math.log10(3)])).borne(1e15, 3600), 1e-9), '(l’enveloppe est maintenant divisée par 3)');
     await rejouer('Assidu', ass, 'assidu (80 min par jour, 30 jours dès le 1er nov.), enveloppe DIVISÉE PAR 3, envois toutes les 5 min');
     await rejouer('Acharnée', ach, 'acharnée (16 h par jour, 4 jours dès le 7 juin), enveloppe DIVISÉE PAR 3, envois toutes les minutes');
+    // l'acharné sur 25 jours, avec le lot « progression » (trophées, paliers au-delà de la n°30, pas d'étoiles) : il passe 1e20 € vers le
+    // 16e jour. La table d'avant la v6.8 le plafonnait dès le 17e jour SANS division (dès le 14e divisée par 1,2) ; la v6.8 la relève
+    // de 1e18 à 1e21 € : jamais plafonné, même divisée par 1,3
+    await diviserEnveloppe(1.3);
+    await rejouer('Acharné', ach25, 'acharné (16 h par jour, 25 jours dès le 5 oct., lot « progression » compris), enveloppe DIVISÉE PAR 1,3, envois toutes les 5 min');
     await sup(defPaliers);
     check(proche(await borneSQL(1e15, 3600), ENV.borne(1e15, 3600), 1e-12) && (await sup(`select has_function_privilege('anon', 'public.fournil_paliers()', 'execute') as a`))[0].a === false, `(l’enveloppe d’origine est remise ; rejeux en ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   }
@@ -2186,7 +2196,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const T62 = lireTables(P62), T63 = lireTables(P63), T64 = lireTables(P64), TF = lireTables(SQL);
     const V66_FNS = ['fournil_classement', 'fournil_evt_figer', 'fournil_recompenses']; // les fonctions que la v6.6 remplace, en plus de fournil_evts() (les acharnés de la Maison hantée)
     const V67_FNS = ['fournil_points_plafond', 'fournil_publier', 'fournil_reponse', 'fournil_serie_bonus']; // celles que la v6.7 remplace ou ajoute (le barème du lot 7 et la série), comparées à part, au patch v6.7
-    const V68_FNS = ['fournil_projet_actifs', 'fournil_projet_base', 'fournil_projet_total', 'fournil_projets']; // celles que la v6.8 ajoute (les projets de quartier) : le fichier complet les porte, les versions d'avant non ; comparées au patch v6.8
+    const V68_FNS = ['fournil_paliers', 'fournil_projet_actifs', 'fournil_projet_base', 'fournil_projet_total', 'fournil_projets']; // celles que la v6.8 ajoute (les projets de quartier) ou remplace (fournil_paliers : l'enveloppe relevée de 1e18 à 1e21 €) : le fichier complet les porte, les versions d'avant non ; comparées au patch v6.8
     const sansV68 = V68_FNS.map((n) => `'${n}'`).join(', ');
     // la ligne d'un joueur sans la colonne serie (version 6.7) : le fichier complet recollé par-dessus une version d'avant l'ajoute (0 pour tous), rien d'autre ne bouge
     const sansSerie = (t) => (t === 'fournil_joueurs' ? `to_jsonb(x) - 'serie'` : 'x');
@@ -2766,15 +2776,16 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const V66C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v66-complet.sql'), 'utf8');
     const P67 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v67.sql'), 'utf8'), P671 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v671.sql'), 'utf8');
     const NOUVELLES = ['fournil_projet_actifs', 'fournil_projet_base', 'fournil_projet_total', 'fournil_projets'];
+    const RELEVEE = 'fournil_paliers'; // la seule fonction d'avant que la v6.8 remplace : la table de l'enveloppe, relevée de 1e18 à 1e21 € (l'acharné du lot « progression »)
     titre('la version 6.8 : les projets de quartier, collée par-dessus la v6.7.1');
     { const sans = P68.replace(/--[^\n]*/g, ''), hors = sans.replace(/create or replace function[\s\S]*?\n\$\$;/g, '').replace(/\ndo \$\$[\s\S]*?\n\$\$;/g, '');
       const fns = [...P68.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(), grants = hors.match(/\bgrant [^;]*;/gi) || [], revokes = hors.match(/\brevoke [^;]*;/gi) || [], alters = hors.match(/\balter [^;]*;/gi) || [];
       check(/^-- ═+\n--  Le Fournil — le classement, version 6\.8/.test(P68) && /^begin;$/m.test(P68) && /^commit;$/m.test(P68) && /par-dessus la version 6\.7\.1/i.test(P68) && /notify pgrst, 'reload schema';/.test(P68),
         'le patch v6.8 : l’en-tête (à coller par-dessus la v6.7.1), begin/commit, l’API relit les fonctions');
-      check(JSON.stringify(fns) === JSON.stringify(NOUVELLES) && !/\b(insert|update|delete|truncate|drop table|drop function)\b/i.test(hors) && (hors.match(/create\s+table/gi) || []).length === 1 && /create table if not exists public\.fournil_projets \(/.test(hors)
+      check(JSON.stringify(fns) === JSON.stringify([...NOUVELLES, RELEVEE].sort()) && !/\b(insert|update|delete|truncate|drop table|drop function)\b/i.test(hors) && (hors.match(/create\s+table/gi) || []).length === 1 && /create table if not exists public\.fournil_projets \(/.test(hors)
         && !/create\s+(index|schema|role|trigger|policy)/i.test(hors) && alters.length === 1 && /^alter table public\.fournil_projets enable row level security;$/.test(alters[0])
-        && grants.length === 1 && /^grant execute on function public\.fournil_projets\(\) to anon, authenticated;$/.test(grants[0]) && revokes.length === 5 && revokes.every((x) => /fournil_projet/.test(x)),
-        `le patch crée ${fns.join(', ')} et une table, ferme la table (${alters.length} alter, ${revokes.length} revoke), n’ouvre que fournil_projets (${grants.length} grant) ; aucune autre table, fonction ni donnée touchée`); }
+        && grants.length === 1 && /^grant execute on function public\.fournil_projets\(\) to anon, authenticated;$/.test(grants[0]) && revokes.length === 6 && revokes.every((x) => /fournil_projet/.test(x) || /^revoke all on function public\.fournil_paliers\(\) from public, anon, authenticated;$/.test(x)),
+        `le patch crée ${NOUVELLES.join(', ')} et une table, remplace ${RELEVEE} (la table de l’enveloppe, refermée), ferme la table (${alters.length} alter, ${revokes.length} revoke), n’ouvre que fournil_projets (${grants.length} grant) ; aucune autre table, fonction ni donnée touchée`); }
     const d8 = await PGlite.create();
     const s8 = async (sql, p) => (await d8.query(sql, p)).rows;
     const c8 = async (sql, p, role = 'anon') => { await d8.exec(`set role ${role}`); try { return (await d8.query(sql, p)).rows; } finally { await d8.exec('reset role'); } };
@@ -2799,20 +2810,36 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const contrat8 = async () => JSON.stringify(await s8(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer,
         array_to_string(p.proconfig, ',') as conf, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon,
         has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('service_role', p.oid, 'execute') as service
-      from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' and not (p.proname = any($1)) order by 1, 2`, [NOUVELLES]));
+      from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' and not (p.proname = any($1)) order by 1, 2`, [[...NOUVELLES, RELEVEE]]));
+    // la table de l'enveloppe : son contrat (sans le code), ses paliers, la borne qu'en tire le serveur
+    const contratPaliers = async () => JSON.stringify(await s8(`select pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as rend, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
+        array_to_string(p.proconfig, ',') as conf, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth,
+        has_function_privilege('service_role', p.oid, 'execute') as service, exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0) as pour_public
+      from pg_proc p join pg_language l on l.oid = p.prolang where p.oid = 'public.fournil_paliers()'::regprocedure`));
+    const paliers8 = async () => (await s8('select public.fournil_paliers() as p'))[0].p;
     const controle8 = (res) => { const l = res && res[res.length - 1] && res[res.length - 1].rows.length === 1 ? Object.assign({}, res[res.length - 1].rows[0]) : null; if (l) for (const k of ['chantiers', 'finis']) l[k] = Number(l[k]); return l; };
     try { await coller8(V66C); await coller8(P67); await coller8(P671); } catch (err) { check(false, 'la v6.7.1 s’installe : ' + err.message); }
     // sous la v6.7.1, la semaine du 26 octobre : trois joueurs publient
     await horloge8('2026-10-28T09:00:00Z');
     const pub8 = (j, pseudo, points) => c8('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6) as r', [j.id, j.jeton, pseudo, '1000', String(points), lundiDe(h8)]);
     for (const [k, nom] of ['Aimé', 'Berthe', 'Cyprien'].entries()) await pub8(joueur(), nom, 50 + 10 * k);
-    const [dAvant, cAvant] = [await photo8(), await contrat8()];
+    const [dAvant, cAvant, pcAvant, palAvant] = [await photo8(), await contrat8(), await contratPaliers(), await paliers8()];
     let res = null;
     try { res = await coller8(P68); await horloge8(new Date(h8).toISOString()); res = await coller8(P68); await horloge8(new Date(h8).toISOString()); check(true, 'le patch v6.8 se colle par-dessus la v6.7.1, puis se recolle sans casse (rôle propriétaire non superutilisateur, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.8 se colle par-dessus la v6.7.1 : ' + err.message); }
     let l8 = controle8(res);
     check(!!l8 && Object.keys(l8).join() === 'installe,chantiers,finis' && l8.installe === true && l8.chantiers === 0 && l8.finis === 0, `la requête de contrôle, au premier collage : ${JSON.stringify(l8)} (le premier chantier s’ouvre au premier appel du jeu)`);
     check(await photo8() === dAvant, `rien ne bouge dans les données (les ${TABLES.length} tables : joueurs, points, palmarès, photos, objectif…)`);
     check(await contrat8() === cAvant, 'aucune autre fonction ne change (code, signature, volatilité, search_path, propriétaire, droits) : ni fournil_publier, ni fournil_figer, ni l’objectif commun');
+    // l'enveloppe : la même table que le fichier complet ; relevée de ×1,6 au plus, jamais abaissée, la même en dessous de 1e16 € et au-delà de 1e24 € (le log10 du rythme accepté,
+    // interpolé entre les paliers comme le fait fournil_segment, comparé tous les dixièmes de décade de 1e3 à 1e25 €)
+    { const palApres = await paliers8(), ecarts = [], releve = [];
+      const lr = (P, x) => { if (x <= P[0][0]) return P[0][1]; let k = P.findIndex((p) => p[0] >= x); if (k < 0) k = P.length - 1; const [a, b] = [P[k - 1], P[k]]; return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); }; // (au-delà du dernier palier : sa pente)
+      let maxi = 0;
+      for (let k = 30; k <= 260; k++) { const x = k / 10, d = lr(palApres, x) - lr(palAvant, x); maxi = Math.max(maxi, d); if (d > 1e-9) releve.push(x);
+        if (d < -1e-9 || d > 0.2 + 1e-9 || ((x <= 16 || x >= 24) && Math.abs(d) > 1e-9)) ecarts.push(`1e${x.toFixed(1)} : ${d >= 0 ? '+' : ''}${d.toFixed(3)}`); }
+      const bJS = enveloppe(palApres).borne(1e20, 86410), bSQL = (await s8('select public.fournil_borne(1e20, 86410) as b'))[0].b, pc = JSON.parse(pcAvant)[0];
+      check(ecarts.length === 0 && maxi > 0.19 && JSON.stringify(palApres) === JSON.stringify(PALIERS) && proche(bSQL, bJS, 1e-9) && await contratPaliers() === pcAvant && !pc.anon && !pc.auth && !pc.pour_public,
+        `fournil_paliers, la table de l’enveloppe : celle du fichier complet (${palApres.length} paliers), relevée de ×${Math.pow(10, maxi).toFixed(2)} au plus entre 1e${releve[0]} et 1e${releve[releve.length - 1]} €, jamais abaissée, la même en dessous de 1e16 € et au-delà de 1e24 €${ecarts.length ? ' — écarts : ' + ecarts.join(', ') : ''} ; le serveur s’en sert (24 h depuis 1e20 € : ${e(bSQL)}) ; même signature, même volatilité, toujours interne (ni anon ni authenticated)`); }
     // la table et les fonctions nouvelles
     { const cols = (await s8(`select string_agg(column_name || ':' || data_type || ':' || is_nullable, ',' order by ordinal_position) as c from information_schema.columns where table_schema = 'public' and table_name = 'fournil_projets'`))[0].c;
       const rls = (await s8(`select relrowsecurity as r from pg_class where oid = 'public.fournil_projets'::regclass`))[0].r, pol = (await s8(`select count(*)::int as n from pg_policies where tablename = 'fournil_projets'`))[0].n;
@@ -2886,12 +2913,12 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       `500 000 points d’un coup, 5 actifs au plancher : 20 chantiers finis au premier appel, la suite au suivant (${z2.finis.length} finis, le n°${k} à ${z2.en_cours.total} / ${z2.en_cours.cout}), puis plus rien ne bouge`);
     // le fichier complet recollé : le même code que la v6.7.1 + la v6.8
     { const avant = JSON.stringify(await s8(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
-        has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil_projet%' order by 1, 2`)), donnees = JSON.stringify(await s8('select * from public.fournil_projets order by rang'));
+        has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'fournil_projet%' or p.proname = 'fournil_paliers') order by 1, 2`)), donnees = JSON.stringify(await s8('select * from public.fournil_projets order by rang'));
       try { await coller8(SQL); await horloge8(new Date(h8).toISOString()); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.8 : ' + err.message); }
       const apres = JSON.stringify(await s8(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
-        has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil_projet%' order by 1, 2`));
+        has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'fournil_projet%' or p.proname = 'fournil_paliers') order by 1, 2`));
       check(apres === avant && JSON.stringify(await s8('select * from public.fournil_projets order by rang')) === donnees && (await refus8('anon', 'select * from public.fournil_projets')) === '42501',
-        'le fichier complet porte le même code que le patch v6.8 (les quatre fonctions, caractère pour caractère, leurs droits) ; recollé, les chantiers restent et la table reste fermée'); }
+        'le fichier complet porte le même code que le patch v6.8 (les quatre fonctions et la table de l’enveloppe, caractère pour caractère, leurs droits) ; recollé, les chantiers restent et la table reste fermée'); }
     await d8.close();
   }
 

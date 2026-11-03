@@ -4,7 +4,7 @@
 --
 --  Un patch à coller PAR-DESSUS la version 6.7.1 déjà installée : SQL Editor → New query → coller tout → Run. Il se recolle
 --  autant de fois qu'on veut, sans casse. Le fichier complet (supabase/fournil-classement.sql) porte le même code (la table en § 1,
---  les fonctions en § 9 ter h, les droits en § 10) : le recoller plus tard ne revient pas en arrière.
+--  l'enveloppe en § 3, les fonctions en § 9 ter h, les droits en § 10) : le recoller plus tard ne revient pas en arrière.
 --
 --  Ce qu'il fait, et rien d'autre :
 --    · une table fermée, fournil_projets (une ligne par chantier : son prix, la semaine où il a ouvert, ce que cette semaine-là avait
@@ -15,7 +15,10 @@
 --      fournil_joueurs.points, la même que l'objectif commun). Un chantier rempli est fini (une fois, sous verrou), le suivant ouvre
 --      la même semaine avec le reste. Prix d'un chantier, fixé à son ouverture : fournil_projet_base(rang) × les joueurs actifs (le
 --      plus grand de ceux de la semaine d'avant et de ceux qui ont déjà des points cette semaine), bornés de 5 à 60 ;
---    · trois petites fonctions internes (ni anon ni authenticated) : fournil_projet_base, fournil_projet_actifs, fournil_projet_total.
+--    · trois petites fonctions internes (ni anon ni authenticated) : fournil_projet_base, fournil_projet_actifs, fournil_projet_total ;
+--    · l'enveloppe des gains plausibles relevée de 1e18 à 1e21 € (fournil_paliers, la table de rythmes que fournil_publier lit à
+--      chaque envoi : la même fonction, interne, seuls ses paliers changent) : l'acharné du lot « progression » (16 h par jour)
+--      passe 1e20 € vers le 16e jour, et l'ancienne table le plafonnait (le détail : supabase/fournil-classement.sql, § 3).
 --  Aucune autre table ni fonction n'est touchée : fournil_publier, fournil_figer, l'objectif commun restent tels quels. Rien de
 --  nouveau n'est envoyé par les téléphones : les points sont déjà bornés par joueur (137 par jour, 989 par semaine), le
 --  chantier n'avance qu'avec eux. Un téléphone d'avant ce patch n'appelle pas fournil_projets ; un téléphone de ce lot sans ce
@@ -169,7 +172,21 @@ begin
 end
 $$;
 
--- ─── 4. Les droits : les fonctions internes à personne, fournil_projets à tous ───
+-- ─── 4. L'enveloppe des gains plausibles, relevée de 1e18 à 1e21 € (le lot « progression ») ───
+-- les paliers {log10 fortune, log10 rythme en €/s} : +0,05 à 1e18, +0,15 à 1e19, +0,2 à 1e20 et à 1e21 (un palier de plus), puis
+-- l'ancienne pente rejointe à 1e22 (un palier de plus) ; rien ne change en dessous de 1e17 € ni au-delà de 1e22 €
+-- (avant : …{17,13.2},{18,13.7},{19,14.1},{20,14.6},{24,18.6}). Le même code que le fichier complet, § 3.
+create or replace function public.fournil_paliers()
+returns double precision[]
+language sql
+immutable
+set search_path = ''
+as $$
+  select '{{4,5.7},{5,5.8},{6,5.9},{7,6.0},{8,6.1},{9,6.5},{10,7.1},{11,7.7},{12,8.7},{13,9.7},{14,10.4},{15,11.1},{16,12.4},{17,13.2},{18,13.75},{19,14.25},{20,14.8},{21,15.8},{22,16.6},{24,18.6}}'::double precision[]
+$$;
+
+-- ─── 5. Les droits : les fonctions internes à personne, fournil_projets à tous ───
+revoke all on function public.fournil_paliers() from public, anon, authenticated;
 revoke all on function public.fournil_projet_base(integer) from public, anon, authenticated;
 revoke all on function public.fournil_projet_actifs(date) from public, anon, authenticated;
 revoke all on function public.fournil_projet_total(date, date) from public, anon, authenticated;
