@@ -54,7 +54,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -74,7 +74,7 @@ const ZSONS = (() => {
           if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' ? 18 : 6);
           break;
         }
-        case 'touche': { const t = performance.now(); if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
+        case 'touche': { const t = performance.now(); if (e.crit && e.de === idMoi && t - critT > 120) { critT = t; P.jouer('ding', 0.55); } if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
         case 'mort': { const [k, p] = ecoute(e.x, e.z, 24); if (k > 0.03) { jouer('splat', 0.6 * k + 0.2, p); if (e.boss) jouer('boum', 0.8, p); } break; }
         case 'blesse': if (e.id === idMoi) { P.jouer('blesse', 0.8); P.vibrer(e.degats >= 20 ? 40 : 20); } break;
         case 'tombe': if (e.id === idMoi) { P.jouer('mort', 0.9); P.vibrer([70, 40, 90]); } break;
@@ -96,6 +96,8 @@ const ZSONS = (() => {
         case 'vagueFinie': P.jouer('mancheFin', 0.9); break;
         case 'serie': jouer('serie', 0.9, 0, 1 + (e.mult - 2) * 0.2); break;
         case 'fin': P.jouer('defaite', 1); break;
+        case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
+        case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
       }
     }
   }

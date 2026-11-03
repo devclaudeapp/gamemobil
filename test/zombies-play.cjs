@@ -2,7 +2,8 @@
 // La Salle de jeux montre sa carte → le titre (la partie de démonstration tourne en 3D, le Jardin ouvert, le Parking et la Ferme verrouillés)
 // → Jouer → le HUD (vie, vague, ferraille, armes, atelier) → le joystick au doigt fait courir le survivant → la vague arrive, il tire seul →
 // une tourelle posée depuis l'atelier → pause (la partie est figée) et reprise → le survivant tombe → l'écran de fin, le record enregistré
-// (zombies.v1), relu par le titre et par la Salle de jeux → en portrait, rien ne déborde → hors ligne (service worker), le jeu s'ouvre encore.
+// (zombies.v1), relu par le titre et par la Salle de jeux → les dégâts, les atouts, la grenade, les médailles et le Bunker → en portrait,
+// « Tourne ton téléphone » et la pause → hors ligne (service worker), le jeu s'ouvre encore.
 // Aucune erreur dans la page ; un budget d'appels de dessin avec une vague à l'écran. Captures dans test/shots/zombies (ou $CAPTURES).
 // NODE_PATH=/opt/node22/lib/node_modules node test/zombies-play.cjs   (PORT_ZOMBIES : le port du serveur de test)
 const { chromium } = require('playwright');
@@ -85,6 +86,32 @@ const BASE = `http://localhost:${PORT}/`;
   await page.tap('.h-poignee'); await sleep(350);
   check(await P(() => !document.querySelector('.h-atelier').classList.contains('ouvert') && localStorage.getItem('zombies.atelier') === 'ferme'), 'la poignée replie l’atelier (et s’en souvient)');
   await page.tap('.h-poignee'); await sleep(300);
+  // les chiffres de dégâts sur les zombies touchés
+  await page.waitForFunction(() => document.querySelectorAll('.h-degats .num:not([hidden])').length > 0, null, { timeout: 20000 }).catch(() => {});
+  const nums = await P(() => [...document.querySelectorAll('.h-degats .num:not([hidden])')].map((d) => d.textContent));
+  check(nums.length > 0 && nums.every((t) => /^(−?\d+|NIVEAU \+1)$/.test(t)), `les dégâts s’affichent sur les zombies touchés (${nums.slice(0, 5).join(', ')})`);
+  // le choix d'un atout : la partie attend, une carte touchée l'applique
+  await P(() => { const j = window.__zombies.jeu; j.choix = { id: 'moi', options: ['multi', 'critique', 'vie'], niveau: 2 }; });
+  await sleep(300);
+  const choix = await P(() => ({ visible: !document.querySelector('.h-choix').hidden, cartes: [...document.querySelectorAll('.h-carte-atout b')].map((b) => b.textContent), titre: document.querySelector('.h-choix-t').textContent, t: window.__zombies.jeu.t }));
+  await sleep(400);
+  check(choix.visible && choix.cartes.join() === 'Tir double,Œil de lynx,Cuir épais' && /NIVEAU 2/.test(choix.titre) && (await P(() => window.__zombies.jeu.t)) === choix.t, `niveau 2 : trois atouts au choix (${choix.cartes.join(', ')}), la partie attend`);
+  await page.screenshot({ path: out + '/02c-atout.png' });
+  await page.tap('[data-atout="multi"]'); await sleep(300);
+  check(await P(() => window.__zombies.jeu.joueurs[0].atouts.multi === 1 && !window.__zombies.jeu.choix && document.querySelector('.h-choix').hidden), 'toucher « Tir double » le prend, la partie repart');
+  // la grenade
+  await page.tap('.h-grenade'); await sleep(200);
+  const gren = await P(() => ({ obus: window.__zombies.jeu.obus.some((o) => o.grenade), recharge: window.__zombies.jeu.joueurs[0].grenadeT > 0, prete: document.querySelector('.h-grenade').classList.contains('prete') }));
+  check(gren.obus && gren.recharge && !gren.prete, 'le bouton grenade la lance, puis se recharge (grisé)');
+  // en paysage, le HUD tient sans chevauchement (vie, niveau, mini-carte, vague, atelier, armes, grenade)
+  const paysage = await P(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect(), dans = (b) => b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1;
+    const inter = (a, b) => !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+    const l = { vie: r('.h-vie'), xp: r('.h-xp'), carte: r('.h-carte'), centre: r('.h-centre'), cols: r('.h-cols'), slots: r('.h-slots') };
+    const paires = [['xp', 'carte'], ['centre', 'xp'], ['centre', 'carte'], ['cols', 'slots'], ['slots', 'carte'], ['centre', 'cols']].filter(([a, b]) => inter(l[a], l[b]));
+    return { dans: Object.values(l).every(dans), paires: paires.map((p) => p.join('/')) };
+  });
+  check(paysage.dans && !paysage.paires.length, `en paysage, le HUD tient dans l’écran sans chevauchement${paysage.paires.length ? ' (' + paysage.paires.join(', ') + ')' : ''}`);
   // pause et reprise
   await page.tap('.h-pause'); await sleep(200);
   const t0 = await P(() => window.__zombies.jeu.t); await sleep(600); const t1 = await P(() => window.__zombies.jeu.t);
@@ -93,17 +120,33 @@ const BASE = `http://localhost:${PORT}/`;
   await page.tap('#b-reprendre'); await sleep(500);
   check(await P(() => document.querySelector('#ecran-pause').hidden && !window.__zombies.enPause) && (await P(() => window.__zombies.jeu.t)) > t1, 'Reprendre : la partie repart');
   // le survivant tombe : l'écran de fin, le record
-  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.vie = 1; p.vieMax = 100; p.invul = 0; for (const z of j.zombies) { z.x = p.x + 0.9; z.z = p.z; z.coup = 0; z.naissance = -9; } });
+  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; j.choix = null; p.choixAttente = 0; p.vie = 1; p.vieMax = 100; p.invul = 0; for (const z of j.zombies) { z.x = p.x + 0.9; z.z = p.z; z.coup = 0; z.naissance = -9; } });
   await page.waitForFunction(() => document.body.dataset.ecran === 'fin', null, { timeout: 15000 }).catch(() => {});
   const fin = await P(() => ({ ecran: document.body.dataset.ecran, texte: document.querySelector('#ecran-fin').innerText, save: JSON.parse(localStorage.getItem('zombies.v1') || 'null') }));
   check(fin.ecran === 'fin' && /Submergé/.test(fin.texte) && /Vague atteinte/.test(fin.texte) && /Zombies/.test(fin.texte), 'le survivant tombe : l’écran de fin et ses chiffres');
   check(fin.save && fin.save.v === 1 && fin.save.records.jardin && fin.save.records.jardin.vague === 1 && fin.save.records.jardin.parties === 1 && fin.save.total.parties === 1, 'le record est enregistré (zombies.v1 : Jardin, vague 1, une partie)');
+  check(/\+\d+ médailles? pour le Bunker/.test(fin.texte) && fin.save.meta && fin.save.meta.medailles >= 2, `l’écran de fin donne les médailles du Bunker (${fin.save.meta ? fin.save.meta.medailles : 0})`);
   await page.screenshot({ path: out + '/04-fin.png' });
   await page.tap('#b-menu'); await sleep(700);
   check(/Record : vague 1/.test(await P(() => document.querySelector('[data-arene="jardin"]').innerText)), 'le titre montre le record du Jardin');
   await page.goto(BASE); await sleep(500);
   const carte = await P(() => document.querySelector('[data-jeu="zombies"]').innerText);
   check(/Record : vague 1 dans le Jardin/.test(carte) && /1 partie/.test(carte) && /Continuer/.test(carte), 'la Salle de jeux relit le record (« Record : vague 1 dans le Jardin », « Continuer »)');
+
+  // ─── le Bunker : 50 médailles, le Gilet renforcé acheté, la partie suivante commence avec 10 points de vie de plus ───
+  await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
+  await P(() => { const s = JSON.parse(localStorage.getItem('zombies.v1')); s.meta = { medailles: 50, gagnees: 50, bunker: {} }; localStorage.setItem('zombies.v1', JSON.stringify(s)); });
+  await page.reload(); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
+  check(/50/.test(await P(() => document.querySelector('#titre-medailles').textContent)), 'le titre montre les médailles');
+  await page.tap('#b-bunker'); await sleep(300);
+  const bunker = await P(() => ({ n: document.querySelectorAll('.amelio').length, visible: !document.querySelector('#ecran-bunker').hidden }));
+  check(bunker.visible && bunker.n === 6, 'le Bunker propose ses 6 améliorations');
+  await page.screenshot({ path: out + '/06-bunker.png' });
+  await page.tap('[data-bunker="vie"]'); await sleep(200);
+  const achat = await P(() => window.__zombies.save.meta);
+  check(achat.bunker.vie === 1 && achat.medailles === 50 - 6, `acheter le Gilet renforcé : cran 1, 6 médailles dépensées (reste ${achat.medailles})`);
+  await page.tap('#b-bunker-ok'); await sleep(200);
+  check(await P(() => window.__zombies.demarrer('jardin', 9).joueurs[0].vieMax === 110), 'la partie suivante commence avec 110 points de vie');
 
   // ─── une partie à part : la vague 5 : le premier boss, le Golem squelette (KayKit), son nom dans la barre du boss
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && window.__zombies.stats().rendu.modeles === 'pret', null, { timeout: 30000 }).catch(() => {});
@@ -116,20 +159,18 @@ const BASE = `http://localhost:${PORT}/`;
   check(boss.v === 5 && boss.rendu.boss.includes('golem') && boss.barre && boss.nom === 'GOLEM SQUELETTE', `vague 5 : le Golem squelette arrive en modèle KayKit, sa barre de vie porte son nom (« ${boss.nom} »)`);
   check(boss.rendu.calls <= 70, `${boss.rendu.calls} appels de dessin avec le boss et la horde (≤ 70)`);
   await page.screenshot({ path: out + '/02b-boss.png' });
-  // ─── en portrait ───
+  // ─── en portrait : « Tourne ton téléphone », la partie attend en pause ───
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
   await sleep(600);
-  const portraitTitre = await P(() => ({ large: document.documentElement.scrollWidth <= innerWidth + 1, jouer: (() => { const r = document.querySelector('#b-jouer').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; })() }));
-  check(portraitTitre.large && portraitTitre.jouer, 'en portrait, le titre tient dans l’écran (bouton Jouer visible, rien ne déborde)');
+  check(await P(() => getComputedStyle(document.querySelector('#tourne')).display !== 'none' && /Tourne ton téléphone/.test(document.querySelector('#tourne').innerText)), 'en portrait, l’écran « Tourne ton téléphone » couvre le jeu');
   await P(() => window.__zombies.demarrer('jardin', 5)); await sleep(800);
-  const portrait = await P(() => {
-    const r = (s) => document.querySelector(s).getBoundingClientRect(), dans = (b) => b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1;
-    const inter = (a, b) => !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
-    const at = r('.h-cols'), ar = r('.h-slots'), ca = r('.h-carte'), ce = r('.h-centre'), vi = r('.h-vie');
-    return { dans: [at, ar, ca, ce, vi].every(dans), chevauche: inter(at, ar) || inter(ca, ar) || inter(ce, vi) || inter(ca, at), large: document.documentElement.scrollWidth <= innerWidth + 1 };
-  });
-  check(portrait.dans && !portrait.chevauche && portrait.large, 'en portrait, le HUD tient dans l’écran sans chevauchement (vie, vague, mini-carte, atelier, armes)');
+  check(await P(() => window.__zombies.enPause && window.__zombies.portrait), 'une partie lancée en portrait reste en pause');
+  await page.setViewportSize({ width: 844, height: 390 }); await sleep(500);
+  check(await P(() => getComputedStyle(document.querySelector('#tourne')).display === 'none'), 'tourné à l’horizontale, l’écran disparaît');
+  await page.tap('#b-reprendre'); await sleep(500);
+  check(await P(() => !window.__zombies.enPause && window.__zombies.jeu.t > 0.3), 'et la partie reprend');
+  await page.setViewportSize({ width: 390, height: 844 }); await sleep(500);
   await page.screenshot({ path: out + '/05-portrait.png' });
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.slice(0, 3).join(' | ') : ''}`);
   await context.close();

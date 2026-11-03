@@ -2,7 +2,7 @@
    le doigt se pose n'importe où dans la zone de jeu (hors des boutons du HUD), la base du joystick naît sous lui, le pouce s'en écarte
    de RAYON pixels au plus ; zone morte, courbe un peu exponentielle (mêmes réglages que Poncin). Pointer Events suivis par pointerId,
    touch-action: none. Le tir est automatique (la simulation vise le zombie le plus proche) : seul le déplacement passe par ici.
-   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme ; Échap ou P : pause ; Espace : lancer la vague.
+   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Échap ou P : pause ; Espace : lancer la vague.
    API : ZCONTROLES.init(zone, { surTouche(nom) }), lire() → { mx, mz } (vecteur du monde : x vers l'est, z vers le sud ; longueur ≤ 1),
          activer(bool), reinit(), get joystick() → { actif, x, y } (pour les tests). */
 const ZCONTROLES = (() => {
@@ -55,6 +55,8 @@ const ZCONTROLES = (() => {
     if (!enBas || e.repeat || !rappel) return;
     if (e.code === 'Digit1' || e.code === 'Numpad1') rappel('arme0');
     else if (e.code === 'Digit2' || e.code === 'Numpad2') rappel('arme1');
+    else if (e.code === 'Digit3' || e.code === 'Numpad3') rappel('arme2');
+    else if (e.code === 'KeyG' || e.code === 'KeyE') rappel('grenade');
     else if (e.code === 'Escape' || e.code === 'KeyP') rappel('pause');
     else if (e.code === 'Space') { rappel('passer'); if (actif) e.preventDefault(); }
   }

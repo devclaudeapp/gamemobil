@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -16,6 +16,7 @@
   }
   const save = lire();
   save.reglages = Object.assign({ son: true, vibre: true, eco: false }, save.reglages || {});
+  save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
   function ecrire() { try { localStorage.setItem(CLE, JSON.stringify(save)); } catch (e) { /* stockage plein ou refusé : la partie continue */ } }
   const debloquee = (id) => { const k = D.ORDRE_ARENES.indexOf(id); if (k <= 0) return true; const prec = D.ORDRE_ARENES[k - 1], r = save.records[prec]; return !!(r && r.vague >= D.DEBLOCAGE[id]); };
@@ -37,7 +38,9 @@
     if (ecran !== 'jeu') return;
     if (n === 'pause') { if (enPause) reprendre(); else pause(); }
     else if (enPause) return;
+    else if (jeu.choix && /^arme[012]$/.test(n)) { const k = jeu.choix.options[+n.slice(-1)]; if (k) choisir(k); }
     else if (n === 'passer') ZJEU.passer(jeu);
+    else if (n === 'grenade') lancerGrenade();
     else if (n === 'arme0' || n === 'arme1') ZJEU.changerArme(jeu, idMoi, +n.slice(-1));
   } });
   const raisons = { ferraille: 'Pas assez de ferraille', max: 'Tu en as déjà le maximum pour cette vague', verrou: 'Pas encore : plus tard dans la partie', place: 'Pas de place ici : écarte-toi des murs', mort: '' };
@@ -47,7 +50,12 @@
     arme(i) { if (jeu && !enPause) ZJEU.changerArme(jeu, idMoi, i); },
     pause() { pause(); },
     passer() { if (jeu && !enPause) ZJEU.passer(jeu); },
+    grenade() { lancerGrenade(); },
+    atout(k) { choisir(k); },
+    projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
+  function lancerGrenade() { if (!jeu || enPause) return; const r = ZJEU.grenade(jeu, idMoi); if (!r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
+  function choisir(k) { if (!jeu || enPause || !jeu.choix) return; if (ZJEU.choisirAtout(jeu, idMoi, k)) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
   const geste = () => { try { PSONS.debloquer(); } catch (e) { /* rien */ } };
   window.addEventListener('pointerdown', geste, true); window.addEventListener('keydown', geste, true);
@@ -60,7 +68,7 @@
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); }
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -84,7 +92,7 @@
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }] });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -107,13 +115,16 @@
     const j = jeu.joueurs[0], r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
     const record = j.score > r.score || jeu.vague > r.vague;
     r.parties++; r.vague = Math.max(r.vague, jeu.vague); r.score = Math.max(r.score, j.score); r.tues = Math.max(r.tues, j.tues);
+    const M = D.MEDAILLES, medailles = jeu.vague * M.parVague + Math.floor(j.tues / M.parZombies) + j.boss * M.parBoss;
+    save.meta.medailles += medailles; save.meta.gagnees += medailles;
     save.records[arene] = r; save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
     $('.fin-chiffres').innerHTML = [
-      ['Vague atteinte', jeu.vague], ['Zombies', j.tues], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
+      ['Vague atteinte', jeu.vague], ['Niveau', j.niveau], ['Zombies', j.tues], ['Boss abattus', j.boss], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
     ].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+    $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${medailles} médaille${medailles > 1 ? 's' : ''} pour le Bunker`;
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
@@ -122,9 +133,26 @@
   }
   function quitter() { jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
 
+  // ─── le Bunker : les améliorations permanentes ───
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function remplirBunker() {
+    majMedailles();
+    $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
+      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null;
+      return `<div class="amelio"><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
+        <button type="button" data-bunker="${k}" ${prix == null || save.meta.medailles < prix ? 'disabled' : ''} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
+    }).join('');
+  }
+  $('.bunker-liste').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-bunker]'); if (!b || b.disabled) return;
+    const k = b.dataset.bunker, B = D.BUNKER[k], n = save.meta.bunker[k] || 0; if (n >= B.crans || save.meta.medailles < B.prix[n]) return;
+    save.meta.medailles -= B.prix[n]; save.meta.bunker[k] = n + 1; ecrire(); remplirBunker();
+    try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
+  });
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
-  clic('#b-jouer', () => demarrer(arene));
+  clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
   clic('#b-reprendre', reprendre);
   clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } demarrer(arene); });
   clic('#b-quitter', quitter);
@@ -135,6 +163,8 @@
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
+  clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
+  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;
@@ -145,6 +175,12 @@
   if (window.ZOMBIES_ACCUEIL) $('#b-accueil').href = window.ZOMBIES_ACCUEIL;
 
   // en arrière-plan : pause (et plus d'images)
+  const portrait = () => window.matchMedia && matchMedia('(orientation: portrait) and (max-width: 900px)').matches;
+  let estPortrait = portrait();
+  const surOrientation = () => { estPortrait = portrait(); if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); };
+  window.addEventListener('resize', surOrientation); window.addEventListener('orientationchange', surOrientation);
+  // sur Android, en plein écran, on peut verrouiller le paysage (iOS refuse : l'écran « Tourne ton téléphone » prend le relais)
+  const verrouiller = () => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
   document.addEventListener('visibilitychange', () => { if (document.hidden && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); });
 
   // ─── la boucle ───
@@ -159,6 +195,7 @@
     requestAnimationFrame(boucle);
     const dt = derT ? Math.min(0.1, (t - derT) / 1000) : PAS; derT = t;
     if (document.hidden) return;
+    if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (jeu && (ecran === 'jeu' || ecran === 'fin')) {
       if (enPause) { if (!fige) { rendu.image(jeu, idMoi, 0, null); fige = true; } return; }
       fige = false;
@@ -171,6 +208,7 @@
       } else rendu.image(jeu, idMoi, dt, null);
     } else if (demo) {
       const j = demo.joueurs[0]; j.invul = 99; j.vie = j.vieMax;
+      if (demo.choix) ZJEU.choisirAtout(demo, demo.choix.id, demo.choix.options[0]); // la démonstration choisit seule ses atouts
       avancer(demo, null, dt);
       rendu.image(demo, 'moi', dt, evs);
       if (demo.vague > 3) nouvelleDemo();
@@ -181,7 +219,7 @@
 
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
-    get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get save() { return JSON.parse(JSON.stringify(save)); },
+    get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
     demarrer, pause, reprendre, montrer, quitter,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene }; },
