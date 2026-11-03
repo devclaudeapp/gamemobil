@@ -16,6 +16,17 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-11-03-a', date: '2026-11-03', titre: 'Paliers, second, trophées dorés, concours et chantiers',
+      points: [
+        'Après la boutique n°30, le voyage continue sans fin : toutes les dix boutiques, un palier (n°40, 50, 60…) avec un nouveau titre, de « Boulanger étoilé » à « Empereur de la baguette », une finition pour ta boutique, un objet rare et un boost ×5 d’une heure.',
+        'Dès la n°20, chaque boutique demande de récolter un « pas » d’étoiles : les boutiques ne s’allongent plus, les paliers arrivent régulièrement. Le défi qui ouvre un palier a toujours une autre porte : récolter quatre pas d’étoiles d’un coup.',
+        'Dès la boutique n°5, un second t’aide : pendant que tu joues, il achète les niveaux des recettes que tu as cochées, sans jamais dépenser plus que la part de la caisse que tu choisis. Bouton « Second », à côté de « Bonus ».',
+        'Tes trophées rapportent : un peu plus de gains pour chacun, et encore un peu plus pour chaque famille complète. Chaque trophée a maintenant sa version dorée, et huit trophées secrets attendent d’être découverts.',
+        'Chaque semaine, le concours des boulangeries : quatre rivales à ta mesure, tes points de boulanger contre les leurs. Sur le podium, une médaille et un boost. Tu peux même visiter leurs boutiques.',
+        'Avec le classement, les chantiers du quartier : les points de tous les boulangers construisent la fontaine, le kiosque à musique, le marché couvert… et chaque chantier fini s’installe devant toutes les boutiques.',
+      ],
+    },
+    {
       id: '2026-11-02-a', date: '2026-11-02', titre: 'De vraies images dans Mes décos',
       points: [
         'Le carnet « Mes décos » montre maintenant chaque objet en vrai : tes décos, tes compagnons, tes tenues, tes recettes de saison et tes trophées, tels qu’ils sont dans ta boutique, dans la même lumière.',
