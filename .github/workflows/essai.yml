@@ -52,7 +52,7 @@ jobs:
         run: |
           trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
           git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD
-          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-chaine.test.js)
+          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-progression.test.js && node test/fournil-chaine.test.js)
           rm -rf fournil-essai && mv _essai/fournil-essai fournil-essai
       - uses: actions/upload-pages-artifact@v3
         with:

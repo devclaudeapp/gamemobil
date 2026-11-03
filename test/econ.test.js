@@ -179,8 +179,8 @@ console.log('── le boulanger ──');
     check(/chaîne du quartier \(l’ensemble complet\)/.test(ph) && !/chaîne en or/.test(ph) && v && v.nom === 'Chaîne du quartier', `le palier 12 du Quartier nomme la pièce donnée : « ${ph} »`);
   }
   st.lifetimeRun = 1e12; G.nouvelleBoutique(st, T0); check(st.stations.filter((s) => s.niv > 0).length === 5 && G.talent(st, 'mains') === 5 && st.xp > 1e6, 'nouvelle boutique : 5 recettes d’emblée, talents gardés, savoir-faire gagné');
-  st.stations[0].actif = true; st.stations[0].prog = 0.99; const avant = st.coins; G.tick(st, 0.02, T0 + 20);
-  check(Math.abs(st.coins - avant - G.revenu(st, 0) * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
+  st.stations[0].actif = true; st.stations[0].prog = 0.99; const avant = st.coins, r0 = G.revenu(st, 0); G.tick(st, 0.02, T0 + 20); // r0 : le prix de la fournée AVANT le trophée « Première fournée » qu'elle fait gagner pendant ce tick (+0,1 % de gains, lot « progression »)
+  check(Math.abs(st.coins - avant - r0 * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
   const s2 = G.newState(T0); s2.now = T0; s2.coins = 1e9; G.acheter(s2, 1); G.embaucher(s2, 0); check(s2.xp === 25, 'débloquer les croissants : +20 de savoir-faire ; embaucher Léo : +5');
 }
 console.log('── le mobilier ──');

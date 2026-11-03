@@ -5,6 +5,7 @@
 //    mais garde le droit aux recettes ; la courbe (chaque recette rapporte plus que la précédente, se rembourse vite, coûte plus).
 // 2. Le parcours : les quartiers des boutiques n°10, 15, 20, 25, 30 (et ceux des boutiques ouvertes avant cette version, gardés) ; les
 //    récompenses (une fois) ; le rattrapage d'une vieille sauvegarde ; les défis de passage (verrou, réussite, jamais rétroactifs).
+// 3. Au-delà de la n°30 (lot « progression ») : les paliers donnés une fois, le rattrapage d'une sauvegarde n°47, pas de défi de palier rétroactif.
 // Lancer : TZ=Europe/Paris node test/fournil-recettes-boutique.test.js
 'use strict';
 const G = require('../src/game.js');
@@ -98,7 +99,9 @@ titre('les récompenses');
 
 titre('les défis de passage');
 {
-  check(G.defiDe(5) === null && G.defiDe(6) && G.defiDe(29) && G.defiDe(40) === G.defiDe(29), 'dès la boutique n°6 ; au-delà de la n°29, celui de la n°29');
+  // depuis le lot « progression » : au-delà de la n°29, plus le défi « 30 % des étoiles » de la n°29 (le mur du contrat, § 1.1) mais un pas
+  // d'étoiles ; les défis d'étoiles des n°20, 25 et 29 deviennent « 2 pas » ; la boutique 39, 49… pose un défi de palier (test/fournil-progression.test.js)
+  check(G.defiDe(5) === null && G.defiDe(6) && G.defiDe(29).type === 'etoiles' && G.defiDe(29).pas === 2 && G.defiDe(40).type === 'etoiles' && G.defiDe(40).pas === 1 && G.defiDe(39).palier === 1, 'dès la boutique n°6 ; au-delà de la n°29, un pas d’étoiles (et un défi de palier pour ouvrir la n°40, 50…)');
   check(Object.values(G.DEFIS_PASSAGE).every((d) => d.type !== 'recette' || G.PRODUITS[d.i].boutique <= Object.keys(G.DEFIS_PASSAGE).find((b) => G.DEFIS_PASSAGE[b] === d)), 'un défi de recette ne demande qu’une recette déjà gagnée');
   const st = G.newState(T); st.now = T;
   for (let b = 2; b <= 5; b++) ouvrirBoutique(st);
@@ -125,6 +128,29 @@ titre('les défis de passage');
   const v = G.newState(T); v.now = T; v.boutiques = 8; v.defi = null;
   const l8 = G.parcoursListe(v)[7];
   check(l8.etat === 'actuelle' && l8.defi === null && l8.defiTxt === '' && G.passageOk(v) && G.parcoursListe(v)[8].defiTxt, `la n°8 sans défi posé : aucun défi annoncé pour ouvrir la n°9 (« ${l8.defiTxt} »), la n°9 garde le sien`);
+}
+
+titre('au-delà de la n°30 : les paliers (lot « progression »)');
+{
+  // une partie qui va jusqu'à la n°50 : chaque palier donné une fois, à son ouverture
+  const st = G.newState(T); st.now = T; st.etoiles = 100;
+  for (let b = 2; b <= 39; b++) ouvrirBoutique(st);
+  check(st.boutiques === 39 && st.paliers.recus.length === 0 && st.defi.palier === 1 && G.titreBoulanger(st) === 'Légende du Fournil', 'à la n°39 : aucun palier encore, le défi du palier 1 posé, le titre du parcours');
+  const reserve = st.boosts.reserve.length, r40 = ouvrirBoutique(st);
+  check(r40.ok && r40.paliers.length === 1 && r40.paliers[0].titre === 'Boulanger étoilé' && st.boosts.reserve.length === reserve + 1 && G.titreBoulanger(st) === 'Boulanger étoilé', 'la n°40 : le palier 1 (« Boulanger étoilé », un boost ×5 d’une heure)');
+  let autres = 0; for (let b = 41; b <= 49; b++) autres += ouvrirBoutique(st).paliers.length;
+  const r50 = ouvrirBoutique(st);
+  check(autres === 0 && r50.paliers.length === 1 && r50.paliers[0].k === 2 && st.paliers.recus.join() === '1,2' && st.boosts.reserve.length === reserve + 2 && G.titreBoulanger(st) === 'Légende de la farine', 'rien de la n°41 à la n°49 ; la n°50 : le palier 2 (« Légende de la farine ») ; chacun une seule fois');
+  check(G.rattraperPaliers(st).length === 0 && G.rattraperParcours(st).length === 0, 'rien à rattraper');
+  // une sauvegarde déjà à la n°47 avant ce lot : le palier 1 rattrapé une fois ; son défi en cours n'est pas remplacé (assoupli seulement)
+  const v = G.newState(T); v.now = T; v.boutiques = 47; v.etoiles = 2000; v.parcours = { recus: Array.from({ length: 29 }, (_, k) => k + 2), gains: 10, titre: 'Légende du Fournil' };
+  v.defi = { n: 47, type: 'etoiles', pct: 30, cible: 600 }; delete v.paliers; delete v.dores; delete v.secrets;
+  const fresh = G.newState(T); for (const k in fresh) if (!(k in v)) v[k] = fresh[k]; G.parcours(v);
+  const bo = v.boosts.reserve.length, rec = G.rattraperPaliers(v);
+  check(rec.length === 1 && rec[0].k === 1 && v.boosts.reserve.length === bo + 1 && G.titreBoulanger(v) === 'Boulanger étoilé' && G.rattraperPaliers(v).length === 0 && v.boosts.reserve.length === bo + 1, 'une sauvegarde à la n°47 : le palier 1 rattrapé, une seule fois');
+  check(v.defi.n === 47 && v.defi.type === 'etoiles' && v.defi.cible === 2 * v.paliers.pas && v.paliers.pas === 200, 'son défi en cours : le même, assoupli à deux pas (400 au lieu de 600)');
+  const w = G.newState(T); w.now = T; w.boutiques = 39; w.defi = { n: 39, type: 'palier', niv: 550 }; G.parcours(w);
+  check(w.defi.type === 'palier' && w.defi.niv === 550 && !w.defi.palier, 'une boutique n°39 d’avant ce lot : pas de défi de palier rétroactif');
 }
 
 console.log(`\n${n - fails}/${n} vérifications.`);
