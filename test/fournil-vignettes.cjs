@@ -161,7 +161,10 @@ const TAILLE_NEON = fs.statSync(path.join(root, 'fournil', 'img', 'carnet', 'qua
   check(m2.neon && !m2.neon.img && m2.neon.ico && !m2.neon.gris, 'le néon (gagné), son fichier manquant : son icône, pas grisée');
   await etagere(); const e2 = await lireEtagere(), cent = e2.find((c) => c.nom === 'Cent fournées'), million = e2.find((c) => c.nom === 'Le million');
   check(cent && cent.gagne && repliEtagere(cent) && million && !million.gagne && repliEtagere(million), `l’étagère : « Cent fournées » (gagné) et « Le million » (pas encore), leurs cartes d’avant (${JSON.stringify(million)})`);
-  check(e2.filter((c) => c.img).every((c) => c.ok && c.vig && c.gris === !c.gagne) && e2.filter((c) => c.img).length === e2.length - 4, `les autres cartes gardent leur vignette (${e2.filter((c) => c.img).length})`);
+  // (les secrets pas encore gagnés se montrent « ??? », sans nom ni image — contrat du lot « progression » : ils ne comptent pas parmi les vignettes)
+  const caches = e2.filter((c) => c.nom === '???'), nCaches = await ev(() => GAME.TROPHEES.filter((t) => t.secret && !(window.__fournil.st.trophees || {})[t.id]).length);
+  check(caches.length === nCaches && nCaches > 0 && caches.every((c) => !c.img && !c.vig && !c.gagne), `les ${nCaches} secrets pas encore gagnés : « ??? », sans vignette (${caches.length})`);
+  check(e2.filter((c) => c.img).every((c) => c.ok && c.vig && c.gris === !c.gagne) && e2.filter((c) => c.img).length === e2.length - 4 - caches.length, `les autres cartes gardent leur vignette (${e2.filter((c) => c.img).length}, sur ${e2.length} cartes dont 4 sans fichier et ${caches.length} secrets)`);
   await page.screenshot({ path: path.join(out, 'manque-etagere.png') });
   await fermerFeuille(); await croupier('trophees'); const t2 = await lireTrophees(), B2 = await beurre(), zero = t2.find((t) => t.id === 'zero'), plein = t2.find((t) => t.id === 'plein');
   check(zero && zero.gagne && repliTrophee(zero, B2) && plein && !plein.gagne && repliTrophee(plein, B2), `le croupier : « Le zéro » (gagné) sur le beurre, « Plein ! » (pas gagné) sur le gris à ${plein && plein.op}, la coupe dessinée (${JSON.stringify(plein)})`);
