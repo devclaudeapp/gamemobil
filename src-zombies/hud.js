@@ -45,7 +45,7 @@ const ZHUD = (() => {
     precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
   };
   const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
-  const NB_CHIFFRES = 40, chiffres = []; let iChiffre = 0, projeter = null;
+  const NB_CHIFFRES = 40, chiffres = [], derniers = []; let iChiffre = 0, projeter = null, nbChiffres = 0;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
   const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
@@ -239,7 +239,8 @@ const ZHUD = (() => {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
     c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;
     c.d.textContent = texte; c.d.className = 'num' + (classe ? ' ' + classe : ''); c.d.hidden = false;
+    nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
   function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, chiffre, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  return { init, maj, annonce, toast, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
 })();

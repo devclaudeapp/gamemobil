@@ -51,7 +51,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes pulse { 50% { transform: rotate(-3deg) scale(1.25); } }
 .h-score { position: absolute; top: calc(18px + var(--ht)); left: calc(50% + 150px); font-size: 15px; letter-spacing: .04em; }
 .h-score b { font-size: 20px; margin-left: 4px; color: var(--jaune); }
-.h-pause { position: absolute; right: calc(16px + var(--hd)); top: calc(10px + var(--ht)); width: 52px; height: 52px; border-radius: 14px; border: 2.5px solid var(--encre); background: var(--pastille); display: grid; place-items: center; box-shadow: 0 3px 0 rgba(31, 37, 51, .35); padding: 0; }
+.h-pause { z-index: 5; position: absolute; right: calc(16px + var(--hd)); top: calc(10px + var(--ht)); width: 52px; height: 52px; border-radius: 14px; border: 2.5px solid var(--encre); background: var(--pastille); display: grid; place-items: center; box-shadow: 0 3px 0 rgba(31, 37, 51, .35); padding: 0; }
 .h-pause svg { width: 30px; height: 30px; }
 /* l'atelier, à droite */
 .h-atelier { position: absolute; right: calc(8px + var(--hd)); top: calc(74px + var(--ht)); bottom: calc(10px + var(--hb)); display: flex; align-items: flex-start; transform: translateX(calc(100% - 26px)); transition: transform .22s ease; pointer-events: none; }

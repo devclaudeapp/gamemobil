@@ -87,8 +87,8 @@ const BASE = `http://localhost:${PORT}/`;
   check(await P(() => !document.querySelector('.h-atelier').classList.contains('ouvert') && localStorage.getItem('zombies.atelier') === 'ferme'), 'la poignée replie l’atelier (et s’en souvient)');
   await page.tap('.h-poignee'); await sleep(300);
   // les chiffres de dégâts sur les zombies touchés
-  await page.waitForFunction(() => document.querySelectorAll('.h-degats .num:not([hidden])').length > 0, null, { timeout: 20000 }).catch(() => {});
-  const nums = await P(() => [...document.querySelectorAll('.h-degats .num:not([hidden])')].map((d) => d.textContent));
+  await page.waitForFunction(() => ZHUD.chiffres.n > 0, null, { timeout: 20000 }).catch(() => {});
+  const nums = await P(() => ZHUD.chiffres.derniers);
   check(nums.length > 0 && nums.every((t) => /^(−?\d+|NIVEAU \+1)$/.test(t)), `les dégâts s’affichent sur les zombies touchés (${nums.slice(0, 5).join(', ')})`);
   // le choix d'un atout : la partie attend, une carte touchée l'applique
   await P(() => { const j = window.__zombies.jeu; j.choix = { id: 'moi', options: ['multi', 'critique', 'vie'], niveau: 2 }; });
@@ -99,6 +99,9 @@ const BASE = `http://localhost:${PORT}/`;
   await page.screenshot({ path: out + '/02c-atout.png' });
   await page.tap('[data-atout="multi"]'); await sleep(300);
   check(await P(() => window.__zombies.jeu.joueurs[0].atouts.multi === 1 && !window.__zombies.jeu.choix && document.querySelector('.h-choix').hidden), 'toucher « Tir double » le prend, la partie repart');
+  // la suite du parcours ne doit pas être coupée par un vrai passage de niveau (la CI tire vite) : plus d'expérience, et un choix en cours est pris
+  await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = -1e9; p.choixAttente = 0; if (j.choix) ZJEU.choisirAtout(j, j.choix.id, j.choix.options[0]); });
+  await sleep(150);
   // la grenade
   await page.tap('.h-grenade'); await sleep(200);
   const gren = await P(() => ({ obus: window.__zombies.jeu.obus.some((o) => o.grenade), recharge: window.__zombies.jeu.joueurs[0].grenadeT > 0, prete: document.querySelector('.h-grenade').classList.contains('prete') }));
@@ -168,7 +171,8 @@ const BASE = `http://localhost:${PORT}/`;
   check(await P(() => window.__zombies.enPause && window.__zombies.portrait), 'une partie lancée en portrait reste en pause');
   await page.setViewportSize({ width: 844, height: 390 }); await sleep(500);
   check(await P(() => getComputedStyle(document.querySelector('#tourne')).display === 'none'), 'tourné à l’horizontale, l’écran disparaît');
-  await page.tap('#b-reprendre'); await sleep(500);
+  await page.tap('#b-reprendre');
+  await page.waitForFunction(() => window.__zombies.jeu.t > 0.3, null, { timeout: 10000 }).catch(() => {});
   check(await P(() => !window.__zombies.enPause && window.__zombies.jeu.t > 0.3), 'et la partie reprend');
   await page.setViewportSize({ width: 390, height: 844 }); await sleep(500);
   await page.screenshot({ path: out + '/05-portrait.png' });
