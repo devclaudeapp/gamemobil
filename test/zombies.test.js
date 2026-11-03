@@ -18,7 +18,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
 // ─── les données ───
 {
   const nombre = (v) => typeof v === 'number' && (Number.isFinite(v) || v === Infinity);
-  check(Object.values(D.ARMES).every((a) => a.nom && a.degats > 0 && a.cadence > 0 && a.portee > 0 && a.balles >= 1 && nombre(a.munitions) && a.munitions > 0 && ['pistolet', 'mitraillette', 'pompe', 'fusil', 'sniper'].includes(a.classe)), 'chaque arme a ses dégâts, sa cadence, sa portée, ses munitions et un son connu de PSONS');
+  check(Object.values(D.ARMES).every((a) => a.nom && a.degats > 0 && a.cadence > 0 && a.portee > 0 && a.balles >= 1 && nombre(a.munitions) && a.munitions > 0 && ['pistolet', 'mitraillette', 'pompe', 'fusil', 'sniper', 'flamme', 'cryo', 'tesla', 'roquette', 'scie', 'laser', 'arc', 'acide'].includes(a.classe) && /^[a-r]$/.test(a.modele) && a.famille), `chaque arme (${Object.keys(D.ARMES).length}) a ses dégâts, sa cadence, sa portée, ses munitions, un son, sa famille et son blaster`);
   check(D.ARMES[D.ARME_DE_BASE].munitions === Infinity && D.ARMES[D.ARME_DE_BASE].rarete === 0, 'l’arme de base (le pistolet) a des munitions sans fin et ne sort jamais d’une caisse');
   check(Object.values(D.ZOMBIES).every((z) => z.vie > 0 && z.vitesse > 0 && z.degats > 0 && z.rayon > 0 && z.ferraille >= 1 && z.points > 0 && /^#[0-9A-F]{6}$/i.test(z.peau)), 'chaque zombie a sa vie, sa vitesse, ses coups, sa ferraille, ses points et ses couleurs');
   check(Object.values(D.ZOMBIES).some((z) => z.boss) && D.VAGUES.boss(5) && !D.VAGUES.boss(4), 'un boss toutes les cinq vagues');
@@ -48,6 +48,10 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   const lic = (d) => fs.readdirSync(path.join(dir, d)).filter((f) => /^LICENCE.*\.txt$/.test(f)).map((f) => fs.readFileSync(path.join(dir, d, f), 'utf8'));
   check(lic('kenney').length === 3 && lic('kenney').every((t) => /CC0|Creative Commons Zero/i.test(t)) && lic('kaykit').length === 4 && lic('kaykit').every((t) => /CC0/i.test(t)), 'leurs licences (Kenney : 3 packs, KayKit : 4) sont rangées à côté, toutes CC0');
   check(Object.keys(D.ZOMBIES).filter((k) => D.ZOMBIES[k].boss).every((k) => fichiers.includes(`kaykit/${D.ZOMBIES[k].modele}.glb`)), 'chaque boss a son modèle KayKit');
+  const blasters = [...new Set(Object.values(D.ARMES).map((a) => a.modele))], sw = fs.readFileSync(path.join(__dirname, '..', 'zombies', 'sw.js'), 'utf8');
+  const tailleArmes = fs.readdirSync(path.join(dir, 'armes')).filter((f) => f.endsWith('.glb')).reduce((t, f) => t + fs.statSync(path.join(dir, 'armes', f)).size, 0);
+  check(blasters.every((c) => fs.existsSync(path.join(dir, 'armes', `blaster-${c}.glb`))) && lic('armes').length === 1 && /CC0|Creative Commons Zero/i.test(lic('armes')[0]) && /modeles\/armes\/blaster-/.test(sw) && tailleArmes < 600 * 1024,
+    `les armes : ${blasters.length} blasters du Blaster Kit de Kenney (CC0, licence à côté, ${(tailleArmes / 1024).toFixed(0)} Ko), gardés hors ligne`);
 }
 
 // ─── le monde ───
@@ -229,6 +233,47 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(Math.abs(b.x - (bx + 1)) < 0.2, 'et refusée si elle saute trop loin');
   a.vie = 0; a.vivant = false; b.vie = 0; b.vivant = false; evs = avancer(jeu, 2);
   check(jeu.fini && evs.some((e) => e.t === 'fin'), 'tout le monde à terre : la partie s’arrête');
+}
+
+// ─── l'arsenal : chaque mode de tir ───
+{
+  const mk = (id, x, z, vie, type) => ({ id, type: type || 'trainard', x, z, vie, vieMax: vie, vitesse: 1, rayon: 0.42, angle: 0, chemin: null, ci: 0, repense: 99, coup: 99, crache: 99, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z });
+  const essai = (arme, n, groupe, duree) => {
+    const jeu = J.creer({ arene: 'jardin', graine: 3, attente: 99 }), p = jeu.joueurs[0]; p.vie = p.vieMax = 1e6; p.xp = -1e9;
+    p.armes[1] = { id: arme, mun: 999 }; p.main = 1;
+    for (let i = 0; i < n; i++) jeu.zombies.push(mk(9000 + i, p.x + 4 + (i % 4) * (groupe || 0.8), p.z - 1 + Math.floor(i / 4) * (groupe || 0.8), 400));
+    const evs = avancer(jeu, Math.round((duree || 2) * 60), { mx: 0, mz: 0 });
+    return { jeu, p, evs, touches: evs.filter((e) => e.t === 'touche'), tirs: evs.filter((e) => e.t === 'tir') };
+  };
+  check(Object.keys(D.ARMES).length >= 24, `${Object.keys(D.ARMES).length} armes`);
+  { const r = essai('flammes', 8, 0.7, 1.2); check(r.jeu.zombies.some((z) => z.feu > 0) && r.touches.some((e) => e.petit) && r.touches.length > 20, 'lance-flammes : le cône touche plusieurs zombies, qui brûlent'); }
+  { const r = essai('cryo', 4, 0.8, 0.8); const z = r.jeu.zombies[0]; check(r.jeu.zombies.some((z) => z.gel > 0), 'cryo-canon : les zombies touchés sont gelés'); void z; }
+  { const r = essai('tesla', 6, 1.0, 0.5), e = r.tirs.find((t) => t.pts); check(e && e.pts.length >= 4 && new Set(r.touches.map((t) => t.cible)).size >= 3, `Tesla : l’éclair saute de zombie en zombie (${e ? e.pts.length - 1 : 0} touchés d’un coup)`); }
+  { const r = essai('roquettes', 8, 0.7, 1.4); check(r.evs.some((e) => e.t === 'boum') && new Set(r.touches.map((t) => t.cible)).size >= 4, 'lance-roquettes : la roquette part droit et explose dans le groupe'); }
+  { const r = essai('acide', 6, 0.6, 2.5); check(r.evs.some((e) => e.t === 'acide') && r.touches.some((e) => e.petit), 'lance-acide : une flaque qui ronge ceux qui marchent dedans'); }
+  { const r = essai('scie', 6, 0.9, 0.4); check(r.jeu.disques.length >= 1 && new Set(r.touches.map((t) => t.cible)).size >= 3, 'lance-scies : le disque traverse tout le groupe'); const r2 = essai('scie', 0, 1, 0.1); r2.jeu.zombies.push(mk(9500, r2.p.x + 4, r2.p.z, 9999)); avancer(r2.jeu, 30, { mx: 0, mz: 0 }); r2.jeu.zombies.length = 0; const n0 = r2.jeu.disques.length; avancer(r2.jeu, 240, { mx: 0, mz: 0 }); check(n0 >= 1 && r2.jeu.disques.length === 0, 'et il revient au tireur'); }
+  { const r = essai('rafale', 1, 1, 0.5), t = r.tirs.map((e) => e.de); check(t.length >= 3, `fusil à rafales : trois balles d’affilée (${t.length} en 0,5 s)`); }
+  { const a = essai('minigun', 1, 1, 0.4).tirs.length, b = essai('minigun', 1, 1, 1.6).tirs.length - a; check(b > a * 2.2, `minigun : la cadence monte (${a} tirs la 1re 0,4 s, ${b} les 1,2 s suivantes)`); }
+  { const r = essai('laser', 0, 1, 0.05); for (let i = 0; i < 5; i++) r.jeu.zombies.push(mk(9600 + i, r.p.x + 3 + i * 1.1, r.p.z, 400)); const evs = avancer(r.jeu, 40, { mx: 0, mz: 0 }), t = evs.filter((e) => e.t === 'touche' && !e.crit); const parC = {}; for (const e of t) parC[e.cible] = Math.max(parC[e.cible] || 0, e.degats); const v = Object.values(parC); check(v.length >= 5 && Math.min(...v) >= Math.max(...v) * 0.95, `laser : le rayon traverse toute la file sans perdre de force (${v.join(', ')})`); }
+  { const r = essai('flammes', 0, 1, 0.05); r.jeu.zombies.push(mk(9700, r.p.x + 7.5, r.p.z, 400)); const evs = avancer(r.jeu, 60, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'tir' && e.cle === 'pistolet') && r.p.armes[1].mun === 999 && r.p.main === 1, 'hors de portée du lance-flammes : le pistolet d’appoint tire, sans dépenser de munitions'); }
+  { const r = essai('plasma', 6, 0.5, 0.5); check(r.evs.some((e) => e.t === 'boum' && e.petite), 'plasma : une petite explosion à chaque impact'); }
+  // un tir ne garde rien de l'arme d'avant (l'objet de tir est réutilisé)
+  { const r = essai('plasma', 2, 1, 0.3); r.p.armes[1] = null; r.p.main = 0; const evs = avancer(r.jeu, 30, { mx: 0, mz: 0 }); check(!evs.some((e) => e.t === 'boum'), 'repassé au pistolet : plus d’explosion (rien ne reste de l’arme d’avant)'); }
+}
+
+// ─── le bestiaire : chaque talent ───
+{
+  const mkz = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: Z.vitesse, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 0, coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const scene = (type, opts) => { const jeu = J.creer({ arene: 'jardin', graine: 5, attente: 99 }), p = jeu.joueurs[0]; p.vie = p.vieMax = 500; p.xp = -1e9; jeu.zombies.push(mkz(9000, type, p.x + ((opts && opts.d) || 7), p.z, opts && opts.vie)); return { jeu, p }; };
+  const types = ['kamikaze', 'sauteur', 'flammeur', 'sabreur', 'geolier', 'invocateur'];
+  check(types.every((t) => D.ZOMBIES[t] && D.ZOMBIES[t].depuis > 4 && D.ZOMBIES[t].teinte) && Object.keys(D.ZOMBIES).filter((k) => !D.ZOMBIES[k].boss).length >= 10, `le bestiaire : ${Object.keys(D.ZOMBIES).filter((k) => !D.ZOMBIES[k].boss).map((k) => D.ZOMBIES[k].nom).join(', ')}`);
+  { const { jeu, p } = scene('kamikaze', { d: 2.5 }); jeu.joueurs[0].armes[0] = null; p.cible = 99; const evs = avancer(jeu, 120, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'detone') && evs.some((e) => e.t === 'boum') && p.vie < 500 && !jeu.zombies.length, 'le kamikaze explose à ton contact (et te blesse)'); }
+  { const { jeu } = scene('kamikaze', { d: 6, vie: 1 }); jeu.zombies.push(mkz(9100, 'trainard', jeu.joueurs[0].x + 6.5, jeu.joueurs[0].z + 0.6, 20)); const evs = avancer(jeu, 120, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'boum') && evs.filter((e) => e.t === 'mort').length >= 2, 'abattu, il explose aussi, et emporte ses voisins'); }
+  { const { jeu } = scene('sauteur', { d: 7 }); const evs = avancer(jeu, 150, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'saute') && evs.some((e) => e.t === 'atterrit'), 'le sauteur bondit vers toi, par-dessus tout'); }
+  { const { jeu, p } = scene('flammeur', { d: 3 }); const evs = avancer(jeu, 90, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'souffle') && evs.filter((e) => e.t === 'blesse').length > 4 && p.vie < 500, 'le cracheur de feu souffle des flammes, de près'); }
+  { const { jeu } = scene('sabreur', { d: 5 }); jeu.zombies[0].vitesse = 0; jeu.zombies[0].angle = Math.PI; const evs = avancer(jeu, 240, { mx: 0, mz: 0 }); const pare = evs.filter((e) => e.t === 'pare').length, tirs = evs.filter((e) => e.t === 'tir').length; check(pare > tirs * 0.3 && pare < tirs, `le sabreur pare les balles qui arrivent de face (${pare} sur ${tirs})`); }
+  { const { jeu, p } = scene('geolier', { d: 6.5 }); jeu.zombies[0].crochetT = 0; jeu.zombies[0].vitesse = 0; const x0 = p.x; const evs = avancer(jeu, 70, { mx: -1, mz: 0 }); check(evs.some((e) => e.t === 'crochet') && evs.some((e) => e.t === 'accroche') && p.x > x0 + 1, `le geôlier lance sa chaîne et te tire vers lui (${(p.x - x0).toFixed(1)} m)`); }
+  { const { jeu } = scene('invocateur', { d: 8 }); jeu.zombies[0].invoqueT = 0; jeu.morts.push({ x: jeu.joueurs[0].x + 6, z: 0, t: 0 }, { x: jeu.joueurs[0].x + 6, z: 1, t: 0 }); const evs = avancer(jeu, 30, { mx: 0, mz: 0 }); check(evs.some((e) => e.t === 'invoque' && e.pts.length === 2) && jeu.zombies.filter((z) => z.type === 'trainard').length + evs.filter((e) => e.t === 'mort' && e.type === 'trainard').length === 2, 'l’invocateur relève les morts tout près'); }
 }
 
 // ─── le défi du jour : la date donne la graine, l'arène et le mutateur ; les mutateurs ; le classement (partie pure) ───

@@ -5,6 +5,7 @@
 // · KayKit (Kay Lousberg, kaylousberg.com) : les boss — Golem squelette (Character Pack: Skeletons), loup-garou (Mystery Series 4),
 //   Golem de glace et vampire (Mystery Series 5) — sans clips ; et les clips partagés du pack Character Animations, par squelette
 //   (Rig_Large pour les golems, Rig_Medium pour les autres), sans maillage : marche, course, repos, touché, mort, coups.
+// · Kenney Blaster Kit : les armes (zombies/modeles/armes/blaster-a … r, grenade), sans clips.
 // · Tout en meshopt (EXT_meshopt_compression) ; le jeu le décode avec le MeshoptDecoder de vendor/fournil-hd.min.js.
 // usage : ZOMBIES_SOURCES=<dossier> node outils/zombies/faire-modeles.mjs   (écrit zombies/modeles/ ; ne touche à rien d'autre)
 // Le dossier des sources : kenney-graveyard/, kenney-car/, kenney-tower/ (le dossier « Models/GLB format » de chaque pack, avec Textures/, et son
@@ -48,8 +49,17 @@ async function clipsSeuls(src, out, garder) {
   lignes.push(`${out} ${(n / 1024).toFixed(0)} Ko · ${r.listAnimations().map((a) => a.getName()).join(', ')}`);
 }
 
-// ─── Kenney ───
+// ZOMBIES_SEULEMENT=armes : seulement les armes (les autres fichiers restent tels quels)
+const SEUL = process.env.ZOMBIES_SEULEMENT || '';
 const K = (pack, nom) => path.join(REP, 'kenney-' + pack, nom + '.glb');
+// ─── les armes : le Blaster Kit de Kenney (18 blasters, et la grenade) ───
+if (!SEUL || SEUL === 'armes') {
+  for (const c of 'abcdefghijklmnopqr') await modele(K('blaster', 'blaster-' + c), `armes/blaster-${c}.glb`);
+  await modele(K('blaster', 'grenade-a'), 'armes/grenade.glb');
+  fs.copyFileSync(path.join(REP, 'kenney-blaster/License.txt'), path.join(OUT, 'armes/LICENCE-blaster-kit.txt'));
+}
+if (SEUL) { console.log(lignes.join('\n')); process.exit(0); }
+// ─── Kenney ───
 const CLIPS_PERSO = ['idle', 'walk', 'sprint', 'die', 'pick-up', 'holding-both', 'holding-both-shoot'];
 await modele(K('graveyard', 'character-zombie'), 'kenney/zombie.glb', CLIPS_PERSO);
 await modele(K('graveyard', 'character-keeper'), 'kenney/survivant.glb', CLIPS_PERSO);

@@ -308,3 +308,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .defi-carte { padding: 8px 12px; }
   .defi-liste { max-height: 250px; }
 }
+/* ─── les armes : icône de famille à la couleur de l'arme ; dégâts cumulés (flammes, brûlure, acide) plus discrets ─── */
+.ico-arme { display: block; line-height: 0; }
+.h-degats .num.petit { font-size: 14px; color: #FFD9A0; }

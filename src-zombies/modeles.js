@@ -21,7 +21,10 @@ const ZMODELES = (() => {
     'medium-marche': 'kaykit/anims-medium-marche.glb', 'medium-general': 'kaykit/anims-medium-general.glb', 'medium-coups': 'kaykit/anims-medium-coups.glb',
   };
   const VOITURES = ['voiture-sedan', 'voiture-police', 'voiture-suv', 'voiture-taxi', 'voiture-van', 'voiture-hatchback-sports'];
-  const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] } };
+  const M = { zombie: null, survivant: null, tourelle: null, mortier: null, voitures: [], boss: {}, anims: { large: [], medium: [] }, blasters: {} };
+  // les armes (Blaster Kit de Kenney) : chargées après le reste, sans le bloquer ; une arme sans modèle garde sa forme faite main
+  const BLASTERS = 'abcdefghijklmnopqr'.split('');
+  let etatArmes = 'attente';
   let etat = 'attente', promesse = null;
 
   // un matériau Lambert (moins cher que le PBR des fichiers, comme le reste du jeu) qui garde la palette du pack
@@ -83,9 +86,28 @@ const ZMODELES = (() => {
     const cles = Object.keys(FICHIERS);
     promesse = Promise.all(cles.map((k) => lire(FICHIERS[k]))).then((l) => {
       const g = {}; cles.forEach((k, i) => { g[k] = l[i]; });
-      preparer(g); etat = 'pret'; return true;
+      preparer(g); etat = 'pret';
+      etatArmes = 'charge';
+      Promise.all(BLASTERS.map((c) => lire(`armes/blaster-${c}.glb`).then((gl) => { M.blasters[c] = gl.scene; }).catch(() => {}))).then(() => { etatArmes = Object.keys(M.blasters).length ? 'pret' : 'absent'; });
+      return true;
     }).catch((e) => { etat = 'erreur'; if (typeof console !== 'undefined') console.warn('Dernier Rempart : modèles 3D indisponibles, formes faites main', e && e.message); return false; });
     return promesse;
   }
-  return { charger, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
+  // une arme prête à tenir : le blaster de l'arme (sa teinte), le canon vers +z, long de « longueur » ; null sans modèle
+  const armesFaites = new Map();
+  function arme(id, longueur) {
+    const A = typeof ZDONNEES !== 'undefined' ? ZDONNEES.ARMES[id] : null, src = A && M.blasters[A.modele];
+    if (!src) return null;
+    let base = armesFaites.get(id);
+    if (!base) {
+      const mats = new Map();
+      base = src.clone(true);
+      base.traverse((o) => { if (o.isMesh) { if (!mats.has(o.material)) { const m = lambert(o.material); if (A.teinte) m.color.set(A.teinte); mats.set(o.material, m); } o.material = mats.get(o.material); o.castShadow = true; } });
+      const b = new T.Box3().setFromObject(base), c = new T.Vector3(); b.getCenter(c);
+      const g = new T.Group(); base.position.sub(c); base.rotation.y = Math.PI; base.position.x = -base.position.x; base.position.z = -base.position.z; g.add(base);
+      g.userData.long = Math.max(1e-3, b.max.z - b.min.z); base = g; armesFaites.set(id, base);
+    }
+    const o = base.clone(true); o.scale.setScalar(longueur / base.userData.long); return o;
+  }
+  return { charger, arme, get armesPretes() { return etatArmes === 'pret'; }, get etatArmes() { return etatArmes; }, M, FPS, VOITURES, get pret() { return etat === 'pret'; }, get etat() { return etat; }, FICHIERS };
 })();
