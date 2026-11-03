@@ -12,7 +12,8 @@ const M = require(path.join(__dirname, '..', 'src-zombies', 'monde.js'));
 const J = require(path.join(__dirname, '..', 'src-zombies', 'jeu.js'));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const PAS = 1 / 60;
-const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.fini; i++) for (const x of J.pas(jeu, e ? { moi: typeof e === 'function' ? e(jeu) : e } : null, PAS)) evs.push(x); return evs; };
+// (un niveau passé : on prend le premier atout proposé, la partie ne reste pas à attendre)
+const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.fini; i++) { if (jeu.choix) J.choisirAtout(jeu, jeu.choix.id, jeu.choix.options[0]); for (const x of J.pas(jeu, e ? { moi: typeof e === 'function' ? e(jeu) : e } : null, PAS)) evs.push(x); } return evs; };
 
 // ─── les données ───
 {
@@ -164,6 +165,46 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(jeu.fini && jeu.phase === 'fin' && evs.some((e) => e.t === 'fin') && !p.vivant, 'le survivant tombe : fin de partie, avec son score, sa vague et ses victimes');
 }
 
+// ─── l'expérience, les niveaux, les atouts, les critiques, la grenade, le Bunker ───
+{
+  const jeu = J.creer({ arene: 'jardin', graine: 21, attente: 99 }), p = jeu.joueurs[0];
+  check(p.niveau === 1 && p.xp === 0 && !jeu.choix, 'on commence au niveau 1, sans expérience');
+  const mk = (id, type, x, z, vie) => ({ id, type, x, z, vie, vieMax: vie, vitesse: 0, rayon: D.ZOMBIES[type].rayon, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: 0, cz: 0 });
+  // assez de zombies pour passer un niveau : la partie s'arrête sur le choix de trois atouts
+  for (let k = 0; k < 14; k++) jeu.zombies.push(mk(8000 + k, 'trainard', p.x + 2 + (k % 4) * 0.2, p.z + (k % 2) * 0.3, 0.5));
+  let n = 0; while (!jeu.choix && n++ < 600) J.pas(jeu, null, PAS);
+  const c = jeu.choix;
+  check(c && c.id === 'moi' && c.options.length === 3 && new Set(c.options).size === 3 && c.options.every((k) => D.ATOUTS[k]) && p.niveau === 2, `niveau 2 : trois atouts différents au choix (${c ? c.options.map((k) => D.ATOUTS[k].nom).join(', ') : '—'})`);
+  const t0 = jeu.t; J.pas(jeu, null, PAS); J.pas(jeu, null, PAS);
+  check(jeu.t === t0, 'tant que le choix n’est pas fait, la partie attend');
+  check(!J.choisirAtout(jeu, 'moi', 'inconnu') && J.choisirAtout(jeu, 'moi', c.options[0]) && p.atouts[c.options[0]] === 1 && (!jeu.choix || jeu.choix.niveau > 2), `choisir « ${D.ATOUTS[c.options[0]].nom} » : rang 1, la partie repart`);
+  // les effets des atouts
+  const vm = p.vieMax; jeu.choix = { id: 'moi', options: ['vie', 'multi', 'critique'], niveau: 3 }; J.choisirAtout(jeu, 'moi', 'vie');
+  check(p.vieMax === vm + D.ATOUTS.vie.par, 'Cuir épais : +25 points de vie');
+  p.atouts.multi = 1; jeu.zombies.length = 0; jeu.zombies.push(mk(8100, 'golem', p.x + 4, p.z, 1e6)); p.attente = 0; p.cible = 0; p.angle = 0;
+  let evs = avancer(jeu, 40); const tirs = evs.filter((e) => e.t === 'tir' && e.de === 'moi');
+  check(tirs.some((e) => e.b === 1), 'Tir double : deux balles par tir au pistolet');
+  p.atouts.critique = 40; evs = avancer(jeu, 60);
+  check(evs.some((e) => e.t === 'touche' && e.crit && e.de === 'moi') && evs.filter((e) => e.t === 'touche').every((e) => e.degats >= 1), 'les coups critiques sont marqués sur les touches (pour les chiffres de dégâts)');
+  p.atouts.critique = 0;
+  // la grenade : vers le groupe, puis rechargement
+  jeu.zombies.length = 0; for (let k = 0; k < 5; k++) jeu.zombies.push(mk(8200 + k, 'trainard', p.x + 6 + k * 0.3, p.z + 2, 40));
+  jeu.zombies.push(mk(8300, 'trainard', p.x - 3, p.z - 3, 40));
+  const r1 = J.grenade(jeu, 'moi'), ob = jeu.obus[jeu.obus.length - 1];
+  check(r1.ok && ob && ob.grenade && Math.hypot(ob.x1 - (p.x + 6.6), ob.z1 - (p.z + 2)) < 1, 'la grenade part vers le plus gros groupe');
+  check(J.grenade(jeu, 'moi').raison === 'recharge' && p.grenadeT > 5, `puis se recharge (${p.grenadeT.toFixed(1)} s)`);
+  const avant = jeu.zombies.length; p.vie = p.vieMax = 1e6; evs = avancer(jeu, 50);
+  check(evs.some((e) => e.t === 'boum') && jeu.zombies.length < avant - 3, 'elle explose et emporte le groupe');
+}
+{
+  // le Bunker : les bonus permanents du départ
+  const D0 = J.creer({ arene: 'jardin', graine: 3, attente: 99 }).joueurs[0];
+  const jeu = J.creer({ arene: 'jardin', graine: 3, attente: 99, bonus: { vie: 2, ferraille: 3, degats: 4, arme: 1, grenade: 3 } }), p = jeu.joueurs[0];
+  check(p.vieMax === D0.vieMax + 2 * D.BUNKER.vie.par && p.ferraille === 3 * D.BUNKER.ferraille.par && p.armes[1] && p.main === 1, 'le Bunker : plus de vie, de la ferraille et une arme dès le départ');
+  check(J.multDegats(p) > J.multDegats(D0) * 1.19, 'et des dégâts en plus');
+  check(D.MEDAILLES.parVague > 0 && Object.values(D.BUNKER).every((b) => b.prix.length === b.crans && b.prix.every((x, i) => !i || x > b.prix[i - 1])), 'chaque amélioration du Bunker a un prix par cran, qui monte');
+}
+
 // ─── un joueur automatique sur chaque arène : plusieurs vagues tenues, aucune bloquée ; le temps de calcul ───
 {
   function bot(jeu) {
@@ -179,7 +220,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     const vagues = []; let bloquee = false, ms = 0, pas = 0;
     for (const g of [11, 12, 13]) {
       const jeu = J.creer({ arene: id, graine: g }), t0 = Date.now(); let n = 0, debutVague = 0, v = 0;
-      while (!jeu.fini && n < 60 * 900) { J.pas(jeu, { moi: bot(jeu) }, PAS); n++; if (jeu.vague !== v) { v = jeu.vague; debutVague = jeu.t; } if (jeu.phase === 'vague' && jeu.t - debutVague > 300) { bloquee = true; break; } }
+      while (!jeu.fini && n < 60 * 900) { if (jeu.choix) J.choisirAtout(jeu, jeu.choix.id, jeu.choix.options[0]); J.pas(jeu, { moi: bot(jeu) }, PAS); n++; if (jeu.vague !== v) { v = jeu.vague; debutVague = jeu.t; } if (jeu.phase === 'vague' && jeu.t - debutVague > 300) { bloquee = true; break; } }
       ms += Date.now() - t0; pas += n; vagues.push(jeu.vague);
     }
     check(!bloquee && vagues.every((v) => v >= 3), `${D.ARENES[id].nom} : le joueur automatique tient ${vagues.join(', ')} vagues, aucune ne reste bloquée`);

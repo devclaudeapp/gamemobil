@@ -24,6 +24,15 @@ const ZHUD = (() => {
     crane: '<svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 3 5.8 3 10.5c0 2.8 1.3 4.6 3 5.6V20h3v-2h2v2h2v-2h2v2h3v-3.9c1.7-1 3-2.8 3-5.6C21 5.8 17.5 2 12 2z" fill="#F2F2F2" stroke="#2B2A33" stroke-width="1.6"/><circle cx="8.5" cy="11" r="2.2" fill="#2B2A33"/><circle cx="15.5" cy="11" r="2.2" fill="#2B2A33"/></svg>',
     coeur: '<svg viewBox="0 0 40 40"><path d="M20 35S4 25.5 4 14.5A8 8 0 0 1 20 12a8 8 0 0 1 16 2.5C36 25.5 20 35 20 35z" fill="#E5533D" stroke="#2B2A33" stroke-width="2.5"/><path d="M10 13a4 4 0 0 1 4-3" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".7"/></svg>',
     pause: '<svg viewBox="0 0 40 40"><rect x="11" y="9" width="6" height="22" rx="1.5" fill="#fff"/><rect x="23" y="9" width="6" height="22" rx="1.5" fill="#fff"/></svg>',
+    multi: '<svg viewBox="0 0 40 40"><path d="M6 14h18l-3-4M6 26h18l-3 4" stroke="#2B2A33" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="24" y="11" width="10" height="6" rx="3" fill="#E8C547" stroke="#2B2A33" stroke-width="2"/><rect x="24" y="23" width="10" height="6" rx="3" fill="#E8C547" stroke="#2B2A33" stroke-width="2"/></svg>',
+    perce: '<svg viewBox="0 0 40 40"><circle cx="13" cy="20" r="6" fill="#8DBF6A" stroke="#2B2A33" stroke-width="2"/><circle cx="26" cy="20" r="6" fill="#8DBF6A" stroke="#2B2A33" stroke-width="2"/><path d="M3 20h34" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/><path d="M33 16l4 4-4 4" stroke="#2B2A33" stroke-width="2.5" fill="none"/></svg>',
+    critique: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="#fff" stroke="#2B2A33" stroke-width="3"/><circle cx="20" cy="20" r="6" fill="#E5533D" stroke="#2B2A33" stroke-width="2"/><path d="M20 3v8M20 29v8M3 20h8M29 20h8" stroke="#2B2A33" stroke-width="3"/></svg>',
+    regen: '<svg viewBox="0 0 40 40"><rect x="7" y="13" width="26" height="14" rx="4" fill="#F2D2A9" stroke="#2B2A33" stroke-width="2.5" transform="rotate(-30 20 20)"/><path d="M17 17h6M20 14v6" stroke="#E5533D" stroke-width="3" transform="rotate(-30 20 20)"/></svg>',
+    vitesse: '<svg viewBox="0 0 40 40"><path d="M8 27c6 0 9-2 12-8l3-6 7 3-2 5h5l1 6c-8 2-18 3-26 0z" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M3 14h9M2 20h7" stroke="#2B2A33" stroke-width="2.5" stroke-linecap="round"/></svg>',
+    portee: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="26" height="7" rx="3" fill="#6C6F7D" stroke="#2B2A33" stroke-width="2.5"/><rect x="12" y="9" width="14" height="7" rx="3" fill="#9B6BD6" stroke="#2B2A33" stroke-width="2.5"/><path d="M30 20h7" stroke="#2B2A33" stroke-width="3"/></svg>',
+    butin: '<svg viewBox="0 0 40 40"><path d="M8 16h24l-2 18H10z" fill="#B98E5A" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 16a6 6 0 0 1 12 0" stroke="#2B2A33" stroke-width="2.5" fill="none"/><path d="M20 21l5 3v6l-5 3-5-3v-6z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/></svg>',
+    grenade: '<svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="12" fill="#5E7A3E" stroke="#2B2A33" stroke-width="2.5"/><path d="M11 20h16M11 27h16M19 13v22" stroke="#3E5228" stroke-width="2"/><rect x="15" y="7" width="9" height="6" rx="1.5" fill="#9AA0A8" stroke="#2B2A33" stroke-width="2"/><path d="M24 9c5 0 7 3 6 7" stroke="#2B2A33" stroke-width="2.5" fill="none"/><circle cx="30" cy="17" r="2.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.5"/></svg>',
+    medaille: '<svg viewBox="0 0 24 24"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="#D9534F"/><circle cx="12" cy="15" r="7" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.8"/><path d="M12 11l1.2 2.5 2.7.3-2 1.8.6 2.7-2.5-1.4-2.5 1.4.6-2.7-2-1.8 2.7-.3z" fill="#E0A61E"/></svg>',
     cadenas: '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="#9AA0A8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#9AA0A8" stroke-width="2.4" fill="none"/></svg>',
   };
   // les armes en silhouette (vues de côté)
@@ -36,14 +45,16 @@ const ZHUD = (() => {
     precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
   };
   const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  const NB_CHIFFRES = 40, chiffres = []; let iChiffre = 0, projeter = null;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
   const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
 
   function init(racine, actions) {
-    R = racine; A = actions || {};
+    R = racine; A = actions || {}; projeter = A.projeter || null;
     R.innerHTML = `
       <div class="h-vie"><span class="h-coeur">${ICO.coeur}</span><div class="h-barre"><i></i></div><b class="h-vie-n contour">100</b></div>
+      <div class="h-xp"><span class="h-niv">N1</span><div class="h-xp-barre"><i></i></div></div>
       <canvas class="h-carte" width="132" height="132" aria-label="Mini-carte"></canvas>
       <div class="h-centre">
         <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
@@ -60,17 +71,19 @@ const ZHUD = (() => {
         </div>
         <div class="h-info" hidden></div>
       </div>
-      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button></div></div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button></div></div>
       <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
       <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
-      <div class="h-rouge"></div>`;
+      <div class="h-rouge"></div>
+      <div class="h-degats" aria-hidden="true"></div>
+      <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {},
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -80,6 +93,10 @@ const ZHUD = (() => {
     el.slots.forEach((b, i) => sur(b, () => A.arme && A.arme(i)));
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
+    sur(el.gren, () => A.grenade && A.grenade());
+    el.cartes.addEventListener('click', (ev) => { const b = ev.target.closest('.h-carte-atout'); if (b && A.atout) { ev.preventDefault(); A.atout(b.dataset.atout); } });
+    // les chiffres de dégâts : une réserve d'étiquettes réutilisées
+    for (let k = 0; k < NB_CHIFFRES; k++) { const d = document.createElement('span'); d.className = 'num'; d.hidden = true; el.degats.appendChild(d); chiffres.push({ d, t: 0, x: 0, y: 0, z: 0, dx: 0 }); }
     sur($('.h-poignee'), () => replier(!ouvert));
     try { ouvert = localStorage.getItem('zombies.atelier') !== 'ferme'; } catch (e) { /* rien */ }
     replier(!ouvert ? false : true, true);
@@ -184,7 +201,45 @@ const ZHUD = (() => {
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) el.toast.hidden = true; }
     if (annonceT > 0) { annonceT -= dt; if (annonceT <= 0) el.annonce.hidden = true; }
     if (++carteT % 3 === 0) dessinerCarte(jeu, idMoi);
+    // le niveau et l'expérience
+    const xpf = Math.min(1, j.xp / D.XP.pour(j.niveau)), xw = `${(xpf * 100).toFixed(1)}%`;
+    if (vu.xp !== xw) { vu.xp = xw; el.xp.style.width = xw; }
+    ecrire('niv', el.niv, `N${j.niveau}`);
+    // la grenade : le voile descend pendant le rechargement
+    const gr = j.grenadeT > 0 ? j.grenadeT / Math.max(0.1, ZJEU.rechargeGrenade ? ZJEU.rechargeGrenade(j) : D.GRENADE.recharge) : 0, gk = gr > 0 ? Math.ceil(gr * 20) : 0;
+    if (vu.gren !== gk) { vu.gren = gk; el.grenVoile.style.height = `${Math.min(100, gr * 100)}%`; el.gren.classList.toggle('prete', gk === 0); }
+    // le choix d'un atout (la partie attend)
+    const c = jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null, cc = c ? c.niveau + ':' + c.options.join() : '';
+    if (vu.choix !== cc) {
+      vu.choix = cc; el.choix.hidden = !c;
+      if (c) {
+        el.choixT.textContent = `NIVEAU ${c.niveau} !`;
+        el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');
+      }
+    }
+    // les chiffres de dégâts : un par zombie touché et par image (les plombs d'un même coup s'additionnent), les critiques en grand
+    if (evs && projeter) {
+      const parCible = new Map();
+      for (const e of evs) {
+        if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
+        else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
+        else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
+      }
+      for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
+    }
+    for (const c2 of chiffres) {
+      if (c2.t <= 0) continue; c2.t -= dt;
+      if (c2.t <= 0) { c2.d.hidden = true; continue; }
+      const k = 1 - c2.t / c2.duree, p2 = projeter(c2.x, c2.y + k * 1.2, c2.z);
+      c2.d.style.transform = `translate(${(p2[0] + c2.dx).toFixed(1)}px, ${p2[1].toFixed(1)}px) translate(-50%, -50%) scale(${(k < 0.15 ? 0.6 + k * 4 : 1.2 - k * 0.3).toFixed(2)})`;
+      c2.d.style.opacity = k > 0.6 ? ((1 - k) / 0.4).toFixed(2) : '1';
+    }
   }
-  function reinit() { vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  function chiffre(x, y, z, texte, classe) {
+    const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
+    c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;
+    c.d.textContent = texte; c.d.className = 'num' + (classe ? ' ' + classe : ''); c.d.hidden = false;
+  }
+  function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
+  return { init, maj, annonce, toast, reinit, chiffre, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
 })();

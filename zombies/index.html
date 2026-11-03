@@ -193,12 +193,77 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .h-annonce b { font-size: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { .h-annonce.vu, .h-toast.vu, .h-serie.pulse, .fin-record { animation: none; } }
+
+/* ─── le niveau et l'expérience (sous la vie) ─── */
+.h-xp { position: absolute; left: calc(52px + var(--hg)); top: calc(50px + var(--ht)); display: flex; align-items: center; gap: 6px; }
+.h-niv { display: inline-grid; place-items: center; min-width: 34px; height: 20px; padding: 0 6px; border-radius: 999px; background: #8E6BD1; border: 2px solid var(--encre); color: #fff; font: 700 13px/1 var(--titre); }
+.h-xp-barre { width: min(18vw, 150px); height: 9px; border-radius: 6px; background: var(--pastille); border: 2px solid var(--encre); overflow: hidden; }
+.h-xp-barre i { display: block; height: 100%; width: 0; background: linear-gradient(#C9B2FF, #8E6BD1); transition: width .2s linear; }
+.h-carte { top: calc(80px + var(--ht)); }
+@media (max-height: 430px) { .h-carte { top: calc(76px + var(--ht)); } }
+
+/* ─── la grenade, à droite des armes ─── */
+.h-grenade { position: relative; width: 66px; height: 66px; align-self: center; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); padding: 0; overflow: hidden; display: grid; place-items: center; box-shadow: 0 4px 0 rgba(31, 37, 51, .35); }
+.h-grenade .ico { width: 40px; height: 40px; position: relative; z-index: 1; }
+.h-grenade.prete { background: linear-gradient(#9BD86A, #4F9A34); }
+.h-grenade:active { transform: translateY(2px); }
+.h-gren-voile { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(15, 18, 26, .65); z-index: 2; }
+@media (max-height: 430px) { .h-grenade { width: 58px; height: 58px; } .h-grenade .ico { width: 34px; height: 34px; } }
+
+/* ─── les chiffres de dégâts ─── */
+.h-degats { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.h-degats .num { position: absolute; left: 0; top: 0; font: 700 18px/1 var(--titre); color: #fff; white-space: nowrap; will-change: transform, opacity;
+  text-shadow: 0 2px 0 var(--encre), 0 -1px 0 var(--encre), 1.5px 0 0 var(--encre), -1.5px 0 0 var(--encre); }
+.h-degats .num.crit { color: #FFB03A; font-size: 27px; }
+.h-degats .num.crit::after { content: "!"; }
+.h-degats .num.moi { color: #FF6B5B; font-size: 22px; }
+.h-degats .num.niveau { color: #D7C4FF; font-size: 22px; letter-spacing: .03em; }
+
+/* ─── le choix d'un atout (la partie attend) ─── */
+.h-choix { position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: 4px; background: rgba(20, 16, 40, .55); pointer-events: auto; padding: 12px calc(12px + var(--hd)) 12px calc(12px + var(--hg)); }
+.h-choix-t { font-size: 34px; color: #D7C4FF !important; }
+.h-choix-sous { font-size: 16px; margin-bottom: 8px; }
+.h-cartes { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.h-carte-atout { position: relative; width: 170px; min-height: 172px; padding: 14px 12px 12px; border-radius: 18px; border: 3px solid var(--encre); background: var(--creme); color: var(--encre); display: grid; justify-items: center; align-content: start; gap: 6px; text-align: center; box-shadow: 0 5px 0 #6E58B0; animation: carte .25s ease backwards; }
+.h-carte-atout:nth-child(2) { animation-delay: .06s; } .h-carte-atout:nth-child(3) { animation-delay: .12s; }
+.h-carte-atout:active { transform: translateY(3px); box-shadow: 0 2px 0 #6E58B0; }
+.h-carte-atout .ico { width: 52px; height: 52px; }
+.h-carte-atout b { font: 700 18px/1.1 var(--titre); }
+.h-carte-atout small { font: 700 13px/1.3 var(--texte); color: #5A5F6B; }
+.h-carte-atout .rangs { font-size: 12px; letter-spacing: 2px; color: #8E6BD1; }
+.h-carte-atout .rangs i { font-style: normal; color: #E0A61E; }
+.h-carte-atout kbd { position: absolute; top: 6px; right: 8px; font: 700 11px/1 var(--texte); color: #9AA0A8; }
+@keyframes carte { from { opacity: 0; transform: translateY(16px) scale(.9); } }
+@media (max-height: 430px) { .h-carte-atout { width: 160px; min-height: 150px; padding: 10px; gap: 4px; } .h-carte-atout .ico { width: 42px; height: 42px; } .h-choix-t { font-size: 28px; } }
+
+/* ─── en portrait : « Tourne ton téléphone » (le jeu se joue en paysage) ─── */
+#tourne { position: fixed; inset: 0; z-index: 20; display: none; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; background: #1F2533; color: #fff; }
+#tourne svg { width: 120px; height: 120px; animation: tourne 2.2s ease-in-out infinite; }
+#tourne b { font: 700 26px/1.2 var(--titre); }
+#tourne p { margin: 0; max-width: 300px; color: #C9CED8; font-size: 15px; }
+@keyframes tourne { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (max-width: 900px) { #tourne { display: grid; } }
+
+/* ─── le Bunker et les médailles ─── */
+.medailles { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 247, 236, .92); border: 2.5px solid var(--encre); font: 700 17px/1 var(--titre); }
+.medailles svg, .prix-m svg { width: 20px; height: 20px; }
+.bunker { width: min(720px, 100%); max-height: 100%; overflow-y: auto; }
+.bunker-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.amelio { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; padding: 10px 12px; border-radius: 14px; background: #fff; text-align: left; }
+.amelio b { font: 700 16px/1.15 var(--titre); }
+.amelio small { grid-column: 1; color: #5A5F6B; font-size: 12.5px; }
+.amelio .crans { grid-column: 1; color: #8E6BD1; font-size: 12px; letter-spacing: 2px; }
+.amelio button { grid-column: 2; grid-row: 1 / span 3; min-width: 72px; min-height: 44px; border-radius: 12px; border: 2.5px solid var(--encre); background: var(--jaune); font: 700 16px/1 var(--titre); display: inline-flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 3px 0 var(--jaune-sombre); }
+.amelio button:disabled { background: #E3E6EA; box-shadow: none; color: #8A909A; }
+.fin-medailles { margin: 0; font: 700 17px/1.3 var(--titre); }
+.bunker .medailles { justify-self: center; }
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="scene" aria-hidden="true"></canvas>
   <div id="zone" class="joy-zone" aria-hidden="true"></div>
+<div id="tourne" role="alert"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="14" width="44" height="92" rx="9" fill="#2E3646" stroke="#FFD84A" stroke-width="5"/><circle cx="60" cy="94" r="4" fill="#FFD84A"/></svg><b>Tourne ton téléphone</b><p>Dernier Rempart se joue à l’horizontale. La partie t’attend en pause.</p></div>
   <div id="hud" hidden></div>
   <p id="sans3d" hidden>Ce navigateur n’affiche pas la 3D (WebGL) : Dernier Rempart ne peut pas démarrer ici.</p>
 
@@ -207,8 +272,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
       <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
       <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
+      <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
       <div class="boutons">
         <button type="button" class="gros" id="b-jouer">Jouer</button>
+        <button type="button" class="moyen" id="b-bunker">Bunker</button>
         <button type="button" class="moyen" id="b-reglages">Réglages</button>
         <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
       </div>
@@ -231,9 +298,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <div class="carte-ecran">
       <h2>Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
+      <p class="fin-medailles"></p>
       <dl class="fin-chiffres"></dl>
       <button type="button" class="gros" id="b-rejouer">Rejouer</button>
       <button type="button" class="moyen" id="b-menu">Menu</button>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-bunker" hidden>
+    <div class="carte-ecran bunker">
+      <h2>Le Bunker</h2>
+      <p class="resume">Les médailles gagnées en jouant achètent des améliorations pour toutes tes parties.</p>
+      <div class="medailles" id="bunker-medailles"></div>
+      <div class="bunker-liste"></div>
+      <button type="button" class="gros" id="b-bunker-ok">Retour</button>
     </div>
   </section>
 
@@ -1027,6 +1105,39 @@ const PSONS = (() => {
     defense: { nom: 'Atelier',     prix: 45, facteur: 1.7, crans: 5, par: 0.2,  desc: '+20 % de vie et de dégâts aux défenses' },
   };
 
+  // ─── l'expérience de la partie : chaque zombie abattu en donne (ses points / 10) ; chaque niveau propose trois atouts au choix ───
+  const XP = { parPoint: 0.1, pour: (n) => Math.round(6 + n * 5 + n * n * 0.9) }; // l'expérience qu'il faut pour passer du niveau n au suivant
+  // les atouts (rangs cumulables, jusqu'à max) : par = l'effet d'un rang
+  const ATOUTS = {
+    degats:   { nom: 'Gros calibre',     desc: '+12 % de dégâts',                      max: 6, par: 0.12, ico: 'degats' },
+    cadence:  { nom: 'Gâchette folle',   desc: '+10 % de cadence de tir',              max: 6, par: 0.10, ico: 'cadence' },
+    multi:    { nom: 'Tir double',       desc: 'Une balle de plus à chaque tir',       max: 2, par: 1,    ico: 'multi' },
+    perce:    { nom: 'Balles perforantes', desc: 'Chaque balle traverse un zombie de plus', max: 3, par: 1, ico: 'perce' },
+    critique: { nom: 'Œil de lynx',      desc: '+8 % de chances de coup critique (×2)', max: 4, par: 0.08, ico: 'critique' },
+    vie:      { nom: 'Cuir épais',       desc: '+25 points de vie (et soigne)',        max: 5, par: 25,   ico: 'vie' },
+    regen:    { nom: 'Pansements',       desc: 'Récupère 1,5 point de vie par seconde', max: 3, par: 1.5, ico: 'regen' },
+    vitesse:  { nom: 'Baskets',          desc: '+8 % de vitesse de course',            max: 3, par: 0.08, ico: 'vitesse' },
+    portee:   { nom: 'Lunette',          desc: '+12 % de portée',                      max: 3, par: 0.12, ico: 'portee' },
+    aimant:   { nom: 'Gros aimant',      desc: 'Ramasse la ferraille de 1,5 m plus loin', max: 3, par: 1.5, ico: 'aimant' },
+    butin:    { nom: 'Fouilleur',        desc: '+30 % de ferraille sur les zombies',   max: 3, par: 0.3,  ico: 'butin' },
+    grenade:  { nom: 'Artificier',       desc: 'Grenades plus fortes, rechargées plus vite', max: 3, par: 0.2, ico: 'grenade' },
+  };
+  // les coups critiques (balles du survivant) ; la grenade (un bouton : elle part vers le plus gros groupe de zombies)
+  const CRITIQUE = { chance: 0.05, mult: 2 };
+  const GRENADE = { recharge: 9, degats: 110, souffle: 2.9, portee: 10, vol: 0.55 };
+
+  // ─── le Bunker : des améliorations permanentes, achetées entre les parties avec les médailles gagnées en jouant ───
+  // médailles d'une partie : 2 par vague atteinte, 1 par tranche de 25 zombies, 5 par boss abattu
+  const MEDAILLES = { parVague: 2, parZombies: 25, parBoss: 5 };
+  const BUNKER = {
+    vie:       { nom: 'Gilet renforcé',   desc: '+10 points de vie au départ',       crans: 5, prix: [6, 12, 20, 30, 45], par: 10 },
+    ferraille: { nom: 'Caisse à outils',  desc: '+8 de ferraille au départ',         crans: 5, prix: [5, 10, 16, 24, 35], par: 8 },
+    degats:    { nom: 'Munitions maison', desc: '+5 % de dégâts',                    crans: 5, prix: [8, 15, 25, 38, 55], par: 0.05 },
+    xp:        { nom: 'Carnet de survie', desc: '+10 % d’expérience',                crans: 5, prix: [6, 12, 20, 30, 45], par: 0.1 },
+    grenade:   { nom: 'Poudre sèche',     desc: '−10 % de recharge des grenades',    crans: 3, prix: [8, 18, 32], par: 0.1 },
+    arme:      { nom: 'Planque d’armes',  desc: 'Commence avec une arme trouvée',    crans: 1, prix: [40], par: 1 },
+  };
+
   // ─── les vagues ───
   const BOSS = ['golem', 'loupgarou', 'golemglace', 'vampire'];
   // nombre de zombies de la vague n, combien peuvent être debout en même temps, la pause avant la suivante, le renfort de vie et de vitesse
@@ -1035,7 +1146,7 @@ const PSONS = (() => {
     simultanes: (n) => Math.min(42, 14 + n * 3),
     cadence: (n) => Math.min(6, 1.4 + n * 0.35), // zombies qui sortent par seconde
     pause: 9,           // secondes entre deux vagues (on peut passer)
-    vie: (n) => 1 + Math.max(0, n - 1) * 0.11,
+    vie: (n) => 1 + Math.max(0, n - 1) * 0.15,
     vitesse: (n) => 1 + Math.min(0.35, Math.max(0, n - 1) * 0.025),
     boss: (n) => (n % 5 === 0 ? BOSS[(n / 5 - 1) % BOSS.length] : null), // un boss toutes les cinq vagues, à tour de rôle, puis on recommence
     caisse: (n) => (n === 1 ? 1 : n % 2 === 0 ? 2 : 1), // caisses d'armes posées au début de la vague
@@ -1097,7 +1208,7 @@ const PSONS = (() => {
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
   const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
 
-  return { BOSS, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -1228,10 +1339,14 @@ const PSONS = (() => {
      ZJEU.ameliorer(jeu, id, type)   → { ok, raison? }
      ZJEU.changerArme(jeu, id, i)    → bool              (emplacement 0 : le pistolet ; 1 : l'arme trouvée)
      ZJEU.passer(jeu)                                    lance la vague suivante sans attendre la fin de la pause
+     ZJEU.grenade(jeu, id)           → { ok, raison? }   lance une grenade vers le plus gros groupe de zombies (rechargement)
+     ZJEU.choisirAtout(jeu, id, k)   → bool              au passage d'un niveau, jeu.choix = { id, options: [3 atouts] } : la partie attend ce choix
+     creer({ ..., bonus })           les améliorations du Bunker : { vie, ferraille, degats, xp, grenade, arme } (des crans, voir ZDONNEES.BUNKER)
      ZJEU.prixDefense / prixAmelioration / maxDefenses / compteDefenses : pour l'interface
    Événements (jeu.evs, vidés à chaque pas) : tir { de, arme, x, z, a, l, touche }, touche { cible, x, z, degats }, mort { id, type, x, z, points },
    blesse { id, degats }, ramasse { id, quoi, valeur, arme? }, construit { type, x, z }, casse { type, x, z }, boum { x, z, r }, crachat { x, z },
-   vague { n, total }, vagueFinie { n, prime }, serie { mult }, fin { score, vague, tues }, arme { id, arme }, vide { id }.
+   vague { n, total }, vagueFinie { n, prime }, serie { mult }, fin { score, vague, tues }, arme { id, arme }, vide { id },
+   niveau { id, niveau }, atout { id, atout, rang }, grenade { id, x, z }. Les touches portent crit (coup critique) et de (le tireur).
    Unités : mètres, secondes. Angles : 0 vers +x, sens trigonométrique dans le plan (x, z) (a = atan2(dz, dx)). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('../src-poncin/nav.js'));
@@ -1272,8 +1387,16 @@ const PSONS = (() => {
         vie: D.JOUEUR.vie, vieMax: D.JOUEUR.vie, vivant: true, invul: 0,
         armes: [{ id: D.ARME_DE_BASE, mun: Infinity }, null], main: 0, attente: 0, cible: 0, visee: 0,
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
+        xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
+        bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}),
       });
     });
+    // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
+    for (const j of jeu.joueurs) {
+      const B = D.BUNKER, b = j.bonus;
+      j.vieMax += b.vie * B.vie.par; j.vie = j.vieMax; j.ferraille += b.ferraille * B.ferraille.par;
+      if (b.arme > 0) { const l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= 2), id = l[Math.floor(rnd() * l.length) % l.length]; j.armes[1] = { id, mun: D.ARMES[id].munitions }; j.main = 1; }
+    }
     return jeu;
   }
 
@@ -1281,10 +1404,13 @@ const PSONS = (() => {
   const nouvelId = (jeu) => jeu.prochainId++;
   const ev = (jeu, e) => { jeu.evs.push(e); };
   const niveau = (j, type) => j.niveaux[type] || 0;
-  const multDegats = (j) => 1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par;
-  const multCadence = (j) => 1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par;
+  const rang = (j, k) => j.atouts[k] || 0;
+  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par);
+  const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
+  const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
+  const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
-  const aimant = (j) => D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par;
+  const aimant = (j) => D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par;
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
   function compteDefenses(jeu, type) { let n = 0; for (const d of jeu.defenses) if (d.type === type) n++; return n; }
   const prixDefense = (jeu, type) => (D.DEFENSES[type] ? D.DEFENSES[type].prix : Infinity);
@@ -1342,10 +1468,12 @@ const PSONS = (() => {
 
   // ─── les tirs (balles instantanées) ───
   const _touches = [];
-  function rafale(jeu, de, x, z, a, arme, mult, estJoueur) {
-    const rnd = jeu.rnd;
-    for (let b = 0; b < arme.balles; b++) {
-      const ab = a + (rnd() - 0.5) * arme.dispersion * (arme.balles > 1 ? 1 : 2);
+  function rafale(jeu, de, x, z, a, arme, mult, estJoueur, tireur) {
+    const rnd = jeu.rnd, extra = tireur ? rang(tireur, 'multi') : 0, nb = arme.balles + extra;
+    for (let b = 0; b < nb; b++) {
+      // les balles du tir double partent en éventail autour de l'axe
+      const eventail = extra && arme.balles === 1 ? (b - (nb - 1) / 2) * 0.13 : 0;
+      const ab = a + eventail + (rnd() - 0.5) * arme.dispersion * (arme.balles > 1 ? 1 : 2);
       const dx = Math.cos(ab), dz = Math.sin(ab);
       const portee = jeu.monde.tir(x, z, dx, dz, arme.portee);
       // les zombies sur le rayon, du plus proche au plus loin
@@ -1360,8 +1488,9 @@ const PSONS = (() => {
       let l = portee, n = 0;
       for (const [t, zb] of _touches) {
         if (n > arme.perce) break;
-        const deg = arme.degats * mult * (estJoueur && n > 0 ? 0.7 : 1);
-        blesserZombie(jeu, zb, deg, dx * arme.recul, dz * arme.recul, de);
+        const crit = !!tireur && rnd() < chanceCritique(tireur);
+        const deg = arme.degats * mult * (estJoueur && n > 0 ? 0.7 : 1) * (crit ? D.CRITIQUE.mult : 1);
+        blesserZombie(jeu, zb, deg, dx * arme.recul, dz * arme.recul, de, crit);
         n++; l = t;
       }
       if (n > arme.perce) { /* arrêtée par le dernier zombie traversé */ } else l = portee;
@@ -1369,12 +1498,12 @@ const PSONS = (() => {
       ev(jeu, { t: 'tir', de, arme: arme.classe, cle: arme.cle || '', x, z, a: ab, l, touche: n > 0, b });
     }
   }
-  function blesserZombie(jeu, zb, deg, px, pz, de) {
+  function blesserZombie(jeu, zb, deg, px, pz, de, crit) {
     if (zb.vie <= 0) return;
     zb.vie -= deg; zb.flash = 0.12;
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
-    ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.round(deg) });
+    ev(jeu, { t: 'touche', cible: zb.id, x: zb.x, z: zb.z, degats: Math.max(1, Math.round(deg)), crit: !!crit, de, boss: !!D.ZOMBIES[zb.type].boss });
     if (zb.vie <= 0) tuer(jeu, zb, de);
   }
   function tuer(jeu, zb, de) {
@@ -1388,12 +1517,13 @@ const PSONS = (() => {
     // le tueur (un survivant, ou une défense : les points vont au plus proche des survivants)
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
-    if (j) { j.score += points; j.tues++; }
+    if (j) { j.score += points; j.tues++; if (Z.boss) j.boss++; gagnerXp(jeu, j, Z.points * D.XP.parPoint); }
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
     // ce qu'il laisse : de la ferraille (en quelques morceaux), parfois un soin
-    let reste = Z.ferraille; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
+    const fouille = j ? rang(j, 'butin') * D.ATOUTS.butin.par : 0;
+    let reste = Math.floor(Z.ferraille * (1 + fouille) + rnd() * 0.999 * (Z.ferraille * fouille % 1 ? 1 : 0)); const total = reste; const morceaux = Math.min(5, Math.max(1, Math.ceil(reste / 5)));
     for (let k = 0; k < morceaux && jeu.objets.length < MAX_OBJETS; k++) {
-      const v = k === morceaux - 1 ? reste : Math.ceil(Z.ferraille / morceaux); reste -= v;
+      const v = k === morceaux - 1 ? reste : Math.ceil(total / morceaux); reste -= v;
       const a = rnd() * TAU, r = morceaux > 1 ? 0.3 + rnd() * 0.6 : 0;
       jeu.objets.push({ id: nouvelId(jeu), type: 'ferraille', x: zb.x + Math.cos(a) * r, z: zb.z + Math.sin(a) * r, valeur: v, age: 0, vole: false });
     }
@@ -1401,6 +1531,48 @@ const PSONS = (() => {
     if (Z.boss) poserCaisse(jeu);
     ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss });
   }
+  // ─── l'expérience, les niveaux et les atouts ───
+  function gagnerXp(jeu, j, x) {
+    j.xp += x * (1 + j.bonus.xp * D.BUNKER.xp.par);
+    while (j.xp >= D.XP.pour(j.niveau)) { j.xp -= D.XP.pour(j.niveau); j.niveau++; j.choixAttente++; ev(jeu, { t: 'niveau', id: j.id, niveau: j.niveau }); }
+    proposer(jeu);
+  }
+  function proposer(jeu) { // trois atouts tirés au hasard parmi ceux qui ne sont pas au maximum
+    if (jeu.choix) return;
+    const j = jeu.joueurs.find((k) => k.choixAttente > 0 && k.vivant); if (!j) return;
+    const l = Object.keys(D.ATOUTS).filter((k) => rang(j, k) < D.ATOUTS[k].max), options = [];
+    while (options.length < 3 && l.length) options.push(l.splice(Math.floor(jeu.rnd() * l.length) % l.length, 1)[0]);
+    if (!options.length) { j.choixAttente = 0; return; }
+    jeu.choix = { id: j.id, options, niveau: j.niveau - j.choixAttente + 1 };
+  }
+  function choisirAtout(jeu, idJ, k) {
+    const c = jeu.choix; if (!c || c.id !== idJ || !c.options.includes(k)) return false;
+    const j = trouverJoueur(jeu, idJ), A = D.ATOUTS[k];
+    j.atouts[k] = rang(j, k) + 1; j.choixAttente = Math.max(0, j.choixAttente - 1);
+    if (k === 'vie') { j.vieMax += A.par; j.vie = Math.min(j.vieMax, j.vie + A.par); }
+    jeu.choix = null; ev(jeu, { t: 'atout', id: j.id, atout: k, rang: j.atouts[k] });
+    proposer(jeu);
+    return true;
+  }
+  function grenade(jeu, idJ) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !j.vivant || jeu.fini) return { ok: false, raison: 'mort' };
+    if (jeu.choix) return { ok: false, raison: 'choix' };
+    if (j.grenadeT > 0) return { ok: false, raison: 'recharge' };
+    // la cible : le zombie qui a le plus de voisins à portée (sinon droit devant)
+    const G = D.GRENADE, p2 = G.portee * G.portee, s2 = G.souffle * G.souffle; let cible = null, score = -1;
+    for (const zb of jeu.zombies) {
+      if ((zb.x - j.x) ** 2 + (zb.z - j.z) ** 2 > p2) continue;
+      let n = 0; for (const o of jeu.zombies) if ((o.x - zb.x) ** 2 + (o.z - zb.z) ** 2 < s2) n++;
+      if (n > score) { score = n; cible = zb; }
+    }
+    const x1 = cible ? cible.x : j.x + Math.cos(j.angle) * 6, z1 = cible ? cible.z : j.z + Math.sin(j.angle) * 6;
+    const k = 1 + rang(j, 'grenade') * D.ATOUTS.grenade.par;
+    jeu.obus.push({ x0: j.x, z0: j.z, x1, z1, t: 0, duree: G.vol, degats: G.degats * k * multDegats(j), souffle: G.souffle * (1 + rang(j, 'grenade') * 0.1), de: j.id, grenade: true });
+    j.grenadeT = rechargeGrenade(j);
+    ev(jeu, { t: 'grenade', id: j.id, x: x1, z: z1 });
+    return { ok: true };
+  }
+
   function explosion(jeu, x, z, r, degats, de) {
     for (const zb of jeu.zombies) {
       if (zb.vie <= 0) continue;
@@ -1415,6 +1587,7 @@ const PSONS = (() => {
   function pas(jeu, entrees, dt) {
     dt = dt || 1 / 60; jeu.evs.length = 0;
     if (jeu.fini) return jeu.evs;
+    if (jeu.choix) return jeu.evs; // un niveau passé : la partie attend le choix d'un atout
     jeu.t += dt; jeu.n++; jeu.navPas = 0;
     entrees = entrees || {};
     // la pause entre deux vagues
@@ -1457,14 +1630,16 @@ const PSONS = (() => {
     if (j.invul > 0) j.invul -= dt;
     // le déplacement
     let mx = e ? +e.mx || 0 : 0, mz = e ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
-    const v = D.JOUEUR.vitesse;
+    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par);
+    if (j.grenadeT > 0) j.grenadeT = Math.max(0, j.grenadeT - dt);
+    if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
     j.bouge = l > 0.05 ? Math.min(1, l) : 0;
     // les défenses sont dures pour lui aussi (sauf les mines)
     for (const d of jeu.defenses) { if (d.type === 'mine') continue; pousserCercle(j, d.x, d.z, D.DEFENSES[d.type].rayon); }
     jeu.monde.pousser(j);
     // la cible : le zombie le plus proche à portée et en vue (relue tous les 0,1 s)
-    const arme = armeDe(j);
+    const base = armeDe(j), arme = Object.assign(_armeJ, base, { portee: base.portee * (1 + rang(j, 'portee') * D.ATOUTS.portee.par), perce: base.perce + rang(j, 'perce') });
     j.cible -= dt;
     if (j.cible <= 0) {
       j.cible = 0.1; j.viseId = 0; let best = arme.portee * arme.portee;
@@ -1485,11 +1660,11 @@ const PSONS = (() => {
       const s = j.armes[j.main];
       j.attente += 1 / (arme.cadence * multCadence(j)); if (j.attente < 0) j.attente = 0;
       const bx = j.x + Math.cos(j.angle) * 0.5, bz = j.z + Math.sin(j.angle) * 0.5;
-      rafale(jeu, j.id, bx, bz, j.angle, Object.assign(_armeTir, arme, { cle: s ? s.id : D.ARME_DE_BASE }), multDegats(j), true);
+      rafale(jeu, j.id, bx, bz, j.angle, Object.assign(_armeTir, arme, { cle: s ? s.id : D.ARME_DE_BASE }), multDegats(j), true, j);
       if (s && s.mun !== Infinity) { s.mun--; if (s.mun <= 0) { j.armes[j.main] = null; j.main = 0; ev(jeu, { t: 'vide', id: j.id }); } }
     }
   }
-  const _armeTir = {};
+  const _armeTir = {}, _armeJ = {};
   function pousserCercle(c, x, z, R) {
     const ex = c.x - x, ez = c.z - z, d2 = ex * ex + ez * ez, m = R + c.rayon; if (d2 >= m * m) return false;
     const d = Math.sqrt(d2) || 1e-6, k = (m - d) / d; c.x += (d2 > 1e-12 ? ex : 1) * k; c.z += (d2 > 1e-12 ? ez : 0) * k; return true;
@@ -1637,7 +1812,7 @@ const PSONS = (() => {
     }
     for (let i = jeu.obus.length - 1; i >= 0; i--) {
       const o = jeu.obus[i]; o.t += dt;
-      if (o.t >= o.duree) { jeu.obus.splice(i, 1); explosion(jeu, o.x1, o.z1, o.souffle, o.degats, 'mortier'); }
+      if (o.t >= o.duree) { jeu.obus.splice(i, 1); explosion(jeu, o.x1, o.z1, o.souffle, o.degats, o.de || 'mortier'); }
     }
   }
 
@@ -1719,7 +1894,7 @@ const PSONS = (() => {
   // ce qu'il reste à tuer dans la vague
   const restants = (jeu) => jeu.aSortir + jeu.zombies.length;
 
-  return { creer, pas, construire, ameliorer, changerArme, passer, restants, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
 
 /* ── src-zombies/modeles.js ── */
@@ -2499,7 +2674,7 @@ const ZRENDU = (() => {
    le doigt se pose n'importe où dans la zone de jeu (hors des boutons du HUD), la base du joystick naît sous lui, le pouce s'en écarte
    de RAYON pixels au plus ; zone morte, courbe un peu exponentielle (mêmes réglages que Poncin). Pointer Events suivis par pointerId,
    touch-action: none. Le tir est automatique (la simulation vise le zombie le plus proche) : seul le déplacement passe par ici.
-   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme ; Échap ou P : pause ; Espace : lancer la vague.
+   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Échap ou P : pause ; Espace : lancer la vague.
    API : ZCONTROLES.init(zone, { surTouche(nom) }), lire() → { mx, mz } (vecteur du monde : x vers l'est, z vers le sud ; longueur ≤ 1),
          activer(bool), reinit(), get joystick() → { actif, x, y } (pour les tests). */
 const ZCONTROLES = (() => {
@@ -2552,6 +2727,8 @@ const ZCONTROLES = (() => {
     if (!enBas || e.repeat || !rappel) return;
     if (e.code === 'Digit1' || e.code === 'Numpad1') rappel('arme0');
     else if (e.code === 'Digit2' || e.code === 'Numpad2') rappel('arme1');
+    else if (e.code === 'Digit3' || e.code === 'Numpad3') rappel('arme2');
+    else if (e.code === 'KeyG' || e.code === 'KeyE') rappel('grenade');
     else if (e.code === 'Escape' || e.code === 'KeyP') rappel('pause');
     else if (e.code === 'Space') { rappel('passer'); if (actif) e.preventDefault(); }
   }
@@ -2623,7 +2800,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -2643,7 +2820,7 @@ const ZSONS = (() => {
           if (mien) P.vibrer(e.arme === 'pompe' || e.arme === 'sniper' ? 18 : 6);
           break;
         }
-        case 'touche': { const t = performance.now(); if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
+        case 'touche': { const t = performance.now(); if (e.crit && e.de === idMoi && t - critT > 120) { critT = t; P.jouer('ding', 0.55); } if (t - toucheT > 60) { toucheT = t; const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) P.jouer('ploc', 0.35 * k, p); } break; }
         case 'mort': { const [k, p] = ecoute(e.x, e.z, 24); if (k > 0.03) { jouer('splat', 0.6 * k + 0.2, p); if (e.boss) jouer('boum', 0.8, p); } break; }
         case 'blesse': if (e.id === idMoi) { P.jouer('blesse', 0.8); P.vibrer(e.degats >= 20 ? 40 : 20); } break;
         case 'tombe': if (e.id === idMoi) { P.jouer('mort', 0.9); P.vibrer([70, 40, 90]); } break;
@@ -2665,6 +2842,8 @@ const ZSONS = (() => {
         case 'vagueFinie': P.jouer('mancheFin', 0.9); break;
         case 'serie': jouer('serie', 0.9, 0, 1 + (e.mult - 2) * 0.2); break;
         case 'fin': P.jouer('defaite', 1); break;
+        case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
+        case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
       }
     }
   }
@@ -2699,6 +2878,15 @@ const ZHUD = (() => {
     crane: '<svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 3 5.8 3 10.5c0 2.8 1.3 4.6 3 5.6V20h3v-2h2v2h2v-2h2v2h3v-3.9c1.7-1 3-2.8 3-5.6C21 5.8 17.5 2 12 2z" fill="#F2F2F2" stroke="#2B2A33" stroke-width="1.6"/><circle cx="8.5" cy="11" r="2.2" fill="#2B2A33"/><circle cx="15.5" cy="11" r="2.2" fill="#2B2A33"/></svg>',
     coeur: '<svg viewBox="0 0 40 40"><path d="M20 35S4 25.5 4 14.5A8 8 0 0 1 20 12a8 8 0 0 1 16 2.5C36 25.5 20 35 20 35z" fill="#E5533D" stroke="#2B2A33" stroke-width="2.5"/><path d="M10 13a4 4 0 0 1 4-3" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".7"/></svg>',
     pause: '<svg viewBox="0 0 40 40"><rect x="11" y="9" width="6" height="22" rx="1.5" fill="#fff"/><rect x="23" y="9" width="6" height="22" rx="1.5" fill="#fff"/></svg>',
+    multi: '<svg viewBox="0 0 40 40"><path d="M6 14h18l-3-4M6 26h18l-3 4" stroke="#2B2A33" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="24" y="11" width="10" height="6" rx="3" fill="#E8C547" stroke="#2B2A33" stroke-width="2"/><rect x="24" y="23" width="10" height="6" rx="3" fill="#E8C547" stroke="#2B2A33" stroke-width="2"/></svg>',
+    perce: '<svg viewBox="0 0 40 40"><circle cx="13" cy="20" r="6" fill="#8DBF6A" stroke="#2B2A33" stroke-width="2"/><circle cx="26" cy="20" r="6" fill="#8DBF6A" stroke="#2B2A33" stroke-width="2"/><path d="M3 20h34" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/><path d="M33 16l4 4-4 4" stroke="#2B2A33" stroke-width="2.5" fill="none"/></svg>',
+    critique: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="#fff" stroke="#2B2A33" stroke-width="3"/><circle cx="20" cy="20" r="6" fill="#E5533D" stroke="#2B2A33" stroke-width="2"/><path d="M20 3v8M20 29v8M3 20h8M29 20h8" stroke="#2B2A33" stroke-width="3"/></svg>',
+    regen: '<svg viewBox="0 0 40 40"><rect x="7" y="13" width="26" height="14" rx="4" fill="#F2D2A9" stroke="#2B2A33" stroke-width="2.5" transform="rotate(-30 20 20)"/><path d="M17 17h6M20 14v6" stroke="#E5533D" stroke-width="3" transform="rotate(-30 20 20)"/></svg>',
+    vitesse: '<svg viewBox="0 0 40 40"><path d="M8 27c6 0 9-2 12-8l3-6 7 3-2 5h5l1 6c-8 2-18 3-26 0z" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M3 14h9M2 20h7" stroke="#2B2A33" stroke-width="2.5" stroke-linecap="round"/></svg>',
+    portee: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="26" height="7" rx="3" fill="#6C6F7D" stroke="#2B2A33" stroke-width="2.5"/><rect x="12" y="9" width="14" height="7" rx="3" fill="#9B6BD6" stroke="#2B2A33" stroke-width="2.5"/><path d="M30 20h7" stroke="#2B2A33" stroke-width="3"/></svg>',
+    butin: '<svg viewBox="0 0 40 40"><path d="M8 16h24l-2 18H10z" fill="#B98E5A" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 16a6 6 0 0 1 12 0" stroke="#2B2A33" stroke-width="2.5" fill="none"/><path d="M20 21l5 3v6l-5 3-5-3v-6z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/></svg>',
+    grenade: '<svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="12" fill="#5E7A3E" stroke="#2B2A33" stroke-width="2.5"/><path d="M11 20h16M11 27h16M19 13v22" stroke="#3E5228" stroke-width="2"/><rect x="15" y="7" width="9" height="6" rx="1.5" fill="#9AA0A8" stroke="#2B2A33" stroke-width="2"/><path d="M24 9c5 0 7 3 6 7" stroke="#2B2A33" stroke-width="2.5" fill="none"/><circle cx="30" cy="17" r="2.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.5"/></svg>',
+    medaille: '<svg viewBox="0 0 24 24"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="#D9534F"/><circle cx="12" cy="15" r="7" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.8"/><path d="M12 11l1.2 2.5 2.7.3-2 1.8.6 2.7-2.5-1.4-2.5 1.4.6-2.7-2-1.8 2.7-.3z" fill="#E0A61E"/></svg>',
     cadenas: '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="#9AA0A8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#9AA0A8" stroke-width="2.4" fill="none"/></svg>',
   };
   // les armes en silhouette (vues de côté)
@@ -2711,14 +2899,16 @@ const ZHUD = (() => {
     precision: '<svg viewBox="0 0 64 32"><path d="M2 15l14-4h46v4H40l-3 4H24l-3 6h-7l2-7H2z" fill="#9B6BD6" stroke="#1F2533" stroke-width="2.5" stroke-linejoin="round"/><rect x="24" y="6" width="14" height="5" rx="2" fill="#2B2A33"/></svg>',
   };
   const DEFS = ['tourelle', 'barricade', 'mine', 'mortier', 'epouvantail'], AMS = ['degats', 'cadence', 'vie', 'aimant', 'defense'];
+  const NB_CHIFFRES = 40, chiffres = []; let iChiffre = 0, projeter = null;
   let R = null, A = null, el = {}, vu = {}, carteFond = null, carteJeu = null, carteT = 0, rougeur = 0, toastT = 0, annonceT = 0, ouvert = true;
   const $ = (s) => R.querySelector(s);
   const ecrire = (cle, e, v, attr) => { if (vu[cle] === v) return; vu[cle] = v; if (attr) e.setAttribute(attr, v); else e.textContent = v; };
 
   function init(racine, actions) {
-    R = racine; A = actions || {};
+    R = racine; A = actions || {}; projeter = A.projeter || null;
     R.innerHTML = `
       <div class="h-vie"><span class="h-coeur">${ICO.coeur}</span><div class="h-barre"><i></i></div><b class="h-vie-n contour">100</b></div>
+      <div class="h-xp"><span class="h-niv">N1</span><div class="h-xp-barre"><i></i></div></div>
       <canvas class="h-carte" width="132" height="132" aria-label="Mini-carte"></canvas>
       <div class="h-centre">
         <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
@@ -2735,17 +2925,19 @@ const ZHUD = (() => {
         </div>
         <div class="h-info" hidden></div>
       </div>
-      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button></div></div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button></div></div>
       <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
       <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
-      <div class="h-rouge"></div>`;
+      <div class="h-rouge"></div>
+      <div class="h-degats" aria-hidden="true"></div>
+      <div class="h-choix" hidden role="dialog" aria-label="Choisis un atout"><div class="h-choix-t contour">NIVEAU 2 !</div><div class="h-choix-sous contour">Choisis un atout</div><div class="h-cartes"></div></div>`;
     el = {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {},
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -2755,6 +2947,10 @@ const ZHUD = (() => {
     el.slots.forEach((b, i) => sur(b, () => A.arme && A.arme(i)));
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
+    sur(el.gren, () => A.grenade && A.grenade());
+    el.cartes.addEventListener('click', (ev) => { const b = ev.target.closest('.h-carte-atout'); if (b && A.atout) { ev.preventDefault(); A.atout(b.dataset.atout); } });
+    // les chiffres de dégâts : une réserve d'étiquettes réutilisées
+    for (let k = 0; k < NB_CHIFFRES; k++) { const d = document.createElement('span'); d.className = 'num'; d.hidden = true; el.degats.appendChild(d); chiffres.push({ d, t: 0, x: 0, y: 0, z: 0, dx: 0 }); }
     sur($('.h-poignee'), () => replier(!ouvert));
     try { ouvert = localStorage.getItem('zombies.atelier') !== 'ferme'; } catch (e) { /* rien */ }
     replier(!ouvert ? false : true, true);
@@ -2859,9 +3055,47 @@ const ZHUD = (() => {
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) el.toast.hidden = true; }
     if (annonceT > 0) { annonceT -= dt; if (annonceT <= 0) el.annonce.hidden = true; }
     if (++carteT % 3 === 0) dessinerCarte(jeu, idMoi);
+    // le niveau et l'expérience
+    const xpf = Math.min(1, j.xp / D.XP.pour(j.niveau)), xw = `${(xpf * 100).toFixed(1)}%`;
+    if (vu.xp !== xw) { vu.xp = xw; el.xp.style.width = xw; }
+    ecrire('niv', el.niv, `N${j.niveau}`);
+    // la grenade : le voile descend pendant le rechargement
+    const gr = j.grenadeT > 0 ? j.grenadeT / Math.max(0.1, ZJEU.rechargeGrenade ? ZJEU.rechargeGrenade(j) : D.GRENADE.recharge) : 0, gk = gr > 0 ? Math.ceil(gr * 20) : 0;
+    if (vu.gren !== gk) { vu.gren = gk; el.grenVoile.style.height = `${Math.min(100, gr * 100)}%`; el.gren.classList.toggle('prete', gk === 0); }
+    // le choix d'un atout (la partie attend)
+    const c = jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null, cc = c ? c.niveau + ':' + c.options.join() : '';
+    if (vu.choix !== cc) {
+      vu.choix = cc; el.choix.hidden = !c;
+      if (c) {
+        el.choixT.textContent = `NIVEAU ${c.niveau} !`;
+        el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');
+      }
+    }
+    // les chiffres de dégâts : un par zombie touché et par image (les plombs d'un même coup s'additionnent), les critiques en grand
+    if (evs && projeter) {
+      const parCible = new Map();
+      for (const e of evs) {
+        if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
+        else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
+        else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
+      }
+      for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
+    }
+    for (const c2 of chiffres) {
+      if (c2.t <= 0) continue; c2.t -= dt;
+      if (c2.t <= 0) { c2.d.hidden = true; continue; }
+      const k = 1 - c2.t / c2.duree, p2 = projeter(c2.x, c2.y + k * 1.2, c2.z);
+      c2.d.style.transform = `translate(${(p2[0] + c2.dx).toFixed(1)}px, ${p2[1].toFixed(1)}px) translate(-50%, -50%) scale(${(k < 0.15 ? 0.6 + k * 4 : 1.2 - k * 0.3).toFixed(2)})`;
+      c2.d.style.opacity = k > 0.6 ? ((1 - k) / 0.4).toFixed(2) : '1';
+    }
   }
-  function reinit() { vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
-  return { init, maj, annonce, toast, reinit, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
+  function chiffre(x, y, z, texte, classe) {
+    const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
+    c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;
+    c.d.textContent = texte; c.d.className = 'num' + (classe ? ' ' + classe : ''); c.d.hidden = false;
+  }
+  function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
+  return { init, maj, annonce, toast, reinit, chiffre, ICO, ARME_ICO, get atelierOuvert() { return ouvert; } };
 })();
 
 /* ── src-zombies/ui.js ── */
@@ -2874,7 +3108,7 @@ const ZHUD = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages') };
+  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -2883,6 +3117,7 @@ const ZHUD = (() => {
   }
   const save = lire();
   save.reglages = Object.assign({ son: true, vibre: true, eco: false }, save.reglages || {});
+  save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
   function ecrire() { try { localStorage.setItem(CLE, JSON.stringify(save)); } catch (e) { /* stockage plein ou refusé : la partie continue */ } }
   const debloquee = (id) => { const k = D.ORDRE_ARENES.indexOf(id); if (k <= 0) return true; const prec = D.ORDRE_ARENES[k - 1], r = save.records[prec]; return !!(r && r.vague >= D.DEBLOCAGE[id]); };
@@ -2904,7 +3139,9 @@ const ZHUD = (() => {
     if (ecran !== 'jeu') return;
     if (n === 'pause') { if (enPause) reprendre(); else pause(); }
     else if (enPause) return;
+    else if (jeu.choix && /^arme[012]$/.test(n)) { const k = jeu.choix.options[+n.slice(-1)]; if (k) choisir(k); }
     else if (n === 'passer') ZJEU.passer(jeu);
+    else if (n === 'grenade') lancerGrenade();
     else if (n === 'arme0' || n === 'arme1') ZJEU.changerArme(jeu, idMoi, +n.slice(-1));
   } });
   const raisons = { ferraille: 'Pas assez de ferraille', max: 'Tu en as déjà le maximum pour cette vague', verrou: 'Pas encore : plus tard dans la partie', place: 'Pas de place ici : écarte-toi des murs', mort: '' };
@@ -2914,7 +3151,12 @@ const ZHUD = (() => {
     arme(i) { if (jeu && !enPause) ZJEU.changerArme(jeu, idMoi, i); },
     pause() { pause(); },
     passer() { if (jeu && !enPause) ZJEU.passer(jeu); },
+    grenade() { lancerGrenade(); },
+    atout(k) { choisir(k); },
+    projeter: (x, y, z) => rendu.ecranDe(x, z, y),
   });
+  function lancerGrenade() { if (!jeu || enPause) return; const r = ZJEU.grenade(jeu, idMoi); if (!r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
+  function choisir(k) { if (!jeu || enPause || !jeu.choix) return; if (ZJEU.choisirAtout(jeu, idMoi, k)) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
   const geste = () => { try { PSONS.debloquer(); } catch (e) { /* rien */ } };
   window.addEventListener('pointerdown', geste, true); window.addEventListener('keydown', geste, true);
@@ -2927,7 +3169,7 @@ const ZHUD = (() => {
     for (const k in ecrans) ecrans[k].hidden = k !== nom;
     $('#hud').hidden = !(nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'));
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); }
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); }
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -2951,7 +3193,7 @@ const ZHUD = (() => {
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }] });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [{ id: idMoi, pseudo: 'Moi' }], bonus: Object.assign({}, save.meta.bunker) });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -2974,13 +3216,16 @@ const ZHUD = (() => {
     const j = jeu.joueurs[0], r = save.records[arene] || { vague: 0, score: 0, tues: 0, parties: 0 };
     const record = j.score > r.score || jeu.vague > r.vague;
     r.parties++; r.vague = Math.max(r.vague, jeu.vague); r.score = Math.max(r.score, j.score); r.tues = Math.max(r.tues, j.tues);
+    const M = D.MEDAILLES, medailles = jeu.vague * M.parVague + Math.floor(j.tues / M.parZombies) + j.boss * M.parBoss;
+    save.meta.medailles += medailles; save.meta.gagnees += medailles;
     save.records[arene] = r; save.total.parties++; save.total.tues += j.tues; save.total.temps += Math.round(jeu.t); save.derniere = Date.now();
     ecrire();
     const nouvelle = D.ORDRE_ARENES.find((id) => !save['vu_' + id] && debloquee(id) && id !== 'jardin');
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
     $('.fin-chiffres').innerHTML = [
-      ['Vague atteinte', jeu.vague], ['Zombies', j.tues], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
+      ['Vague atteinte', jeu.vague], ['Niveau', j.niveau], ['Zombies', j.tues], ['Boss abattus', j.boss], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
     ].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+    $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${medailles} médaille${medailles > 1 ? 's' : ''} pour le Bunker`;
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
@@ -2989,9 +3234,26 @@ const ZHUD = (() => {
   }
   function quitter() { jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
 
+  // ─── le Bunker : les améliorations permanentes ───
+  function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; }
+  function remplirBunker() {
+    majMedailles();
+    $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
+      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null;
+      return `<div class="amelio"><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
+        <button type="button" data-bunker="${k}" ${prix == null || save.meta.medailles < prix ? 'disabled' : ''} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
+    }).join('');
+  }
+  $('.bunker-liste').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-bunker]'); if (!b || b.disabled) return;
+    const k = b.dataset.bunker, B = D.BUNKER[k], n = save.meta.bunker[k] || 0; if (n >= B.crans || save.meta.medailles < B.prix[n]) return;
+    save.meta.medailles -= B.prix[n]; save.meta.bunker[k] = n + 1; ecrire(); remplirBunker();
+    try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
+  });
+
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
-  clic('#b-jouer', () => demarrer(arene));
+  clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
   clic('#b-reprendre', reprendre);
   clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } demarrer(arene); });
   clic('#b-quitter', quitter);
@@ -3002,6 +3264,8 @@ const ZHUD = (() => {
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
+  clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
+  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;
@@ -3012,6 +3276,12 @@ const ZHUD = (() => {
   if (window.ZOMBIES_ACCUEIL) $('#b-accueil').href = window.ZOMBIES_ACCUEIL;
 
   // en arrière-plan : pause (et plus d'images)
+  const portrait = () => window.matchMedia && matchMedia('(orientation: portrait) and (max-width: 900px)').matches;
+  let estPortrait = portrait();
+  const surOrientation = () => { estPortrait = portrait(); if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); };
+  window.addEventListener('resize', surOrientation); window.addEventListener('orientationchange', surOrientation);
+  // sur Android, en plein écran, on peut verrouiller le paysage (iOS refuse : l'écran « Tourne ton téléphone » prend le relais)
+  const verrouiller = () => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
   document.addEventListener('visibilitychange', () => { if (document.hidden && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); });
 
   // ─── la boucle ───
@@ -3026,6 +3296,7 @@ const ZHUD = (() => {
     requestAnimationFrame(boucle);
     const dt = derT ? Math.min(0.1, (t - derT) / 1000) : PAS; derT = t;
     if (document.hidden) return;
+    if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (jeu && (ecran === 'jeu' || ecran === 'fin')) {
       if (enPause) { if (!fige) { rendu.image(jeu, idMoi, 0, null); fige = true; } return; }
       fige = false;
@@ -3038,6 +3309,7 @@ const ZHUD = (() => {
       } else rendu.image(jeu, idMoi, dt, null);
     } else if (demo) {
       const j = demo.joueurs[0]; j.invul = 99; j.vie = j.vieMax;
+      if (demo.choix) ZJEU.choisirAtout(demo, demo.choix.id, demo.choix.options[0]); // la démonstration choisit seule ses atouts
       avancer(demo, null, dt);
       rendu.image(demo, 'moi', dt, evs);
       if (demo.vague > 3) nouvelleDemo();
@@ -3048,7 +3320,7 @@ const ZHUD = (() => {
 
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
-    get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get save() { return JSON.parse(JSON.stringify(save)); },
+    get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
     demarrer, pause, reprendre, montrer, quitter,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene }; },

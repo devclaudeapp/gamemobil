@@ -58,6 +58,39 @@
     defense: { nom: 'Atelier',     prix: 45, facteur: 1.7, crans: 5, par: 0.2,  desc: '+20 % de vie et de dégâts aux défenses' },
   };
 
+  // ─── l'expérience de la partie : chaque zombie abattu en donne (ses points / 10) ; chaque niveau propose trois atouts au choix ───
+  const XP = { parPoint: 0.1, pour: (n) => Math.round(6 + n * 5 + n * n * 0.9) }; // l'expérience qu'il faut pour passer du niveau n au suivant
+  // les atouts (rangs cumulables, jusqu'à max) : par = l'effet d'un rang
+  const ATOUTS = {
+    degats:   { nom: 'Gros calibre',     desc: '+12 % de dégâts',                      max: 6, par: 0.12, ico: 'degats' },
+    cadence:  { nom: 'Gâchette folle',   desc: '+10 % de cadence de tir',              max: 6, par: 0.10, ico: 'cadence' },
+    multi:    { nom: 'Tir double',       desc: 'Une balle de plus à chaque tir',       max: 2, par: 1,    ico: 'multi' },
+    perce:    { nom: 'Balles perforantes', desc: 'Chaque balle traverse un zombie de plus', max: 3, par: 1, ico: 'perce' },
+    critique: { nom: 'Œil de lynx',      desc: '+8 % de chances de coup critique (×2)', max: 4, par: 0.08, ico: 'critique' },
+    vie:      { nom: 'Cuir épais',       desc: '+25 points de vie (et soigne)',        max: 5, par: 25,   ico: 'vie' },
+    regen:    { nom: 'Pansements',       desc: 'Récupère 1,5 point de vie par seconde', max: 3, par: 1.5, ico: 'regen' },
+    vitesse:  { nom: 'Baskets',          desc: '+8 % de vitesse de course',            max: 3, par: 0.08, ico: 'vitesse' },
+    portee:   { nom: 'Lunette',          desc: '+12 % de portée',                      max: 3, par: 0.12, ico: 'portee' },
+    aimant:   { nom: 'Gros aimant',      desc: 'Ramasse la ferraille de 1,5 m plus loin', max: 3, par: 1.5, ico: 'aimant' },
+    butin:    { nom: 'Fouilleur',        desc: '+30 % de ferraille sur les zombies',   max: 3, par: 0.3,  ico: 'butin' },
+    grenade:  { nom: 'Artificier',       desc: 'Grenades plus fortes, rechargées plus vite', max: 3, par: 0.2, ico: 'grenade' },
+  };
+  // les coups critiques (balles du survivant) ; la grenade (un bouton : elle part vers le plus gros groupe de zombies)
+  const CRITIQUE = { chance: 0.05, mult: 2 };
+  const GRENADE = { recharge: 9, degats: 110, souffle: 2.9, portee: 10, vol: 0.55 };
+
+  // ─── le Bunker : des améliorations permanentes, achetées entre les parties avec les médailles gagnées en jouant ───
+  // médailles d'une partie : 2 par vague atteinte, 1 par tranche de 25 zombies, 5 par boss abattu
+  const MEDAILLES = { parVague: 2, parZombies: 25, parBoss: 5 };
+  const BUNKER = {
+    vie:       { nom: 'Gilet renforcé',   desc: '+10 points de vie au départ',       crans: 5, prix: [6, 12, 20, 30, 45], par: 10 },
+    ferraille: { nom: 'Caisse à outils',  desc: '+8 de ferraille au départ',         crans: 5, prix: [5, 10, 16, 24, 35], par: 8 },
+    degats:    { nom: 'Munitions maison', desc: '+5 % de dégâts',                    crans: 5, prix: [8, 15, 25, 38, 55], par: 0.05 },
+    xp:        { nom: 'Carnet de survie', desc: '+10 % d’expérience',                crans: 5, prix: [6, 12, 20, 30, 45], par: 0.1 },
+    grenade:   { nom: 'Poudre sèche',     desc: '−10 % de recharge des grenades',    crans: 3, prix: [8, 18, 32], par: 0.1 },
+    arme:      { nom: 'Planque d’armes',  desc: 'Commence avec une arme trouvée',    crans: 1, prix: [40], par: 1 },
+  };
+
   // ─── les vagues ───
   const BOSS = ['golem', 'loupgarou', 'golemglace', 'vampire'];
   // nombre de zombies de la vague n, combien peuvent être debout en même temps, la pause avant la suivante, le renfort de vie et de vitesse
@@ -66,7 +99,7 @@
     simultanes: (n) => Math.min(42, 14 + n * 3),
     cadence: (n) => Math.min(6, 1.4 + n * 0.35), // zombies qui sortent par seconde
     pause: 9,           // secondes entre deux vagues (on peut passer)
-    vie: (n) => 1 + Math.max(0, n - 1) * 0.11,
+    vie: (n) => 1 + Math.max(0, n - 1) * 0.15,
     vitesse: (n) => 1 + Math.min(0.35, Math.max(0, n - 1) * 0.025),
     boss: (n) => (n % 5 === 0 ? BOSS[(n / 5 - 1) % BOSS.length] : null), // un boss toutes les cinq vagues, à tour de rôle, puis on recommence
     caisse: (n) => (n === 1 ? 1 : n % 2 === 0 ? 2 : 1), // caisses d'armes posées au début de la vague
@@ -128,5 +161,5 @@
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
   const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8 };
 
-  return { BOSS, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
