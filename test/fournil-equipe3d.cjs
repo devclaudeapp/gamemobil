@@ -12,9 +12,9 @@
 //   la page, avec et sans l'équipe 3D : les mêmes que src/game.js seul, dans Node, sur le même état) ;
 // · la préparation à petits pas, le processeur ralenti ×4 : de l'arrivée du lot au boulanger et aux apprentis en 3D (la cuisson, la tenue du
 //   boulanger préparée avec le reste, puis le boulanger, puis un apprenti par image), aucune image ne passe plus de 30 ms dans l'équipe ;
-// · les tenues : chacune des 42 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
+// · les tenues : chacune des 44 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
 //   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces, ni des mains dans une pièce (toutes les
-//   pièces seules, les ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
+//   pièces seules, les ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
 //   mains frottées de la boutique, la joie) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans rien cuire, ≤ 25 ms
 //   chacun) ; la mémoire (géométries et tas JS) stable sur 20 changements de plus ; l'aura dans la boutique (rendue avec et sans elle au même
 //   instant : elle ne teint pas le boulanger, son halo se voit autour) ; une collection gagnée en jouant, cuite d'avance à petits pas (la
@@ -342,7 +342,7 @@ function mesurerAura() {
       return { base, out, n: Object.keys(O).length };
     });
     const nonBase = P.out.filter((x) => !x.base), sigs = new Set(nonBase.map((x) => x.sig));
-    check(P.n === 42 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
+    check(P.n === 44 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
     check(nonBase.every((x) => x.sig !== P.base.sig) && sigs.size === nonBase.length && P.out.filter((x) => x.base).every((x) => x.sig === P.base.sig), `chaque pièce portée change le maillage : ${nonBase.length} maillages tous différents, et de la tenue de base (les trois pièces de base la redonnent)`);
     console.log(`        les kits : ${P.out.map((x) => `${x.id} ${x.kit} (${x.tris})`).join(' · ')}`);
     // la tenue de la chaîne : la palette TENUES.chaine (celle des chibis aussi), la veste de patron (pas un tablier), le trousseau à la ceinture
@@ -357,7 +357,7 @@ function mesurerAura() {
     for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine']) liste.push([...['tete', 'haut', 'pieds', 'accessoire'].map((p) => (ids.find((x) => x[2] === c && x[1] === p) || [''])[0]), 5]);
     let graine = 20261027; const hasard = (n) => { graine = (Math.imul(graine, 1664525) + 1013904223) >>> 0; return Math.floor(graine / 4294967296 * n); };
     for (let k = 0; k < 30; k++) { const t = ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const l = parPiece(p).concat(p === 'accessoire' ? [''] : []); return l[hasard(l.length)]; }); liste.push([...t, hasard(6)]); }
-    for (const t of [['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'or-foulard'], ['hantee-chapeau', 'quartier-or-sweat', 'sabots', 'quartier-or-chaine'], ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'parcours-foulard'], ['parcours-toque', 'chaine-veste', 'hantee-bottes', 'quartier-chaine'], ['quartier-neon-casquette', 'hantee-cape', 'quartier-or-baskets', 'argent-foulard'], ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'chaine-cles'], ['bronze-toque', 'hantee-cape', 'chaine-souliers', 'quartier-chaine'], ['or-toque', 'quartier-sweat', 'or-chaussures', 'chaine-cles'], ['toque-blanche', 'parcours-tablier', 'hantee-bottes', 'chaine-cles'], ['hantee-lueur-chapeau', 'or-tablier', 'quartier-baskets', 'lunettes-rondes']]) liste.push([...t, 5]);
+    for (const t of [['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'or-foulard'], ['hantee-chapeau', 'quartier-or-sweat', 'sabots', 'quartier-or-chaine'], ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'parcours-foulard'], ['parcours-toque', 'chaine-veste', 'hantee-bottes', 'quartier-chaine'], ['quartier-neon-casquette', 'hantee-cape', 'quartier-or-baskets', 'argent-foulard'], ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'chaine-cles'], ['bronze-toque', 'hantee-cape', 'chaine-souliers', 'quartier-chaine'], ['or-toque', 'quartier-sweat', 'or-chaussures', 'chaine-cles'], ['toque-blanche', 'parcours-tablier', 'hantee-bottes', 'chaine-cles'], ['hantee-lueur-chapeau', 'or-tablier', 'quartier-baskets', 'lunettes-rondes'], ['etoile-toque', 'etoile-tablier', 'chaine-souliers', 'parcours-foulard'], ['etoile-toque', 'hantee-cape', 'hantee-bottes', 'quartier-chaine']]) liste.push([...t, 5]); // (les deux dernières : la tenue étoilée des paliers, lot « progression »)
     const T = await ev((liste) => {
       const out = [], t0 = performance.now();
       for (const t of liste) {
@@ -375,7 +375,7 @@ function mesurerAura() {
       return { out, ms: Math.round(performance.now() - t0) };
     }, liste);
     const touches = T.out.filter((x) => x.paires.length), trisMax = Math.max(...T.out.map((x) => x.tris)), trisMin = Math.min(...T.out.map((x) => x.tris)), mains = T.out.filter((x) => x.paires.some((p) => p.startsWith('mains×')));
-    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 10 qui se frôlent, à cinq poses (le repos, plus tard, la main au front et les mains frottées de la boutique, la joie) : ni d'une pièce dans une autre, ni des mains dans une pièce (${mains.length} tenues où une main traverse ; ${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
+    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses (le repos, plus tard, la main au front et les mains frottées de la boutique, la joie) : ni d'une pièce dans une autre, ni des mains dans une pièce (${mains.length} tenues où une main traverse ; ${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
     check(T.out.every((x) => x.mailles === 1) && trisMax <= 10500, `le budget : un seul maillage par tenue (un appel de dessin), ${trisMin} à ${trisMax} triangles (≤ 10 500) ; le corps seul : ${await ev(() => window.__fournil.SCENE.equipe3d.info.corps.map((c) => c.tris).join(' / '))}`);
     // le cache : toutes les pièces déjà cuites, 20 changements de tenue ne font que recoller (pas d'à-coup) ; la mémoire ne monte pas
     const M = await ev((liste) => {

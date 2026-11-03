@@ -579,6 +579,13 @@
     { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, bonus: { vitesse: 5 }, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
     { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, bonus: { vitesse: 7 }, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
     { id: 'pigeon', nom: 'Pigeon voyageur', espece: 'pigeon', prix: null, condition: pigeonDeLaChaine, gagne: 'Gagné dans « Ma chaîne »', verrou: 'La boutique des jetons : 120 jetons de chaîne', nomDefaut: 'Facteur', cri: null, bonus: {}, phrase: 'Il porte les nouvelles d’une boutique à l’autre.' },
+    // les compagnons rares des paliers au-delà de la n°30 (lot « progression » : RARES_PALIER, donnés par donnerPalier, possédés : rarePossede) ;
+    // sans bonus, comme le pigeon (les objets rares n'accélèrent pas la boulangerie) ; leur modèle : src/persos.js (ESPECES). Première livraison,
+    // les paliers 1 à 6 : le paon (palier 2) et le renard argenté (palier 5) ; le hibou savant et la petite licorne viendront avec leur modèle
+    ...[['paon', 2, 'Pavane', 'Il fait la roue devant la vitrine : les passants s’arrêtent pour l’admirer.'], ['renard', 5, 'Argentin', 'Robe d’argent et queue en panache : il connaît toutes les ruses pour chiper un croissant.']].map(([id, k, nomDefaut, phrase]) => {
+      const r = RARES_PALIER.find((x) => x.id === id), n = boutiqueDuPalier(k);
+      return { id, nom: r.nom, espece: id, prix: null, condition: (st) => rarePossede(st, id), palier: k, gagne: `Gagné au palier n°${n}`, verrou: `Le palier n°${n} : ${titrePalier(k)}`, nomDefaut, cri: null, bonus: {}, phrase };
+    }),
   ];
   const COMPAGNON_PAR_ID = new Map(COMPAGNONS.map((c) => [c.id, c]));
   const compagnon = (id) => (id && COMPAGNON_PAR_ID.get(id)) || null; // (lu à chaque fournée, par bonusCompagnon : une table, sans rien allouer)
@@ -793,6 +800,11 @@
     ajouter(vet('chaine-veste', 'Veste de patron', 'haut', 'chaine', 'tablier', {}, 'epique', 'Croisée, boutons dorés.'));
     ajouter(vet('chaine-souliers', 'Souliers vernis', 'pieds', 'chaine', 'chaussures', {}, 'epique', 'Pour passer d’une boutique à l’autre.'));
     ajouter(vet('chaine-cles', 'Trousseau de clés', 'accessoire', 'chaine', 'chaine', {}, 'epique', 'Une clé par boutique : il tinte à chaque pas.'));
+    // les paliers au-delà de la n°30 (lot « progression » : RARES_PALIER) : la tenue étoilée, bleu nuit et or, sans bonus (un objet rare), donnée par
+    // donnerPalier, ou par rattraperPaliers dès qu'une mise à jour apporte la pièce. Première livraison, les paliers 1 à 6 : la toque (palier 1)
+    // et le tablier (palier 4) ; les souliers et le foulard (paliers 7 et 10) viendront avec leur modèle, et l'ensemble avec eux
+    ajouter(vet('etoile-toque', 'Toque étoilée', 'tete', 'etoile', 'toque', {}, 'legendaire', 'Bleu nuit, brodée d’étoiles d’or : celle des boulangers étoilés.'));
+    ajouter(vet('etoile-tablier', 'Tablier étoilé', 'haut', 'etoile', 'tablier', {}, 'legendaire', 'Une pluie d’étoiles d’or sur le bleu de la nuit.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },

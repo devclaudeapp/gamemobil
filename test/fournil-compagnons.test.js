@@ -131,11 +131,21 @@ check(sv.compagnon === 'dragon' && sv.compagnons.join() === 'dragon' && G.compag
 
 console.log('── les bonus : seulement le compagnon montré ──');
 {
-  // le pigeon voyageur (« Ma chaîne de boutiques », acheté en jetons de chaîne) est le seul sans bonus : décision du joueur, les objets rares
-  // de la chaîne n'accélèrent pas la boulangerie ; tous les autres gardent le leur, un seul chacun
-  const AVEC = C.filter((c) => c.id !== 'pigeon');
-  check(AVEC.length === C.length - 1 && AVEC.every((c) => c.bonus && G.texteBonus(c.bonus).length === 1), `chaque compagnon a un bonus : ${AVEC.map((c) => `${c.nom} (${G.texteBonus(c.bonus).join('')})`).join(', ')}`);
+  // le pigeon voyageur (« Ma chaîne de boutiques », acheté en jetons de chaîne) et les compagnons rares des paliers au-delà de la n°30 (lot
+  // « progression » : le paon, le renard argenté…) sont les seuls sans bonus : décision du joueur, les objets rares n'accélèrent pas la
+  // boulangerie ; tous les autres gardent le leur, un seul chacun
+  const RARES = C.filter((c) => c.palier), AVEC = C.filter((c) => c.id !== 'pigeon' && !c.palier);
+  check(RARES.length >= 2 && AVEC.length === C.length - 1 - RARES.length && AVEC.every((c) => c.bonus && G.texteBonus(c.bonus).length === 1), `chaque compagnon a un bonus : ${AVEC.map((c) => `${c.nom} (${G.texteBonus(c.bonus).join('')})`).join(', ')}`);
   { const p = G.compagnon('pigeon'), s = G.newState(T0); check(p && p.prix === null && typeof p.condition === 'function' && JSON.stringify(p.bonus) === '{}' && !G.texteBonus(p.bonus).length && !G.aCompagnon(s, 'pigeon') && G.acheterCompagnon(s, 'pigeon').raison === 'gratuit', 'le pigeon voyageur (« Ma chaîne ») : sans aucun bonus, il ne s’achète pas avec l’argent de la boutique (il se gagne en jetons de chaîne)'); }
+  { // les compagnons rares des paliers : sans aucun bonus, ni à vendre ; gagnés au palier (donnerPalier), ils se choisissent comme les autres
+    const s = G.newState(T0), RP = G.RARES_PALIER || [];
+    check(RARES.every((c) => RP.some((r) => r.type === 'compagnon' && r.id === c.id) && c.prix === null && typeof c.condition === 'function' && JSON.stringify(c.bonus) === '{}' && !G.texteBonus(c.bonus).length && !G.aCompagnon(s, c.id) && G.acheterCompagnon(s, c.id).raison === 'gratuit' && !G.choisirCompagnon(s, c.id).ok),
+      `les compagnons rares des paliers (${RARES.map((c) => `${c.nom}, palier ${c.palier}`).join(' ; ')}) : sans aucun bonus, ni à vendre, ni à choisir avant d’être gagnés`);
+    for (let k = 1; k <= 6; k++) G.donnerPalier(s, k);
+    const r0 = G.rythme(s), p0 = G.pourboire(s), h0 = G.heuresAbsence(s);
+    check(RARES.every((c) => G.aCompagnon(s, c.id) && G.choisirCompagnon(s, c.id).ok && G.compagnonActif(s) === c.id && JSON.stringify(G.bonusCompagnon(s)) === '{}' && G.rythme(s) === r0 && G.pourboire(s) === p0 && G.heuresAbsence(s) === h0),
+      'gagnés aux paliers 1 à 6 : à soi, choisis l’un après l’autre, sans rien changer aux gains, aux pourboires ni à l’absence');
+  }
   check(C.every((c) => (!c.bonus.gains || c.bonus.gains.pct <= 5) && (c.bonus.vitesse || 0) <= 7 && (c.bonus.absence || 0) <= 1.5 && (c.bonus.pourboire || 0) <= 10), 'tous petits : gains ≤ 5 %, cuisson ≤ 7 %, absence ≤ 1,5 h, pourboires ≤ 10 %');
   const base = () => { const b = G.newState(T0); for (let i = 0; i < 4; i++) { b.stations[i].niv = 50; b.stations[i].staff = true; } return b; };
   const sans = base(); // pas encore de compagnon : aucun bonus

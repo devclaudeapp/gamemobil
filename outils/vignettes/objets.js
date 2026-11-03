@@ -1,6 +1,6 @@
 /* LE FOURNIL — le catalogue des vignettes (outils/vignettes) : pour chaque objet du carnet « Mes décos » qui a un objet 3D, comment le bâtir
    seul avec le vrai code du jeu, et comment il se pose dans le studio (src : outils/vignettes/studio.js).
-   · les décos (le Quartier, la Maison hantée, le classement, Ma chaîne) : MEUBLES.DECOS[id].faire puis MEUBLES.fusion, comme la scène ; la
+   · les décos (le Quartier, la Maison hantée, le classement, Ma chaîne, les paliers) : MEUBLES.DECOS[id].faire puis MEUBLES.fusion, comme la scène ; la
      vitrine des coupes : MEUBLES.trophees ; le scooter, peint en 2D dans la boutique (src/scene.js), bâti ici en volumes de la même façon ;
    · les compagnons : PERSOS.compagnon (le pigeon voyageur compris), assis, tous tournés vers nous de la même façon ;
    · les recettes de saison : PERSOS.patisserieSaison ;
@@ -95,7 +95,7 @@ const VIG = (() => {
 
   // ═══ le catalogue : les familles du carnet (src/chaine.js, avec celles de l'arrière-salle), ce qui a une vignette, et comment la bâtir ═══
   const FAB = {
-    quartier: deco, hantee: deco, podium: deco, chaine: deco, compagnons: compagnon, saison, tenues: tenue,
+    quartier: deco, hantee: deco, podium: deco, chaine: deco, palier: deco, compagnons: compagnon, saison, tenues: tenue, // (palier : les décos rares des paliers, lot « progression »)
     trophees: (id) => OBJ.trophee(id), 'casino-trophees': (id) => OBJ.tropheeCasino(id), 'casino-skins': (id) => OBJ.skin(id),
   };
   const SANS = { titres: 'pas d’objet 3D : l’icône des titres', cartes: 'pas d’objet 3D : l’icône des cartes postales' };

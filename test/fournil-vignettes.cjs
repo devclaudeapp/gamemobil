@@ -55,7 +55,7 @@ const TAILLE_NEON = fs.statSync(path.join(root, 'fournil', 'img', 'carnet', 'qua
     if (trouvee) { st.arriere = st.arriere || {}; st.arriere.trouvee = true; const c = CASINO.etat(st); c.trophees = Object.assign(c.trophees || {}, { 'premiere-main': 1, zero: 1 }); }
     f.save();
   }, trouvee);
-  const toutesChargees = (sel) => attendre(() => ev((s) => [...document.querySelectorAll(s)].every((i) => i.complete), sel), 15000);
+  const toutesChargees = (sel) => attendre(() => ev((s) => [...document.querySelectorAll(s)].every((i) => i.complete), sel), 30000); // (30 s : l'étagère compte 59 cartes depuis le lot « progression », et la machine peut être chargée)
   const defiler = async (sel) => { const n = await ev((s) => document.querySelectorAll(s).length, sel); for (let i = 0; i < n; i++) { await ev(([s, i]) => { const x = document.querySelectorAll(s)[i]; if (x) x.scrollIntoView({ block: 'center' }); }, [sel, i]); await sleep(25); } };
   const carnet = async (tout) => { // Mes décos ; tout : chaque famille dépliée, chaque objet amené à l'écran (les images paresseuses se chargent)
     await fermerFeuille(); await ev(() => window.__fournil.chaine.carnet(0)); await sleep(500);
@@ -128,7 +128,9 @@ const TAILLE_NEON = fs.statSync(path.join(root, 'fournil', 'img', 'carnet', 'qua
   const B = await beurre(), chemins = await ev(() => Object.fromEntries([...GAME.TROPHEES.map((t) => [t.nom, `trophees/${t.id}.webp`]), ...CASINO.TROPHEES.map((t) => [t.nom, `casino-trophees/${t.id}.webp`])]));
   await etagere(); const e1 = await lireEtagere(); // (chaque carte : sa vignette si elle a été vue en ligne, dans le cache ; sinon sa carte d'avant)
   const e1ko = e1.filter((c) => (vues.has(chemins[c.nom]) ? !(c.ok && c.vig && c.gris === !c.gagne) : !repliEtagere(c))), e1r = e1.filter((c) => !vues.has(chemins[c.nom]));
-  check(e1.length === 48 && e1r.some((c) => !c.gagne) && !e1ko.length, `l’étagère hors ligne : ${e1r.length} cartes d’avant (le texte au bord, la coupe dans le coin si gagné), ${e1.length - e1r.length} vignettes du cache${e1ko.length ? ' — ' + e1ko.slice(0, 3).map((c) => JSON.stringify(c)).join(' ') : ''}`);
+  // (toutes les cartes : les trophées du jeu, 48 depuis le lot « progression » — 37 avant —, et les 11 de l'arrière-salle, trouvée ici : gagnés ou à gagner)
+  const nE = await ev(() => GAME.TROPHEES.length + CASINO.TROPHEES.length);
+  check(e1.length === nE && e1r.some((c) => !c.gagne) && !e1ko.length, `l’étagère hors ligne (${e1.length} cartes sur ${nE}) : ${e1r.length} cartes d’avant (le texte au bord, la coupe dans le coin si gagné), ${e1.length - e1r.length} vignettes du cache${e1ko.length ? ' — ' + e1ko.slice(0, 3).map((c) => JSON.stringify(c)).join(' ') : ''}`);
   await page.screenshot({ path: path.join(out, 'hors-ligne-etagere.png') });
   await fermerFeuille(); await croupier('trophees'); const t1 = await lireTrophees();
   const t1ko = t1.filter((t) => (vues.has(`casino-trophees/${t.id}.webp`) ? !(t.ok && t.gris === !t.gagne) : !repliTrophee(t, B))), t1r = t1.filter((t) => !vues.has(`casino-trophees/${t.id}.webp`));

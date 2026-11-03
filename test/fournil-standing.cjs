@@ -12,6 +12,11 @@
 //    la visite d'un copain au palier 3 ; une vieille photo (sans l) → palier 0 ; aucune erreur dans la page.
 // 2 bis) Le soir et à Noël (budgets) ; le cache des textures de salle borné ; en 390 × 844 et 360 × 640, les pièces du standing (colonnes,
 //    poteaux, statue, trophée) et les décors HD ne s’interpénètrent pas, rien dans le vide, hors de l’écran ni sur la chambre froide.
+// 2 ter) Les finitions au-delà de la n°30 (lot « progression » : GAME.finitionDe, src/vie.js decor(q, 5, k)) : sans navigateur, les sept
+//    décors cumulés, les étoiles au-delà de la 7e, le rang fixé d’une visite (st.finitionFixe), la photo (tp, lot « serveur ») ; dans
+//    Chromium, haute et éco (et 360 × 640), f1 à f7 puis 12 étoiles, au village et à la capitale → captures finition-*.png : les triangles du
+//    décor ≤ ceux du palier 5 + 15 %, les appels ≤ 80 / 72, rien ne s’interpénètre ni ne sort de l’écran, les zones de touche visibles ; les
+//    chantiers du quartier finis, dehors (quatre au plus, les derniers ; la variante rénovée) → captures dehors-*.png ; le soir.
 // 3) Avec « tout déplaçable » (lot 4) : un aménagement libre au palier 5, village et capitale, haute et éco (valide, rien sur les colonnes ni
 //    les cordons du trottoir, voies depuis l’allée, zones de touche ≥ 44 px, budgets tenus) ; le mode Déplacer pendant un glisser au doigt.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-standing.cjs
@@ -51,6 +56,32 @@ console.log('── le décor de chaque palier ──');
   check(d5.base === 'capitale' && d5.accent === d0.accent && d5.vue === d0.vue && d5.objets.includes('statue') && d5.objets.includes('trophee') && !(d0.objets || []).includes('statue'), 'la capitale au palier 5 : ses couleurs et sa vue gardées, la statue et le trophée en plus');
   check(VIE.decor(village, 2).solStyle === 'chevrons' && VIE.decor(village, 4).solStyle === 'marbre2' && VIE.decor(cap, 2).solStyle === 'marbre' && VIE.decor(village, 1).lambris && VIE.decor(village, 3).pilastres, 'les sols et les murs montent en gamme (chevrons, marbre veiné ; lambris, pilastres), le marbre de la capitale reste du marbre');
   check(VIE.decor(village, -2).id === 'village' && VIE.decor(village, 99).id === 'village-s5' && VIE.decor(village).id === 'village', 'un palier hors bornes est ramené entre 0 et 5 (défaut 0)');
+}
+// les finitions au-delà de la n°30 (lot « progression » : GAME.FINITIONS, GAME.finitionDe) : decor(q, 5, k), k le rang du palier
+console.log('── les finitions au-delà de la n°30 ──');
+{
+  const village = G.QUARTIERS[0], cap = G.QUARTIERS.find((q) => q.id === 'capitale'), d5 = VIE.decor(village, 5), F = [1, 2, 3, 4, 5, 6, 7].map((f) => VIE.decor(village, 5, f));
+  check(G.FINITIONS.length === 7 && F.every((d, i) => d.id === `village-s5-f${i + 1}` && d.finition === i + 1 && d.etoilesEnseigne === i + 1 && d.enseigneOr && d.standing === 5 && d.base === 'village' && d5.objets.every((o) => d.objets.includes(o))) && VIE.decor(village, 5, 3) === F[2] && d5.finition === 0,
+    `sept finitions, cumulées sur le décor du palier 5, chacune son décor en cache (${F.map((d) => d.id).join(', ')})`);
+  const a = (f, o) => F[f - 1].objets.includes(o);
+  check(a(1, 'enseigne') && a(1, 'lanterneFer') && !a(3, 'lustres') && a(4, 'lustres') && !a(4, 'vitraux') && a(5, 'vitraux') && !a(6, 'coupole') && a(7, 'coupole') && F.every((d) => d.objets.includes('enseigne') && d.objets.includes('statue')),
+    'chaque finition ajoute ses pièces et garde les précédentes : l’enseigne dorée et la lanterne de fer forgé (1), les lustres (4), les vitraux (5), la coupole (7)');
+  check(F[0].bois === d5.bois && F[1].bois === '#5A3A22' && !F[0].laiton && F[1].laiton && F[1].comptoir === d5.comptoir && F[2].comptoir === '#E3B873' && !F[1].comptoirTranslucide && F[2].comptoirTranslucide && F[4].solStyle === d5.solStyle && F[5].solStyle === 'nacre' && !F[4].platine && F[5].platine === '#E5E4E2' && F[6].platine === '#E5E4E2',
+    'les matières : le noyer et les poignées de laiton (2), le comptoir d’onyx qui laisse passer la lumière (3), la nacre au sol et les filets de platine (6)');
+  const k12 = VIE.decor(cap, 5, 12);
+  check(k12.id === 'capitale-s5-f7-k12' && k12.finition === 7 && k12.etoilesEnseigne === 12 && k12.objets.join() === VIE.decor(cap, 5, 7).objets.join() && VIE.decor(cap, 5, 8).id === 'capitale-s5-f7-k8' && k12.vue === VIE.decor(cap, 0).vue && k12.accent === VIE.decor(cap, 0).accent,
+    `au-delà de la 7e : la 7e, et le rang du palier en étoiles sur l’enseigne (${k12.id} : ${k12.etoilesEnseigne} étoiles) ; la capitale garde sa vue et ses couleurs`);
+  check(VIE.decor(village, 3, 4).id === 'village-s3' && VIE.decor(village, 0, 2).id === 'village' && VIE.decor(village, 5, -1).id === 'village-s5' && VIE.decor(village, 5, 'x').id === 'village-s5' && VIE.decor(village, 5, 0) === d5, 'une finition sans le palier 5, ou absurde : ignorée');
+  // le rang de finition d'une boutique : GAME.finitionDe (n°40 → 1, n°50 → 2… 0 avant), ou celui fixé d'une visite (st.finitionFixe, s'il est valide)
+  const fn = (n, fixe) => VIE.finition(Object.assign(G.newState(T), { boutiques: n }, fixe === undefined ? {} : { finitionFixe: fixe }));
+  check(fn(30) === 0 && fn(39) === 0 && fn(40) === 1 && fn(49) === 1 && fn(50) === 2 && fn(100) === 7 && fn(110) === 8 && fn(1e6) <= 1e4 && fn(3, 4) === 4 && fn(45, 0) === 0 && fn(45, -1) === 1 && fn(45, 2.5) === 1 && fn(45, '3') === 1,
+    'le rang de finition : celui du numéro de la boutique (n°40 → 1, n°50 → 2, n°110 → 8 ; 0 avant la n°40), ou celui fixé d’une visite (st.finitionFixe), s’il est valide');
+  // la photo et la visite : le rang de finition voyage dans la photo (champ tp, lot « serveur ») ; tant qu'il n'y est pas, la boutique d'un copain
+  // se montre sans finition (son numéro n'est pas dans la photo : celui de son quartier)
+  const st = G.newState(T); st.boutiques = 72; st.nomBoutique = 'Chez Lou';
+  const p = CL.photo(st, { G }), b = CL.boutiqueDepuisPhoto(p, { G, maintenant: T });
+  if (p && p.tp != null) check(p.tp === 4 && b && b.st.finitionFixe === 4 && VIE.finition(b.st) === 4 && VIE.finition(CL.boutiqueDepuisPhoto(Object.assign({}, p, { tp: undefined }), { G, maintenant: T }).st) === 0, `la photo porte le rang de finition (n°72 → tp = ${p.tp}) et la boutique rebâtie le garde (st.finitionFixe = ${b && b.st.finitionFixe}) ; sans tp : aucune`);
+  else check(b && G.standing(b.st) === 5 && VIE.finition(b.st) === 0, `la photo ne porte pas encore le rang de finition (tp : lot « serveur ») : chez un copain, son standing (palier ${b && G.standing(b.st)}) sans finition`);
 }
 console.log('── la photo (champ l) ──');
 {
@@ -238,6 +269,81 @@ const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], [
     });
     check(pret && !r.ko.length && !r.vide.length && !r.hors.length && !r.surFroid, `${nomT}, palier 5, haute, Halloween : les colonnes, les poteaux des cordons, la statue, le trophée et les décors HD (la citrouille de la porte) ne s’interpénètrent pas ${r.ko.join(' | ')} ; rien n’est posé dans le vide ${r.vide.join(' | ')} ; rien ne sort de l’écran ${r.hors.join(' | ')} ; le trophée sous la chambre froide (haut ${r.tr ? r.tr.haut.toFixed(1) : '?'} ≥ ${r.froidBas.toFixed(1)}, sa pastille dégagée)`);
     await page.screenshot({ path: path.join(out, `capitale-5-haute-${taille.width}.png`) });
+    check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+    await ctx.close();
+  }
+  // ─── les finitions au-delà de la n°30 (lot « progression ») : f1 à f7 (n°40 à n°100), puis les étoiles (n°150 : 12) ; et les chantiers du
+  //     quartier finis, dehors (PROGRESSION.decorProjets : st.projets.finis). Tout le mobilier au max et les 6 décos les plus lourdes, comme plus
+  //     haut. Le budget : les triangles du décor (tous ses groupes, sans le boulanger ni les couverts des clients assis, qui vont et viennent)
+  //     ≤ ceux de la n°26 (palier 5) + 15 % ; les appels de dessin ≤ 80 / 72, le standing un seul de plus (le voile de lumière de la coupole,
+  //     la 7e, éteint la nuit), la place dehors un ; les pièces ne s'interpénètrent pas, ne sortent pas de l'écran, ne cachent aucune zone de
+  //     touche (ni son centre, ni plus de 30 % de sa surface) ; dehors : sur la place, entre le bord du trottoir et le tiroir fermé, côte à
+  //     côte (un petit écran n'a pas la place : rien) → captures finition-*.png, dehors-*.png
+  console.log('── les finitions au-delà de la n°30 (f1 à f7, puis les étoiles) et les chantiers du quartier dehors ──');
+  for (const [qual, taille] of [['haute'], ['eco'], ['eco', { width: 360, height: 640 }]]) {
+    const { ctx, page, erreurs, ev } = await ouvrir(qual, taille), max = qual === 'haute' ? 80 : 72, nomT = taille ? `${taille.width} × ${taille.height}, ` : '', suf = taille ? '-' + taille.width : '';
+    // (le chat adopté d'avance : sa feuille « Un chat miaule à la porte » ne vient pas couvrir les captures ; il n'est pas compté dans le décor)
+    await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } if (!f.st.chat) f.G.adopterChat(f.st, ''); f.tiroir('ferme'); });
+    await ev((l) => window.__fournil.SCENE.decos(l), LOURDES);
+    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 180000);
+    const triangles = () => ev(() => { const t = window.__fournil.SCENE.trianglesParGroupe; let n = 0; for (const [k, v] of Object.entries(t)) if (k !== 'boulanger' && k !== 'couverts') n += v; return n; });
+    const aller = async (qi, n, rangs) => { // la boutique n°n du quartier qi ; rangs : les chantiers finis (déjà vus : pas d'annonce)
+      rangs = rangs || []; const k = G.finitionDe(n), fin = Math.min(7, k); // (k : le rang du palier, autant d'étoiles sur l'enseigne ; il change à chaque pas, la finition non : n°100 puis n°150)
+      await ev(([qi, n, rangs]) => { const f = window.__fournil; f.st.boutiques = n; f.st.quartierFixe = qi; delete f.st.standingFixe; delete f.st.finitionFixe; f.st.projets = { finis: rangs.map((rang) => ({ rang })), vus: rangs.slice(), aides: 0, maj: 0 }; f.tiroir('ferme'); }, [qi, n, rangs]);
+      // (la liste dehors attendue, celle des règles : PROGRESSION.decorProjets ; la scène la relit une fois par seconde de son horloge, plus lente qu'une seconde sur une machine chargée)
+      const ok = await attendre(() => ev(([fin, k, hd]) => { const S = window.__fournil.SCENE, v = S.standingVu, P = typeof PROGRESSION !== 'undefined' ? PROGRESSION : null, att = P ? P.decorProjets(window.__fournil.st).slice(-4).map((x) => x.id + (x.tour ? '~' + x.tour : '')).join() : '';
+        return v.palier === 5 && v.finition === fin && v.etoiles === k && v.mailles > 0 && (!hd || v.hd) && S.dehorsVu.liste.join() === att; }, [fin, k, qual === 'haute']), 60000);
+      await sleep(qual === 'haute' ? 1800 : 900); return ok;
+    };
+    const examiner = () => ev(() => {
+      const S = window.__fournil.SCENE, v = S.standingVu, E = v.emprises, W = VIE.W, z = S.zones(), ko = [], cache = [], FIN = ['enseigne', 'lanterneFer', 'lustre', 'vitraux'];
+      const sol = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1 && a.y0 < b.y1 && b.y0 < a.y1; // deux boîtes monde qui se recouvrent
+      for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) if (sol(E[i], E[j])) ko.push(`${E[i].nom} × ${E[j].nom}`);
+      for (const b of S.decorHDBoites) for (const e of E) if (sol(b, e)) ko.push(`${b.nom} (HD) × ${e.nom}`);
+      const vide = E.filter((e) => e.pied && e.appui && e.appui < e.pied).map((e) => e.nom), hors = E.filter((e) => e.x0 < 0 || e.x1 > W || e.haut < 0).map((e) => `${e.nom} ${e.x0.toFixed(1)}..${e.x1.toFixed(1)}`);
+      let pire = { p: 0, ou: '' }; // les zones de touche : la part de chacune que couvre une pièce des finitions (à l'écran), et son centre
+      for (const e of E.filter((x) => FIN.includes(x.nom))) for (const id of ['boulanger', 'four', 'froid', 'caisse', 'deco', 'mystere', 'vitrine']) {
+        const r = z[id]; if (!r || !r.w || !r.h) continue;
+        const w = Math.min(e.x1, r.x + r.w) - Math.max(e.x0, r.x), h = Math.min(e.bas, r.y + r.h) - Math.max(e.haut, r.y); if (w <= 0 || h <= 0) continue;
+        const p = w * h / (r.w * r.h), cx = r.x + r.w / 2, cy = r.y + r.h / 2, centre = cx > e.x0 && cx < e.x1 && cy > e.haut && cy < e.bas;
+        if (p > pire.p) pire = { p, ou: `${e.nom} × ${id}` };
+        if (centre || p > 0.3) cache.push(`${e.nom} × ${id} (${Math.round(100 * p)} %${centre ? ', son centre' : ''})`);
+      }
+      const a = S.appelsParGroupe; let decor = 0; for (const [k, n] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += n;
+      return { decor: v.decor, finition: v.finition, etoiles: v.etoiles, noms: E.map((e) => e.nom), ko, vide, hors, cache, pire, appels: decor, standing: a.standing || 0 };
+    });
+    const dehorsVu = () => ev(() => { const S = window.__fournil.SCENE, d = S.dehorsVu, W = VIE.W, E = d.emprises, ko = [];
+      for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) if (E[i].x0 < E[j].x1 && E[j].x0 < E[i].x1) ko.push(`${E[i].nom} × ${E[j].nom}`);
+      return { liste: d.liste, mailles: d.mailles, n: E.length, place: d.place, ko, hors: E.filter((e) => e.x0 < 0 || e.x1 > W).map((e) => e.nom), haut: E.length ? Math.min(...E.map((e) => e.haut)) : 0, bas: E.length ? Math.max(...E.map((e) => e.bas)) : 0,
+        bord: VIE.LAY.trottoir.bord, vis: VIE.H - 37, tris: S.trianglesParGroupe.dehors || 0, appels: S.appelsParGroupe.dehors || 0 }; });
+    for (const [qn, qi] of QS) {
+      const ok5 = await aller(qi, 26), t5 = await triangles(), r5 = await examiner(), budget = Math.floor(t5 * 1.15);
+      check(ok5 && r5.decor === `${qn}-s5` && r5.finition === 0, `${nomT}${qn}, ${qual}, la n°26 (palier 5, sans finition) : ${t5} triangles pour le décor (le budget des finitions : ${budget}, + 15 %), ${r5.appels} appels, dont ${r5.standing} pour le standing`);
+      for (const [n, f, k] of taille ? [[100, 7, 7], [150, 7, 12]] : [[40, 1, 1], [50, 2, 2], [60, 3, 3], [70, 4, 4], [80, 5, 5], [90, 6, 6], [100, 7, 7], [150, 7, 12]]) {
+        const ok = await aller(qi, n), t = await triangles(), r = await examiner(), id = `${qn}-s5-f${f}${k > f ? '-k' + k : ''}`;
+        check(ok && r.decor === id && r.finition === f && r.etoiles === k && t <= budget && r.appels <= max && r.standing <= r5.standing + (f >= 7 ? 1 : 0) && !r.ko.length && !r.vide.length && !r.hors.length && !r.cache.length,
+          `${nomT}${qn}, ${qual}, n°${n} : ${r.decor}${r.decor !== id ? ` (attendu : ${id})` : ''} (${r.etoiles} étoile${r.etoiles > 1 ? 's' : ''} sur l’enseigne) ; ${t} triangles (≤ ${budget} : ${t >= t5 ? '+' : ''}${(100 * (t / t5 - 1)).toFixed(1)} %) ; ${r.appels} appels pour le décor (≤ ${max}), dont ${r.standing} pour le standing ; rien ne s’interpénètre ${r.ko.join(' | ')}, rien dans le vide ${r.vide.join(' ')}, rien hors de l’écran ${r.hors.join(' ')} ; les zones de touche visibles (au plus ${Math.round(100 * r.pire.p)} % couverts${r.pire.ou ? ' : ' + r.pire.ou : ''}) ${r.cache.join(' | ')}`);
+        await page.screenshot({ path: path.join(out, `finition-${qn}-${k > f ? 'k' + k : 'f' + f}-${qual}${suf}.png`) });
+      }
+      // les chantiers finis, dehors : quatre (le marché, le manège ; le kiosque et la statue rénovés, tour 1 : dorés)
+      const okD = await aller(qi, 100, [3, 7, 10, 16]), tD = await triangles(), rD = await examiner(), d = await dehorsVu();
+      const placeOk = taille && !d.place ? d.mailles === 0 && d.appels === 0 && d.n === 0 // (un petit écran : pas la place entre le trottoir et le tiroir)
+        : d.mailles === 1 && d.appels === 1 && d.n === 4 && !d.ko.length && !d.hors.length && d.haut >= d.bord && d.bas <= d.vis;
+      check(okD && d.liste.join() === 'marche,manege,kiosque~1,statue~1' && placeOk && tD <= budget && rD.appels <= max,
+        `${nomT}${qn}, ${qual}, n°100 et quatre chantiers finis (${d.liste.join(', ')}) : ${d.place ? `dehors sur la place, un maillage, ${d.appels} appel, ${d.tris} triangles, entre le bord du trottoir et le tiroir fermé (écran ${d.haut.toFixed(0)} à ${d.bas.toFixed(0)}, dans ${d.bord.toFixed(0)}–${d.vis}), côte à côte ${d.ko.join(' | ')}, dans l’écran ${d.hors.join(' ')}` : `pas la place entre le trottoir (${d.bord.toFixed(0)}) et le tiroir fermé (${d.vis}) : rien de bâti`} ; avec les finitions : ${tD} triangles (≤ ${budget} : +${(100 * (tD / t5 - 1)).toFixed(1)} %), ${rD.appels} appels pour le décor (≤ ${max})`);
+      await page.screenshot({ path: path.join(out, `dehors-${qn}-${qual}${suf}.png`) });
+      if (!taille) { // huit chantiers finis : les quatre derniers dehors ; plus aucun : la place n'est plus bâtie
+        const ok8 = await aller(qi, 100, [1, 2, 3, 4, 5, 6, 7, 8]), l8 = (await dehorsVu()).liste.join(), ok0 = await aller(qi, 100, []), d0 = await dehorsVu();
+        check(ok8 && l8 === 'jardin,horloge,manege,statue' && ok0 && d0.mailles === 0 && d0.appels === 0, `${qn}, ${qual} : huit chantiers finis, les quatre derniers dehors (${l8}) ; aucun, la place n’est pas bâtie`);
+      }
+    }
+    if (!taille) { // le soir : les verres des finitions et des réverbères s'allument dans leurs maillages ; le voile de la coupole s'éteint (un appel de moins)
+      await ev(() => window.__fournil.scene({ heure: 21.5 }));
+      const ok = await aller(QS[1][1], 100, [4, 6, 12, 15]), r = await examiner(), d = await dehorsVu();
+      check(ok && r.decor === 'capitale-s5-f7' && r.standing === 1 && r.appels <= max && d.liste.join() === 'reverberes,horloge,reverberes~1,manege~1' && d.appels === 1, `${qual}, le soir, capitale, n°100 et quatre chantiers dehors (dont les réverbères) : ${r.appels} appels pour le décor (≤ ${max}), dont ${r.standing} pour le standing (le voile de la coupole éteint) et ${d.appels} pour la place`);
+      await page.screenshot({ path: path.join(out, `finition-capitale-f7-soir-${qual}.png`) });
+      await ev(() => { const f = window.__fournil; f.scene({ heure: 11 }); delete f.st.projets; });
+    }
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }

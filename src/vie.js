@@ -44,13 +44,35 @@ const VIE = (() => {
   const rgbHex = (r) => '#' + r.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
   const melanger = (a, b, k) => { const x = hexRgb(a), y = hexRgb(b); return x && y ? rgbHex(x.map((v, i) => v + (y[i] - v) * k)) : a; };
   const LUXE = new Map(), OBJETS_STANDING = [[], ['plante', 'fleurs', 'plantesHautes', 'lanternes', 'tapisEntree'], ['marquise'], ['colonnes'], ['tapisRouge'], ['statue', 'trophee']];
-  function decor(q, s) {
+  // les finitions, au-delà du Palais du goût (lot « progression » : GAME.FINITIONS, une à chaque palier, n°40, 50, 60…), cumulées sur le
+  // décor du palier 5 ; k : le rang du palier (autant d'étoiles sur l'enseigne ; au-delà de la 7e finition, seules les étoiles changent).
+  // Une variante par finition et par rang (« village-s5-f3 », « paris-s5-f7-k12 »), en cache comme les autres :
+  //   1 l'enseigne dorée (enseigneOr : une enseigne de noyer aux lettres d'or au-dessus de la porte de la devanture, ses étoiles) et la
+  //     lanterne de fer forgé, à la porte du fond ; 2 les boiseries de noyer (bois), les poignées de laiton (laiton) ; 3 le comptoir d'onyx,
+  //     qui laisse passer la lumière (comptoir, comptoirTranslucide) ; 4 deux lustres de cristal au-dessus du comptoir ; 5 les vitraux, des
+  //     épis de blé dans le haut de la fenêtre ; 6 la nacre au sol (solStyle 'nacre'), les filets de platine aux murs (platine) ; 7 la
+  //     coupole de verre : la lumière du jour sur le comptoir. Aucun effet sur les gains.
+  const NOYER = '#5A3A22', ONYX = '#E3B873', ONYX2 = '#F6E2B8', PLATINE = '#E5E4E2';
+  const OBJETS_FINITION = [[], ['enseigne', 'lanterneFer'], [], [], ['lustres'], ['vitraux'], [], ['coupole']];
+  const nbFinitions = () => Math.min((G.FINITIONS && G.FINITIONS.length) || 7, OBJETS_FINITION.length - 1);
+  function decor(q, s, k) {
     const b = decorBase(q); s = Math.max(0, Math.min(5, Math.floor(+s) || 0)); if (!s) return b;
-    const k = b.id + '-s' + s; let d = LUXE.get(k); if (d) return d;
-    const f = 0.035 * s, sombre = (c) => melanger(c, '#2A1A12', f), marbreBase = b.solStyle === 'marbre';
+    k = s >= 5 ? Math.max(0, Math.min(1e4, Math.floor(+k) || 0)) : 0; // (les finitions viennent après le palier 5 du standing)
+    const f = Math.min(k, nbFinitions()), cle = b.id + '-s' + s + (k ? `-f${f}${k > f ? '-k' + k : ''}` : ''); let d = LUXE.get(cle); if (d) return d;
+    if (k) { // une finition : le décor du palier 5, et ce que chaque finition y ajoute
+      const d5 = decor(q, 5, 0);
+      d = Object.assign({}, d5, {
+        id: cle, finition: f, etoilesEnseigne: k, objets: [...new Set([...d5.objets, ...OBJETS_FINITION.slice(1, f + 1).flat()])],
+        enseigneOr: true, bois: f >= 2 ? NOYER : d5.bois, laiton: f >= 2,
+        comptoir: f >= 3 ? ONYX : d5.comptoir, comptoir2: f >= 3 ? ONYX2 : d5.comptoir2, comptoirTranslucide: f >= 3,
+        solStyle: f >= 6 ? 'nacre' : d5.solStyle, platine: f >= 6 ? PLATINE : null,
+      });
+      LUXE.set(cle, d); return d;
+    }
+    const fo = 0.035 * s, sombre = (c) => melanger(c, '#2A1A12', fo), marbreBase = b.solStyle === 'marbre';
     const objets = [...new Set([...(b.objets || []), ...OBJETS_STANDING.slice(1, s + 1).flat()])];
     d = Object.assign({}, b, {
-      id: k, base: b.id, standing: s, objets,
+      id: cle, base: b.id, standing: s, finition: 0, objets,
       comptoir: sombre(b.comptoir), bois: sombre(b.bois), mur2: melanger(b.mur2, b.bois, 0.06 * s),
       or: s >= 3 ? '#E8B84A' : '#C9A35A', // le laiton, puis l'or
       lambris: true, panneaux: s >= 2, pilastres: s >= 3, corniche: s >= 3, murStyle: s >= 4 ? 'marbre' : b.murStyle,
@@ -58,7 +80,28 @@ const VIE = (() => {
       sol: s >= 4 && !marbreBase ? melanger(b.sol, '#FFFFFF', 0.25) : b.sol,
       solB: s >= 2 && !marbreBase ? (hexRgb(b.sol2) ? melanger(b.sol, b.sol2, 0.22) : melanger(b.sol, '#6B4A35', 0.12)) : b.sol2,
     });
-    LUXE.set(k, d); return d;
+    LUXE.set(cle, d); return d;
+  }
+  // le rang de finition d'une boutique : celui d'une boutique visitée (st.finitionFixe, posé depuis sa photo comme st.standingFixe), sinon
+  // celui de son numéro (GAME.finitionDe : 0 avant la n°40) ; 0 sans les règles du lot
+  function finition(st) {
+    const f = st && st.finitionFixe;
+    if (Number.isInteger(f) && f >= 0) return Math.min(f, 1e4);
+    return G.finitionDe ? Math.max(0, Math.min(1e4, Math.floor(G.finitionDe((st && st.boutiques) || 1)) || 0)) : 0;
+  }
+  // les chantiers du quartier finis (lot « progression » : PROGRESSION.decorProjets, la liste commune à tous, gardée dans l'état) : la scène
+  // en pose quatre au plus dehors, sur la place de l'autre côté de la rue — les quatre derniers finis ; { id, tour } (tour > 0 : la variante
+  // rénovée, une teinte). Relue une fois par seconde (ou quand l'état change : une visite) ; sans les règles du lot, aucun
+  const DEHORS_MAX = 4, PROJETS_CONNUS = ['fontaine', 'kiosque', 'marche', 'reverberes', 'jardin', 'horloge', 'manege', 'statue'];
+  let dehorsSt = null, dehorsT = -9, dehorsListe = [];
+  function projetsDehors(st) {
+    if (st === dehorsSt && t - dehorsT < 1) return dehorsListe;
+    dehorsSt = st; dehorsT = t;
+    const P = typeof PROGRESSION !== 'undefined' && PROGRESSION && PROGRESSION.decorProjets ? PROGRESSION : null;
+    let l = []; if (P && st) try { l = P.decorProjets(st) || []; } catch (e) { l = []; }
+    const n = l.filter((x) => x && PROJETS_CONNUS.includes(x.id)).slice(-DEHORS_MAX).map((x) => ({ id: x.id, tour: Math.max(0, Math.min(99, Math.floor(+x.tour) || 0)) }));
+    if (n.length !== dehorsListe.length || n.some((x, i) => x.id !== dehorsListe[i].id || x.tour !== dehorsListe[i].tour)) dehorsListe = n; // (la même liste : le même tableau, la scène n'a rien à refaire)
+    return dehorsListe;
   }
 
   // le bloc haut : mur, fournil, comptoir, file — le dessin de référence (390×228) à l'échelle ; le reste de la hauteur, c'est du sol en plus
@@ -537,7 +580,7 @@ const VIE = (() => {
     // un client né entre la bascule et cette image (une vente juste après setEvenement : vueEv n'était pas encore lu) s'habille ici, avant
     // que la scène ne le bâtisse : jamais un client « sans déguisement » dans la boutique hantée, même dans l'image où il naît
     if (modeVie !== '' && vueEv && vueEv.deguisements) for (const c of clients) if (!c.deg && !c.or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)];
-    Q = vueEv && DECORS[vueEv.decor] ? DECORS[vueEv.decor] : decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0); tags = force.saison || (vueEv && vueEv.tags) || G.saison(now);
+    Q = vueEv && DECORS[vueEv.decor] ? DECORS[vueEv.decor] : decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0, finition(st)); tags = force.saison || (vueEv && vueEv.tags) || G.saison(now);
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
@@ -574,7 +617,8 @@ const VIE = (() => {
     if (caisseFlash > 0) caisseFlash = Math.max(0, caisseFlash - dt);
     blink = (blink + dt) % 3.4;
     const niv = st.stations.map((s) => s.niv), staffs = st.stations.filter((s) => s.staff).length, bonus = Object.keys(st.ameliorations).length;
-    etat = { st, d, hour, sk: ciel(hour), taux, tags, Q, crans, abordables, prixDe, rang, pts, affl, rush, hop, caisseFlash, panneI, t, blink, niv, staffs, bonus, chaud: st.stations[0].actif || taux > 0, dt };
+    const dh = vueEv ? [] : projetsDehors(st); // les chantiers finis du quartier, dehors (pas dans la boutique hantée)
+    etat = { st, d, hour, sk: ciel(hour), taux, tags, Q, crans, abordables, prixDe, rang, pts, affl, rush, hop, caisseFlash, panneI, t, blink, niv, staffs, bonus, chaud: st.stations[0].actif || taux > 0, dt, dehors: dh };
     return etat;
   }
 
@@ -688,7 +732,7 @@ const VIE = (() => {
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
   const API = { typeDeco, validerDeco, proposerDeco, DECOS_MAX, hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
-    DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
+    DECORS, decor, finition, projetsDehors, DEHORS_MAX, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
     get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, assisEn: (zone) => clients.filter((c) => c.etat === 'assis' && c.siege && c.siege.zone === zone).length, get mystereVisible() { return !!mystereEnAttente(); } };
