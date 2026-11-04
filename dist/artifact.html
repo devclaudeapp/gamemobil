@@ -3353,6 +3353,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // la chauve-souris : gagnée au bestiaire de la Maison hantée (src/hantee.js : les neuf sortes de clients-monstres servies dix fois, q.chauvesouris).
   // Lue sur st.hantee, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme le chien du quartier.
   const chauveSourisDuManoir = (st) => { const q = st && st.hantee; return !!q && typeof q === 'object' && q.chauvesouris === true; };
+  // l'écureuil roux : gagné à l'album de la forêt du Marché d'automne (src/marche.js : les neuf déguisements servis dix fois, q.ecureuil) ;
+  // lu sur st.marche, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme la chauve-souris
+  const ecureuilDuMarche = (st) => { const q = st && st.marche; return !!q && typeof q === 'object' && q.ecureuil === true; };
   // le pigeon voyageur : un objet rare de « Ma chaîne de boutiques » (src/chaine.js), acheté en jetons de chaîne ; lu sur st.chaine.objets.
   // Sans aucun bonus (décision du joueur : les objets rares n'accélèrent pas la boulangerie)
   const pigeonDeLaChaine = (st) => { const c = st && st.chaine; return !!c && typeof c === 'object' && Array.isArray(c.objets) && c.objets.includes('pigeon'); };
@@ -3363,6 +3366,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', verrou: 'Pendant Halloween', nomDefaut: 'Réglisse', cri: null, bonus: { gains: { pct: 2 } }, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
     { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', bonus: { gains: { pct: 5 } }, phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
     { id: 'chauve-souris', nom: 'Chauve-souris', espece: 'chauve-souris', prix: null, condition: chauveSourisDuManoir, gagne: 'Gagnée au bestiaire du Manoir', verrou: 'Les neuf monstres du bestiaire', nomDefaut: 'Myrtille', cri: 'couic', bonus: { absence: 1 }, phrase: 'Toute ronde, des oreilles immenses et deux petits crocs : elle tourne sous le plafond et veille sur la boutique la nuit.' },
+    { id: 'ecureuil', nom: 'Écureuil roux', espece: 'ecureuil', prix: null, condition: ecureuilDuMarche, gagne: 'Gagné à l’album de la forêt', verrou: 'Les neuf déguisements de l’album', nomDefaut: 'Pirouette', cri: 'couic', bonus: { absence: 1 }, phrase: 'Il grimpe aux étagères et cache des noisettes dans les tiroirs.' },
     { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', bonus: { gains: { pct: 2 } }, phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
     { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', bonus: { pourboire: 10 }, phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
     { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, bonus: { absence: 1 }, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
@@ -3592,6 +3596,25 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
     // le trophée du palier bonus 20 de la Maison hantée (après le maître) : une seule pièce, sans ensemble, distincte de la tenue en or
     ajouter(vet('hantee-lueur-chapeau', 'Chapeau phosphorescent', 'tete', 'hantee-lueur', 'chapeau', { vitesse: 1 }, 'epique', 'Le palier 20 du Manoir. Il brille dans le noir.'));
+    // l'événement « Le Marché d'automne » (src/marche.js, docs/marche-contrat.md § 2.8) : la tenue d'automne aux paliers 3, 5, 7 et 9 (les bonus
+    // de la tenue d'Halloween), la même en or pour le podium final, la couronne de feuilles d'or au palier 20. Formes pour persos.js : 'bonnet'
+    // (le bonnet à pompon), 'sweat' (le gilet de laine), 'bottes' (de pluie), 'panier' (d'osier, à la main), 'couronne' (de feuilles)
+    ajouter(vet('marche-bonnet', 'Bonnet à pompon', 'tete', 'marche', 'bonnet', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Tricoté main, un pompon roux qui saute à chaque pas.'));
+    ajouter(vet('marche-gilet', 'Gilet de laine', 'haut', 'marche', 'sweat', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Couleur rouille, de gros boutons en bois.'));
+    ajouter(vet('marche-bottes', 'Bottes de pluie', 'pieds', 'marche', 'bottes', { vitesse: 1.5 }, 'rare', 'Pour sauter dans les flaques entre deux fournées.'));
+    ajouter(vet('marche-panier', 'Panier d’osier', 'accessoire', 'marche', 'panier', { absence: 0.5 }, 'rare', 'Des pommes, des noix, et toujours une châtaigne au fond.'));
+    ajouter(vet('marche-or-bonnet', 'Bonnet doré', 'tete', 'marche-or', 'bonnet', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Le podium final du Marché d’automne.'));
+    ajouter(vet('marche-or-gilet', 'Gilet doré', 'haut', 'marche-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Une laine aux reflets de feuille d’or.'));
+    ajouter(vet('marche-or-bottes', 'Bottes dorées', 'pieds', 'marche-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Les flaques n’en reviennent pas.'));
+    ajouter(vet('marche-or-panier', 'Panier doré', 'accessoire', 'marche-or', 'panier', { absence: 0.5 }, 'legendaire', 'Un osier tressé de fils d’or.'));
+    // le trophée du palier bonus 20 du Marché : une seule pièce, sans ensemble, distincte de la tenue en or
+    ajouter(vet('marche-couronne', 'Couronne de feuilles d’or', 'tete', 'marche-couronne', 'couronne', { vitesse: 1 }, 'epique', 'Le palier 20 de la Halle. Des feuilles d’or qui ne tombent jamais.'));
+    // la saison gratuite « Automne » (src/saison-automne.js, docs/marche-contrat.md § 7.3) : la tenue de saison, aux crans 5, 9, 13 et 17 de
+    // la piste ; cosmétique, SANS aucun bonus (décision du joueur, 4 novembre), son ensemble non plus (comme la tenue d'apprenti)
+    ajouter(vet('automne-gavroche', 'Casquette de tweed', 'tete', 'automne', 'casquette', {}, 'epique', 'La saison d’automne 2026, cran 5. Un tweed chiné, la visière bien ronde.'));
+    ajouter(vet('automne-pull', 'Pull jacquard', 'haut', 'automne', 'sweat', {}, 'epique', 'La saison d’automne 2026, cran 13. Des feuilles et des glands tricotés en rang.'));
+    ajouter(vet('automne-bottines', 'Bottines d’automne', 'pieds', 'automne', 'chaussures', {}, 'epique', 'La saison d’automne 2026, cran 17. Cuir fauve, lacets rouges.'));
+    ajouter(vet('automne-echarpe', 'Écharpe tricotée', 'accessoire', 'automne', 'foulard', {}, 'epique', 'La saison d’automne 2026, cran 9. Assez longue pour deux tours de cou.'));
     // « Ma chaîne de boutiques » (src/chaine.js) : la tenue du patron, achetée pièce par pièce en jetons de chaîne (60 chacune) ; sans aucun
     // bonus et sans ensemble (décision du joueur : les objets rares n'accélèrent pas la boulangerie), comme la casquette néon
     ajouter(vet('chaine-toque', 'Toque à galon', 'tete', 'chaine', 'toque', {}, 'epique', 'Celle du patron de la chaîne.'));
@@ -3611,6 +3634,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       hantee: { nom: 'Tenue d’Halloween', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'hantee-or': { nom: 'Tenue d’Halloween en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      marche: { nom: 'Tenue d’automne', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      'marche-or': { nom: 'Tenue d’automne en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      automne: { nom: 'Tenue de la saison d’automne', bonus: {} }, // cosmétique : sans bonus (la piste ne fait pas gagner plus vite)
       parcours: { nom: 'Tenue du parcours', bonus: { gains: { produit: null, pct: 5 }, vitesse: 2, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
@@ -3618,10 +3644,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const vetement = (id) => (id && GARDEROBE.objets[id]) || null;
   // les auras (le 20e palier de la Maison hantée : l'aura phosphorescente) : une lueur douce autour du boulanger, sans bonus, gagnée à vie ;
   // elle se porte ou se retire dans la garde-robe (g.auras : celles gagnées, g.aura : celle portée, null : aucune), en plus des quatre pièces
-  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' } };
+  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' },
+    feuilles: { id: 'feuilles', nom: 'Aura des feuilles d’or', couleur: '#E8B33A', desc: 'Le 20e palier de la Halle. Des feuilles d’or qui tournoient doucement autour du boulanger.' } }; // (le Marché d'automne)
   // les distinctions gagnées, à vie (st.distinctions) : un titre montré à côté du pseudo dans le classement et dans la visite de sa boutique
   // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
-  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' } };
+  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' },
+    'legende-marche': { id: 'legende-marche', nom: 'Légende du Marché', desc: 'Le 20e palier du Marché d’automne.' }, // (src/marche.js)
+    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 350 XP).' } }; // (src/saison-automne.js)
   DISTINCTIONS['main-de-velours'] = { id: 'main-de-velours', nom: 'Main de velours', desc: 'Dix victoires de suite dans l’arrière-salle.' }; // lot 7 : le trophée « Main de velours » du casino (src/casino.js)
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
   const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };
@@ -3785,6 +3814,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       { id: 'nouveautes', bit: 12, seuil: (st, a) => a.r === 1 || st.boutiques >= 2 },
       { id: 'casino', bit: 13, seuil: (st, a) => (a.r === 1 && st.lifetime >= 1e8) || st.boutiques >= 2 },
       { id: 'chaine', bit: 14, seuil: (st, a, o) => st.boutiques >= 2 || o.chaine > 0 },
+      { id: 'piste', bit: 15, seuil: (st, a) => a.r === 1 || st.lifetime >= 1e6 }, // la saison gratuite (src/saison.js) : après « Ton premier jour » réussi, ou à 1 M€ (~12 min de jeu)
     ].map((d) => Object.freeze(d));
     const TOUS = deblocages.reduce((m, d) => m | (1 << d.bit), 0);
     return Object.freeze({ etapes: Object.freeze(etapes), deblocages: Object.freeze(deblocages), recompense: Object.freeze({ vetements: Object.freeze(['apprenti-tablier', 'apprenti-foulard']), boost: Object.freeze({ mult: 2, secs: 1800 }) }), TOUS, TOUTES: (1 << etapes.length) - 1 });
@@ -5729,6 +5759,328 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     etat };
 });
 
+/* ── saison.js ── */
+/* LE FOURNIL — les saisons gratuites (docs/marche-contrat.md § 7) : le moteur générique de la « piste », sans DOM ni game.js (tourne aussi
+   dans Node : test/fournil-saison.test.js). Une saison a une fiche (src/saison-automne.js, puis src/saison-hiver.js…) : ses dates, ses
+   sources d'XP, ses crans (une récompense à vie chacun) et son titre. L'état vit dans st.piste (PAS st.saison, qui est la recette de saison
+   de la boulangerie, ni G.SAISON) :
+     st.piste = { v: 1, id: 'automne-2026', xp: 0, recus: 0, titre: 0,
+                  j: { d: 'AAAA-MM-JJ', o, c, k, s, p },   les marqueurs du jour de Paris d : objectifs, journée, casino, série, paliers comptés
+                  sem: '', veille: '', ev: { marche: 0 },  le défi déjà compté (clé de semaine), le dernier jour à objectif, les paliers comptés
+                  passees: {},                             les saisons finies : { 'automne-2026': { xp, crans, titre } }
+                  dus: null }                              la fin d'une saison, pas encore montrée : { id, nom, lots, xp, crans, titre } (finDue)
+   recus : le masque des crans REÇUS (bit k − 1 = cran k) ; titre : 1 quand le titre de la saison est reçu.
+
+   L'XP se compte PAR CONSTAT (pas(st, now, ctx), une fois par seconde par l'écran, et dans les simulations) : l'état du jeu est comparé aux
+   marqueurs, ce qui est nouveau est crédité une seule fois, plafonné par jour (de Paris) ou par semaine ; jamais de pari, jamais d'argent ni
+   de temps passé. Les sources (SOURCES, recopiées dans la fiche) :
+     objectif  un objectif du jour réclamé (st.jour.objectifs[k].reclame)                  5 XP, 3 par jour
+     journee   les trois du jour réclamés (st.jour.etoileDonnee)                           10 XP, 1 par jour
+     defi      le défi de la semaine réclamé (st.semaine.reclame ; la clé de semaine)      75 XP, 1 par semaine
+     serie     un jour DE SUITE dans la série : le classement (ctx.serie : { aujourdhui, jours ≥ 2 }, resume().serie) ; sans classement, un
+               objectif du jour réclamé aujourd'hui ET hier (st.piste.veille)              10 XP, 1 par jour
+     palier    un palier d'événement franchi et reçu (st[cle].paliers ; les clés : fiche.evenements, 'marche' en automne)   20 XP, sans plafond
+     casino    un mini-objectif de l'arrière-salle réussi (st.arriere.casino.objectifs[k].fait, du jour)                    5 XP, 3 par jour
+   Le premier pas d'une saison (la piste créée) compte ce qui est DÉJÀ réclamé (même règle pour tous, généreux : les objectifs du jour, le
+   défi de la semaine, les paliers reçus ; comme outils/marche/saison.js, qui a réglé la piste) ; une saison qui enchaîne sur une autre
+   garde le défi déjà compté ; une `j` abîmée repart avec les compteurs du moment (rien n'est compté deux fois).
+
+   La piste : fiche.crans (une récompense par cran : { etoiles, boost: { mult, secs }, deco, vetement, trophee }), fiche.xpCran XP chacun ;
+   le titre (fiche.titre : { xp, distinction }) fiche.titre.xp XP après le dernier. Un cran atteint et pas reçu est « à recevoir » pour
+   toujours (aRecevoir) ; recevoir(st, n) le marque et rend son lot, que l'écran DISTRIBUE (verser(st, lot, G) le fait avec GAME : les
+   étoiles, le boost dans la réserve, le vêtement, la distinction ; une déco ou le trophée n'ont rien à verser : possede(st, id) les lit
+   sur la piste). Le titre se reçoit comme un cran de plus : n = crans.length + 1.
+
+   La fin (fin(st, now), appelée par etat et pas) : au premier passage après la fin de sa saison (ou un id inconnu), les crans atteints et
+   pas reçus (et le titre) sont donnés d'office : leur lot est rangé dans st.piste.dus (l'écran le DISTRIBUE et le montre : « La saison
+   d'automne est finie : voici ce qui t'attendait », puis recevoirFin(st)) ; la saison rejoint passees, st.piste repart pour la saison
+   active, ou id: '' s'il n'y en a pas. Une sauvegarde sans st.piste n'a rien avant le début d'une saison (rien n'est créé) ; pendant, elle
+   est créée au premier passage ; après, rien (elle n'a pas joué). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.SAISONS = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // ─── l'heure de Paris (la même règle que game.js, hantee.js, marche.js) ───
+  function decalageParis(ms) {
+    const a = new Date(ms).getUTCFullYear();
+    const dernierDimanche = (mois) => { const d = new Date(Date.UTC(a, mois + 1, 0, 1)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.getTime(); };
+    return ms >= dernierDimanche(2) && ms < dernierDimanche(9) ? 2 * 3600e3 : 3600e3;
+  }
+  const paris = (ms) => new Date(ms + decalageParis(ms));
+  function parisMs(a, m, j, h) { let t = Date.UTC(a, m - 1, j, h) - 3600e3; t = Date.UTC(a, m - 1, j, h) - decalageParis(t); return Date.UTC(a, m - 1, j, h) - decalageParis(t); }
+  const dayKey = (ms) => { const d = paris(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
+  const veilleDe = (jour) => new Date(Date.parse(jour + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+  const JOUR_OK = /^\d{4}-\d{2}-\d{2}$/;
+
+  // ─── les sources d'XP (docs/marche-contrat.md § 7.2) : les mêmes pour toutes les saisons, sauf si une fiche les change ───
+  const SOURCES = Object.freeze({
+    objectif: Object.freeze({ xp: 5, parJour: 3, nom: 'Objectifs du jour', txt: 'un objectif du jour réclamé' }),
+    journee: Object.freeze({ xp: 10, parJour: 1, nom: 'Journée complète', txt: 'les trois objectifs du jour réclamés' }),
+    defi: Object.freeze({ xp: 75, parSemaine: 1, nom: 'Défi de la semaine', txt: 'le défi de la semaine réclamé' }),
+    serie: Object.freeze({ xp: 10, parJour: 1, nom: 'Série', txt: 'un jour de plus dans ta série' }),
+    palier: Object.freeze({ xp: 20, nom: 'Paliers d’événement', txt: 'un palier d’événement franchi' }),
+    casino: Object.freeze({ xp: 5, parJour: 3, nom: 'Arrière-salle', txt: 'un mini-objectif de l’arrière-salle réussi' }),
+  });
+  const ORDRE = ['objectif', 'journee', 'defi', 'serie', 'palier', 'casino'];
+
+  // ─── les fiches ───
+  const FICHES = [];
+  function ajouter(f) { // une saison : { id, nom, debut, fin, sources, crans, xpCran, titre: { xp, distinction }, evenements, couleurs, textes }
+    if (!f || typeof f.id !== 'string' || !f.id || !Number.isFinite(f.debut) || !Number.isFinite(f.fin) || !(f.fin > f.debut) || !Array.isArray(f.crans) || !f.crans.length || !(f.xpCran > 0)) throw new Error('SAISONS.ajouter : fiche invalide');
+    if (f.crans.length > 30) throw new Error('SAISONS.ajouter : 30 crans au plus (le masque des reçus)');
+    if (FICHES.some((x) => x.id === f.id)) return fiche(f.id);
+    if (FICHES.some((x) => f.debut < x.fin && x.debut < f.fin)) throw new Error('SAISONS.ajouter : deux saisons se chevauchent');
+    const F = Object.assign({ sources: SOURCES, evenements: [], titre: null, couleurs: {}, textes: {} }, f);
+    F.crans = f.crans.map((c, k) => Object.freeze(Object.assign({}, c, { n: k + 1 })));
+    F.xpTitre = F.titre && F.titre.xp > 0 ? F.crans.length * F.xpCran + F.titre.xp : Infinity; // le titre : après le dernier cran
+    FICHES.push(F); FICHES.sort((a, b) => a.debut - b.debut);
+    return F;
+  }
+  const fiche = (id) => FICHES.find((f) => f.id === id) || null;
+  const active = (now) => (Number.isFinite(now) ? FICHES.find((f) => f.debut <= now && now < f.fin) || null : null); // la saison du moment (une seule : jamais deux en même temps)
+
+  // ─── l'état ───
+  const entier = (x) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
+  const objet = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+  const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0 });
+  function neuve(id, passees) { return { v: 1, id: id || '', xp: 0, recus: 0, titre: 0, j: jVide(''), sem: '', veille: '', ev: {}, passees: passees || {}, dus: null }; }
+  // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé comptera au premier pas, la même règle pour tous (j vide :
+  // les objectifs du jour ; ev à 0 : les paliers reçus ; sem vide : le défi de cette semaine, comme outils/marche/saison.js, qui a réglé la
+  // piste) ; sem : celui de la saison d'avant, quand l'une enchaîne sur l'autre (le défi de la même semaine ne compte pas deux fois)
+  function ouvrir(st, F, now, passees, dus, sem) {
+    const n = neuve(F.id, passees); n.dus = dus || null; n.j = jVide(dayKey(now)); for (const cle of F.evenements) n.ev[cle] = 0;
+    n.sem = typeof sem === 'string' ? sem : ''; return n;
+  }
+  // ce que le jeu montre en ce moment (pour remettre d'aplomb sans rien compter deux fois)
+  function constats(st, now, F) {
+    const auj = dayKey(now), jr = objet(st.jour) && st.jour.date === auj && Array.isArray(st.jour.objectifs) ? st.jour : null;
+    const o = jr ? jr.objectifs.filter((x) => x && x.reclame === true).length : 0, c = jr && jr.etoileDonnee === true ? 1 : 0;
+    const ca = objet(st.arriere) && objet(st.arriere.casino) ? st.arriere.casino : null;
+    const k = ca && Array.isArray(ca.objectifs) && (typeof ca.jour !== 'string' || ca.jour === auj || ca.jour === '') ? ca.objectifs.filter((x) => x && x.fait === true).length : 0;
+    const sm = objet(st.semaine) && typeof st.semaine.key === 'string' ? st.semaine : null;
+    const ev = {}; for (const cle of (F ? F.evenements : [])) ev[cle] = paliersDe(st, cle);
+    return { auj, o, c, k, sem: sm && sm.reclame === true ? sm.key : null, ev };
+  }
+  function paliersDe(st, cle) { const q = st[cle]; return objet(q) && Array.isArray(q.paliers) ? new Set(q.paliers.filter((n) => Number.isInteger(n) && n >= 1 && n <= 99)).size : 0; }
+  function nettoyerPassees(p) {
+    const o = {}; if (!objet(p)) return o;
+    for (const [id, x] of Object.entries(p)) if (typeof id === 'string' && id && objet(x)) o[id] = { xp: Number.isFinite(x.xp) && x.xp >= 0 ? Math.floor(x.xp) : 0, crans: entier(x.crans) ? Math.min(x.crans, 30) : 0, titre: x.titre ? 1 : 0 };
+    return o;
+  }
+  function reparer(st, now) { // remet st.piste d'aplomb (jamais d'exception) ; rend st.piste, ou null (rien et pas de saison : rien n'est créé)
+    let p = st.piste;
+    const F = active(now);
+    if (p === undefined) { if (!F) return null; return (st.piste = ouvrir(st, F, now)); } // créée pendant la saison (une vieille sauvegarde, un nouveau joueur)
+    if (!objet(p)) { p = st.piste = neuve(F ? F.id : ''); if (F) { const c = constats(st, now, F); p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0 }; p.sem = c.sem || ''; p.ev = c.ev; } return p; } // abîmée : neuve, avec les compteurs du moment
+    p.v = 1;
+    if (typeof p.id !== 'string') p.id = F ? F.id : ''; // (abîmée pendant une saison : c'est la sienne, ses compteurs repris plus bas, rien n'est recompté)
+    if (!(typeof p.xp === 'number' && Number.isFinite(p.xp) && p.xp >= 0)) p.xp = 0; else p.xp = Math.floor(p.xp);
+    if (!(entier(p.recus) && p.recus <= 0x7fffffff)) p.recus = 0; // (les bits au-delà des crans sont gardés)
+    p.titre = p.titre === 1 || p.titre === true ? 1 : 0;
+    p.passees = nettoyerPassees(p.passees);
+    const Fp = fiche(p.id), c = constats(st, now, Fp);
+    if (!objet(p.j) || typeof p.j.d !== 'string' || !(p.j.d === '' || JOUR_OK.test(p.j.d)) || !['o', 'c', 'k', 's', 'p'].every((k) => entier(p.j[k]))) p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0 }; // abîmée : les compteurs du moment
+    if (typeof p.sem !== 'string') p.sem = c.sem || '';
+    if (!(typeof p.veille === 'string' && (p.veille === '' || JOUR_OK.test(p.veille)))) p.veille = '';
+    if (!objet(p.ev)) p.ev = Object.assign({}, c.ev);
+    for (const k of Object.keys(p.ev)) if (!entier(p.ev[k])) p.ev[k] = c.ev[k] != null ? c.ev[k] : 0;
+    if (Fp) for (const cle of Fp.evenements) if (!entier(p.ev[cle])) p.ev[cle] = c.ev[cle];
+    if (p.dus != null && !(objet(p.dus) && typeof p.dus.id === 'string' && Array.isArray(p.dus.lots))) p.dus = null;
+    if (p.dus === undefined) p.dus = null;
+    return p;
+  }
+  function etat(st, now) { // répare, archive la saison finie (fin), crée celle du moment ; rend st.piste (null : pas de piste et pas de saison)
+    if (!st || typeof st !== 'object') return null;
+    const p = reparer(st, now); if (!p) return null;
+    const F = active(now);
+    if (p.id && (!F || p.id !== F.id)) fin(st, now); // la saison de la piste est finie (ou inconnue) : archivée, ses dus rangés
+    else if (!p.id && F) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre
+    return st.piste;
+  }
+
+  // ─── la piste ───
+  const N = (F) => (F ? F.crans.length : 0);
+  const crans = (st) => { const p = st && st.piste, F = p && fiche(p.id); return F ? Math.min(N(F), Math.floor(p.xp / F.xpCran)) : 0; }; // les crans atteints
+  const recu = (p, n) => n >= 1 && n <= 30 && (p.recus & (1 << (n - 1))) !== 0;
+  function titre(st) { // { xp (le seuil), atteint, recu, distinction, nom, reste }
+    const p = st && st.piste, F = p && fiche(p.id);
+    if (!F || !F.titre) return { xp: Infinity, atteint: false, recu: false, distinction: null, nom: '', reste: Infinity };
+    return { xp: F.xpTitre, atteint: p.xp >= F.xpTitre, recu: p.titre === 1, distinction: F.titre.distinction, nom: F.titre.nom || '', reste: Math.max(0, F.xpTitre - p.xp) };
+  }
+  function aRecevoir(st) { // les crans atteints, pas encore reçus (et le titre : n = crans.length + 1)
+    const p = st && st.piste, F = p && fiche(p.id); if (!F) return [];
+    const l = []; for (let n = 1; n <= crans(st); n++) if (!recu(p, n)) l.push(n);
+    if (F.titre && p.xp >= F.xpTitre && p.titre !== 1) l.push(N(F) + 1);
+    return l;
+  }
+  function lotDe(F, n) { // le lot du cran n (ou du titre), à distribuer
+    if (n === N(F) + 1 && F.titre) return { n, titre: true, distinction: F.titre.distinction };
+    const c = F.crans[n - 1]; return c ? Object.assign({}, c) : null;
+  }
+  function recevoir(st, n) { // marque le cran n reçu et rend son lot (que l'écran distribue : verser) ; null : pas atteint, déjà reçu, inconnu
+    const p = st && st.piste, F = p && fiche(p.id); if (!F || !Number.isInteger(n)) return null;
+    if (n === N(F) + 1) { if (!F.titre || p.xp < F.xpTitre || p.titre === 1) return null; p.titre = 1; return lotDe(F, n); }
+    if (n < 1 || n > crans(st) || recu(p, n)) return null;
+    p.recus |= 1 << (n - 1); return lotDe(F, n);
+  }
+  const toutRecevoir = (st) => aRecevoir(st).map((n) => recevoir(st, n)).filter(Boolean); // « Tout recevoir » : les lots, dans l'ordre
+  // verser un lot dans la boulangerie (G : GAME) ; rend ce qui a été donné, pour la feuille. Les décos et le trophée : rien à verser (possede)
+  function verser(st, lot, G) {
+    const fait = { etoiles: 0, boost: null, vetement: null, distinction: null, deco: lot && lot.deco || null };
+    if (!lot || !st) return fait;
+    if (lot.etoiles > 0) { st.etoiles = (st.etoiles || 0) + lot.etoiles; fait.etoiles = lot.etoiles; }
+    if (lot.boost && G && typeof G.donnerBoostReserve === 'function') fait.boost = G.donnerBoostReserve(st, lot.boost.mult, lot.boost.secs);
+    if (lot.vetement && G && typeof G.donnerVetement === 'function') { try { G.donnerVetement(st, lot.vetement); fait.vetement = lot.vetement; } catch (e) { /* une pièce que la garde-robe ne connaît pas encore */ } }
+    if (lot.distinction && G && typeof G.donnerDistinction === 'function') { G.donnerDistinction(st, lot.distinction); fait.distinction = lot.distinction; }
+    return fait;
+  }
+  function possede(st, id) { // une récompense de piste (déco, vêtement, trophée, distinction) reçue, cette saison ou une saison passée (le carnet)
+    const p = st && st.piste; if (!objet(p) || !id) return false;
+    for (const F of FICHES) {
+      const k = F.crans.findIndex((c) => c.deco === id || c.vetement === id || c.trophee === id); const estTitre = F.titre && F.titre.distinction === id;
+      if (k < 0 && !estTitre) continue;
+      if (p.id === F.id) { if (k >= 0 && recu(p, k + 1)) return true; if (estTitre && p.titre === 1) return true; }
+      const x = objet(p.passees) && p.passees[F.id]; if (x) { if (k >= 0 && x.crans >= k + 1) return true; if (estTitre && x.titre) return true; }
+    }
+    return false;
+  }
+
+  // ─── le pas : l'XP par constat ───
+  function pas(st, now, ctx) { // → { xp (gagnée), sources: { objectif… }, nouveaux: [crans atteints], titre (atteint à l'instant), fin (les dus d'une saison finie) }
+    const out = { xp: 0, sources: {}, nouveaux: [], titre: false, fin: null };
+    if (!st || !Number.isFinite(now)) return out;
+    const p = etat(st, now); if (!p) return out;
+    out.fin = p.dus || null;
+    const F = fiche(p.id); if (!F || !(F.debut <= now && now < F.fin)) return out;
+    const S = F.sources || SOURCES, c = constats(st, now, F);
+    if (p.j.d !== c.auj) p.j = jVide(c.auj); // un nouveau jour de Paris
+    const avantC = crans(st), avantT = p.xp >= F.xpTitre;
+    const crediter = (src, n) => { if (!(n > 0) || !S[src]) return; const g = n * S[src].xp; p.xp += g; out.xp += g; out.sources[src] = (out.sources[src] || 0) + g; };
+    const j = p.j, cap = (src) => (S[src] && S[src].parJour) || Infinity;
+    // les objectifs du jour (et la série locale, qui en dépend)
+    if (c.o > j.o) { const n = Math.min(c.o, cap('objectif')) - Math.min(j.o, cap('objectif')); crediter('objectif', n); j.o = c.o; }
+    let serieLocale = false;
+    if (c.o >= 1 && p.veille !== c.auj) { serieLocale = p.veille === veilleDe(c.auj); p.veille = c.auj; }
+    if (c.c && !j.c) { crediter('journee', 1); j.c = 1; }
+    // la série : le classement (s'il est là), sinon la série locale
+    const sc = ctx && objet(ctx.serie) ? ctx.serie : null;
+    const serieOk = sc ? (sc.aujourdhui === true || sc.auj === true) && ((Number(sc.jours) || Number(sc.n) || 0) >= 2) : serieLocale;
+    if (serieOk && !j.s) { crediter('serie', 1); j.s = 1; }
+    // le défi de la semaine
+    if (c.sem && p.sem !== c.sem) { crediter('defi', 1); p.sem = c.sem; }
+    // les paliers d'événement
+    for (const cle of F.evenements) { const n = c.ev[cle] || 0, avant = entier(p.ev[cle]) ? p.ev[cle] : 0; if (n > avant) { crediter('palier', n - avant); j.p += n - avant; } p.ev[cle] = Math.max(avant, n); }
+    // l'arrière-salle
+    if (c.k > j.k) { const n = Math.min(c.k, cap('casino')) - Math.min(j.k, cap('casino')); crediter('casino', n); j.k = c.k; }
+    const apres = crans(st); for (let n = avantC + 1; n <= apres; n++) out.nouveaux.push(n);
+    out.titre = !avantT && p.xp >= F.xpTitre;
+    return out;
+  }
+  // ce qu'il reste à prendre aujourd'hui, source par source (la ligne « D'où vient l'XP » de la feuille)
+  function restes(st, now) {
+    const p = st && st.piste, F = p && fiche(p.id); if (!F) return [];
+    const S = F.sources || SOURCES, auj = dayKey(now), j = p.j && p.j.d === auj ? p.j : jVide(auj);
+    return ORDRE.filter((k) => S[k]).map((k) => {
+      const s = S[k]; let fait = 0, max = null;
+      if (k === 'objectif') { fait = Math.min(j.o, s.parJour); max = s.parJour; } else if (k === 'journee') { fait = j.c; max = 1; } else if (k === 'serie') { fait = j.s; max = 1; } else if (k === 'casino') { fait = Math.min(j.k, s.parJour); max = s.parJour; }
+      else if (k === 'defi') { const sm = objet(st.semaine) ? st.semaine : null; fait = sm && sm.key && p.sem === sm.key ? 1 : 0; max = 1; } else if (k === 'palier') { fait = j.p; max = null; }
+      return { id: k, nom: s.nom, txt: s.txt, xp: s.xp, fait, max, reste: max == null ? null : Math.max(0, max - fait), parSemaine: !!s.parSemaine };
+    });
+  }
+  // tout ce que l'écran montre (la carte, la feuille) : { id, nom, xp, cran, crans, xpCran, dansCran, pour, aRecevoir, piste: [{ n, xp, lot, etat: 'recu' | 'aRecevoir' | 'aVenir' }], titre, resteMs, fiche }
+  function vue(st, now) {
+    const p = st && st.piste, F = p && fiche(p.id); if (!F) return null;
+    const cr = crans(st), l = F.crans.map((c, k) => ({ n: k + 1, xp: (k + 1) * F.xpCran, lot: Object.assign({}, c), etat: recu(p, k + 1) ? 'recu' : k + 1 <= cr ? 'aRecevoir' : 'aVenir' }));
+    return { id: F.id, nom: F.nom, xp: p.xp, cran: cr, crans: N(F), xpCran: F.xpCran, dansCran: cr >= N(F) ? F.xpCran : p.xp - cr * F.xpCran, pour: cr >= N(F) ? null : (cr + 1) * F.xpCran,
+      aRecevoir: aRecevoir(st), piste: l, titre: titre(st), resteMs: Number.isFinite(now) ? Math.max(0, F.fin - now) : null, fiche: F };
+  }
+
+  // ─── la fin d'une saison ───
+  function fin(st, now) { // la saison de st.piste est finie (ou inconnue) : les dus donnés d'office (rangés dans st.piste.dus), l'archive, la piste suivante
+    const p = st && st.piste; if (!objet(p) || !p.id) return null;
+    const F = fiche(p.id), Fa = active(now);
+    if (F && Fa && Fa.id === F.id) return null; // pas finie
+    if (F && Number.isFinite(now) && now < F.debut) return null; // (une horloge reculée avant le début : on attend)
+    const lots = F ? toutRecevoir(st) : [];
+    const res = { id: p.id, nom: F ? F.nom : p.id, lots, xp: p.xp, crans: F ? crans(st) : 0, titre: F && F.titre ? p.titre : 0 };
+    const passees = Object.assign({}, p.passees); passees[p.id] = { xp: res.xp, crans: res.crans, titre: res.titre };
+    const n = Fa ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!Fa) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
+    n.dus = lots.length ? res : (p.dus || null); // (des dus d'avant pas encore montrés : gardés)
+    if (lots.length && p.dus && Array.isArray(p.dus.lots)) res.lots = p.dus.lots.concat(lots);
+    st.piste = n;
+    return res;
+  }
+  const finDue = (st) => (st && objet(st.piste) && st.piste.dus) || null; // la feuille de fin à montrer (et ses lots à distribuer), ou null
+  function recevoirFin(st) { const d = finDue(st); if (d) st.piste.dus = null; return d; } // montrée et distribuée : effacée
+
+  return { SOURCES, ORDRE, FICHES, PISTE: Object.freeze({ v: 1, cle: 'piste', maxCrans: 30 }), ajouter, fiche, active, etat, reparer, pas, crans, aRecevoir, recevoir, toutRecevoir,
+    verser, titre, fin, finDue, recevoirFin, possede, restes, vue, parisMs, dayKey, paris };
+});
+
+/* ── saison-automne.js ── */
+/* LE FOURNIL — la première saison gratuite, « Automne » (docs/marche-contrat.md § 7) : la fiche, posée dans le moteur (src/saison.js,
+   SAISONS.ajouter). Du vendredi 13 novembre 2026 à midi au lundi 30 novembre 2026 à 23 h 59 59 (heure de Paris) ; la saison d'hiver (l'Avent,
+   src/saison-hiver.js) partira le 1er décembre à 0 h sur le même moteur. 22 crans de 50 XP (1 100 XP), puis le titre « Feuille d'or 2026 »
+   à 1 350 XP. Les récompenses (à vie) : 16 étoiles, 3 petits boosts (×2, ×2, ×3, 30 min), AUCUNE heure de gains, la tenue de saison (4 pièces
+   cosmétiques SANS bonus : collection 'automne', src/game.js), 5 décos, le trophée de fin de saison, le titre. Réglée par la simulation
+   (outils/marche/saison.js, refaite sur ce moteur par test/fournil-saison.test.js) : quotidien 1 h → finie le 28 nov. ; occasionnel 17 min
+   quatre jours sur sept → 13/22 ; et sans effet notable sur le rythme des boutiques (outils/marche/longevite-saison.js). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./saison.js'));
+  else root.SAISON_AUTOMNE = factory(root.SAISONS);
+})(typeof self !== 'undefined' ? self : this, function (SAISONS) {
+  'use strict';
+  const M = 1800; // trente minutes
+  const CRANS = [
+    { boost: { mult: 2, secs: M } },                                   // 1
+    { etoiles: 1 },                                                    // 2
+    { deco: 'couronne-feuilles' },                                     // 3 : la couronne de feuilles (la porte)
+    { etoiles: 1 },                                                    // 4
+    { vetement: 'automne-gavroche' },                                  // 5 : la casquette de tweed
+    { etoiles: 1 },                                                    // 6
+    { deco: 'guirlande-feuilles' },                                    // 7 : la guirlande de feuilles (le rebord)
+    { etoiles: 1 },                                                    // 8
+    { vetement: 'automne-echarpe' },                                   // 9 : l'écharpe tricotée
+    { etoiles: 1, boost: { mult: 2, secs: M } },                       // 10
+    { etoiles: 1 },                                                    // 11
+    { etoiles: 1 },                                                    // 12
+    { vetement: 'automne-pull' },                                      // 13 : le pull jacquard
+    { etoiles: 2 },                                                    // 14
+    { deco: 'lanterne-automne' },                                      // 15 : la lanterne d'automne (le comptoir)
+    { etoiles: 1 },                                                    // 16
+    { vetement: 'automne-bottines' },                                  // 17 : les bottines, la tenue de saison complète
+    { etoiles: 2 },                                                    // 18
+    { deco: 'epouvantail' },                                           // 19 : l'épouvantail (le sol)
+    { boost: { mult: 3, secs: M } },                                   // 20
+    { etoiles: 2 },                                                    // 21
+    { deco: 'trophee-automne-2026', trophee: 'trophee-automne-2026', etoiles: 2 }, // 22 : le trophée de fin de saison (déco du comptoir et vitrine)
+  ];
+  const NOMS = { // pour la feuille et le carnet
+    'couronne-feuilles': 'la couronne de feuilles, pour la porte', 'guirlande-feuilles': 'la guirlande de feuilles, pour le rebord', 'lanterne-automne': 'la lanterne d’automne, pour le comptoir',
+    epouvantail: 'l’épouvantail, pour la boutique', 'trophee-automne-2026': 'le trophée de la saison d’automne 2026',
+    'automne-gavroche': 'la casquette de tweed', 'automne-echarpe': 'l’écharpe tricotée', 'automne-pull': 'le pull jacquard', 'automne-bottines': 'les bottines (la tenue de saison complète)',
+    'feuille-or-2026': 'le titre « Feuille d’or 2026 »',
+  };
+  return SAISONS.ajouter({
+    id: 'automne-2026', nom: 'La saison d’automne', court: 'Saison d’automne', annee: 2026,
+    debut: SAISONS.parisMs(2026, 11, 13, 12), fin: SAISONS.parisMs(2026, 12, 1, 0),
+    sources: SAISONS.SOURCES, crans: CRANS, xpCran: 50,
+    titre: { xp: 250, distinction: 'feuille-or-2026', nom: 'Feuille d’or 2026' },
+    evenements: ['marche'], // les paliers d'événement qui comptent (st.marche.paliers) ; l'Avent ajoutera sa clé dans sa propre fiche
+    famille: 'piste-automne', tenue: 'automne', // le carnet (src/chaine.js) et la garde-robe (src/game.js)
+    couleurs: { fond: '#FFF4E4', accent: '#D9622B', or: '#E8B33A', vert: '#7A9A3A', texte: '#4A2E1C', doux: '#9C7B5E' },
+    noms: NOMS,
+    textes: {
+      titre: 'La saison d’automne', carte: 'Saison d’automne', annonceTitre: 'Nouveau : la saison d’automne !',
+      annonce: 'Jusqu’au 30 novembre, une piste de récompenses gratuite : les objectifs du jour, le défi de la semaine, ta série et les paliers du Marché la font avancer. Tout ce que tu reçois reste à vie.',
+      fin: 'La saison d’automne est finie : voici ce qui t’attendait.', carnet: 'Saison d’automne 2026',
+      recevoir: 'Recevoir', toutRecevoir: 'Tout recevoir',
+    },
+  });
+});
+
 /* ── blackjack.js ── */
 /* LE FOURNIL — l'arrière-salle : les règles du BlackJack caché (pures, sans DOM : tournent aussi dans Node, test/fournil-blackjack.test.js).
    Sabot de six jeux mélangé (re-mélangé passé 75 %), tirer, rester, doubler sur les deux premières cartes ; le croupier tire jusqu'à 17 et
@@ -6814,7 +7166,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // les notifications : actif (abonné), ses quatre cas, l'adresse d'envoi (endpoint) et l'heure « boutique pleine » déjà annoncée au serveur
   const notifsNeuves = (prefs) => ({ actif: false, prefs: nettoyerPrefs(prefs), endpoint: '', pleineA: 0 });
   // les événements génériques que ce téléphone connaît (version 5 du serveur : p_evt) ; chacun est aussi une période du classement
-  const EVTS = ['hantee'];
+  const EVTS = ['hantee', 'marche']; // les événements génériques (version 5) : la Maison hantée, le Marché d'automne (SQL v6.9, docs/marche-contrat.md § 3)
   const evtOk = (id) => EVTS.includes(id);
 
   // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
@@ -6855,7 +7207,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     { de: 7, a: 10, etoiles: 3, mult: 3, secs: 1800 }, // 7e à 10e : 3 étoiles, un boost ×3 de 30 min
     { de: 11, a: 15, etoiles: 2, mult: 2, secs: 1800 }, // 11e à 15e : 2 étoiles, un boost ×2 de 30 min
   ];
-  const NOMS_EVT = { hantee: 'la Maison hantée' }; // « Tu as fini 7e de la Maison hantée sur 12 »
+  const NOMS_EVT = { hantee: 'la Maison hantée', marche: 'le Marché d’automne' }; // « Tu as fini 7e de la Maison hantée sur 12 »
   function recompenseEvt(rang) { // { rang, etoiles, mult, secs, tenue } ; null hors du 1er au 15e
     const r = Number.isInteger(rang) ? RECOMPENSES_EVT.find((x) => rang >= x.de && rang <= x.a) : null;
     return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
@@ -6867,13 +7219,16 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return EVTS.filter((id) => rec.evenements[id] && recompenseEvt(rec.evenements[id].rang) && !(rec.evtPayes || []).includes(id))
       .map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang) }));
   }
-  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 »
+  const deNom = (n) => (/^le /.test(n) ? 'du ' + n.slice(3) : /^les /.test(n) ? 'des ' + n.slice(4) : 'de ' + n); // « de la Maison hantée », « du Marché d’automne »
+  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 », « Tu as fini 7e du Marché d’automne sur 12 »
     if (!p || !rangOk(p.rang) || !NOMS_EVT[p.id]) return '';
-    return `Tu as fini ${rangTexte(p.rang)} de ${NOMS_EVT[p.id]}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
+    return `Tu as fini ${rangTexte(p.rang)} ${deNom(NOMS_EVT[p.id])}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
   }
   // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
   const TITRES = { 'legende-manoir': 'Légende du Manoir' };
   TITRES['main-de-velours'] = 'Main de velours'; // lot 7 : dix victoires de suite dans l'arrière-salle (src/casino.js)
+  TITRES['legende-marche'] = 'Légende du Marché'; // le 20e palier du Marché d'automne (src/marche.js)
+  TITRES['feuille-or-2026'] = 'Feuille d’or 2026'; // le titre de la saison d'automne 2026 (src/saison-automne.js)
   const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
@@ -7105,7 +7460,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS : seize depuis les recettes de boutique ; une photo
   //       d'avant n'en a que huit, les autres restent à 0), m: { tables, four, vitrine, caisse, froid, deco } (crans),
   //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
-  //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
+  //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, dm (optionnel, absent s'il n'y en a pas) : celles du Marché d'automne, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
   //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné,
   //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
   //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
@@ -7140,13 +7495,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (!e || typeof e !== 'object' || Array.isArray(e) || !EV_PHOTO.includes(e.id)) return null;
     return { id: e.id, p: (Array.isArray(e.p) ? e.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0] : [0, 0])), d: idsOk(e.d, 8), pa: borne(e.pa, 0, 99), t: borne(e.t, 0, 1e18) };
   }
-  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st),
+  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh, dm (les décos gagnées, sinon lues dans st),
   //   ev: { id, q } (l'événement en cours et son état st[id], seulement s'il y est entré : l'interface en décide) }
   function photo(st, o) {
     o = o || {}; const G = leJeu(o.G);
     if (!st || typeof st !== 'object' || !G || !Array.isArray(st.stations)) return null;
     try {
-      const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos);
+      const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos), dm = idsOk(o.dm || (st.marche && st.marche.decos), 10);
       const p = {
         v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
         p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.PRODUITS[i] ? G.gradeApprenti(st, i) : 1]),
@@ -7156,6 +7511,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
         l: G.standing ? borne(G.standing(st), 0, 5) : 0, // le standing de la boutique (0 à 5) : le copain la voit montée en gamme
       };
+      if (dm.length) p.dm = dm; // les décos du Marché d'automne (absentes : aucune ; un vieux téléphone ne les lit pas)
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
       { const a = G.codeAmenagement ? G.codeAmenagement(st.amenagement) : ''; if (a) p.a = a; } // a : la place de ses meubles (19 caractères ; absent : le plan d'origine)
       const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
@@ -7193,6 +7549,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (x.td != null) o.x.td = borne(x.td, 0, 200); // ses trophées dorés (absents d'une photo d'avant)
     }
     if (p.tp != null) { const k = borne(p.tp, 0, 1e4); if (k >= 1) o.tp = k; } // son rang de palier (absent, ou 0 : pas encore la n°40)
+    { const dm = idsOk(p.dm, 10); if (dm.length) o.dm = dm; } // les décos du Marché d'automne (absentes d'une photo d'avant, ou sans)
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
     if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
@@ -7249,7 +7606,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
     const C = leChaine(), decos = p.dc && C ? C.decosDepuisCode(p.dc) : null; // ses décos posées ([[id, place]…]) ; null : le plan d'origine (une photo sans dc)
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, decosMarche: p.dm || [], pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
       decos: decos && decos.length ? decos : null, chaine: p.ch || null,
       palier: p.tp || 0, titrePalier: p.tp && typeof G.titrePalier === 'function' ? G.titrePalier(p.tp) : null }; // palier : son rang (0 : avant la n°40), titrePalier : « Boulanger étoilé »…
   }
@@ -20958,6 +21315,861 @@ const GARDEROBE_UI = (() => {
     BESTIAIRE, bestiaire, verserBestiaire, bestiaireDus, reparerBestiaire };
 });
 
+/* ── marche.js ── */
+/* LE FOURNIL — l'événement d'automne « Le Marché d'automne » : les règles pures de la Halle, la troisième boutique à part (du vendredi
+   13 novembre 2026 à midi au vendredi 20 novembre 2026 à 20 h, heure de Paris ; docs/marche-contrat.md § 2). Pour tous les âges : un marché
+   d'automne chaleureux (châtaignes, pommes, champignons, vendanges, paniers, feuilles mortes), des enfants déguisés en animaux de la forêt.
+
+   C'est src/hantee.js (la Maison hantée) copié : le MÊME MOTEUR et la MÊME API, mot pour mot (test/fournil-marche.test.js compare la liste
+   exportée, clé par clé, et ses types) ; un moteur d'écran écrit pour le Manoir sert la Halle en changeant d'objet de règles. Les chiffres du
+   moteur (recettes, prix, Astuces = les Sortilèges, coups de pouce, ×6 de présence, activités, album = le bestiaire) sont EXACTEMENT ceux du
+   Manoir : l'enveloppe du serveur (fournil_evts(), la ligne 'marche' du SQL v6.9) en dépend. Ce qui change, et seulement ça :
+     · la fenêtre : DEBUT, FIN (176 h), JOURS = 8 (ven. 13 = 1 … ven. 20 = 8), OUVERTURES des paliers (le 13 dès midi, puis à minuit) ;
+     · les seuils et les jours des vingt paliers (réglés par outils/marche/rythme.js ; § 2.6) et leurs récompenses pour la boulangerie (la
+       tenue d'automne aux paliers 3, 5, 7, 9 ; quatre décos ; au 20e la couronne de feuilles, l'arbre aux feuilles d'or, l'aura des feuilles
+       d'or, le titre « Légende du Marché ») ; pas de chat noir ; pas d'ANCIENS (recompensesV2 d'office : revueRecompenses ne rend rien) ;
+     · l'état vit dans st.marche (les clés internes restent celles du Manoir : billets, total, manoir, bestiaire…, paliers, vetements,
+       decos) ; seule clé renommée : q.chauvesouris → q.ecureuil (l'écureuil roux de l'album, GAME.COMPAGNONS « ecureuil ») ;
+     · ACT.equiper({ id: 'marche' }) (les graines des mini-jeux et de la recette du jour), la graine de la Halle (« |marche|manoir ») ;
+     · PROFILS (simulation) : occasionnel 17 min, quotidien 1 h, assidu 2 h, très actif 8 h, marathon 23 h 48 (outils/marche/proto.js) ;
+     · la fiche (MARCHE.FICHE) : les mots, les couleurs, la devise (les noisettes), l'habillage des coups de pouce (des pies voleuses, la
+       cantine de l'école, l'heure dorée, la brouette du fermier ; les CLÉS DE MÉCANIQUE restent celles du Quartier), les activités.
+   Aucune dépendance au DOM ni à game.js : tourne aussi dans Node. Le « maintenant » est toujours donné par l'appelant, jamais lu ici. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
+  else root.MARCHE = factory(root.ACTIVITES);
+})(typeof self !== 'undefined' ? self : this, function (ACT) {
+  'use strict';
+
+  // ─── l'heure de Paris (la même règle que game.js, classement.js et quartier.js) ───
+  function decalageParis(ms) {
+    const a = new Date(ms).getUTCFullYear();
+    const dernierDimanche = (mois) => { const d = new Date(Date.UTC(a, mois + 1, 0, 1)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.getTime(); };
+    return ms >= dernierDimanche(2) && ms < dernierDimanche(9) ? 2 * 3600e3 : 3600e3;
+  }
+  const paris = (ms) => new Date(ms + decalageParis(ms));
+  function parisMs(a, m, j, h) { // une heure de Paris → ms (en deux passes : le décalage dépend de la date)
+    let t = Date.UTC(a, m - 1, j, h) - 3600e3; t = Date.UTC(a, m - 1, j, h) - decalageParis(t); return Date.UTC(a, m - 1, j, h) - decalageParis(t);
+  }
+  const dayKey = (ms) => { const d = paris(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
+
+  // ─── la fenêtre : du vendredi 13 novembre 2026 à 12 h au vendredi 20 novembre 2026 à 20 h, heure de Paris (heure d'hiver : 11 h et 19 h UTC) ───
+  const DEBUT = parisMs(2026, 11, 13, 12), FIN = parisMs(2026, 11, 20, 20), JOUR = 864e5, JOURS = 8;
+  const CLASSEMENT_JUSQUA = FIN + 14 * JOUR; // l'onglet « Marché » du classement reste visible deux semaines après la fin (le podium final) : jusqu'au ven. 4 déc. 20 h
+  function fenetre(now) {
+    const t = Number.isFinite(now) ? now : 0;
+    const avant = t < DEBUT, fini = t >= FIN, ouvert = !avant && !fini;
+    const jour = avant ? 0 : fini ? JOURS : Math.min(JOURS, Math.round((Date.parse(dayKey(t) + 'T12:00:00Z') - Date.parse(dayKey(DEBUT) + 'T12:00:00Z')) / JOUR) + 1); // le jour de Paris : du ven. 13 (1) au ven. 20 (8)
+    return { avant, ouvert, fini, reste: ouvert ? FIN - t : 0, dans: avant ? DEBUT - t : 0, jour, jours: JOURS, classement: t >= DEBUT && t < CLASSEMENT_JUSQUA };
+  }
+  // l'ouverture se lit aussi sur l'HEURE SÛRE (HORLOGE.etat().sure) : une horloge avancée hors ligne n'ouvre pas la Halle avant vendredi midi
+  // (sans heure sûre connue, l'artefact Claude : le « maintenant » du jeu seul). La fin se lit toujours sur le « maintenant » du jeu.
+  function fenetreSure(now, sure) {
+    const f = fenetre(now);
+    return f.ouvert && Number.isFinite(sure) && sure > 0 && sure < DEBUT ? fenetre(sure) : f;
+  }
+  const GRACE = 3600e3; // le serveur compte encore les noisettes une heure après la fin (celles d'avant la fin, plafonnées à l'enveloppe de la fin)
+  const envoiBonbons = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
+
+  // ─── les huit recettes de la Halle, dans l'ordre où on les débloque ; leurs amis de la forêt (les « apprentis ») ───
+  // Les chiffres sont ceux du Manoir (src/hantee.js), à l'identique : l'enveloppe du serveur en dépend. Après le maître, deux recettes de
+  // plus (apres : le palier qui les ouvre) : les marrons glacés au 13e, les pains d'épices au 16e. Rien d'alcoolisé : le cidre et le vin
+  // restent un décor (le tonneau du pressoir, la tonnelle).
+  const PRODUITS = [
+    { id: 'chataigne', nom: 'Châtaignes grillées', pl: 'cornets de châtaignes grillées', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Gaspard l’écureuil', staffDesc: 'Il range une châtaigne sur trois dans sa joue. Pour l’hiver, dit-il.', poste: 'Le brasero du coin de la rue', desc: 'Chaudes dans le cornet : elles réchauffent les doigts.' },
+    { id: 'jus', nom: 'Jus de pomme pressé', pl: 'bouteilles de jus de pomme', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Rosalie la hérissonne', staffDesc: 'Elle tourne la manivelle du pressoir en chantonnant. Ses piquants ne touchent jamais les pommes.', poste: 'Le pressoir du verger', desc: 'Doux, trouble, et il sent le verger.' },
+    { id: 'tarte', nom: 'Tartes aux pommes', pl: 'tartes aux pommes', cout: 720, debloquer: 1440, rev: 150, temps: 6, croiss: 1.13, staff: 150000, staffNom: 'Madame Blaireau', staffDesc: 'Elle range les pommes en rosace, une par une, sans jamais se presser.', poste: 'Le four à bois de la Halle', desc: 'Les pommes en rosace et la pâte qui croustille.' },
+    { id: 'champignon', nom: 'Paniers de champignons', pl: 'paniers de champignons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Hortense la chouette', staffDesc: 'Elle voit les cèpes dans le noir. Elle ne cueille que les bons, elle connaît le livre par cœur.', poste: 'Le coin des sous-bois', desc: 'Des cèpes et des girolles, avec encore un peu de mousse.' },
+    { id: 'raisin', nom: 'Grappes des vendanges', pl: 'grappes de raisin', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.11, staff: 4e8, staffNom: 'Bruno l’ours', staffDesc: 'Il porte la hotte comme un sac de plumes. Il goûte un grain par grappe, pour vérifier.', poste: 'La tonnelle des vendanges', desc: 'Du raisin bien sucré, cueilli le matin même.' },
+    { id: 'panier', nom: 'Paniers garnis de l’automne', pl: 'paniers garnis', cout: 1.2e6, debloquer: 1e10, rev: 9e4, temps: 96, croiss: 1.1, staff: 3e10, staffNom: 'Céleste la biche', staffDesc: 'Elle noue les rubans avec le bout du museau. Chaque panier a son nœud.', poste: 'L’étal des paniers', desc: 'Des pommes, des noix, une courge et un ruban.' },
+    { id: 'marron', nom: 'Marrons glacés', pl: 'marrons glacés', apres: 13, cout: 1e12, debloquer: 2e13, rev: 72000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Roux le renard', staffDesc: 'Il emballe chaque marron dans du papier doré. Il jure qu’il n’en a mangé aucun.', poste: 'Le comptoir des confiseurs', desc: 'Fondants, brillants, et chacun dans son papier doré.' },
+    { id: 'pain-epices', nom: 'Pains d’épices de la Saint-Martin', pl: 'pains d’épices', apres: 16, cout: 1e13, debloquer: 2e14, rev: 1050000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Sacha le marcassin', staffDesc: 'Il moud la cannelle en trottinant autour du moulin. Ça sent bon jusqu’au bout de la rue.', poste: 'Le moulin à épices', desc: 'Du miel, de la cannelle, et une lanterne de la Saint-Martin dessinée dessus.' },
+  ];
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant. Les anciens (25, 50, 100, 200…
+  // 5000) gardent leur exposant entier (le même multiplicateur cumulé qu'avant : ×2 à chacun) ; v6.2, ceux qu'on a intercalés (75, 125,
+  // 150, 175, 250…, les mêmes que la boulangerie) ont un exposant fractionnaire : un palier bien plus souvent pour le joueur constant, un
+  // petit ×1,41 ou ×1,19 à chaque fois, sur les huit recettes. Ils montent les gains entre deux anciens paliers : l'enveloppe du serveur
+  // a été élargie d'autant (supabase/fournil-classement.sql, « v6.2 : paliers intercalés » ; le marathon simulé reste ×2 dessous).
+  const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
+    [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
+  const PALIERS_POSTE = PALIERS_EXPOSANTS.map((x) => x[0]);
+  const AMELIORATIONS = [ // les Astuces (les Sortilèges du Manoir : mêmes coûts, cibles, multiplicateurs, effets, primes et étoiles)
+    { id: 'braise', nom: 'Les braises bien chaudes', cout: 50000, cible: ['chataigne'], mult: 3, desc: 'Châtaignes ×3' },
+    { id: 'pressoir', nom: 'Le grand pressoir', cout: 600000, cible: ['jus'], mult: 3, desc: 'Jus de pomme ×3' },
+    { id: 'brouette', nom: 'La brouette à moteur', cout: 3e6, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'four-bois', nom: 'Le four à bois', cout: 8e6, cible: ['tarte'], mult: 3, desc: 'Tartes aux pommes ×3' },
+    { id: 'osier', nom: 'Les paniers d’osier', cout: 6e7, cible: ['champignon'], mult: 3, desc: 'Champignons ×3' },
+    { id: 'soleil', nom: 'Le soleil d’automne', cout: 1.5e8, cible: ['chataigne', 'jus'], mult: 5, desc: 'Châtaignes et jus de pomme ×5' },
+    { id: 'almanach', nom: 'L’almanach des saisons', cout: 4e8, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'hotte', nom: 'La hotte des vendangeurs', cout: 3e9, cible: ['raisin'], mult: 3, desc: 'Raisins ×3' },
+    { id: 'tresse', nom: 'L’osier tressé main', cout: 6e10, cible: ['panier'], mult: 3, desc: 'Paniers garnis ×3' },
+    { id: 'recoltes', nom: 'La fête des récoltes', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
+    // après le maître de la Halle (palier 12 franchi) : comme au Manoir, des Astuces chères qui ne multiplient pas les ventes (sauf les deux
+    // des recettes d'après le maître) ; chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    { id: 'criee', nom: 'La criée', cout: 6e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
+    { id: 'epouvantail', nom: 'L’épouvantail à pies', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Pies voleuses : 8 touches suffisent, elles n’emportent plus que 5 %' },
+    { id: 'plaid', nom: 'Le plaid à carreaux', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : les amis de la forêt travaillent 12 h, à 20 % du rythme' },
+    { id: 'sucre', nom: 'Le sucre glace', cout: 2e15, apres: 13, cible: ['marron'], mult: 3, prime: 12, etoiles: 2, desc: 'Marrons glacés ×3' },
+    { id: 'ete-indien', nom: 'L’été indien', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 150 }, prime: 16, etoiles: 2, desc: 'L’heure dorée : 2 min 30 au lieu de 2' },
+    { id: 'triporteur', nom: 'Le triporteur', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'La brouette attend 20 s, son panier ×3' },
+    { id: 'moulin', nom: 'Le moulin à épices', cout: 9e15, apres: 16, cible: ['pain-epices'], mult: 3, prime: 20, etoiles: 3, desc: 'Pains d’épices ×3' },
+  ];
+  const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // une Astuce « après le maître » acheté change ce réglage
+  const ABSENCE_MAX_H = 8;   // les amis de la forêt travaillent 8 h au plus pendant une absence, comme à la boulangerie…
+  const ABSENCE_PART = 0.1;  // … mais au ralenti : sans toi, la Halle somnole (10 % du rythme)
+  const PRESENCE = 6;        // tu es là : toutes les ventes ×6 tant que la Halle est ouverte (c'est en jouant qu'on grimpe)
+  const REPUTATION = 1.5;    // chaque palier franchi fait la réputation de la Halle : toutes les ventes ×1,5 de plus
+  const EVENEMENTS = { // les clés de mécanique du Quartier ; l'habillage d'automne : FICHE.evenements
+    descente: { duree: 15, n: 12, part: 0.1 },  // des pies voleuses : 12 touches en 15 s pour les chasser (prime) ; sinon elles emportent 10 % des noisettes
+    grosclient: { duree: 180, prime: 6 },        // la cantine de l'école : N produits en 3 min, payés 6 fois
+    soiree: { duree: 120, mult: 2 },             // l'heure dorée : toutes les ventes ×2 pendant 2 min
+    scooter: { duree: 10 },                      // la brouette du fermier passe : attraper le panier en 10 s
+  };
+
+  // ─── les vingt paliers : des noisettes gagnées (total), les mêmes pour tous ; chacun donne une récompense pour la boulangerie ───
+  // Les seuils et les jours (p.jour : 1, le ven. 13 dès l'ouverture ; les autres à minuit, heure de Paris) sont réglés par la simulation
+  // (outils/marche/rythme.js, refaite sur ce fichier par test/fournil-marche.test.js, en médiane de huit graines) : occasionnel (17 min par
+  // jour) 10, quotidien (1 h) 14, assidu (2 h) 16, très actif (8 h) 20 le 8e et dernier jour ; trois paliers par jour les quatre premiers
+  // jours, deux ensuite. Les récompenses : celles du Manoir (10 étoiles aux douze premiers, 29 aux huit bonus, les mêmes boosts et heures de
+  // primes) ; la tenue d'automne (3, 5, 7, 9) avant le 10e, pour que l'occasionnel l'ait ; au 4e, les lampions (le Manoir : le chat noir).
+  const PALIERS = [
+    { n: 1, total: 5e7, jour: 1, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premières noisettes' },
+    { n: 2, total: 5e9, jour: 1, deco: 'cagettes', prime: 1, titre: 'Les cagettes du perron' },
+    { n: 3, total: 5e10, jour: 1, vetement: 'marche-bonnet', titre: 'Le bonnet à pompon' },
+    { n: 4, total: 2.5e11, jour: 2, etoiles: 1, deco: 'lampions', titre: 'Les lampions de la Halle' },
+    { n: 5, total: 8e11, jour: 2, vetement: 'marche-gilet', prime: 2, titre: 'Le gilet de laine' },
+    { n: 6, total: 1.6e12, jour: 2, deco: 'feuilles', titre: 'Le tas de feuilles mortes' },
+    { n: 7, total: 3e12, jour: 3, vetement: 'marche-bottes', etoiles: 1, boost: { mult: 5, secs: 900 }, titre: 'Les bottes de pluie' },
+    { n: 8, total: 6e12, jour: 3, deco: 'tonneau', prime: 3, titre: 'Le tonneau du pressoir' },
+    { n: 9, total: 1.2e13, jour: 3, vetement: 'marche-panier', titre: 'Le panier d’osier' },
+    { n: 10, total: 6e13, jour: 4, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'La Halle affiche complet' },
+    { n: 11, total: 3e14, jour: 4, etoiles: 1, boost: { mult: 2, secs: 1800 }, prime: 4, titre: 'La fête des récoltes' },
+    { n: 12, total: 5e14, jour: 4, etoiles: 4, boost: { mult: 5, secs: 3600 }, prime: 6, titre: 'Le maître de la Halle' },
+    { n: 13, total: 8e14, jour: 5, bonus: true, etoiles: 2, boost: { mult: 5, secs: 1800 }, prime: 4, titre: 'Gaspard fait des heures sup’' },
+    { n: 14, total: 1.4e15, jour: 5, bonus: true, etoiles: 2, prime: 6, titre: 'Les pommes t’applaudissent' },
+    { n: 15, total: 2.6e15, jour: 6, bonus: true, etoiles: 3, boost: { mult: 5, secs: 2700 }, titre: 'Hortense hulule de joie' },
+    { n: 16, total: 3.6e15, jour: 6, bonus: true, etoiles: 3, prime: 8, titre: 'Madame Blaireau sort sa plus belle nappe' },
+    { n: 17, total: 5.5e15, jour: 7, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Bruno danse la bourrée' },
+    { n: 18, total: 9e15, jour: 7, bonus: true, etoiles: 4, prime: 12, titre: 'Toute la forêt fait la fête' },
+    { n: 19, total: 1.5e16, jour: 8, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'L’été indien rien que pour toi' },
+    { n: 20, total: 2.6e16, jour: 8, bonus: true, vetement: 'marche-couronne', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende du Marché',
+      deco: 'arbre-or', aura: 'feuilles', distinction: 'legende-marche' }, // les acharnés : l'arbre aux feuilles d'or (la boutique), l'aura des feuilles d'or (la garde-robe), le titre « Légende du Marché » (le classement), à vie
+  ];
+  const ANCIENS = {}; // pas de version 1 des récompenses au Marché : recompensesV2 d'office, revueRecompenses ne rend rien
+  const PALIERS_BOSS = 12; // le dernier palier « normal » ; après lui, les paliers bonus
+  const TROPHEE = 'marche-couronne'; // la couronne de feuilles d'or du palier 20 (garde-robe : collection « marche-couronne »)
+  const VETEMENTS = ['marche-bonnet', 'marche-gilet', 'marche-bottes', 'marche-panier'];
+  const VETEMENTS_OR = ['marche-or-bonnet', 'marche-or-gilet', 'marche-or-bottes', 'marche-or-panier']; // le podium final
+  const DECOS = ['cagettes', 'lampions', 'feuilles', 'tonneau'];
+
+  // ─── l'état : st.marche, créé à la première visite (dans la sauvegarde du jeu) ───
+  function postesNeufs() { return PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })); }
+  function neuf(now) {
+    return { v: 1, majeur: true, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
+      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, actif: now, ouvertLe: 0, paliers: [], vetements: [], decos: [], recompensesV2: true, heures: 0, chat: false, etoiles: 0, boosts: 0,
+      stats: Object.assign({ ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, statsManoir()), carnet: [], mini: null, contrats: null, operation: null, manoir: manoirNeuf(now) };
+  }
+  // q.billets / q.total : les noisettes en poche / gagnées en tout (les mêmes noms qu'au Quartier et au Manoir, pour le moteur d'écran) ; bonbons(q) les lit
+  function etat(st, now) { // l'état de l'événement, remis d'aplomb
+    let q = st.marche;
+    if (!q || typeof q !== 'object' || Array.isArray(q) || !Array.isArray(q.postes)) q = st.marche = neuf(now);
+    while (q.postes.length < PRODUITS.length) q.postes.push({ niv: 0, staff: false, prog: 0, actif: false });
+    if (q.postes.length > PRODUITS.length) q.postes.length = PRODUITS.length;
+    for (let i = 0; i < q.postes.length; i++) { const s = q.postes[i]; if (!s || typeof s !== 'object') q.postes[i] = { niv: 0, staff: false, prog: 0, actif: false }; else { if (!(Number.isInteger(s.niv) && s.niv >= 0)) s.niv = Number.isFinite(s.niv) && s.niv > 0 ? Math.floor(s.niv) : 0; if (!(s.prog >= 0) || !Number.isFinite(s.prog)) s.prog = 0; s.staff = s.staff === true; s.actif = s.actif === true; } }
+    for (const k of ['paliers', 'vetements', 'decos', 'carnet']) if (!Array.isArray(q[k])) q[k] = [];
+    q.paliers = [...new Set(q.paliers.filter((n) => Number.isInteger(n) && n >= 1 && n <= PALIERS.length))]; // (un palier deux fois, ou inconnu : jamais redonné ni compté)
+    if (!q.stats || typeof q.stats !== 'object') q.stats = neuf(now).stats;
+    if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
+    if (!(q.billets >= 0) || !Number.isFinite(q.billets)) q.billets = 0; if (!(q.total >= 0) || !Number.isFinite(q.total)) q.total = 0;
+    for (const k of ['etoiles', 'boosts', 'heures']) if (!(q[k] >= 0) || !Number.isFinite(q[k])) q[k] = 0;
+    q.majeur = true; // pas de porte : tous âges
+    q.recompensesV2 = true; // (pas de version 1 au Marché)
+    if (Number.isFinite(now) && !(q.vuLe >= now)) q.vuLe = now; // la dernière heure où l'écran a lu l'état (un palier qui s'ouvre se voit dès le retour, avant le premier pas de jeu ; atteint)
+    A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
+    reparerManoir(q, now); // q.actif (absent : actif maintenant), q.manoir (clients, apparitions, commande, plafonds) et ses compteurs
+    return q;
+  }
+  const bonbons = (q) => (q ? q.billets : 0);
+  const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
+
+  // ─── calculs (les mêmes formules qu'au Quartier) ───
+  const paliersPoste = () => PALIERS_POSTE; // les mêmes pour toutes les recettes (i accepté, pour l'écran)
+  const exposantPalier = (niv) => { let e = 0; for (const [p, x] of PALIERS_EXPOSANTS) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv) => Math.pow(2, exposantPalier(niv));
+  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const gainPalier = (p) => palierMult(p) / palierMult(p - 1); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
+  function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
+  // en ta présence : le ×6 (×12 sous l'heure dorée) tant que la Halle est éveillée ; lot 6, il s'endort sans toucher (eveil, plus bas)
+  function boostMult(q) { let m = 1 + (PRESENCE - 1) * eveil(q); if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; }
+  const reputationMult = (q) => Math.pow(REPUTATION, PALIERS.filter((p) => !p.bonus && q.total >= p.total).length); // les paliers bonus ne font plus la réputation ; v6.7, elle suit les bonbons gagnés, même d'un palier qui attend son jour (ouverturePalier)
+  const temps = (q, i) => PRODUITS[i].temps;
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
+  const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Marché des sorcières (q)
+  const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
+  function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
+  function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
+  const remise = (q) => (q ? effet(q, 'remise', 1) : 1); // le Marché des sorcières : 0,5 (les niveaux à moitié prix ; un déblocage garde son prix)
+  const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les noisettes paient, remise comprise
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
+  const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || atteint(q, PALIERS[PRODUITS[i].apres - 1]); // les recettes « après le maître » : une fois leur palier franchi (et ouvert, v6.7)
+  const prixStaff = (q, i) => PRODUITS[i].staff;
+  function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
+  function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
+  function rythme(q) { const t = tauxBase(q); if (t > 0) return t; let best = 0; q.postes.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(q, i) / Math.max(1, temps(q, i)) * 0.5); }); return Math.max(0.5, best); }
+  function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
+  const heuresAbsence = (q) => (q ? effet(q, 'absenceH', ABSENCE_MAX_H) : ABSENCE_MAX_H);
+  const partAbsence = (q) => (q ? effet(q, 'absencePart', ABSENCE_PART) : ABSENCE_PART);
+
+  // ─── actions ───
+  function gagner(q, montant) { q.billets += montant; q.total += montant; }
+  function acheter(q, i) {
+    const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (s.niv === 0 && !recetteOuverte(q, i)) return { ok: false, prix, verrou: true, apres: PRODUITS[i].apres }; // après le maître : pas avant son palier
+    if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
+    if (q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
+    if (deblocage) note(q, `${PRODUITS[i].nom} : nouvelle recette à l’étal`);
+    return { ok: true, n, prix, deblocage };
+  }
+  function embaucher(q, i) {
+    const s = q.postes[i], prix = prixStaff(q, i);
+    if (s.staff || s.niv <= 0 || q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; s.staff = true; s.actif = true; q.stats.embauches++; note(q, `${PRODUITS[i].staffNom} rejoint la Halle`);
+    return { ok: true, prix };
+  }
+  function lancer(q, i) { // une fournée à la main ; lot 6 : son « parfait » se tire de l'instant du lancement (s.lance), un seul essai (s.essai)
+    const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false;
+    s.actif = true; s.prog = 0; s.lance = Number.isFinite(q.now) ? q.now : 0; s.essai = false; s.parfait = false; q.stats.taps++; return true;
+  }
+  const combineOuverte = (q, a) => !a.apres || atteint(q, PALIERS[a.apres - 1]); // les Astuces « après le maître » : une fois le palier franchi (et ouvert, v6.7)
+  function amelioration(q, id) {
+    const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
+    if (a && !combineOuverte(q, a)) return { ok: false, prix, verrou: true };
+    if (!a || q.ameliorations[id] || q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; q.ameliorations[id] = true; note(q, `${a.nom} : ${a.desc}`);
+    if (a.etoiles) q.etoiles = (q.etoiles || 0) + a.etoiles; if (a.prime) q.heures = (q.heures || 0) + a.prime; // après le boss : elle paie aussi la boulangerie (l'écran verse la prime et les étoiles)
+    return { ok: true, a, prix };
+  }
+
+  // ─── les coups de pouce : un toutes les 2 à 5 minutes de jeu dans la Halle, jamais deux fois le même d'affilée ───
+  const TYPES_EV = [
+    { type: 'descente', poids: 2, ok: (q) => q.billets > 0 },
+    { type: 'grosclient', poids: 2, ok: (q) => q.postes.some((s, i) => s.niv > 0 && PRODUITS[i].temps <= 15) },
+    { type: 'soiree', poids: 2, ok: () => true },
+    { type: 'scooter', poids: 1.5, ok: () => true },
+  ];
+  function lancerEvenement(q, rnd, type) {
+    rnd = rnd || Math.random;
+    if (!type) {
+      const choix = TYPES_EV.filter((t) => t.ok(q) && t.type !== q.dernierEv);
+      if (!choix.length) return null;
+      let total = 0; const poids = choix.map((t) => { total += t.poids; return t.poids; });
+      let r = rnd() * total; type = choix[choix.length - 1].type;
+      for (let k = 0; k < choix.length; k++) { r -= poids[k]; if (r <= 0) { type = choix[k].type; break; } }
+    }
+    q.dernierEv = type;
+    const E = EVENEMENTS;
+    if (type === 'descente') q.ev = { type, taps: 0, n: effet(q, 'descenteN', E.descente.n), debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * effet(q, 'descentePart', E.descente.part)) };
+    else if (type === 'grosclient') {
+      const idx = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps <= 15);
+      if (!idx.length) return lancerEvenement(q, rnd, 'soiree');
+      const i = idx[Math.floor(rnd() * idx.length)], s = q.postes[i], n = Math.max(3, Math.min(s.staff ? 400 : 20, arrondi(E.grosclient.duree / PRODUITS[i].temps * (s.staff ? 0.7 : 0.3))));
+      q.ev = { type, i, n, fait: 0, debut: q.now, fin: q.now + E.grosclient.duree * 1000, prime: arrondi(revenuBase(q, i) * n * E.grosclient.prime), livree: false };
+    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + effet(q, 'scooterDuree', E.scooter.duree) * 1000, prime: arrondi(Math.max(10, rythme(q) * 120) * effet(q, 'scooterPrime', 1)) };
+    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + effet(q, 'soireeDuree', E.soiree.duree) * 1000 };
+    return q.ev;
+  }
+  function planquer(q) { // les pies voleuses : une touche ; à la 12e, elles sont toutes chassées et la prime tombe
+    const ev = q.ev; if (!ev || ev.type !== 'descente' || ev.fin <= q.now) return { ok: false };
+    ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
+    gagner(q, ev.prime); q.stats.descentes++; note(q, `Pies chassées : +${fmt(ev.prime)} noisettes`); q.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
+  function livrer(q) { // le cortège d'enfants déguisés : la commande servie
+    const ev = q.ev; if (!ev || ev.type !== 'grosclient' || ev.fait < ev.n || ev.livree) return { ok: false };
+    ev.livree = true; gagner(q, ev.prime); q.stats.grosClients++; note(q, `Cantine servie : +${fmt(ev.prime)} noisettes`); q.ev = null;
+    return { ok: true, prime: ev.prime };
+  }
+  function attraper(q, id) { // la brouette du fermier : on attrape le panier avant qu'elle reparte ; lot 6 : avec un id, une apparition (attraperApparition)
+    if (id != null) return attraperApparition(q, id);
+    const ev = q.ev; if (!ev || ev.type !== 'scooter' || ev.fin <= q.now) return { ok: false };
+    gagner(q, ev.prime); q.stats.scooters++; note(q, `La brouette a laissé +${fmt(ev.prime)} noisettes`); q.ev = null;
+    return { ok: true, prime: ev.prime };
+  }
+  function finEvenement(q, ev) { // un coup de pouce qui finit sans toi : les pies emportent leur part de noisettes
+    if (ev.type === 'descente') { const saisi = Math.min(q.billets, ev.enjeu || 0); q.billets -= saisi; q.stats.descentesRatees++; q.stats.saisi += saisi; note(q, `Les pies emportent ${fmt(saisi)} noisettes`); return { saisi }; }
+    if (ev.type === 'soiree') q.stats.soirees++;
+    return {};
+  }
+
+  // ═══ les activités de la Halle : le moteur du Manoir (src/hantee.js, « lot 6 » : le ×6 qui s'endort, les clients, les fournées
+  // parfaites, les apparitions, les commandes, le bestiaire), à l'identique (chiffres, plafonds, hasard) ; seul l'habillage change :
+  // les clients sont des enfants déguisés en animaux de la forêt (SORTES), les apparitions une feuille d'or, une châtaigne, un champignon,
+  // la commande de la nuit est la commande du marché, le bestiaire est l'album de la forêt (decoId 'album', 'album-argent', 'album-or'),
+  // et son compagnon l'écureuil (q.ecureuil). Voir src/hantee.js pour les règles et les réglages (mesurés sur le Manoir).
+  const EVEIL = { plein: 60, sommeil: 180 }; // secondes : le plein après le dernier toucher, puis la descente jusqu'à ×1
+  const SORTES = ['ecureuil', 'herisson', 'lapin', 'renard', 'blaireau', 'chouette', 'faon', 'marcassin', 'ourson']; // les enfants déguisés (la fête des feuilles) : les mêmes que la scène (BOUTIQUE_MARCHE.SORTES)
+  const NOMS_SORTES = { ecureuil: 'L’écureuil', herisson: 'Le hérisson', lapin: 'Le lapin', renard: 'Le renard', blaireau: 'Le blaireau', chouette: 'La chouette', faon: 'Le faon', marcassin: 'Le marcassin', ourson: 'L’ourson' };
+  const NOMS_COURTS = { ecureuil: 'Écureuil', herisson: 'Hérisson', lapin: 'Lapin', renard: 'Renard', blaireau: 'Blaireau', chouette: 'Chouette', faon: 'Faon', marcassin: 'Marcassin', ourson: 'Ourson' }; // (l'album : « Renard 4/10 »)
+  const CLIENTS = { file: 3, arrivee: [8, 20], patience: 40, lignes: 3, minutes: 0.014, vite: 0.5, parHeure: 22, parJour: 170 };
+  const PARFAIT = { tempsMin: 6, largeur: 0.15, de: [0.3, 0.75], parHeure: 40, minutes: 11, minutesJour: 80 };
+  const TYPES_APPARITION = ['feuille', 'chataigne', 'champignon']; // une feuille d'or qui tombe en virevoltant, une châtaigne qui roule, un champignon qui pousse
+  const APPARITIONS = { intervalle: [20, 60], vie: [6, 10], minutes: 0.09, serie: 3, mult: 1.5, parHeure: 27, parJour: 180 };
+  const COMMANDES = { durees: [5, 10, 15], part: 0.12, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 18, parJour: 120 };
+  const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
+  const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
+  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'album', compagnon: 9, // l'album de la forêt : le bronze (étoiles par rang de la sorte complétée, 11 en tout)
+    argent: { par: 30, etoiles: 1, deco: 'album-argent', liste: 'bestiaireArgent' }, or: { par: 140, etoiles: 2, deco: 'album-or', liste: 'bestiaireOr' } }; // l'argent et l'or (par sorte ; les mêmes seuils qu'au Manoir)
+  const MEDAILLES = ['argent', 'or']; // (après le bronze, dans l'ordre)
+  const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
+  function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
+  const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0, minParfaits: 0 }); // (parfaits : des fournées ; minParfaits : ce qu'elles ont payé, en minutes)
+  const bilanNeuf = () => { const o = {}; for (const k of ACTIVITES_MANOIR) o[k] = { n: 0, gain: 0, min: 0 }; return o; };
+  function manoirNeuf(now) {
+    return { graine: ACT.hacher(`${Number.isFinite(now) ? now : 0}|marche|manoir`), tirages: 0, file: [], prochainClient: 0, seqClient: 0, apps: [], prochaineApp: 0, seqApp: 0, serie: 0,
+      commande: null, prochaineCommande: 0, seqCommande: 0, heure: -1, jour: '', h: compteursNeufs(), j: compteursNeufs(), bilan: bilanNeuf() };
+  }
+  const fini = (x) => typeof x === 'number' && Number.isFinite(x);
+  const posteOk = (i) => Number.isInteger(i) && i >= 0 && i < PRODUITS.length;
+  function reparerManoir(q, now) { // une vieille sauvegarde (rien de tout ça), ou des champs abîmés : remis d'aplomb sans rien inventer
+    if (!fini(q.actif)) q.actif = fini(now) ? now : (fini(q.now) ? q.now : 0);
+    if (!q.stats || typeof q.stats !== 'object') q.stats = {}; for (const k of STATS_MANOIR) if (!(q.stats[k] >= 0)) q.stats[k] = 0;
+    const M = q.manoir && typeof q.manoir === 'object' ? q.manoir : (q.manoir = manoirNeuf(now));
+    if (!fini(M.graine)) M.graine = ACT.hacher(`${fini(now) ? now : 0}|marche|manoir`); M.graine >>>= 0;
+    for (const k of ['tirages', 'prochainClient', 'seqClient', 'prochaineApp', 'seqApp', 'serie', 'prochaineCommande', 'seqCommande']) if (!fini(M[k]) || M[k] < 0) M[k] = 0;
+    if (!fini(M.heure)) M.heure = -1; if (typeof M.jour !== 'string') M.jour = '';
+    for (const k of ['h', 'j']) { if (!M[k] || typeof M[k] !== 'object') M[k] = compteursNeufs(); for (const a of Object.keys(compteursNeufs())) if (!(M[k][a] >= 0)) M[k][a] = 0; }
+    if (!M.bilan || typeof M.bilan !== 'object') M.bilan = bilanNeuf(); for (const a of ACTIVITES_MANOIR) { const b = M.bilan[a] && typeof M.bilan[a] === 'object' ? M.bilan[a] : (M.bilan[a] = { n: 0, gain: 0, min: 0 }); for (const k of ['n', 'gain', 'min']) if (!(b[k] >= 0)) b[k] = 0; }
+    const ligneOk = (l) => l && typeof l === 'object' && posteOk(l.i) && l.n >= 1 && l.n <= 9;
+    M.file = (Array.isArray(M.file) ? M.file : []).filter((c) => c && typeof c === 'object' && fini(c.id) && SORTES.includes(c.sorte) && fini(c.arrive) && Array.isArray(c.commande) && c.commande.length >= 1 && c.commande.length <= CLIENTS.lignes && c.commande.every(ligneOk)).slice(0, CLIENTS.file);
+    for (const c of M.file) for (const l of c.commande) l.servi = !!l.servi;
+    M.apps = (Array.isArray(M.apps) ? M.apps : []).filter((a) => a && typeof a === 'object' && fini(a.id) && TYPES_APPARITION.includes(a.type) && fini(a.debut) && fini(a.fin)).slice(0, 3);
+    const c = M.commande; if (c !== null && !(c && typeof c === 'object' && posteOk(c.i) && c.n >= 1 && fini(c.fait) && fini(c.debut) && fini(c.fin) && COMMANDES.durees.includes(c.duree))) M.commande = null;
+    reparerBestiaire(q);
+    return M;
+  }
+  function reparerBestiaire(q) { // le bestiaire : absent (une vieille sauvegarde) → vide ; des comptes abîmés → 0 ; les sortes faites, sans doublon ni inconnue
+    const b = q.bestiaire && typeof q.bestiaire === 'object' && !Array.isArray(q.bestiaire) ? q.bestiaire : (q.bestiaire = {});
+    for (const k of Object.keys(b)) if (!SORTES.includes(k)) delete b[k];
+    for (const k of SORTES) b[k] = Number.isFinite(b[k]) && b[k] > 0 ? Math.floor(b[k]) : 0;
+    const propre = (l) => { const vus = new Set(); return (Array.isArray(l) ? l : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true)); };
+    q.bestiaireFaits = propre(q.bestiaireFaits);
+    for (const m of MEDAILLES) q[BESTIAIRE[m].liste] = propre(q[BESTIAIRE[m].liste]); // l'argent et l'or (une vieille sauvegarde : vides)
+    if (!(q.bestiaireAVerser >= 0) || !Number.isFinite(q.bestiaireAVerser)) q.bestiaireAVerser = 0;
+    q.ecureuil = q.ecureuil === true; // l'écureuil (le Manoir : q.chauvesouris ; la seule clé renommée)
+    return b;
+  }
+  function hasard(M) { return ACT.alea(M.graine, M.tirages++); } // le hasard du Manoir : la graine de la partie et son compteur (sauvegardés)
+  const entre = (M, ab) => ab[0] + (ab[1] - ab[0]) * hasard(M);
+
+  // ─── 1. le ×6 qui s'endort ───
+  function eveil(q, now) { // 0..1 : 1 (le plein) jusqu'à EVEIL.plein s après le dernier toucher, puis en ligne droite jusqu'à 0 (×1)
+    const t = fini(now) ? now : q.now, a = q.actif; if (!fini(a) || !fini(t)) return 1;
+    const d = (t - a) / 1000; return d <= EVEIL.plein ? 1 : Math.max(0, 1 - (d - EVEIL.plein) / EVEIL.sommeil);
+  }
+  function toucher(q, now) { const t = fini(now) ? now : q.now; if (fini(t)) q.actif = t; return eveil(q, t); } // un toucher utile : le plein, tout de suite
+  function presence(q, now) { // pour la jauge et l'ambiance : { eveil (0..1), mult (le multiplicateur de présence, sans la lune), plein (ms avant que ça baisse), zero (ms avant ×1) }
+    const t = fini(now) ? now : q.now, e = eveil(q, t), d = fini(q.actif) && fini(t) ? t - q.actif : 0;
+    return { eveil: e, mult: 1 + (PRESENCE - 1) * e, plein: Math.max(0, EVEIL.plein * 1000 - d), zero: Math.max(0, (EVEIL.plein + EVEIL.sommeil) * 1000 - d), dort: e <= 0 };
+  }
+
+  // ─── les plafonds (minutes du rythme payées dans l'heure et le jour de Paris ; les fournées parfaites, en nombre) ───
+  function compteurs(M, now) { const h = Math.floor((fini(now) ? now : 0) / 3600e3), j = dayKey(fini(now) ? now : 0); if (M.heure !== h) { M.heure = h; M.h = compteursNeufs(); } if (M.jour !== j) { M.jour = j; M.j = compteursNeufs(); } return M; }
+  const manoirOuvert = (now) => fenetre(now).ouvert;
+  function payerMinutes(q, act, minutes) { // paie « minutes » du rythme, rognées aux plafonds de l'heure et du jour → { gain, min, plafond }
+    const M = compteurs(q.manoir, q.now), P = PLAFONDS[act];
+    const m = manoirOuvert(q.now) ? Math.max(0, Math.min(minutes, P.parHeure - M.h[act], P.parJour - M.j[act])) : 0, gain = m > 0 ? arrondi(Math.max(1, rythme(q) * m * 60)) : 0;
+    M.h[act] += m; M.j[act] += m; if (gain > 0) gagner(q, gain);
+    const b = M.bilan[act]; b.n++; b.gain += gain; b.min += m;
+    return { gain, min: m, plafond: m < minutes - 1e-9 };
+  }
+  function plafondsManoir(q, now) { // ce que l'écran peut afficher : pour chaque activité, payé / plafond, cette heure et ce jour
+    const M = compteurs(q.manoir, fini(now) ? now : q.now), o = {};
+    for (const a of ['clients', 'apparitions', 'commandes']) o[a] = { heure: M.h[a], parHeure: PLAFONDS[a].parHeure, jour: M.j[a], parJour: PLAFONDS[a].parJour, plein: M.h[a] >= PLAFONDS[a].parHeure - 1e-9 || M.j[a] >= PLAFONDS[a].parJour - 1e-9 };
+    o.parfaits = { heure: M.h.parfaits, parHeure: PARFAIT.parHeure, minutes: M.h.minParfaits, parHeureMin: PARFAIT.minutes, jour: M.j.minParfaits, parJour: PARFAIT.minutesJour, plein: M.h.parfaits >= PARFAIT.parHeure || M.h.minParfaits >= PARFAIT.minutes - 1e-9 || M.j.minParfaits >= PARFAIT.minutesJour - 1e-9 };
+    return o;
+  }
+
+  // ─── 2. les clients-monstres ───
+  function nouveauClient(q, now) {
+    const M = q.manoir, ouverts = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0); if (!ouverts.length) return null;
+    const sorte = SORTES[Math.floor(hasard(M) * SORTES.length)], nl = 1 + Math.floor(hasard(M) * Math.min(CLIENTS.lignes, ouverts.length)), commande = [];
+    for (let k = 0; k < nl; k++) {
+      const reste = ouverts.filter((i) => !commande.some((l) => l.i === i)), i = reste[Math.floor(hasard(M) * reste.length)], T = PRODUITS[i].temps;
+      commande.push({ i, n: 1 + Math.floor(hasard(M) * (T <= 6 ? 3 : T <= 24 ? 2 : 1)), servi: false }); // des quantités modestes : moins des friandises longues
+    }
+    const c = { id: ++M.seqClient, sorte, commande, arrive: now };
+    M.file.push(c); return c;
+  }
+  const clientsManoir = (q) => (q.manoir ? q.manoir.file : []);
+  function pourboire(q, c) { // ce que paierait ce client servi maintenant (minutes du rythme, avant les plafonds)
+    const attente = Math.max(0, (q.now - c.arrive) / 1000), unites = c.commande.reduce((s, l) => s + l.n, 0);
+    return CLIENTS.minutes * unites * (1 + CLIENTS.vite * Math.max(0, 1 - attente / CLIENTS.patience));
+  }
+  function servir(q, id, produit) { // une ligne de la commande du client id ; la dernière : il paie et repart content
+    const M = q.manoir, c = M && M.file.find((x) => x.id === id); if (!c) return { ok: false };
+    const i = typeof produit === 'string' ? PRODUITS.findIndex((p) => p.id === produit) : Number(produit);
+    const l = c.commande.find((x) => x.i === i && !x.servi); if (!l) return { ok: false, faux: true, client: c };
+    l.servi = true; toucher(q, q.now);
+    const reste = c.commande.filter((x) => !x.servi).length; if (reste > 0) return { ok: true, fini: false, reste, client: c };
+    const min = pourboire(q, c); M.file.splice(M.file.indexOf(c), 1); q.stats.clientsServis++;
+    const p = payerMinutes(q, 'clients', min), be = compterBestiaire(q, c.sorte);
+    return { ok: true, fini: true, prime: p.gain, plafond: p.plafond, client: c, bestiaire: be };
+  }
+
+  // ─── 6. le bestiaire ───
+  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, palier, rang, etoiles, deco, compagnon }, completes, prochain, depuis, medaille }
+    const b = reparerBestiaire(q); if (!SORTES.includes(sorte)) return null;
+    b[sorte]++;
+    const dus = bestiaireDus(q);
+    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus, ...paliersSorte(q, sorte) };
+  }
+  function paliersSorte(q, k) { // où en est une sorte : { medaille (null | 'bronze' | 'argent' | 'or'), depuis (le seuil passé), prochain (le seuil visé ; null : l'or) }
+    const medaille = q.bestiaireOr.includes(k) ? 'or' : q.bestiaireArgent.includes(k) ? 'argent' : q.bestiaireFaits.includes(k) ? 'bronze' : null;
+    const seuils = { bronze: BESTIAIRE.par, argent: BESTIAIRE.argent.par, or: BESTIAIRE.or.par };
+    return { medaille, depuis: medaille ? seuils[medaille] : 0, prochain: medaille === 'or' ? null : medaille === 'argent' ? seuils.or : medaille === 'bronze' ? seuils.argent : seuils.bronze };
+  }
+  function bestiaireDus(q) { // les sortes arrivées à BESTIAIRE.par et pas encore payées : payées ici, une fois, dans l'ordre (q.bestiaireFaits fait foi)
+    const b = reparerBestiaire(q), dus = [];
+    for (const k of SORTES) {
+      if (b[k] < BESTIAIRE.par || q.bestiaireFaits.includes(k)) continue;
+      q.bestiaireFaits.push(k); const rang = q.bestiaireFaits.length, et = BESTIAIRE.etoiles[rang - 1] || 1;
+      q.etoiles = (q.etoiles || 0) + et; q.bestiaireAVerser += et; // (le bilan, et ce que l'écran doit verser dans la boulangerie)
+      const x = { sorte: k, palier: 'bronze', rang, etoiles: et, deco: null, compagnon: false };
+      if (rang === BESTIAIRE.deco && !q.decos.includes(BESTIAIRE.decoId)) { q.decos.push(BESTIAIRE.decoId); x.deco = BESTIAIRE.decoId; }
+      if (rang === BESTIAIRE.compagnon && !q.ecureuil) { q.ecureuil = true; x.compagnon = true; }
+      note(q, `Album : ${NOMS_COURTS[k]}, ${rang}/${SORTES.length} déguisements, +${et} ★`);
+      dus.push(x);
+    }
+    for (const m of MEDAILLES) { // l'argent puis l'or : chaque sorte arrivée au seuil, une fois (sa liste fait foi) ; les neuf : l'étagère de ce métal
+      const P = BESTIAIRE[m], l = q[P.liste];
+      for (const k of SORTES) {
+        if (b[k] < P.par || l.includes(k) || (m === 'or' && !q.bestiaireArgent.includes(k)) || !q.bestiaireFaits.includes(k)) continue;
+        l.push(k); const rang = l.length;
+        q.etoiles = (q.etoiles || 0) + P.etoiles; q.bestiaireAVerser += P.etoiles;
+        const x = { sorte: k, palier: m, rang, etoiles: P.etoiles, deco: null, compagnon: false };
+        if (rang === SORTES.length && !q.decos.includes(P.deco)) { q.decos.push(P.deco); x.deco = P.deco; }
+        note(q, `Album : ${NOMS_COURTS[k]} en ${m}, ${rang}/${SORTES.length}, +${P.etoiles} ★`);
+        dus.push(x);
+      }
+    }
+    return dus;
+  }
+  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait (le bronze), servis (le compte entier), medaille, depuis, prochain }],
+    // faits (le bronze), argent, or (combien de sortes), total (9), deco, decoArgent, decoOr, ecureuil (et chauvesouris, le même : le nom que lit le moteur d'écran du Manoir), aVerser }
+    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k), servis: b[k], ...paliersSorte(q, k) }));
+    return { sortes, faits: q.bestiaireFaits.length, argent: q.bestiaireArgent.length, or: q.bestiaireOr.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId),
+      decoArgent: q.decos.includes(BESTIAIRE.argent.deco), decoOr: q.decos.includes(BESTIAIRE.or.deco), ecureuil: q.ecureuil, chauvesouris: q.ecureuil, compagnon: q.ecureuil, aVerser: q.bestiaireAVerser };
+  }
+  function verserBestiaire(q) { reparerBestiaire(q); const n = q.bestiaireAVerser; q.bestiaireAVerser = 0; return n; } // les étoiles du bestiaire, à verser dans la boulangerie (l'écran)
+
+  // ─── 3. les fournées parfaites ───
+  function fenetreParfait(q, i) { // → { debut, fin (parts de la durée), duree (s), essai, parfait } ou null (pas une fournée à la main d'au moins 6 s en cours)
+    const rec = i === -1 || i === 'recette', o = rec ? q.recettes && q.recettes.four : q.postes[i];
+    if (!o) return null;
+    let T, lance;
+    if (rec) { T = (o.fin - o.debut) / 1000; lance = o.debut; }
+    else { if (o.niv <= 0 || o.staff || !o.actif) return null; T = temps(q, i); lance = fini(o.lance) ? o.lance : 0; }
+    if (!(T >= PARFAIT.tempsMin)) return null;
+    const de = PARFAIT.de[0] + (PARFAIT.de[1] - PARFAIT.de[0]) * ACT.alea(ACT.hacher(`${lance}|${rec ? 'recette' : i}|parfait`), 0);
+    return { debut: de, fin: de + PARFAIT.largeur, duree: T, essai: !!o.essai, parfait: !!o.parfait };
+  }
+  function parfait(q, i, now) { // le toucher « parfait » sur la fournée i (-1 : la recette du jour) à l'instant now
+    const w = fenetreParfait(q, i); if (!w) return { ok: false };
+    const rec = i === -1 || i === 'recette', o = rec ? q.recettes.four : q.postes[i], t = fini(now) ? now : q.now;
+    if (o.essai) return { ok: false, deja: true };
+    const part = rec ? (t - o.debut) / (o.fin - o.debut) : (o.prog + Math.max(0, (t - q.now) / 1000)) / w.duree;
+    o.essai = true; toucher(q, t);
+    if (part < w.debut || part > w.fin) { q.stats.parfaitsRates++; return { ok: true, parfait: false, tot: part < w.debut, part }; }
+    o.parfait = true; q.stats.parfaits++;
+    const M = compteurs(q.manoir, t), b = M.bilan.parfaits; b.n++;
+    if (M.h.parfaits >= PARFAIT.parHeure || !manoirOuvert(t)) return { ok: true, parfait: true, prime: 0, plafond: true, part };
+    // ×2 : la même fournée encore une fois, tout de suite (la recette : son gain fixé au lancement), rognée au plafond en minutes du rythme
+    // (PARFAIT.minutes l'heure, PARFAIT.minutesJour le jour : une fournée de la recette du jour, à la part 0,25, vaut plusieurs minutes)
+    const brut = rec ? o.gain : revenuFournee(q, i), r60 = Math.max(1e-9, rythme(q) * 60);
+    const m = Math.max(0, Math.min(brut / r60, PARFAIT.minutes - M.h.minParfaits, PARFAIT.minutesJour - M.j.minParfaits)), prime = m > 0 ? Math.min(brut, arrondi(Math.max(1, r60 * m))) : 0;
+    M.h.parfaits++; M.j.parfaits++; M.h.minParfaits += m; M.j.minParfaits += m;
+    if (prime > 0) { gagner(q, prime); b.gain += prime; b.min += m; }
+    return { ok: true, parfait: true, prime, part, plafond: m < brut / r60 - 1e-9 };
+  }
+
+  // ─── 4. les apparitions ───
+  function attraperApparition(q, id) {
+    const M = q.manoir, a = M && M.apps.find((x) => x.id === id); if (!a || !(a.fin > q.now)) return { ok: false };
+    M.apps.splice(M.apps.indexOf(a), 1); M.serie++; q.stats.apparitions++; toucher(q, q.now);
+    const mult = M.serie >= APPARITIONS.serie ? APPARITIONS.mult : 1, p = payerMinutes(q, 'apparitions', APPARITIONS.minutes * mult);
+    return { ok: true, prime: p.gain, plafond: p.plafond, serie: M.serie, mult, type: a.type, apparition: a };
+  }
+
+  // ─── 5. les commandes de la nuit ───
+  function lancerCommande(q, now) { // une commande tirée parmi les postes ouverts (null : aucun ne peut la faire) ; une seule à la fois
+    const M = q.manoir; if (M.commande) return null;
+    const duree = COMMANDES.durees[Math.floor(hasard(M) * COMMANDES.durees.length)];
+    const ok = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps * 3 <= duree * 60); if (!ok.length) return null;
+    const i = ok[Math.floor(hasard(M) * ok.length)], s = q.postes[i], n = Math.max(1, arrondi(duree * 60 / PRODUITS[i].temps * (s.staff ? COMMANDES.staff : COMMANDES.main)));
+    M.commande = { id: ++M.seqCommande, i, n, fait: 0, duree, debut: now, fin: now + duree * 60e3, minutes: duree * COMMANDES.part };
+    return M.commande;
+  }
+  const commandeManoir = (q) => (q.manoir ? q.manoir.commande : null);
+  const primeCommande = (q) => { const c = commandeManoir(q); return c ? arrondi(Math.max(1, rythme(q) * c.minutes * 60)) : 0; }; // ce qu'elle paierait livrée maintenant (avant les plafonds)
+  function livrerCommande(q) { // au bouton : toutes les friandises faites, avant l'heure
+    const M = q.manoir, c = M && M.commande; if (!c || c.fait < c.n || !(q.now < c.fin)) return { ok: false };
+    M.commande = null; M.prochaineCommande = q.now + entre(M, COMMANDES.pause) * 1000; q.stats.commandes++; toucher(q, q.now);
+    const p = payerMinutes(q, 'commandes', c.minutes); note(q, `Commande du marché livrée : +${fmt(p.gain)} noisettes`);
+    return { ok: true, prime: p.gain, plafond: p.plafond, commande: c };
+  }
+
+  // ─── le pas du Manoir (dans tick) : départs, arrivées ; et l'oubli après une longue sortie ───
+  function pasManoir(q, now) {
+    const M = q.manoir, o = { arrives: [], partis: [], apparitions: [], perdues: [], commande: null, ratee: null };
+    if (!M) return o;
+    for (const c of M.file.slice()) if (now - c.arrive >= CLIENTS.patience * 1000) { M.file.splice(M.file.indexOf(c), 1); q.stats.clientsPartis++; o.partis.push(c.id); } // il a trop attendu : il part, c'est tout
+    for (const a of M.apps.slice()) if (now >= a.fin) { M.apps.splice(M.apps.indexOf(a), 1); M.serie = 0; q.stats.apparitionsRatees++; o.perdues.push(a.id); }
+    if (M.commande && now >= M.commande.fin) { o.ratee = M.commande; M.commande = null; q.stats.commandesRatees++; M.prochaineCommande = now + entre(M, COMMANDES.pause) * 1000; }
+    if (!manoirOuvert(now)) return o;
+    if (!(M.prochainClient > 0)) M.prochainClient = now + 2000; // le premier, deux secondes après l'ouverture
+    else if (now >= M.prochainClient) { if (M.file.length < CLIENTS.file) { const c = nouveauClient(q, now); if (c) o.arrives.push(c); } M.prochainClient = now + entre(M, CLIENTS.arrivee) * 1000; }
+    if (!(M.prochaineApp > 0)) M.prochaineApp = now + entre(M, APPARITIONS.intervalle) * 1000;
+    else if (now >= M.prochaineApp) {
+      const a = { id: ++M.seqApp, type: TYPES_APPARITION[Math.floor(hasard(M) * TYPES_APPARITION.length)], debut: now, fin: now + entre(M, APPARITIONS.vie) * 1000 };
+      M.apps.push(a); o.apparitions.push(a); M.prochaineApp = now + entre(M, APPARITIONS.intervalle) * 1000;
+    }
+    if (!M.commande) {
+      if (!(M.prochaineCommande > 0)) M.prochaineCommande = now + COMMANDES.premiere * 1000;
+      else if (now >= M.prochaineCommande) { o.commande = lancerCommande(q, now); if (!o.commande) M.prochaineCommande = now + 60e3; }
+    }
+    return o;
+  }
+  function oublierManoir(q, now, silence) { // une longue sortie (plus que PAUSE_EV) : la commande s'efface sans rien coûter ; à l'absence, la file et les apparitions aussi
+    const M = q.manoir; if (!M) return;
+    if (M.commande) { M.commande = null; M.prochaineCommande = now + COMMANDES.premiere * 1000; }
+    if (silence) { M.file = []; M.apps = []; M.serie = 0; M.prochainClient = 0; M.prochaineApp = 0; }
+  }
+
+  // ─── les paliers franchis : ce qu'il reste à donner (chaque palier une seule fois, dans l'ordre) ───
+  // comme au Manoir (v6.7) : chaque palier s'ouvre un jour (p.jour : 1, le vendredi 13 dès l'ouverture ; les autres à minuit, heure de
+  // Paris) ; avant, ses noisettes ont beau être gagnées, il attend : ni récompense, ni recette ou Astuce « après le palier » (la réputation,
+  // elle, suit les noisettes : reputationMult). Trois paliers s'ouvrent chacun des quatre premiers jours, deux ensuite. Après le jour 8
+  // (la fermeture), tous ouverts.
+  const OUVERTURES = PALIERS.map((p) => (!p.jour || p.jour <= 1 ? DEBUT : parisMs(2026, 11, 12 + p.jour, 0))); // le 13 + (jour − 1) à minuit (calculées une fois : la réputation les lit à chaque vente)
+  const ouverturePalier = (p) => OUVERTURES[p.n - 1];
+  const palierOuvert = (p, now) => !p.jour || p.jour <= 1 || (Number.isFinite(now) ? now : 0) >= OUVERTURES[p.n - 1];
+  const NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  function ouvrePalier(p, now) { // pour l'écran : « s’ouvre jeudi 29 » tant que le palier attend son jour, sinon ''
+    if (palierOuvert(p, now)) return ''; const d = paris(ouverturePalier(p)), j = d.getUTCDate();
+    return `s’ouvre ${NOMS_JOURS[d.getUTCDay()]} ${j === 1 ? '1er' : j}`;
+  }
+  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, Math.max(q.now || 0, q.vuLe || 0)); // (q.now : le dernier pas de jeu ; q.vuLe : la dernière lecture, etat)
+  const paliersAtteints = (q) => PALIERS.filter((p) => atteint(q, p));
+  function paliersDus(q) { return PALIERS.filter((p) => atteint(q, p) && !q.paliers.includes(p.n)); }
+  function marquerPalier(q, n) { // le palier n est réclamé : on note ce qu'il donne (l'interface le distribue dans la boulangerie)
+    const p = PALIERS.find((x) => x.n === n); if (!p || q.paliers.includes(n) || !atteint(q, p)) return null;
+    q.paliers.push(n);
+    if (p.vetement && !q.vetements.includes(p.vetement)) q.vetements.push(p.vetement);
+    if (p.deco && !q.decos.includes(p.deco)) q.decos.push(p.deco);
+    if (p.chat) q.chat = true;
+    if (p.etoiles) q.etoiles += p.etoiles; if (p.boost) q.boosts++; if (p.prime) q.heures = (q.heures || 0) + p.prime; // la prime : des heures du rythme de la boulangerie, versées par l'écran
+    note(q, `Palier ${n} : ${p.titre}`);
+    return p;
+  }
+  const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
+  const NOMS_DECOS = { cagettes: 'des cagettes de pommes et de courges sur le perron', lampions: 'des lampions sous l’auvent', feuilles: 'un tas de feuilles mortes', tonneau: 'le tonneau du pressoir', album: 'l’étagère aux peluches de la forêt (l’album)', 'album-argent': 'l’étagère d’argent aux peluches (l’album)', 'album-or': 'l’étagère dorée aux peluches (l’album)', 'arbre-or': 'l’arbre aux feuilles d’or', 'toque-feuille': 'la toque brodée de feuilles d’or' };
+  const NOMS_AURAS = { feuilles: 'l’aura des feuilles d’or' }, NOMS_DISTINCTIONS = { 'legende-marche': 'le titre « Légende du Marché »' }; // le 20e palier (src/game.js : AURAS, DISTINCTIONS)
+  const NOMS_VETEMENTS = { 'marche-bonnet': 'bonnet à pompon', 'marche-gilet': 'gilet de laine', 'marche-bottes': 'bottes de pluie', 'marche-panier': 'panier d’osier (la tenue complète)', 'marche-couronne': 'la couronne de feuilles d’or (le trophée)' };
+  function phrasePalier(p) { // ce que donne un palier, en une ligne
+    const l = [];
+    if (p.etoiles) l.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''}`);
+    if (p.boost) l.push(`boost ×${p.boost.mult} ${fmtDuree(p.boost.secs)}`);
+    if (p.prime) l.push(`${p.prime} h de gains`);
+        if (p.deco) l.push(NOMS_DECOS[p.deco]);
+    if (p.vetement) l.push(NOMS_VETEMENTS[p.vetement]);
+    if (p.aura) l.push(NOMS_AURAS[p.aura] || p.aura);
+    if (p.distinction) l.push(NOMS_DISTINCTIONS[p.distinction] || p.distinction);
+    return l.join(' · ');
+  }
+
+  // ─── un pas de jeu dans la Halle (dt en secondes, nowMs sur l'horloge de confiance) ───
+  const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
+  // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
+  // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
+  const PAUSE_EV = 600e3; // la même que celle de la boutique (G.PAUSE_EV, 600 s, src/game.js), en millisecondes : ce fichier ne dépend pas de game.js
+  function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost, q.manoir && q.manoir.commande]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; } // (lot 6 : la commande de la nuit aussi)
+  function tick(q, dt, nowMs, rnd) {
+    rnd = rnd || Math.random;
+    if (q.now && nowMs - q.now > TROU) { // un trou : une courte sortie (PAUSE_EV) met le coup de pouce en pause ; plus longue, il s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+      const ecart = nowMs - q.now;
+      if (ecart <= PAUSE_EV) pauseCoup(q, ecart); else { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); oublierManoir(q, nowMs); }
+    }
+    q.now = nowMs;
+    const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [], manoir: null };
+    const cmd = q.manoir && q.manoir.commande; // lot 6 : la commande de la nuit compte les ventes de sa friandise (comme le cortège)
+    q.postes.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = temps(q, i); s.prog += dt; if (s.prog < T) return;
+      let n = Math.floor(s.prog / T);
+      if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
+      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n; q.stats.vendus[i] += n;
+      if (q.ev && q.ev.type === 'grosclient' && q.ev.i === i) q.ev.fait = Math.min(q.ev.n, q.ev.fait + n);
+      if (cmd && cmd.i === i) cmd.fait = Math.min(cmd.n, cmd.fait + n);
+      out.ventes.push({ i, montant: m, n });
+    });
+    out.manoir = pasManoir(q, nowMs); // lot 6 : les clients déguisés, les apparitions, la commande du marché (leurs arrivées et départs, pour l'écran)
+    if (q.ev && q.ev.fin <= nowMs && !(q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n)) { out.finEv = q.ev; out.fin = finEvenement(q, q.ev); q.ev = null; }
+    if (!q.ev) { q.evTimer -= dt; if (q.evTimer <= 0) { q.evTimer = 120 + rnd() * 180; out.nouvelEv = lancerEvenement(q, rnd); } }
+    out.paliers = paliersDus(q);
+    return out;
+  }
+  // ─── l'absence : les monstres ont travaillé (8 h au plus, 12 h sous la couette), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
+  function absence(q, nowMs) {
+    // courte (PAUSE_EV) : le coup de pouce et le boost en pause, retrouvés tels quels ; plus longue : effacés sans pénalité, et au moins
+    // 1 min 30 avant le prochain coup de pouce (REPRISE). Jamais de gain gratuit : l'absence se calcule sans eux (ni le ×2 d'une soirée).
+    const ecart = q.now ? nowMs - q.now : Infinity, court = ecart >= 0 && ecart <= PAUSE_EV, garde = { ev: q.ev, boost: q.boost };
+    q.ev = null; q.boost = null; q.now = nowMs;
+    const secs = Math.min(heuresAbsence(q) * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000)), part = partAbsence(q);
+    let total = 0; const detail = [];
+    q.postes.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = temps(q, i);
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; q.stats.vendus[i] += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; q.stats.vendus[i]++; }
+      else s.prog += secs;
+    });
+    if (total > 0) gagner(q, total);
+    const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
+    if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
+    q.boost = garde.boost;
+    if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); oublierManoir(q, nowMs, true); }
+    q.lastSeen = nowMs; q.actif = nowMs; // lot 6 : revenir, c'est être là (la Halle se réveille) ; l'absence ne paie aucune des activités de la Halle
+    return { secs, total, detail };
+  }
+
+  // ─── la simulation du rythme (pour les tests et le réglage des paliers) : des sessions par jour, une politique gloutonne ───
+  const PROFILS = { // les heures de Paris des sessions et leur durée en minutes (outils/marche/proto.js, docs/marche-contrat.md § 0)
+    occasionnel: { sessions: [[8, 5], [20.5, 12]] }, // 17 min
+    quotidien: { sessions: [[7.75, 10], [12.5, 15], [21, 35]] }, // 1 h
+    assidu: { sessions: [[7.5, 20], [12.25, 25], [18, 30], [21.5, 45]] }, // 2 h
+    tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : les plus mordus
+    marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
+  };
+  // lot 6 : comment chaque profil joue la Halle. Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe) : toujours là
+  // (le ×6 ne s'endort jamais), chaque client servi (reaction : secondes avant la première ligne, puis une par seconde), chaque apparition
+  // attrapée, chaque fournée parfaite, chaque commande livrée. Les autres ont des trous (trous : chaque seconde, la chance de lever les yeux
+  // du téléphone, de « de » à « a » secondes : ni toucher, ni achat, ni fournée lancée ; le ×6 s'endort), et servent, attrapent, réussissent
+  // une part de ce qui passe. opts.manoir === false : comme avant le lot 6 (toujours là, aucune de ces activités jouée).
+  const JEU_MANOIR = {
+    marathon: { trous: null, sert: 1, attrape: 1, parfait: 1, reaction: 2 },
+    tresactif: { trous: null, sert: 1, attrape: 1, parfait: 1, reaction: 2 },
+    assidu: { trous: { chance: 1 / 300, de: 60, a: 300 }, sert: 0.8, attrape: 0.75, parfait: 0.6, reaction: 4 },
+    quotidien: { trous: { chance: 1 / 240, de: 60, a: 300 }, sert: 0.7, attrape: 0.65, parfait: 0.5, reaction: 5 },
+    occasionnel: { trous: { chance: 1 / 180, de: 60, a: 300 }, sert: 0.6, attrape: 0.55, parfait: 0.4, reaction: 6 },
+  };
+  function jouerManoir(q, now, pol, rnd, vu) { // une seconde de jeu : servir, attraper, réussir les fournées, livrer (vu : les décisions déjà tirées)
+    const M = q.manoir;
+    for (const c of M.file.slice()) {
+      let d = vu.get('c' + c.id); if (d === undefined) { d = rnd() < pol.sert ? c.arrive + pol.reaction * 1000 : -1; vu.set('c' + c.id, d); }
+      if (d >= 0 && now >= d) { const l = c.commande.find((x) => !x.servi); if (l) servir(q, c.id, l.i); }
+    }
+    for (const a of M.apps.slice()) {
+      let d = vu.get('a' + a.id); if (d === undefined) { d = rnd() < pol.attrape ? a.debut + (1 + 2 * rnd()) * 1000 : -1; vu.set('a' + a.id, d); }
+      if (d >= 0 && now >= d && now < a.fin) attraperApparition(q, a.id);
+    }
+    if (M.commande && M.commande.fait >= M.commande.n) livrerCommande(q);
+    const viser = (i, o, debut, T, cle) => { // toucher au milieu de la fenêtre, s'il tombe dans la seconde qui vient
+      const w = fenetreParfait(q, i); if (!w || o.essai) return;
+      let d = vu.get(cle); if (d === undefined) { d = rnd() < pol.parfait; vu.set(cle, d); } if (!d) return;
+      const t = debut + (w.debut + PARFAIT.largeur / 2) * T * 1000; if (t >= now && t < now + 1000) parfait(q, i, t);
+    };
+    q.postes.forEach((s, i) => { if (s.niv > 0 && !s.staff && s.actif && PRODUITS[i].temps >= PARFAIT.tempsMin) viser(i, s, now - s.prog * 1000, PRODUITS[i].temps, `p${i}|${s.lance}`); });
+    const fo = q.recettes && q.recettes.four; if (fo) viser(-1, fo, fo.debut, (fo.fin - fo.debut) / 1000, `r${fo.debut}`);
+    if (vu.size > 4000) vu.clear(); // (les décisions passées ne servent plus : celles en cours se retirent, au même hasard près)
+  }
+  function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
+    let fait = false;
+    for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && recetteOuverte(q, i) && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && combineOuverte(q, a) && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s, i) => s.niv === 0 && recetteOuverte(q, i)), taux = tauxParSeconde(q); // une recette encore fermée (avant son palier) : on n'économise pas pour elle
+    if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour la prochaine friandise
+    const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le maître : on met de côté pour l'Astuce suivante (huit heures de ventes au plus)
+    if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
+    for (let k = 0; k < 3; k++) {
+      let best = -1, bestR = 0, bestN = 1;
+      for (let i = 0; i < PRODUITS.length; i++) {
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
+      }
+      if (best < 0) break;
+      q.mode = q.billets > 30 * prixNiveaux(q, best, bestN) ? 'max' : bestN;
+      if (acheter(q, best).ok) fait = true;
+    }
+    return fait;
+  }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
+    opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
+    const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const pm = opts.manoir === false ? null : JEU_MANOIR[profil] || JEU_MANOIR.assidu, rndM = mulberry32((opts.graine || 7) + 303), rndT = mulberry32((opts.graine || 7) + 404), vu = new Map(); let reveil = 0; // lot 6 : le Manoir, joué comme ce profil (son propre hasard)
+    const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
+    const H = 3600e3, nJ = jours || JOURS;
+    const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
+    for (let j = 0; j < nJ; j++) {
+      const jourDebut = minuit0 + j * JOUR;
+      for (const [h, minutes] of prof.sessions) {
+        const debut = jourDebut + h * H; // les sessions sont des heures de Paris ; le premier jour, l'événement ouvre à midi : celles du matin sont perdues
+        if (debut < t0 || debut >= FIN) continue;
+        absence(q, debut);
+        for (let s = 0; s < minutes * 60; s++) {
+          const now = debut + s * 1000; if (now >= FIN) break;
+          let la = true; // lot 6 : le joueur est-il là (un trou : il a levé les yeux du téléphone) ?
+          if (pm && pm.trous) { if (now < reveil) la = false; else if (rndT() < pm.trous.chance) { reveil = now + (pm.trous.de + (pm.trous.a - pm.trous.de) * rndT()) * 1000; la = false; } } // (les trous ont leur hasard à eux)
+          if (la) toucher(q, now);
+          let lances = 0; if (la) q.postes.forEach((x, i) => { if (x.niv > 0 && !x.staff && !x.actif && lances < 2) { lancer(q, i); lances++; } });
+          const out = tick(q, 1, now, rnd);
+          if (q.ev && la) {
+            if (q.ev.type === 'descente') { planquer(q); if (rnd() < 0.7) planquer(q); }
+            else if (q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n) livrer(q);
+            else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
+          }
+          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord ; comme les autres activités de src/activites.js, jouée selon sa politique, trous ou pas)
+          if (pm && la) jouerManoir(q, now, pm, rndM, vu);
+          if (la && s % 3 === 0) decider(q);
+          if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
+          if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
+        }
+        q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
+      }
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations }, bestiaire: { ...reparerBestiaire(q) } }); // (bestiaire : les servis par sorte au soir, pour régler les paliers d'argent et d'or)
+    }
+    return { q, total: q.total, parJour, paliersJour, trace };
+  }
+
+  // ─── formats ───
+  const SUFF = ['', 'k', 'M', 'Md', 'Bn', 'Bd', 'Tn', 'Td'];
+  function fmt(n) {
+    if (!Number.isFinite(n)) return '∞';
+    if (n < 0) return '−' + fmt(-n);
+    if (n < 1000) return (n < 10 && n !== Math.floor(n) ? n.toFixed(1) : Math.floor(n).toString()).replace('.', ',');
+    let k = 0, v = n; while (v >= 1000 && k < SUFF.length - 1) { v /= 1000; k++; }
+    if (v >= 1000) return n.toExponential(1).replace('.', ',').replace('e+', ' e');
+    return (v >= 100 ? v.toFixed(0) : v.toFixed(1)).replace('.0', '').replace('.', ',') + ' ' + SUFF[k];
+  }
+  const fmtDevise = (n) => `${fmt(n)} noisette${Math.abs(n) >= 2 ? 's' : ''}`;
+  const fmtEur = fmtDevise; // le nom du Quartier : le moteur d'écran écrit la monnaie de l'événement actif avec fmtEur
+  function fmtDuree(s) { if (s < 59.5) return Math.round(s) + ' s'; const mn = Math.round(s / 60); if (mn < 60) return mn + ' min'; const h = Math.floor(mn / 60), m = mn % 60; return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+  function fmtReste(ms) { // « 6 j 4 h », « 4 h 12 », « 12 min »
+    const mn = Math.max(0, Math.round(ms / 60e3)), j = Math.floor(mn / 1440), h = Math.floor((mn % 1440) / 60), m = mn % 60;
+    if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
+  }
+
+  // ─── la fiche de l'événement (docs/marche-contrat.md § 2.2) ───
+  const NOISETTE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 9c9 0 15 8 15 17 0 9-7 15-15 15S9 35 9 26c0-9 6-17 15-17Z" fill="#B4703A"/><path d="M10 21c3-7 8-10 14-10s11 3 14 10c-4 2-9 3-14 3s-10-1-14-3Z" fill="#7B4A2A"/><path d="M24 4v7" stroke="#5A3520" stroke-width="3" stroke-linecap="round"/><path d="M17 30c2 3 5 5 8 5" stroke="#E9C08F" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
+  const FICHE = {
+    id: 'marche', nom: 'Le Marché d’automne', lieu: 'la Halle', Lieu: 'La Halle', adulte: false, cle: 'marche',
+    classement: { periode: 'marche', onglet: 'Marché', evt: 'marche' },
+    devise: { nom: 'noisettes', un: 'noisette', icone: 'noisettes', svg: NOISETTE_SVG },
+    couleurs: { fond: '#FFF4E4', carte: '#FFFFFF', accent: '#D9622B', clair: '#B08A68', vert: '#7A9A3A', or: '#E8B33A', chataigne: '#7B4A2A', texte: '#4A2E1C', doux: '#9C7B5E' },
+    dates: { debut: DEBUT, fin: FIN, texteDebut: 'vendredi 13 novembre à midi', texteFin: 'vendredi 20 novembre à 20 h' },
+    produits: PRODUITS, paliers: PALIERS, ameliorations: AMELIORATIONS,
+    evenements: {
+      descente: { nom: 'Les pies voleuses !', annonce: 'Des pies chipent les noisettes : chasse-les, vite !', action: 'chasser', bouton: 'Ouste !', detail: (ev) => `${ev.n} touches pour les chasser · prime ${fmtDevise(ev.prime)} · sinon elles emportent ${fmtDevise(ev.enjeu)}`, fin: 'Les pies sont reparties avec leur butin.' },
+      grosclient: { nom: 'La cantine de l’école', annonce: 'La cantine commande pour le goûter !', action: 'servir', bouton: 'Servir !', detail: (ev) => `${ev.n} ${PRODUITS[ev.i] ? PRODUITS[ev.i].pl : ''} · prime ${fmtDevise(ev.prime)}`, fin: 'La cantine a trouvé son goûter ailleurs.' },
+      soiree: { nom: 'L’heure dorée', annonce: 'Le soleil d’automne dore la Halle : tout se vend ×2 !', action: null, bouton: null, detail: () => `Toutes les ventes ×${EVENEMENTS.soiree.mult}`, fin: 'Le soleil passe derrière les toits.' },
+      scooter: { nom: 'La brouette du fermier', annonce: 'La brouette du fermier passe : attrape le panier !', action: 'attraper', bouton: 'Attraper', detail: (ev) => `Attrape le panier avant qu’elle reparte : ${fmtDevise(ev.prime)}`, fin: 'La brouette a tourné au coin de la rue.' },
+    },
+    vetements: { 'marche-bonnet': { nom: 'Bonnet à pompon', piece: 'tete', forme: 'bonnet' }, 'marche-gilet': { nom: 'Gilet de laine', piece: 'haut', forme: 'sweat' }, 'marche-bottes': { nom: 'Bottes de pluie', piece: 'pieds', forme: 'bottes' }, 'marche-panier': { nom: 'Panier d’osier', piece: 'accessoire', forme: 'panier' }, 'marche-couronne': { nom: 'Couronne de feuilles d’or', piece: 'tete', forme: 'couronne' } },
+    decos: NOMS_DECOS, chat: null,
+    textes: {
+      titre: 'Le Marché d’automne', sousTitre: 'La Halle · l’automne',
+      annonceTitre: 'Le Marché d’automne ouvre ses étals !',
+      annonce: 'Jusqu’au vendredi 20 novembre à 20 h : une boutique à part, « la Halle », où tout le monde part de zéro. Ses noisettes rapportent des récompenses pour ta boulangerie : étoiles, boosts, décos d’automne, une tenue à vie et un écureuil.',
+      ouvrir: 'Entrer dans la Halle', fermer: 'Retour à la boulangerie', ameliorations: 'Astuces', equipe: 'Les amis de la forêt', manuel: 'Touche !',
+      absence: (dur, montant) => `Pendant ton absence (${dur}) : +${montant}, les amis de la forêt ont travaillé au ralenti.`,
+      bilanTitre: 'Bilan du Marché d’automne', bilan: 'La Halle a rangé ses étals. Tout ce que tu as gagné reste à vie.',
+      palier12: 'Le maître de la Halle, c’est toi. Tout ça reste à vie, même après le marché.',
+      paliersNote: 'Les paliers s’ouvrent au fil des jours : trois par jour au début, puis deux (un palier fermé t’attend, avec ses noisettes). Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue d’automne se porte depuis la garde-robe du boulanger, et l’écureuil se choisit dans Les compagnons.',
+      ferme: 'La Halle est fermée.', classementInfo: 'Les noisettes gagnées à la Halle · podium final le 20 nov. à 20 h', classementFini: 'Le Marché d’automne est fini : le podium final est figé',
+      vide: 'Personne encore à la Halle', videSous: 'Les noisettes de la Halle arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} de la Halle`,
+      podiumFinal: 'Podium final du Marché d’automne : la tenue d’automne en or est dans ta garde-robe !',
+    },
+    // les mots des activités de la Halle (le ×6 qui s'endort, les clients déguisés, les fournées parfaites, les apparitions, la commande du
+    // marché) ; sortes : les neuf déguisements (les mêmes clés que la scène), apparitions : les trois qui traversent la Halle
+    manoir: {
+      sortes: NOMS_SORTES, courts: NOMS_COURTS,
+      apparitions: { feuille: 'Une feuille d’or', chataigne: 'Une châtaigne qui roule', champignon: 'Un champignon qui pousse' },
+      textes: {
+        jauge: 'Le marché bat son plein : ×6 avec toi', jaugeBasse: 'Le marché s’assoupit…', jaugeDort: 'Le marché somnole : touche !', reveil: 'Zzz… touche la Halle pour la réveiller', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
+        clients: 'Les enfants déguisés', servi: (m) => `Merci ! +${m}`, parti: 'Il est reparti jouer dans les feuilles.', faux: 'Ce n’est pas sa commande !',
+        parfait: 'Fournée parfaite ! ×2', parfaitRate: 'Pas cette fois : la prochaine sera la bonne.', parfaitNote: 'Touche la fournée quand elle brille.',
+        apparition: 'Attrape-la !', serie: (n) => `Série de ${n} : ×1,5`, attrape: (m) => `Attrapée ! +${m}`,
+        commandeTitre: 'La commande du marché', commande: (c) => `${fmt(c.n)} ${PRODUITS[c.i] ? PRODUITS[c.i].pl : 'produits'} en ${c.duree} min`, livrer: 'Livrer !',
+        commandeLivree: (m) => `Commande livrée : +${m}`, commandeRatee: 'Trop tard : la commande est partie chez le voisin.',
+        plafond: 'Pour le plaisir : le plein de l’heure est fait',
+        // l'album de la forêt (= le bestiaire) : la carte du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée
+        bestiaire: 'L’album de la forêt', bestiaireSous: `Sers dix enfants de chaque déguisement pour le bronze, ${BESTIAIRE.argent.par} pour l’argent, ${BESTIAIRE.or.par} pour l’or.`,
+        bestiaireAvance: (nom, n, par) => `${nom} ${n}/${par}`, bestiaireFait: (nom) => `${nom} rejoint l’album !`,
+        bestiaireMedaille: (nom, m) => `${nom} : médaille ${m === 'or' ? 'd’or' : 'd’argent'} !`, bestiaireMedailles: (n, m) => `${n} déguisements en ${m === 'or' ? 'or' : 'argent'} !`,
+        bestiaireDeco: 'l’étagère aux peluches de la forêt, accrochée au mur de ta boutique', bestiaireCompagnon: 'Pirouette l’écureuil, un compagnon pour ta boutique (à choisir dans « Les compagnons »)',
+        bestiaireDecoArgent: 'l’étagère d’argent aux peluches, pour ta boutique', bestiaireDecoOr: 'l’étagère dorée aux peluches, qui remplace l’autre dans ta boutique',
+        compagnon: 'Pirouette l’écureuil', compagnonTxt: 'Un compagnon pour ta boutique, à vie : il grimpe aux étagères (+1 h d’absence)',
+      },
+    },
+    // les activités (src/activites.js) : l'habillage d'automne ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)
+    activites: {
+      jeux: {
+        guet: { nom: 'Le guet', desc: 'Touche quand l’écureuil passe devant la lanterne.', regles: ['Un écureuil file derrière les cagettes : touche quand il passe devant la lanterne.', 'Pile dans la lueur : bien vu, et le combo grimpe.', 'Trop tôt ou trop tard, le combo retombe. Et il file de plus en plus vite !'], consigne: 'Touche quand il est dans la lueur !' },
+        compte: { nom: 'Le compte', desc: 'Compte les châtaignes d’un coup d’œil.', regles: ['Des châtaignes roulent sur l’étal, une seconde à peine.', 'Combien y en avait-il ? Touche le bon nombre.', 'Vite et juste : la série rapporte plus. Quarante secondes.'], consigne: 'Combien de châtaignes ?', objets: 'châtaignes' },
+        tournee: { nom: 'La tournée', desc: 'Trace la tournée des paniers, un étal après l’autre.', regles: ['Six paniers numérotés : relie-les au doigt, dans l’ordre.', 'Tu peux lever le doigt et reprendre où tu t’es arrêté.', 'Trois tournées de douze secondes : plus tu es rapide, plus ça paie.'], consigne: 'Relie les paniers dans l’ordre !' },
+      },
+      decor: { motif: 'marche', fond: '#3A2A1E', sol: '#5B4330', accent: '#D9622B', accent2: '#E8B33A', clair: '#E9D5BC', texte: '#FFF4E4' },
+      contrats: { textes: {
+        descentes: (n) => `Chasse ${n} fois les pies`, grosClients: (n) => `Sers ${n} cantine${n > 1 ? 's' : ''}`,
+        scooters: (n) => `Attrape ${n} fois le panier`, soirees: (n) => `Profite de ${n} heure${n > 1 ? 's' : ''} dorée${n > 1 ? 's' : ''} jusqu’au bout`,
+        vente: (n, p) => `Vends ${n} ${p ? p.pl : 'produits'}`, mini: (n) => `Réussis ${n} mini-jeu${n > 1 ? 'x' : ''} (la moitié des points au moins)`,
+        operation: (n) => `Réussis ${n} opération${n > 1 ? 's' : ''} sans rien perdre` } },
+      operations: [
+        { id: 'court', nom: 'Le tour du village', desc: 'Cinq minutes de porte-à-porte avec la charrette. Presque rien ne peut arriver.' },
+        { id: 'moyen', nom: 'Le marché du canton', desc: 'Un quart d’heure sur la route, paniers bien calés.' },
+        { id: 'long', nom: 'La grande foire d’automne', desc: 'Une heure à la foire : le plus gros panier, et des pies gourmandes.' },
+      ],
+      textes: { saisie: 'Des pies gourmandes', saisieTxt: (m) => `Des pies gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les amis de la forêt sont sur la route', recette: 'La recette du jour', cuisine: 'La cuisine de la Halle' },
+      // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine de la Halle, une recette par jour (huit jours, huit recettes) ;
+      // courtes (20 à 55 s) ; à la 500e fournée, la toque brodée de feuilles d'or
+      recettes: [
+        { id: 'soupe-potiron', nom: 'La soupe de potiron', desc: 'Orange, veloutée, avec des graines grillées dessus.', temps: 20, icone: 'soupe-potiron' },
+        { id: 'crepes-chataigne', nom: 'Les crêpes à la farine de châtaigne', desc: 'Fines, dorées, roulées autour d’un peu de confiture.', temps: 25, icone: 'crepes-chataigne' },
+        { id: 'chaussons-pommes', nom: 'Les chaussons aux pommes', desc: 'Croustillants dehors, compotés dedans.', temps: 30, icone: 'chaussons-pommes' },
+        { id: 'cake-noix', nom: 'Le cake aux noix', desc: 'Les noix ramassées sous le grand arbre de la place.', temps: 35, icone: 'cake-noix' },
+        { id: 'poires-chocolat', nom: 'Les poires au chocolat', desc: 'Pochées, nappées, et une feuille de menthe pour finir.', temps: 40, icone: 'poires-chocolat' },
+        { id: 'clafoutis-raisin', nom: 'Le clafoutis aux raisins', desc: 'Les raisins des vendanges, cuits dans une pâte toute douce.', temps: 45, icone: 'clafoutis-raisin' },
+        { id: 'tarte-tatin', nom: 'La tarte Tatin', desc: 'À l’envers, caramélisée, et on la retourne d’un coup.', temps: 50, icone: 'tarte-tatin' },
+        { id: 'chocolat-chaud', nom: 'Le chocolat chaud aux épices', desc: 'Cannelle, vanille, et un nuage de crème.', temps: 55, icone: 'chocolat-chaud' },
+      ],
+      recetteDeco: 'toque-feuille', recetteDecoTxt: 'la toque brodée de feuilles d’or, accrochée à la porte de l’arrière-boutique',
+    },
+  };
+  const A = ACT.equiper({ id: 'marche', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)
+
+  // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
+  const R2 = ACT.RECOMPENSES;
+  const phraseCombine = (a) => R2.phraseLot(R2.lotCombine(a)); // « + 16 h de gains à la boulangerie, +2 ★ » ('' : une combine d'avant le boss)
+  const revueRecompenses = (q) => { if (q && typeof q === 'object') q.recompensesV2 = true; return null; }; // pas d'anciennes récompenses au Marché : rien à rattraper
+
+  return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+    gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ouverturePalier, palierOuvert, ouvrePalier, ensembleComplet, phrasePalier,
+    PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste,
+    // les activités de la Halle (le moteur du Manoir, src/hantee.js, « des choses à FAIRE »)
+    EVEIL, SORTES, NOMS_SORTES, NOMS_COURTS, CLIENTS, PARFAIT, TYPES_APPARITION, APPARITIONS, COMMANDES, JEU_MANOIR, manoirNeuf, reparerManoir, eveil, toucher, presence, plafondsManoir,
+    clientsManoir, pourboire, servir, fenetreParfait, parfait, attraperApparition, lancerCommande, commandeManoir, primeCommande, livrerCommande, pasManoir,
+    BESTIAIRE, bestiaire, verserBestiaire, bestiaireDus, reparerBestiaire };
+});
+
 /* ── boutiquehantee.js ── */
 /* LE FOURNIL — la boutique hantée : pendant la Maison hantée (src/hantee.js), l'écran de l'événement (src/evenement.js) ne bâtit plus le
    Manoir (sceneManoir) : il montre la VRAIE scène de la boutique (src/scene.js, src/vie.js, src/meubles.js, src/persos.js, src/hd.js),
@@ -21610,6 +22822,19 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, vise: (x, y) => !!courant && !!viser(x, y), fete, ambiance, get ouverte() { return !!courant; } };
 })();
 if (typeof module !== 'undefined') module.exports = BOUTIQUE_HANTEE;
+
+/* ── boutiquemarche.js ── */
+/* LE FOURNIL — la boutique du Marché d'automne (docs/marche-contrat.md § 6, constructeur C) : AMORCE. La même API que BOUTIQUE_HANTEE
+   (src/boutiquehantee.js) ; tant que la vraie n'est pas là, actif() rend toujours faux : l'écran de la Halle (src/evenement.js) garde sa
+   scène dessinée, et rien d'autre ne change. Le constructeur C remplace ce fichier entier. */
+const BOUTIQUE_MARCHE = (() => {
+  'use strict';
+  const SORTES = ['ecureuil', 'herisson', 'lapin', 'renard', 'blaireau', 'chouette', 'faon', 'marcassin', 'ourson'];
+  const rien = () => null, vide = () => [];
+  return { actif: () => false, demande: () => false, scene: rien, etatVue: rien, stations: vide, mobilier: vide, EQUIPE: [], CLIENTS: SORTES, SORTES, GARDE: null, HD: null,
+    acteurs: vide, client: rien, entrer: rien, servir: rien, fache: rien, apparition: rien, apparitions: vide, attraper: rien, retirer: rien, surToucher: () => false,
+    vise: () => false, fete: rien, ambiance: rien, precharger: rien, detruire: rien, get ouverte() { return false; } };
+})();
 
 /* ── hanteeactivites.js ── */
 /* LE FOURNIL — les activités de la Maison hantée à l'écran (lot 6, le Manoir « qui choque » : on ne laisse plus le téléphone tourner seul).

@@ -7,6 +7,11 @@
 --  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
 --
+--  Version 6.9 (4 nov. 2026) : LE MARCHÉ D'AUTOMNE (13 → 20 novembre 2026), un événement générique de plus : la ligne 'marche' de
+--  fournil_evts() (§ 3 ter : sa fenêtre et l'enveloppe de son score) et son nom dans les notifications (fournil_evt_titre). Le même code
+--  que le patch supabase/fournil-classement-v69.sql (c'est lui qu'on colle par-dessus la v6.8) ; rien d'autre ne change : son classement
+--  à part, son podium figé jusqu'au 15e, evenements.marche, ses annonces suivent d'eux-mêmes depuis la v5 et la v6.6.
+--
 --  Version 6.8 (3 nov. 2026) : LES PROJETS DE QUARTIER, des chantiers financés par les points de boulanger de tous (le même code que
 --  le patch supabase/fournil-projets-v68.sql, collé par-dessus la v6.7.1), et l'enveloppe des gains plausibles relevée de 1e18 à
 --  1e21 € (fournil_paliers, § 3 : l'acharné du lot « progression » y était plafonné). Rien d'autre ne change : ni fournil_publier, ni
@@ -926,7 +931,11 @@ $$;
 -- Entre deux pas, interpolation du log10 ; au-delà du dernier, constante. Les fenêtres de deux événements génériques ne se
 -- chevauchent jamais, et chacun garde son score à part.
 --   · 'hantee' : « La Maison hantée » (src/hantee.js, test/fournil-hantee.test.js), du mardi 27 octobre 2026 à midi au lundi
---     2 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures (27 valeurs : 6 j 12 h).
+--     2 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures (27 valeurs : 6 j 12 h). Son tableau, v6.6 : les activités de la Maison hantée, et les paliers qui s'ouvrent au fil des jours (v6.7 du jeu ; avant eux : {11.65,14.5,16.35,16.45,16.9,17.05,17.25,17.4,17.5,17.65,17.7,17.8,17.85,17.9,17.95,18.05,18.1,18.15,18.2,18.2,18.25,18.3,18.35,18.35,18.4,18.4,18.45} ; v6.5, la recette du jour : {11.65,14.2,16.05,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4} ; v6.4 : {11.65,14.05,16.05,16.2,16.55,16.8,17,17.15,17.25,17.35,17.45,17.55,17.6,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18,18,18.05,18.1,18.1,18.15,18.15} ; v6.3 : {11.65,14.05,16.05,16.1,16.35,16.6,16.75,16.9,17,17.1,17.2,17.25,17.35,17.4,17.45,17.5,17.55,17.55,17.6,17.65,17.65,17.7,17.75,17.75,17.8,17.8,17.8} ; v6.2 : {11.65,14.05,16.05,16.1,16.3,16.45,16.6,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.35,17.35,17.35}) ;
+--   · 'marche' (version 6.9) : « Le Marché d'automne » (src/marche.js, test/fournil-marche.test.js), du vendredi 13 novembre 2026 à midi
+--     au vendredi 20 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures (31 valeurs : 0 à 180 h). Le marathon des VRAIES règles
+--     (outils/marche/rythme.js --reel : 23 h 48 par jour, tout au mieux, Astuces achetées ou offertes dès le 12e) × 2,2 au moins, arrondi
+--     au 0,05 supérieur, croissant ; l'ouverture à 11,65, comme la Maison hantée (un tricheur ne part pas de haut).
 create or replace function public.fournil_evts()
 returns table (nom text, debut timestamptz, fin timestamptz, pas double precision, tableau double precision[])
 language sql
@@ -934,7 +943,9 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,16.1,16.1,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4}'::double precision[]) -- v6.6 : les activités de la Maison hantée, et les paliers qui s'ouvrent au fil des jours (v6.7 du jeu ; avant eux : {11.65,14.5,16.35,16.45,16.9,17.05,17.25,17.4,17.5,17.65,17.7,17.8,17.85,17.9,17.95,18.05,18.1,18.15,18.2,18.2,18.25,18.3,18.35,18.35,18.4,18.4,18.45} ; v6.5, la recette du jour : {11.65,14.2,16.05,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4} ; v6.4 : {11.65,14.05,16.05,16.2,16.55,16.8,17,17.15,17.25,17.35,17.45,17.55,17.6,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18,18,18.05,18.1,18.1,18.15,18.15} ; v6.3 : {11.65,14.05,16.05,16.1,16.35,16.6,16.75,16.9,17,17.1,17.2,17.25,17.35,17.4,17.45,17.5,17.55,17.55,17.6,17.65,17.65,17.7,17.75,17.75,17.8,17.8,17.8} ; v6.2 : {11.65,14.05,16.05,16.1,16.3,16.45,16.6,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.35,17.35,17.35})
+          '{11.65,16.1,16.1,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4}'::double precision[]),
+         ('marche'::text, '2026-11-13 12:00:00 Europe/Paris'::timestamptz, '2026-11-20 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
+          '{11.65,16.05,16.05,16.3,16.5,16.65,16.75,16.85,16.95,17,17.05,17.1,17.15,17.2,17.2,17.3,17.35,17.4,17.5,17.55,17.65,17.75,17.8,17.85,17.95,18,18.05,18.1,18.15,18.15,18.2}'::double precision[]) -- v6.9 : le Marché d'automne
 $$;
 
 -- la plus haute valeur de score acceptée pour l'événement p_evt à l'instant p_quand (0 avant l'ouverture, ou pour un événement inconnu)
@@ -1020,7 +1031,7 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select case p_evt when 'hantee' then 'la Maison hantée' when 'quartier' then 'le Quartier' else coalesce(p_evt, 'l''événement') end
+  select case p_evt when 'hantee' then 'la Maison hantée' when 'marche' then 'le Marché d''automne' when 'quartier' then 'le Quartier' else coalesce(p_evt, 'l''événement') end
 $$;
 
 -- une adresse d'abonnement plausible : https, 1 000 caractères au plus, et seulement chez les services de notifications des

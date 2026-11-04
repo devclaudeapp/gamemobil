@@ -562,6 +562,35 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
 - 4 nov. (conception) : `rythme.js` complet (8 graines, 24 + 24 marathons, 170 s), `saison.js`, `longevite-saison.js` (verdict : aucun effet
   notable), `sql-v69.cjs` (30/30), `node test/longevite.js --test` (vert). Les résultats bruts sont à côté des outils (`*-resultats.*`).
 - (les constructeurs ajoutent ici leurs écarts au contrat, datés)
+- 4 nov., constructeur A (règles et serveur) :
+  · **La table de l'enveloppe**, refaite sur les vraies règles (`TZ=Europe/Paris node outils/marche/rythme.js --reel`, résultats dans
+    `outils/marche/rythme-reel-resultats.*`) : `{11.65,16,16,16.3,16.5,16.65,16.75,16.85,16.95,17,…,17.85,17.95,18,…,18.2}` ; l'écart au
+    prototype ne dépasse pas 0,05 (trois pas : −0,05 à 6 et 12 h, +0,05 à 48 et 144 h), mais la table du prototype ne laissait que ×2,19 sur
+    les vraies règles (graine 7, Astuces offertes, 143,9 h). La table posée est **le plus haut des deux à chaque pas** :
+    `{11.65,16.05,16.05,16.3,16.5,16.65,16.75,16.85,16.95,17,17.05,17.1,17.15,17.2,17.2,17.3,17.35,17.4,17.5,17.55,17.65,17.75,17.8,17.85,17.95,18,18.05,18.1,18.15,18.15,18.2}`
+    (+0,05 à 48 h et à 144 h) : ×2,20 au plus juste sur les 24 marathons du réglage, ×2,21 sur 24 jamais vus, ×13,9 / ×14,7 au plus large
+    après 7 h 15 (`outils/marche/rythme-reel-table-v69.txt`, `--table`). Recopiée dans le patch **et** le fichier complet (§ 4.4 fait :
+    « Version 6.9 » ; `test/fournil-classement-v68-complet.sql` garde la v6.8 telle que sur Supabase pour l'essai PGlite). Le rythme des
+    paliers sur les vraies règles est celui du prototype (10 / 14 / 16 / 20 le 8e jour).
+  · La graine de la Halle est tirée de « |marche|manoir » (le prototype gardait « |hantee|manoir ») : c'est la seule cause des écarts de table.
+  · `bestiaire(q)` rend `ecureuil` et aussi `chauvesouris` (le même booléen, le nom que lit le moteur d'écran du Manoir) et `compagnon`.
+  · `revueRecompenses(q)` ne rend jamais rien (pose `recompensesV2`) ; `MARCHE.ANCIENS = {}`.
+  · La piste : `recevoir(st, n)` marque et rend le lot, l'écran le **distribue** avec `SAISONS.verser(st, lot, GAME)` (étoiles, boost dans
+    la réserve, vêtement, distinction ; une déco ou le trophée se lisent par `possede`). Le titre se reçoit comme un 23e cran (`n = 23`).
+    La fin d'une saison range ses lots dus dans `st.piste.dus` (`finDue(st)`, puis `recevoirFin(st)` une fois la feuille montrée et les
+    lots versés) : jamais perdus si l'écran n'est pas là. En plus du contrat : `toutRecevoir`, `restes` (« D'où vient l'XP »), `vue`
+    (tout ce que montrent la carte et la feuille), `fiche`, `reparer`.
+  · Au premier pas d'une saison, ce qui est déjà réclamé compte, **y compris le défi de la semaine** (comme `outils/marche/saison.js`, qui a
+    réglé la piste) ; une saison qui enchaîne sur une autre garde le défi déjà compté. `st.piste === null` (et non absente) est traitée
+    comme abîmée (rien n'est recompté).
+  · La « tenue de saison » a un ensemble `automne` (pour la garde-robe) **sans bonus**, comme demandé ; « 5 décos » = 4 décos + le trophée.
+  · `CLASSEMENT.phraseEvt` : « du Marché d'automne » (et non « de le Marché ») ; la photo porte `dm` (les décos du Marché) seulement s'il y
+    en a.
+  · Résultats : `test/fournil-marche.test.js` (91 vérifications : quotidien 14, assidu 16, très actif 20 le 8e jour sur 8 graines ; marathon
+    ×2,20 au plus juste sous la table), `test/fournil-saison.test.js` (quotidien finie le 28, occasionnel 4 j/7 10/22 avec les récompenses
+    versées — 13/22 sans elles, comme l'outil —, très actif le 24 ; longévité : aucun effet notable), PGlite 1 588 vérifications.
+  · Sur cette branche seule, `test/fournil-vignettes.test.js` (ligne Node du déploiement) échoue : les 13 pièces et l'écureuil ajoutés à
+    `src/game.js` n'ont pas encore leur vignette (constructeur C, `outils/vignettes/cuire.cjs`, § 6) ; tout le reste de la ligne est vert.
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
