@@ -342,11 +342,46 @@ button.staff-ok::after { content: ""; position: absolute; left: 0; right: 0; top
 .ev-barre { position: absolute; left: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .75); border-radius: 0 3px 3px 0; transition: width .5s linear; }
 
 /* ─── indice (tutoriel) ─── */
-#indice { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
-#indice .bulle { padding: 10px 14px; border-radius: 18px; background: var(--texte); color: #fff; font: 700 15px/1.3 var(--texte-font); text-align: center; box-shadow: 0 6px 16px var(--ombre); text-wrap: balance; }
-#indice .main { width: 36px; height: 36px; animation: tape .9s ease-in-out infinite; }
-#indice.haut { flex-direction: column-reverse; }
-#indice.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
+#indice, #annonce-accueil { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
+#indice .bulle, #annonce-accueil .bulle { padding: 10px 14px; border-radius: 18px; background: var(--texte); color: #fff; font: 700 15px/1.3 var(--texte-font); text-align: center; box-shadow: 0 6px 16px var(--ombre); text-wrap: balance; }
+#indice .main, #annonce-accueil .main { width: 36px; height: 36px; animation: tape .9s ease-in-out infinite; }
+#indice.haut, #annonce-accueil.haut { flex-direction: column-reverse; }
+#indice.haut .main, #annonce-accueil.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
+/* l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Passer » (le seul élément touchable de la bulle, du côté opposé à la cible),
+   l'annonce d'un déblocage (même gabarit, violet), la carte « Ton premier jour », la pulsation d'un bouton qui apparaît */
+#indice .passer { pointer-events: auto; align-self: flex-end; min-width: 72px; min-height: 36px; padding: 0 16px; border-radius: 999px; background: rgba(255, 255, 255, .96); color: var(--texte); font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--gris-sombre), 0 4px 12px var(--ombre); }
+#indice .passer:active { transform: translateY(2px); }
+#annonce-accueil .bulle { background: #5E4BB6; box-shadow: 0 6px 18px rgba(94, 75, 182, .4); }
+#onglets.reduit { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.barre-achat.vide { display: none; }
+.ticket.debutant { background: linear-gradient(100deg, #FFF8E6, var(--carte) 60%); }
+.ticket.debutant > .ico { background: #FFF3C4; }
+.ticket.debutant .tk-txt b { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ticket.debutant .db-titre { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ticket.debutant .tk-txt small { -webkit-line-clamp: 1; }
+.db-points { flex: 0 0 auto; display: inline-flex; gap: 3px; }
+.db-points i { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px var(--beurre-sombre); }
+.db-points i.on { background: var(--beurre-sombre); }
+.ticket.debutant.pret { box-shadow: 0 0 0 3px var(--beurre), var(--ombre-carte); animation: pulse 1.6s ease-in-out infinite; }
+.ticket.debutant.pret .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
+.db-liste { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; gap: 6px; }
+.db-liste li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: var(--carte); box-shadow: 0 2px 0 var(--gris-sombre); font: 700 14px/1.3 var(--texte-font); color: var(--texte-2); }
+.db-liste li.fait { color: var(--texte); background: var(--menthe-clair); box-shadow: none; }
+.db-liste li.suivante { box-shadow: 0 0 0 2px var(--beurre), 0 2px 0 var(--gris-sombre); color: var(--texte); }
+.db-coche { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--gris); color: var(--texte-2); font: 800 13px/1 var(--texte-font); }
+.db-coche svg { width: 16px; height: 16px; }
+.db-liste li.fait .db-coche { background: var(--menthe); }
+.db-liste .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.db-cadeau { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 12px; border-radius: 16px; background: var(--or-clair); }
+.db-cadeau > span:last-child { display: grid; gap: 2px; }
+.db-cadeau b { font: 700 15px/1.2 var(--titre); }
+.db-cadeau small { font: 700 13px/1.3 var(--texte-font); color: var(--texte-2); }
+.db-portrait { flex: 0 0 auto; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #fff; }
+.db-portrait svg { width: 48px; height: 48px; }
+.db-portrait.grand { width: 120px; height: 120px; margin: 4px auto 6px; background: var(--ciel-clair); }
+.db-portrait.grand svg { width: 104px; height: 104px; }
+.accueil-neuf { animation: accueilNeuf 1s ease-in-out 2; }
+@keyframes accueilNeuf { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); filter: brightness(1.08); } }
 @keyframes tape { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
 @keyframes tapeHaut { 0%, 100% { transform: rotate(180deg) translateY(0); } 50% { transform: rotate(180deg) translateY(8px); } }
 
@@ -2333,7 +2368,7 @@ body.essai #chaine { top: 24px; }
 #b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
-body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #debutant, #boosts, #vote-bandeau, #evenement) { display: none !important; }
 body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
 #b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }

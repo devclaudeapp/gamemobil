@@ -212,7 +212,7 @@ const RETOURS = (() => {
   function majBandeau() {
     if (!bandeau) return;
     const v = moteur() && etat === 'ok' && rejoint() ? aVoter()[0] : null; // sans pseudo, pas d'invitation à voter
-    const feuille = $('#feuille'), cache = !v || ouvert() || (feuille && !feuille.hidden) || ($('#tchat') && !$('#tchat').hidden);
+    const feuille = $('#feuille'), cache = !v || ouvert() || (feuille && !feuille.hidden) || ($('#tchat') && !$('#tchat').hidden) || !!(d && d.accueil && !d.accueil()); // (l'accueil des nouveaux joueurs : avec le classement)
     bandeau.hidden = cache; if (cache) return;
     bandeau.dataset.n = v.n;
     const q = bandeau.querySelector('.vb-q'), r = bandeau.querySelector('.vb-reste'), t = `Vote : ${typo(v.question)}`, rr = `${reste(v.fin - maintenant())} · toucher pour voter`;

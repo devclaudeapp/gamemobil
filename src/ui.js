@@ -10,6 +10,11 @@ const UI = (() => {
   const CH = typeof CHAINE !== 'undefined' ? CHAINE : null, CE = typeof CHAINE_ECRAN !== 'undefined' && CHAINE_ECRAN.actif ? CHAINE_ECRAN : null; // « Ma chaîne » : les règles (src/chaine.js), l'écran (src/chaine-ecran.js)
   const PROG = typeof PROGRESSION !== 'undefined' ? PROGRESSION : null; // le lot « progression » : le second, les rivales, les projets (src/progression.js)
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : éteint sous un navigateur piloté (navigator.webdriver, les tests et les outils
+  // de capture : le jeu s'y comporte comme avant), sauf si la page le force (window.__accueil = true ; false l'éteint partout)
+  const ACC = (() => { try { if (window.__accueil === true) return true; if (window.__accueil === false) return false; return !navigator.webdriver; } catch (e) { return true; } })();
+  const accueilActif = () => ACC && !!st && !G.accueil(st).t; // un nouveau joueur (une vieille sauvegarde : t, tout ouvert)
+  const ouvertA = (id) => !accueilActif() || G.accueilOuvert(st, id); // ce bouton (ou cet onglet) est-il déjà débloqué ?
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
   // gerantsPayes : pour la même absence, ce que chaque gérant de la chaîne a déjà touché (n → ms) : le saut d'une heure sûre en retard le complète
@@ -49,9 +54,12 @@ const UI = (() => {
       if (!raw) return null;
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
       const fresh = G.newState(HORLOGE.maintenant());
+      const sansAccueil = !s.accueil || typeof s.accueil !== 'object' || Array.isArray(s.accueil); // (avant la boucle : elle y mettrait l'accueil d'une partie neuve)
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+      if (sansAccueil) s.accueil = G.accueilAncien(s, HORLOGE.maintenant()); // une sauvegarde d'avant l'accueil : tout ouvert, sauf une partie toute neuve (docs/accueil-contrat.md § 2.2)
+      G.accueil(s);
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
@@ -160,7 +168,7 @@ const UI = (() => {
   const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
   function renderSaison(force) { // la carte de la recette de saison : préparer, améliorer, cuire à la main ; la collection en barre
     const c = carteSaison; if (!c) return; const s = st.saison, r = G.recetteSaison(st);
-    if (!s || !r) { if (!c.el.hidden) { c.el.hidden = true; c.html = ''; } return; }
+    if (!s || !r || !ouvertA('saison')) { if (!c.el.hidden) { c.el.hidden = true; c.html = ''; } return; }
     const coll = (st.collection || {})[r.id], f = coll ? coll.fournees : 0, prix = G.coutSaison(st), ok = st.coins >= prix, max = s.niv >= G.SAISON.nivMax;
     const html = `<div class="icone">${ICONS.SAISON[r.id]}${s.niv ? `<span class="niv">${s.niv}</span>` : ''}</div>
       <div class="corps"><h3><span class="nom">${esc(r.nom)} <span class="tag saison">jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]}</span></span></h3>
@@ -338,7 +346,7 @@ const UI = (() => {
     if (pageActive === 'boulanger' && tiroir.pos !== 'ferme' && doresNonVus()) marquerDores();
     const aPayer = avecConcours() ? PROG.rivales(st).aPayer.length : 0, dpal = G.defiPassage(st), palierFait = !!(dpal && dpal.d && dpal.d.palier && dpal.fait), dnv = doresNonVus();
     const sOuvert = secondOuvert() && !chaineVue, sActif = sOuvert && PROG.second(st).actif, sNeuf = sOuvert && secondNeuf();
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}|${aPayer}|${palierFait}|${dnv}|${sOuvert}|${sActif}|${sNeuf}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}|${aPayer}|${palierFait}|${dnv}|${sOuvert}|${sActif}|${sNeuf}|${ACC ? `${st.accueil.d}:${st.accueil.r}:${st.accueil.t}:${st.tuto >= 4}` : ''}`;
     majEnseigne(nom); // avant le raccourci : les polices arrivent sans que rien d'autre ne change
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
@@ -390,6 +398,7 @@ const UI = (() => {
   // ─── pages : une seule visible ; un onglet ouvre le tiroir au moins à mi-hauteur ───
   function showPage(id) {
     if (!PAGES.includes(id)) return;
+    if (accueilActif() && !ouvertA(id) && G.marquerDeblocage(st, id)) { save(); majAccueil(); } // un lien interne vers un onglet encore fermé : il s'ouvre (jamais une page sans son onglet)
     pageActive = id;
     document.querySelectorAll('#pages .page').forEach((p) => { p.hidden = p.dataset.page !== id; });
     document.querySelectorAll('#onglets button').forEach((b) => { const on = b.dataset.page === id; b.classList.toggle('actif', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -571,7 +580,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${Object.keys(st.dores || {}).length}|${titreB(st)}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${Object.keys(st.dores || {}).length}|${titreB(st)}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}|${ACC ? `${st.accueil.d}:${st.accueil.t}` : ''}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -585,7 +594,7 @@ const UI = (() => {
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
         <h3 class="titre-section"><span>Tenue et récompenses</span></h3>
-        ${GRU ? GRU.carte(st) : ''}
+        ${GRU && ouvertA('garderobe') ? GRU.carte(st) : ''}
         ${carteRecompenses()}
         ${avecFamilles() ? carteTropheesFamilles() : `<div class="card"><div class="c-tete"><span class="pic or">${ICONS.UI.trophee}</span><h3>Trophées</h3><span class="compte ${gagnes ? 'or' : ''}">${gagnes}/${G.TROPHEES.length}</span></div>
           ${gagnes ? `<div class="trophees">${G.TROPHEES.filter((t) => tr[t.id]).map(troph).join('')}</div>` : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
@@ -837,11 +846,15 @@ const UI = (() => {
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
     { txt: 'Touche la baguette pour la cuire et la vendre !', ou: 'pages', cible: () => cards[0].el.querySelector('.barre'), fini: () => st.stats.ventes >= 1 },
-    { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2 },
-    { txt: 'Débloque les croissants : 20 € la fournée !', ou: 'pages', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1 },
-    { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
-    { txt: 'Bravo ! Au niveau 25, 50, 75, 100… les gains montent d’un cran. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', ou: 'pages', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
-    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', ou: 'onglets', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
+    { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2,
+      attente: () => `Encore ! Touche la baguette : il te faut ${G.fmtEur(G.coutNiveau(0, st.stations[0].niv))} pour l’améliorer.`, cibleAttente: () => cards[0].el.querySelector('.barre') },
+    { txt: 'Débloque les croissants : 20 € la fournée !', ou: 'pages', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1,
+      attente: () => `Continue : les croissants s’ouvrent à ${G.fmtEur(G.PRODUITS[1].debloquer)}.`, cibleAttente: () => cards[0].el.querySelector('.barre') },
+    { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff,
+      attente: () => `Cuis et vends encore : Léo s’embauche à ${G.fmtEur(G.prixStaff(st, 0))}.`, cibleAttente: () => { const i = [0, 1].filter((k) => st.stations[k].niv > 0 && !st.stations[k].staff).sort((a, b) => G.revenuFournee(st, b) / G.temps(st, b) - G.revenuFournee(st, a) / G.temps(st, a))[0]; return cards[i == null ? 0 : i].el.querySelector('.barre'); } },
+    { txt: 'Bravo ! Au niveau 25, 50, 75, 100… les gains montent d’un cran. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', ou: 'pages', cible: () => (accueilActif() ? $('#debutant') : $('#objectifs')), pret: () => true, fini: () => performance.now() > hintUntil,
+      txtAccueil: 'Bravo, ta boulangerie tourne ! Voici ta carte du premier jour : 7 étapes, une tenue et un boost à la clé.' },
+    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', ou: 'onglets', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0 && ouvertA('boulanger'), fini: () => vuBoulanger || (accueilActif() && G.accueilOuvert(st, 'boulanger')) }, // (accueil : l'annonce de l'onglet Boulanger en tient lieu)
     { txt: 'Ton salon de thé ! Touche un meuble dans la boutique (les tables, le four, la vitrine…) pour l’améliorer, ou Réglages › Repeindre la boutique pour les voir tous.', ou: 'scene', cible: () => zoneCible('tables'), pret: () => G.MOBILIER.some((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)), fini: () => (st.stats.meubles || 0) > 0 },
   ];
   // une cible d'indice posée sur une zone de la scène (le canvas n'a pas d'éléments)
@@ -850,31 +863,195 @@ const UI = (() => {
     const r = $('#scene').getBoundingClientRect();
     return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) };
   }
-  function indices() {
-    const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)) { el.hidden = true; return; }
-    const h = INDICES[st.tuto];
-    if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
-    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
-    if (h.pret && !h.pret()) { el.hidden = true; return; }
-    if (st.tuto !== hintStep) { hintStep = st.tuto; $('#indice-txt').textContent = h.txt; if (st.tuto === 4) hintUntil = performance.now() + 8000; }
-    const cible = h.cible();
-    el.hidden = false;
-    if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
-    el.querySelector('.main').hidden = false;
+  // une bulle (l'indice, l'annonce de l'accueil) au-dessus ou au-dessous de sa cible, bornée à l'écran ; ou : 'pages' (sous le tiroir ou les
+  // onglets : on attend), 'scene' (au-dessus du tiroir), autre (toujours) ; defile(r) : la cible attend dans la liste. Rend false si elle ne se montre pas
+  function placerBulle(el, cible, ou, defile, strict) {
     const r = cible.getBoundingClientRect(), bw = Math.min(window.innerWidth * 0.78, 320), hautTiroir = $('#tiroir').getBoundingClientRect().top;
-    const visible = h.ou === 'pages' ? r.top >= hautTiroir + 30 && r.bottom <= $('#onglets').getBoundingClientRect().top + 2 : h.ou === 'scene' ? r.bottom <= hautTiroir + 2 : true; // sous le tiroir ou sous les onglets : on attend
-    if (!visible) { // la liste défile une fois jusqu'à la cible (et seulement la liste)
-      if (h.ou === 'pages' && hintDefile !== st.tuto) { hintDefile = st.tuto; const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); }
-      el.hidden = true; return;
-    }
+    const visible = ou === 'pages' ? r.top >= hautTiroir + 30 && r.bottom <= $('#onglets').getBoundingClientRect().top + 2 : ou === 'scene' ? r.bottom <= hautTiroir + 2 : true; // sous le tiroir ou sous les onglets : on attend
+    if (!visible || (strict && !(r.width > 0 && r.height > 0))) { if (!visible && defile) defile(r); el.hidden = true; return false; }
+    el.hidden = false; el.querySelector('.main').hidden = false;
     let x = r.left + r.width / 2 - bw / 2; x = Math.max(8, Math.min(window.innerWidth - bw - 8, x));
     el.style.left = x + 'px'; el.style.transform = 'none';
     const hauteur = el.offsetHeight || 90;
     if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; }
     else { el.classList.remove('haut'); el.style.top = (r.top - hauteur - 6) + 'px'; }
-    if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
+    if (r.bottom < 0 || r.top > window.innerHeight) { el.hidden = true; return false; }
+    return true;
   }
+  const defileListe = (r) => { const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); };
+  function indices() {
+    const el = $('#indice'), acc = accueilActif(), passer = el.querySelector('.passer');
+    const guide = acc && st.tuto <= 3; // les premiers pas de l'accueil : « Passer », le texte d'attente, la bulle qui ramène à la boutique
+    if (passer && passer.hidden !== !guide) passer.hidden = !guide;
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
+      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue))) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
+    const h = INDICES[st.tuto];
+    const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
+    if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
+      if (!guide) { el.hidden = true; return; }
+      ecrire(pageActive !== 'boutique' ? 'Reviens à la boutique pour continuer.' : 'Remonte le tiroir pour voir tes recettes.');
+      placerBulle(el, pageActive !== 'boutique' ? $('#onglets [data-page="boutique"]') : $('#poignee'), 'onglets'); return;
+    }
+    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; if (acc) { majAccueil(); renderDebutant(true); } return; }
+    let cible = null, texte = acc && h.txtAccueil ? h.txtAccueil : h.txt;
+    if (h.pret && !h.pret()) {
+      if (!(guide && h.attente)) { el.hidden = true; return; }
+      texte = h.attente(); cible = h.cibleAttente();
+    }
+    if (st.tuto !== hintStep) { hintStep = st.tuto; if (st.tuto === 4) hintUntil = performance.now() + 8000; }
+    ecrire(texte);
+    if (!cible) cible = h.cible();
+    el.hidden = false;
+    if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
+    placerBulle(el, cible, h.ou, h.ou === 'pages' ? (r) => { if (hintDefile !== st.tuto) { hintDefile = st.tuto; defileListe(r); } } : null, acc); // (la liste défile une fois jusqu'à la cible, et seulement la liste)
+  }
+  function passerTuto() { // « Passer » : le guidage s'arrête (la carte du premier jour et les déblocages continuent)
+    if (!accueilActif() || st.tuto > 3) return;
+    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
+  }
+
+  // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour », les déblocages au fil du jeu et leurs annonces,
+  //     une bulle à la fois (#annonce-accueil), jamais par-dessus une feuille ou un écran ───
+  const nbBits = (m) => { let n = 0; for (let k = 0; k < 7; k++) if (m & (1 << k)) n++; return n; };
+  let lastDeb = '';
+  function renderDebutant(force) {
+    const el = $('#debutant'); if (!el) return;
+    const voir = accueilActif() && st.tuto >= 4 && !st.accueil.r && !chaineVue;
+    if (!voir) { if (!el.hidden) el.hidden = true; lastDeb = ''; return; }
+    const a = st.accueil, n = nbBits(a.o), toutes = n === 7, suivante = G.ACCUEIL.etapes.find((e, k) => !(a.o & (1 << k))), key = `${a.o}`;
+    if (!force && key === lastDeb && !el.hidden) return; lastDeb = key;
+    el.hidden = false; el.className = 'ticket debutant' + (toutes ? ' pret' : '');
+    el.setAttribute('aria-label', `Ton premier jour : ${n} étape${n > 1 ? 's' : ''} sur 7${toutes ? ', ta récompense t’attend' : ''}`);
+    el.innerHTML = `<i class="ico">${ICONS.UI.soleil}</i><span class="tk-txt"><b><span class="db-titre">Ton premier jour · ${n}/7</span><span class="db-points" aria-hidden="true">${G.ACCUEIL.etapes.map((e, k) => `<i class="${a.o & (1 << k) ? 'on' : ''}"></i>`).join('')}</span></b><small>${toutes ? 'Bravo ! Ta récompense t’attend.' : esc(suivante.txt)}</small></span>
+      <span class="tk-pill">${toutes ? 'Cadeau !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
+  }
+  function sheetDebutant() {
+    if (!accueilActif() || st.accueil.r) return;
+    G.accueilPas(st); renderDebutant(true);
+    const a = st.accueil, n = nbBits(a.o), toutes = n === 7; let suivante = -1;
+    G.ACCUEIL.etapes.forEach((e, k) => { if (suivante < 0 && !(a.o & (1 << k))) suivante = k; });
+    openSheet(`<h2>Ton premier jour</h2><p class="sous">${toutes ? 'Les sept étapes sont faites : bravo, ta boulangerie est lancée !' : `Sept étapes pour bien démarrer · ${n}/7`}</p>
+      <ul class="db-liste">${G.ACCUEIL.etapes.map((e, k) => { const f = !!(a.o & (1 << k)); return `<li class="${f ? 'fait' : ''}${k === suivante ? ' suivante' : ''}"><span class="db-coche" aria-hidden="true">${f ? ICONS.UI.coche : k + 1}</span><span>${k === suivante ? `<b>${esc(e.txt)}</b>` : esc(e.txt)}${f ? '<span class="sr"> (fait)</span>' : ''}</span></li>`; }).join('')}</ul>
+      <div class="db-cadeau"><span class="db-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), { tete: { forme: 'toque', metal: null }, haut: { forme: 'tablier', metal: 'apprenti' }, pieds: { forme: 'chaussures', metal: null }, accessoire: { forme: 'foulard', metal: 'apprenti' }, aura: null, cle: 'apprenti' })}</span><span><b>La récompense</b><small>Une tenue d’apprenti pour ta garde-robe et un boost ×2 de 30 minutes</small></span></div>
+      ${toutes ? '<button type="button" class="btn large beurre" data-a="db-recevoir"><b>Recevoir ma récompense</b></button>' : ''}${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-a="db-recevoir"]', () => { audio(); recevoirDebutant(); });
+  }
+  function recevoirDebutant() {
+    const r = G.recompenseAccueil(st);
+    if (!r.ok) { son.non(); closeSheet(); renderDebutant(true); return r; }
+    son.deblocage(); buzz([20, 40, 20]); confettis(1.4); SCENE.fete();
+    save(); renderBoosts(); renderDebutant(true); lastHud = ''; hud(); lastPage = ''; if (pageActive !== 'boutique') renderPage(true);
+    const actif = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now;
+    openSheet(`<h2>Premier jour réussi !</h2><div class="db-portrait grand" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenueVue())}</div>
+      <p class="sous">Ta tenue d’apprenti est dans ta garde-robe (onglet Boulanger) : le boulanger la porte déjà.</p>
+      <div class="grand-nombre">Boost ×${r.boost.mult} · ${G.fmtDuree(r.boost.secs)}</div><p class="sous">Toutes les ventes ×${r.boost.mult}, quand tu veux.</p>
+      ${actif ? '<button type="button" class="btn large beurre" data-a="db-plus-tard"><b>Merci !</b></button>' : `<button type="button" class="btn large beurre" data-a="db-lancer"><b>Lancer le boost ×${r.boost.mult}</b></button><button type="button" class="btn large clair" data-a="db-plus-tard" style="margin-top:8px"><b>Plus tard</b></button>`}`);
+    on('[data-a="db-plus-tard"]', () => { son.tap(); closeSheet(); renderBoosts(); });
+    on('[data-a="db-lancer"]', () => { const k = indexBoost(r.boost.mult, r.boost.secs); closeSheet(); const x = k >= 0 ? G.lancerBoostReserve(st, k) : { ok: false }; if (x.ok) reussite(`Boost ×${x.boost.mult} lancé : toutes les ventes ×${x.boost.mult} pendant ${G.fmtDuree((x.boost.fin - st.now) / 1000)} !`); else son.non(); renderBoosts(); save(); });
+    return r;
+  }
+  // ce qu'ouvre chaque déblocage, sans mise à jour à lui : appliqué au démarrage, à chaque bit posé et une fois par seconde (seulement si ça change)
+  const cacher = (el, v) => { if (el && el.hidden !== v) el.hidden = v; };
+  function majAccueil() {
+    if (!ACC || !st) return;
+    cacher($('#b-atelier'), !ouvertA('atelier'));
+    cacher($('#b-etoiles'), !ouvertA('etoiles'));
+    cacher($('#b-nouveautes'), !ouvertA('nouveautes'));
+    const modes = $('.barre-achat .modes'), am = $('#b-ameliorations'), sec = $('#b-second');
+    cacher(modes, !ouvertA('modes')); cacher(am, !ouvertA('bonus'));
+    const ba = $('.barre-achat'); if (ba) { const vide = modes.hidden && am.hidden && (!sec || sec.hidden); if (ba.classList.contains('vide') !== vide) ba.classList.toggle('vide', vide); }
+    let reduit = false;
+    for (const p of ['defis', 'boulanger', 'journal']) { const b = $(`#onglets [data-page="${p}"]`), c = !ouvertA(p); cacher(b, c); if (c) reduit = true; }
+    const og = $('#onglets'); if (og.classList.contains('reduit') !== reduit) og.classList.toggle('reduit', reduit);
+    cacher($('#objectifs'), !ouvertA('defis'));
+    if (CE) cacher($('#b-decos'), !ouvertA('decos'));
+    renderDebutant();
+  }
+  // les annonces : une seule file, une bulle à la fois ; ECART entre deux (3 s pour la toute première après les premiers pas)
+  const ECART = () => (window.__accueilEcart | 0) || 20000;
+  let annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  const annonceAttente = (ms) => { finAnnoncePrec = performance.now() - ECART() + ms; }; // la prochaine annonce dans ms au plus tôt
+  const SILENCE = { evenements: () => true, nouveautes: () => true, saison: () => !(st.saison && G.recetteSaison(st)), classement: () => !classement, decos: () => !CE, chaine: () => !CE, garderobe: () => !GRU };
+  const TXT_ANNONCE = {
+    boulanger: () => (G.ptsTalents(st) > 0 ? 'Nouveau : l’onglet Boulanger ! Tu as un point de talent à dépenser.' : 'Nouveau : l’onglet Boulanger ! Ton niveau, tes talents et tes trophées.'),
+    defis: () => 'Nouveau : les Défis ! Trois objectifs par jour, une étoile quand tu les finis.',
+    modes: () => 'Achète par 10, par 100 ou au maximum : ça va plus vite !',
+    bonus: () => 'Nouveau : Bonus et mobilier, pour multiplier tes gains.',
+    etoiles: () => 'Ta première étoile ! Chacune ajoute des gains, pour toujours.',
+    journal: () => 'Nouveau : le Journal, l’histoire de ta boutique au jour le jour.',
+    saison: () => { const r = G.recetteSaison(st); return r ? `Nouveau : ${r.nom}, jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]} ! Elle se cuit à la main.` : ''; },
+    classement: () => 'Nouveau : le classement ! Mesure-toi aux autres boulangers, chaque semaine.',
+    atelier: () => 'Nouveau : l’Atelier, trois mini-jeux pour gagner un peu plus.',
+    decos: () => 'Nouveau : Mes décos, dans l’onglet Boulanger : arrange ta boutique.',
+    garderobe: () => 'Ta garde-robe est dans l’onglet Boulanger : essaie ta tenue d’apprenti !',
+    casino: () => 'Psst… on entend battre des cartes derrière la petite porte du fond.',
+    chaine: () => 'Nouveau : Ma chaîne ! Tes anciennes boutiques revivent sur ta petite planète.',
+  };
+  const zoneRect = (z) => { const r = $('#scene').getBoundingClientRect(); return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) }; };
+  // la cible d'une annonce ({ el, ou, defile }), ou null si elle ne peut pas se montrer maintenant (elle attend sans bloquer les suivantes)
+  function cibleAnnonce(id) {
+    const onglet = (p) => ({ el: $(`#onglets [data-page="${p}"]`), ou: 'onglets' });
+    const tiroirOk = pageActive === 'boutique' && tiroir.pos !== 'ferme' && !chaineVue && !SCENE.amenager;
+    const hautTiroir = $('#tiroir').getBoundingClientRect().top, coinOk = !chaineVue && !visite && $('#coin').getBoundingClientRect().top + 52 <= hautTiroir;
+    switch (id) {
+      case 'boulanger': case 'decos': case 'garderobe': return onglet('boulanger');
+      case 'defis': return onglet('defis');
+      case 'journal': return onglet('journal');
+      case 'modes': return tiroirOk ? { el: $('.barre-achat .modes'), ou: 'pages' } : null;
+      case 'bonus': return tiroirOk ? { el: $('#b-ameliorations'), ou: 'pages' } : null;
+      case 'saison': return tiroirOk && carteSaison ? { el: carteSaison.el, ou: 'pages', defile: true } : null;
+      case 'etoiles': return chaineVue ? null : { el: $('#b-etoiles'), ou: 'haut' };
+      case 'classement': return chaineVue ? null : { el: $('#b-classement'), ou: 'haut' };
+      case 'atelier': return coinOk ? { el: $('#b-atelier'), ou: 'scene' } : null;
+      case 'chaine': return coinOk ? { el: $('#b-chaine'), ou: 'scene' } : null;
+      case 'casino': { if (chaineVue || visite || SCENE.amenager || !SCENE.zoneArriere) return null; const z = SCENE.zoneArriere(); if (!z) return null; const c = zoneRect(z); return c.getBoundingClientRect().bottom <= hautTiroir + 2 ? { el: c, ou: 'scene', zone: true } : null; }
+      default: return null;
+    }
+  }
+  function peutAnnoncer() {
+    if (st.tuto < 5 || annonceId || performance.now() - finAnnoncePrec < ECART()) return false;
+    if (!feuille.hidden || document.hidden || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert) || (RT && RT.ouvert) || SCENE.amenager) return false;
+    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || $('.maj') || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
+    return true;
+  }
+  // après un bit posé : ce qui apparaît se redessine (le coin, la carte de saison, les cartes de la page Boulanger…)
+  function apresDeblocage(id) {
+    if (id === 'nouveautes' && NVS) st.nouveautesVues = NVS.derniere(); // (l'historique des mises à jour n'intéresse pas un nouveau : pas de point)
+    lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
+    majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
+    if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }
+    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) setTimeout(() => { if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); }, 400); // un événement ouvert : son annonce à lui
+  }
+  function pasAccueil() {
+    if (!accueilActif()) return;
+    if (st.tuto !== tutoVu) { if (st.tuto >= 5 && tutoVu >= 0 && tutoVu < 5) annonceAttente(3000); tutoVu = st.tuto; }
+    if (st.tuto < 4) { majAccueil(); return; }
+    const a = st.accueil, p = G.accueilPas(st);
+    if (p.nouvelles.length) { let n = nbBits(a.o) - p.nouvelles.length; for (const k of p.nouvelles) toast(`Premier jour : ✓ ${G.ACCUEIL.etapes[k].txt} (${++n}/7)`); renderDebutant(true); save(); }
+    const dus = G.deblocagesDus(st, { chaine: CH ? CH.etat(st).b.length : 0 });
+    let change = '';
+    for (const id of dus) if (SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    if (change) save();
+    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id)) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
+    majAccueil();
+  }
+  function montrerAnnonce(id, c) {
+    G.marquerDeblocage(st, id); save(); apresDeblocage(id);
+    annonceId = id; annonceDebut = performance.now(); annonceCible = c;
+    $('#indice').hidden = true;
+    const el = $('#annonce-accueil'); el.querySelector('.aa-txt').textContent = TXT_ANNONCE[id] ? TXT_ANNONCE[id]() : '';
+    if (!c.zone && c.el.classList) { const x = c.el; x.classList.remove('accueil-neuf'); void x.offsetWidth; x.classList.add('accueil-neuf'); setTimeout(() => x.classList.remove('accueil-neuf'), 2200); }
+    if (c.defile) { const r = c.el.getBoundingClientRect(), hautTiroir = $('#tiroir').getBoundingClientRect().top; if (r.top < hautTiroir + 30 || r.bottom > $('#onglets').getBoundingClientRect().top) defileListe(r); }
+    son.tap(); placerAnnonce();
+  }
+  function placerAnnonce() { // à chaque image tant qu'elle est là (le tiroir bouge, le coin se resserre, la liste défile)
+    const el = $('#annonce-accueil'); if (!annonceId || !annonceCible) { if (!el.hidden) el.hidden = true; return; }
+    const t = performance.now(), ecran = !feuille.hidden || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert);
+    if (t - annonceDebut > 6000 || ecran) { finAnnonce(); return; }
+    placerBulle(el, annonceCible.el, annonceCible.ou, null, !annonceCible.zone);
+  }
+  function finAnnonce() { if (!annonceId) return; annonceId = ''; annonceCible = null; finAnnoncePrec = performance.now(); $('#annonce-accueil').hidden = true; }
 
   // ─── feuilles : bonus, étoiles, sauvegarde, nom, spécialité, retour d'absence ───
   const feuille = $('#feuille'), fc = $('#feuille-contenu'), voile = $('#voile');
@@ -1211,6 +1388,7 @@ const UI = (() => {
   let versionVol = false, versionVue = -Infinity;
   function verifierVersion() {
     if (!VERSION || versionVol || !/^https?:$/.test(location.protocol) || document.hidden || $('.maj')) return;
+    if (accueilActif() && st.tuto < 4) return; // (accueil : pas de bandeau pendant les premiers pas)
     if (performance.now() - versionVue < 60e3) return; // au plus une fois par minute
     versionVol = true; versionVue = performance.now();
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -1336,13 +1514,13 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
-  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); majMinuteurs(); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
+  function majCoinQuartier() { const ev = ouvertA('evenements'), bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible() && ev); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible() && ev); majMinuteurs(); } // (accueil : seulement une fois les événements débloqués) // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
   function majCoin() {
     majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
     if (!classement) { b.hidden = true; return; }
     const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
-    b.hidden = false;
+    b.hidden = !ouvertA('classement'); // (accueil : le classement s'ouvre à 250 000 €)
     if (cle === derniereCleCoin) return; derniereCleCoin = cle;
     const p = b.querySelector('.rang-pastille');
     p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
@@ -1884,8 +2062,8 @@ const UI = (() => {
   let cleCoinChaine = '';
   function majCoinChaine() {
     const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
-    const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
-    b.hidden = false; const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    const ouvre = ouvertA('chaine'), r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}|${ouvre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
+    b.hidden = !ouvre; // (accueil : Ma chaîne s'ouvre à la boutique n°2) const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
     b.setAttribute('aria-label', r.boutiques ? `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}` : 'Ma chaîne : elle commence à ta 2e boutique');
   }
   function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
@@ -1896,9 +2074,10 @@ const UI = (() => {
   const cleChaine = () => { if (!CH || !CE) return ''; const r = CH.resume(st, HORLOGE.maintenant()); return `${r.boutiques}|${r.gerants}|${r.or}|${r.aPrendre}|${r.jetons}`; };
   function carteChaine() {
     if (!CH || !CE) return '';
+    const ch = ouvertA('chaine'), dc = ouvertA('decos'); if (!ch && !dc) return ''; // (accueil : chacune à son déblocage)
     const r = CH.resume(st, HORLOGE.maintenant()), pl = (n, a, b) => `${n} ${n > 1 ? b : a}`;
-    return `<div class="ch-cartes-boulanger"><button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>
-      <button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
+    return `<div class="ch-cartes-boulanger">${ch ? `<button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>` : ''}
+      ${dc ? `<button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : ''}</div>`;
   }
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
@@ -2498,8 +2677,10 @@ const UI = (() => {
     // de dessous l'écran en profitent déjà : en pause, ils dureraient autant qu'on reste dans la Planque), et la commande se remplit seule
     // (prête, elle attend déjà sa livraison ; en pause, elle aurait tout le temps de se remplir)
     const tPas = HORLOGE.maintenant(), ecoule = tPas - st.now, evPause = atelier && st.ev && ['critique', 'petrissage', 'panne'].includes(st.ev.type) && ecoule > 0 && ecoule <= G.PAUSE_EV * 1000 ? st.ev : null;
+    const calme = !atelier && accueilActif() && st.tuto < 4; // les premiers pas de l'accueil : ni événement, ni client mystère, ni habitué (le premier au plus tôt 30 s après)
+    if (calme) { st.evTimer = Math.max(st.evTimer, 30); st.mystereTimer = Math.max(st.mystereTimer, 30); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 30); }
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); if (evPause) for (const k of ['debut', 'fin']) if (Number.isFinite(evPause[k])) evPause[k] += ecoule; }
-    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
+    const out = G.tick(st, dt, tPas, atelier || calme ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
     // le second : seulement pendant le jeu (jamais pendant l'absence) ; sous un écran couvrant, il s'arrête comme les événements
     if (PROG && PROG.secondPas && !atelier) { const a = PROG.secondPas(st, dt); if (a && a.length) achatsSecond(a); }
     // le concours : une semaine finie se range au premier passage du jour (rivalesPas : le rang, la médaille à récupérer)
@@ -2515,7 +2696,7 @@ const UI = (() => {
     if (out.habitue && !visite && !chaineVue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
     if (out.chat && $('#feuille').hidden && !visite && !chaineVue) sheetChat(true);
-    if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
+    if (out.saison && ouvertA('saison')) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
     if (out.venteSaison && !visite && !chaineVue) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { // les trophées et les dorés (verifierTrophees : { t, dore: true }) : un seul message, même pour cinq dorés d'un coup
@@ -2548,6 +2729,7 @@ const UI = (() => {
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
     if (now - tChat > 500) { tChat = now; majChat(); majCoinChaine(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
+    if (ACC) { if (now - tAccueil > 1000) { tAccueil = now; pasAccueil(); } renderDebutant(); placerAnnonce(); }
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
@@ -2735,6 +2917,9 @@ const UI = (() => {
     { const bs = $('#b-second'); if (bs) bs.addEventListener('click', () => { audio(); son.tap(); if (secondNeuf()) sheetSecondNouveau(); else sheetSecond(); }); } // le second (dès la boutique n°5) ; la première fois, son annonce
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
+    { const db = $('#debutant'); if (db) db.addEventListener('click', () => { audio(); son.tap(); sheetDebutant(); }); } // l'accueil : la carte « Ton premier jour »
+    { const ps = $('#indice .passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
+    document.addEventListener('pointerdown', () => { if (annonceId && performance.now() - annonceDebut > 800) finAnnonce(); }, true); // l'annonce s'efface au premier toucher (le geste passe)
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
@@ -2745,11 +2930,11 @@ const UI = (() => {
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.deplacer) { if (!glisse) debutGlisse(e, sx, sy); return; } // le mode Déplacer : on prend un meuble, rien d'autre
       if (chaineVue) { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) CE.meuble(chaineVue.v, id); else SCENE.tap(); return; } // une boutique de la chaîne : ses meubles, rien de la boulangerie (ni client mystère, ni porte du fond)
-      const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
+      const porte = !SCENE.amenager && ouvertA('casino') && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
-      else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
-      else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
+      else if (classement && ouvertA('classement') && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
+      else if (ouvertA('boulanger') && SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else if (porte) toquer(sx, sy);
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
@@ -2783,12 +2968,12 @@ const UI = (() => {
     if (rattrape.length || paliersRattrapes.length) { save(); const montrer = () => { sheetRecapParcours(rattrape, paliersRattrapes); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     retourProgression(HORLOGE.maintenant(), sortieLancement, true, true); // (ses annonces attendent que les feuilles du lancement soient refermées)
     HORLOGE.surSaut(payerSaut);
-    if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
+    if (EVS && ouvertA('evenements')) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // (accueil : seulement une fois les événements débloqués) // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
     setInterval(majMinuteurs, 15e3); // le minuteur des événements du coin : sa minute change sans attendre le reste
-    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (ouvertA('evenements') && !EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
@@ -2802,7 +2987,7 @@ const UI = (() => {
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); ongletsDuChat(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), pastille: majPastilleChat });
     { const box = $('#tc-onglets'); if (box) box.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b || b.dataset.tab === 'chat') return; audio(); son.tap(); TC.fermer(); sheetClassement(b.dataset.tab); }); }
     // les idées, les bugs et les votes : Réglages › Aide › « Idées & bugs » (sa pastille là, et sur l'onglet Réglages) ; le bandeau du vote reste dans la boutique
-    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees });
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees, accueil: () => ouvertA('classement') });
     try { // le coin se resserre au besoin (serrerCoin)
       const mo = new MutationObserver(serrerCoinBientot);
       mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
@@ -2817,6 +3002,7 @@ const UI = (() => {
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
+    majAccueil(); annonceAttente(3000); // l'accueil : ce qui est déjà débloqué ; la première annonce de la session, 3 s après le lancement au plus tôt
     majCoin();
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
@@ -2840,7 +3026,9 @@ const UI = (() => {
         ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
         donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
         absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); gerantsPayes = payesDe(enc); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
-        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null),
+      // l'accueil des nouveaux joueurs (test/fournil-accueil.cjs)
+      accueil: { actif: ACC, get etat() { return st.accueil; }, annonce: () => annonceId || '', passer: passerTuto, pas: pasAccueil, ouvert: ouvertA, recevoir: recevoirDebutant, debutant: sheetDebutant, fin: finAnnonce } };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

@@ -359,7 +359,7 @@
   // ─── textes ───
   const OBTENIR_TENUE = { base: 'Offerte dès le début', or: 'La 1re place du classement de la semaine', argent: 'La 2e place du classement de la semaine', bronze: 'La 3e place du classement de la semaine',
     quartier: 'Le Quartier, paliers 3, 6, 9 et 12', 'quartier-or': 'Le podium final du Quartier', 'quartier-neon': 'Le Quartier, palier 20', parcours: 'Le parcours du boulanger : boutiques n°11, 17, 23 et 29',
-    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons' };
+    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons', apprenti: 'L’objectif du premier jour' };
   const TITRES_PARCOURS = { 16: 'Boulanger de quartier', 22: 'Fournisseur officiel', 28: 'Grand maître du fournil', 30: 'Légende du Fournil' };
   const decosDe = (st, k) => { const q = st && st[k]; return q && typeof q === 'object' && Array.isArray(q.decos) ? q.decos : []; };
   const FAMILLES = [
