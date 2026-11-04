@@ -193,10 +193,15 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   await page.tap('#b-mode-inf'); await sleep(800);
   const inf = await P(() => ({ mode: window.__zombies.jeu.mode, hud: !document.querySelector('#hud-inf').hidden && document.querySelector('#hud').hidden, reste: document.querySelector('.hi-reste b').textContent, chrono: document.querySelector('.hi-chrono').textContent, survivants: window.__zombies.stats().rendu.survivant }));
   check(inf.mode === 'infection' && inf.hud && inf.reste === '6' && /^2:[0-9]{2}$/.test(inf.chrono), `Infection : son HUD (6 survivants, ${inf.chrono})`);
-  await P(() => { const j = window.__zombies.jeu, b = j.joueurs[0]; j.moiZ.x = b.x - 0.5; j.moiZ.z = b.z; });
-  await page.waitForFunction(() => window.__zombies.jeu.mordus >= 1, null, { timeout: 5000 }).catch(() => {});
+  // (collé au survivant encore debout le plus proche jusqu'à la morsure : sur un runner lent, il peut s'échapper entre deux images)
+  for (let k = 0; k < 20 && !(await P(() => window.__zombies.jeu.mordus >= 1)); k++) {
+    await P(() => { const j = window.__zombies.jeu, z = j.moiZ, b = j.joueurs.filter((q) => q.vivant !== false).sort((u, v) => Math.hypot(u.x - z.x, u.z - z.z) - Math.hypot(v.x - z.x, v.z - z.z))[0]; if (b) { z.x = b.x - 0.4; z.z = b.z; } });
+    await sleep(250);
+  }
   await sleep(300);
-  check(await P(() => window.__zombies.jeu.mordus >= 1 && document.querySelector('.hi-reste b').textContent === '5' && window.__zombies.jeu.zombies.length >= 2), 'un survivant mordu : il passe de ton côté');
+  // (le mordu chasse aussitôt avec toi : le compteur suit le nombre de morsures, il peut déjà y en avoir plus d'une)
+  const morsure = await P(() => ({ mordus: window.__zombies.jeu.mordus, reste: document.querySelector('.hi-reste b').textContent, allies: window.__zombies.jeu.zombies.length }));
+  check(morsure.mordus >= 1 && morsure.reste === String(6 - morsure.mordus) && morsure.allies >= 1 + morsure.mordus, `un survivant mordu : il passe de ton côté (${morsure.mordus} mordu(s), ${morsure.reste} restant(s), ${morsure.allies} zombies)`);
   await page.screenshot({ path: out + '/16-infection.png' });
   await page.tap('.hi-bond'); await sleep(100);
   check(await P(() => window.__zombies.jeu.bondT > 0), 'le bouton « Bondir » : un bond, puis il se recharge');
