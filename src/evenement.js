@@ -1858,7 +1858,7 @@ const EVENEMENTS = (() => {
   };
   const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; return Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); };
   const HABILLAGE_MARCHE = {
-    p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mc', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
+    p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mch', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
     icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',
     decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosMarche) SCENE.decosMarche(l); },
     boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: () => null, // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle (?boutique=0, pas de WebGL) : pas de 3D, le fond de la scène et le repli en DOM des activités (jamais le Manoir d'Halloween)

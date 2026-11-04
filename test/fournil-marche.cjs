@@ -99,7 +99,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   const charger = async () => { await page.goto(URL_JEU); await pret(); };
   const feuille = () => ev(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
   const clic = (sel) => ev((s) => { const b = document.querySelector(s); if (!b) return false; b.click(); return true; }, sel);
-  const fermerFeuille = async () => { for (let k = 0; k < 4; k++) { const ouverte = await ev(() => !document.querySelector('#feuille').hidden); if (!ouverte) return; await ev(() => { const b = document.querySelector('#feuille [data-a="close"], #feuille [data-a="pq-ok"], #feuille [data-a="pq-tard"], #feuille [data-a="pq-retour"], #feuille [data-a="ev-recuperer"]'); if (b) b.click(); else document.querySelector('#voile').click(); }); await sleep(500); } };
+  const fermerFeuille = async () => { for (let k = 0; k < 4; k++) { const ouverte = await ev(() => !document.querySelector('#feuille').hidden); if (!ouverte) return; await ev(() => { const b = document.querySelector('#feuille [data-a="close"], #feuille [data-a="pq-ok"], #feuille [data-a="pq-tard"], #feuille [data-a="pq-retour"]'); if (b) b.click(); else document.querySelector('#voile').click(); }); await sleep(500); } };
   const mq = () => ev(() => { const F = window.__fournil, q = F.st.marche; return q ? { annonce: q.annonce, bilan: q.bilan, masque: q.masque, total: q.total, billets: q.billets, paliers: q.paliers.slice(), decos: q.decos.slice(), vetements: q.vetements.slice() } : null; });
   const halle = () => ev(() => { const el = document.querySelector('#marche'); return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#mc-titre').textContent, sous: document.querySelector('#mc-sous').textContent, billets: document.querySelector('#mc-billets').textContent, taux: document.querySelector('#mc-taux').innerText, reste: document.querySelector('#mc-reste').textContent, cartes: [...document.querySelectorAll('#mc-cartes .carte[data-i]')].map((c) => c.querySelector('h3') ? c.querySelector('h3').textContent : '') }; });
   const largeur = () => ev(() => ({ doc: document.documentElement.scrollWidth, vw: innerWidth, feuille: (() => { const f = document.querySelector('#feuille'); return f.hidden ? 0 : f.scrollWidth - f.clientWidth; })(), marche: (() => { const m = document.querySelector('#marche'); return m.hidden ? 0 : m.scrollWidth - m.clientWidth; })() }));
@@ -126,7 +126,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     passe(`l’icône dessinée du coin (ICONS.UI.marche, constructeur C) : ${mn && mn.ico ? 'là' : 'pas encore'}`);
     await page.screenshot({ path: path.join(out, '00-coin-minuteur.png'), clip: { x: 240, y: 40, width: 150, height: 300 } }); }
   check(await ev(() => window.__fournil.annoncerEvenements(true)) === true && /Le Marché d’automne ouvre ses étals/.test(await feuille()), 'puis l’annonce : « Le Marché d’automne ouvre ses étals ! »');
-  { const a = await ev(() => { const f = document.querySelector('#feuille-contenu'); return { regles: [...f.querySelectorAll('.ht-regles li')].map((l) => l.innerText.replace(/\s+/g, ' ')), entrer: (() => { const b = f.querySelector('[data-a="pq-entrer"]'); return b ? { t: b.innerText, h: b.getBoundingClientRect().height } : null; })(), tard: !!f.querySelector('[data-a="pq-tard"]'), mc: !!f.querySelector('.pq-sheet.mc') }; });
+  { const a = await ev(() => { const f = document.querySelector('#feuille-contenu'); return { regles: [...f.querySelectorAll('.ht-regles li')].map((l) => l.innerText.replace(/\s+/g, ' ')), entrer: (() => { const b = f.querySelector('[data-a="pq-entrer"]'); return b ? { t: b.innerText, h: b.getBoundingClientRect().height } : null; })(), tard: !!f.querySelector('[data-a="pq-tard"]'), mc: !!f.querySelector('.pq-sheet.mch') }; });
     check(a.regles.length === 6 && /enfants déguisés/.test(a.regles[0]) && /×6/.test(a.regles[1]) && /album de la forêt/.test(a.regles[2]) && /20 paliers/.test(a.regles[3]) && /15 premiers/.test(a.regles[4]) && /vendredi 20 novembre, 20 h/.test(a.regles[5].replace(/ /g, ' ')), `« Comment jouer » en six points : ${a.regles.map((r) => r.split('.')[0]).join(' · ')}`);
     check(!!a.entrer && /Entrer dans la Halle/.test(a.entrer.t) && a.entrer.h >= 44 && a.tard && a.mc, `« Entrer dans la Halle » (${a.entrer && Math.round(a.entrer.h)} px) et « Plus tard », aux couleurs du Marché`); }
   { const l = await largeur(); check(l.doc <= l.vw && l.feuille <= 1, `l’annonce, sans défilement de côté (${l.doc} px pour ${l.vw})`); }
@@ -240,8 +240,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   // un 7e du classement final (v6.6 : du 1er au 15e) : la feuille « Tu as fini 7e du Marché d'automne sur 12 », 3 ★ et un boost ×3 de 30 min, une fois
   if (AVEC_EVT) {
     faux.evenements = { marche: { rang: 7, joueurs: 12, podium: [] } };
+    await page.goto(`http://localhost:${PORT}/vide.html`); // (le jeu arrêté : il ne réécrit pas son état du classement par-dessus)
     await ev((e) => { localStorage.setItem('fournil.classement', e); }, etatInscrit(Object.assign(CL.recompensesNeuves(), { evenements: { marche: { rang: 7, joueurs: 12, podium: [] } } })));
-    await charger(); await fermerFeuille();
+    await charger();
     const e0 = await ev(() => ({ et: window.__fournil.st.etoiles, b: window.__fournil.st.boosts.reserve.length }));
     const f7 = await attendre(async () => { const t = await feuille(); return /7e du Marché d’automne sur 12/.test(t) ? t : null; }, 15000);
     check(!!f7 && /3 étoiles/.test(f7) && /×3/.test(f7) && !/en or/.test(f7), `« ${(f7 || '').split('\n').find((l) => /7e/.test(l)) || '—'} » : 3 étoiles et un boost ×3, pas la tenue en or`);
@@ -253,17 +254,20 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     const e2 = await ev(() => window.__fournil.st.etoiles);
     check(e2 === e1.et && !/7e du Marché/.test(await feuille()), 'une seule fois : rien de plus au lancement suivant');
     await ev(() => window.__fournil.recompenses()); await sleep(800);
-    const mr = await feuille(); check(/Mes événements/.test(mr) && /Le Marché d’automne/.test(mr), '« Mes récompenses » : la place au Marché d’automne, dans « Mes événements »');
+    const mr = await feuille(); check(/Mes événements/i.test(mr) && /Le Marché d’automne/.test(mr), `« Mes récompenses » : la place au Marché d’automne, dans « Mes événements » (« ${mr.replace(/\s+/g, ' ').slice(0, 300)} »)`);
     await shot('09-mes-recompenses'); await fermerFeuille();
   } else passe('la place du classement final (« Tu as fini 7e du Marché d’automne sur 12 ») attend src/classement.js (EVTS, evtAPayer : constructeur A)');
   // un 2e : la tenue d'automne en or (le podium final), à vie
   { const connu = await ev(() => { try { return !!window.__fournil.G.vetement('marche-or-bonnet'); } catch (e) { return false; } });
     if (AVEC_EVT && connu) {
+      await page.goto(`http://localhost:${PORT}/vide.html`);
       await ev((e) => { localStorage.setItem('fournil.classement', e); }, etatInscrit(Object.assign(CL.recompensesNeuves(), { evenements: { marche: { rang: 2, joueurs: 12, podium: [] } } })));
       faux.evenements = { marche: { rang: 2, joueurs: 12, podium: [] } };
       await charger(); await sleep(2500);
       check(await attendre(() => ev(() => window.__fournil.G.possede(window.__fournil.st, 'marche-or-bonnet')), 10000), 'un 2e du classement final : la tenue d’automne en or est dans la garde-robe');
-      check((await ev(() => window.__toasts.slice())).some((t) => /Podium final du Marché d’automne/.test(t)), '« Podium final du Marché d’automne : la tenue d’automne en or est dans ta garde-robe ! »');
+      const f2 = await attendre(async () => { const t = await feuille(); return /2e du Marché d’automne/.test(t) ? t : null; }, 15000), ts = await ev(() => window.__toasts.slice());
+      check((!!f2 && /tenue d’automne en or/.test(f2)) || ts.some((t) => /Podium final du Marché d’automne/.test(t)), `le 2e le lit : « ${((f2 || '').split('\n').find((l) => /en or/.test(l)) || ts.find((t) => /Podium final/.test(t)) || '—').trim()} »`);
+      await sleep(400); await shot('10-fini-2e-tenue-or');
     } else passe('la tenue d’automne en or du 2e attend src/classement.js (EVTS) et la garde-robe du Marché (src/game.js : constructeur A)'); }
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');

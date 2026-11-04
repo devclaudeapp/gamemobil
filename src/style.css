@@ -435,7 +435,8 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .segments { display: flex; gap: 4px; padding: 3px; margin: 0 0 12px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .segments button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 6px; border-radius: 999px; font: 700 15px/1.1 var(--titre); color: var(--texte-2); }
 .segments button.actif { background: var(--texte); color: #fff; }
-.segments button:first-child:nth-last-child(4), .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 auto; padding: 0 4px; font-size: 14px; } /* quatre onglets (le classement pendant deux événements) : chacun à sa largeur */
+.segments button:first-child:nth-last-child(4), .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 auto; padding: 0 4px; font-size: 14px; }
+.segments button:first-child:nth-last-child(5), .segments button:first-child:nth-last-child(5) ~ button { flex: 1 1 auto; padding: 0 2px; font-size: 13px; letter-spacing: -.01em; } /* cinq (du 13 au 16 nov. : Semaine · Tous · Halloween · Marché · Chat) : chacun à sa largeur, un peu plus petits */ /* quatre onglets (le classement pendant deux événements) : chacun à sa largeur */
 .am.meuble { grid-template-columns: 44px minmax(0, 1fr) auto; }
 .am.meuble > svg { width: 44px; height: 44px; background: var(--peche); border-radius: var(--r-pic); padding: 4px; }
 .am.meuble em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }
@@ -998,8 +999,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 /* ─── le Marché d'automne (src/evenement.js, EVENEMENTS.marche) : le même gabarit que le Manoir (toutes les règles :is(#hantee, #marche)),
    aux couleurs de la Halle : crème, texte châtaigne, accent rouille-citrouille, feuille d'or, mousse. Les mêmes variables --mh-* (le nom
    du Manoir est gardé : « orange » = l'accent, « violet » = le second ton, ici châtaigne) ; posées aussi sur les feuilles du Marché
-   (.pq-sheet.mc, .pq-bilan.mc), qui vivent hors de l'écran. ─── */
-#marche, .pq-sheet.mc, .pq-bilan.mc { --mh-creme: #FFF4E4; --mh-creme2: #FBE6CC; --mh-texte: #4A2E1C; --mh-texte2: #8A6A50; --mh-gris: #C4AA92; --mh-ombre: #EAD9C4;
+   (.pq-sheet.mch, .pq-bilan.mch), qui vivent hors de l'écran. ─── */
+#marche, .pq-sheet.mch, .pq-bilan.mch { --mh-creme: #FFF4E4; --mh-creme2: #FBE6CC; --mh-texte: #4A2E1C; --mh-texte2: #8A6A50; --mh-gris: #C4AA92; --mh-ombre: #EAD9C4;
   --mh-orange: #D9622B; --mh-orange-sombre: #A8441A; --mh-orange-texte: #A8441A; --mh-violet: #7B4A2A; --mh-violet-sombre: #5A3218; --mh-violet-clair: #F6E7D2;
   --mh-or: #E8B33A; --mh-vert: #7A9A3A;
   --mh-ombre-carte: 0 4px 14px rgba(74, 46, 28, .09);
@@ -1424,28 +1425,28 @@ body :is(#hantee, #marche):is(.ht-boutique, .mc-boutique) > .pq-solde { box-shad
 .mc-f.b svg path:first-child { fill: #E8B33A; }
 @keyframes mcTombe { 0% { transform: translate(0, -2px) rotate(0deg); } 50% { transform: translate(6px, 8px) rotate(120deg); } 100% { transform: translate(0, -2px) rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mc-f { animation: none; } }
-.pq-sheet.mc .pq-pic, .pq-bilan.mc .pq-pic { background: #FBE2CF; }
-.pq-bilan.mc .pq-pic.grand { background: #F6E7D2; }
-.pq-bilan.mc .pq-grand { color: #A8441A; }
-.pq-sheet.mc .pq-palier.atteint { background: #FBE2CF; box-shadow: inset 0 0 0 2px #D9622B; }
-.pq-sheet.mc .pq-palier.atteint .pq-num { background: #D9622B; color: #fff; }
-.pq-sheet.mc .pq-palier.bonus .pq-num { background: #4A2E1C; box-shadow: inset 0 0 0 2px #E8B33A; }
-.pq-sheet.mc .pq-palier.bonus.atteint { background: #FFF3CF; box-shadow: inset 0 0 0 2px #E8B33A; }
-.pq-sheet.mc .pq-palier.bonus.atteint .pq-num { background: #E8B33A; color: #3A2410; }
-.pq-sheet.mc .pq-palier.attend { background: #F6E7D2; box-shadow: inset 0 0 0 2px #B08A68; }
-.pq-sheet.mc .pq-palier.attend .pq-num { background: #7B4A2A; }
-.pq-sheet.mc .pq-palier.attend div > span i { color: #5A3218; }
-.pq-sheet.mc .pq-palier.attend .pq-etat { color: #7B4A2A; }
-.pq-sheet.mc .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #7A9A3A, var(--ombre-carte); }
-.pq-sheet.mc::before, .pq-bilan.mc::before { opacity: .22; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 48px no-repeat; right: 2px; top: -2px; width: 52px; height: 52px; }
-.pq-sheet.mc .btn.beurre, .pq-bilan.mc .btn.beurre { background: #D9622B; color: #fff; box-shadow: 0 4px 0 #A8441A; }
-.pq-sheet.mc .btn.sombre { background: #4A2E1C; box-shadow: 0 4px 0 #2E1A0C; }
-.pq-sheet.mc .pq-dons li::marker { color: #D9622B; }
-.pq-sheet.mc .btn.lavande { background: #7B4A2A; box-shadow: 0 4px 0 #5A3218; }
-.pq-sheet.mc .ht-aide { background: #F6E7D2; color: #5A3218; box-shadow: inset 0 0 0 2px #C9A27A; }
-.pq-sheet.mc .ht-aide i { background: #7B4A2A; } .pq-sheet.mc .ht-aide span { color: #7B4A2A; }
-.mc .btn.ht-btn, .pq-sheet.mc .btn.ht-btn { background: #D9622B; color: #fff; box-shadow: 0 4px 0 #A8441A; }
-.mc .mh-best-fete-pic > b { background: #D9622B; }
+.pq-sheet.mch .pq-pic, .pq-bilan.mch .pq-pic { background: #FBE2CF; }
+.pq-bilan.mch .pq-pic.grand { background: #F6E7D2; }
+.pq-bilan.mch .pq-grand { color: #A8441A; }
+.pq-sheet.mch .pq-palier.atteint { background: #FBE2CF; box-shadow: inset 0 0 0 2px #D9622B; }
+.pq-sheet.mch .pq-palier.atteint .pq-num { background: #D9622B; color: #fff; }
+.pq-sheet.mch .pq-palier.bonus .pq-num { background: #4A2E1C; box-shadow: inset 0 0 0 2px #E8B33A; }
+.pq-sheet.mch .pq-palier.bonus.atteint { background: #FFF3CF; box-shadow: inset 0 0 0 2px #E8B33A; }
+.pq-sheet.mch .pq-palier.bonus.atteint .pq-num { background: #E8B33A; color: #3A2410; }
+.pq-sheet.mch .pq-palier.attend { background: #F6E7D2; box-shadow: inset 0 0 0 2px #B08A68; }
+.pq-sheet.mch .pq-palier.attend .pq-num { background: #7B4A2A; }
+.pq-sheet.mch .pq-palier.attend div > span i { color: #5A3218; }
+.pq-sheet.mch .pq-palier.attend .pq-etat { color: #7B4A2A; }
+.pq-sheet.mch .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #7A9A3A, var(--ombre-carte); }
+.pq-sheet.mch::before, .pq-bilan.mch::before { opacity: .22; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 48px no-repeat; right: 2px; top: -2px; width: 52px; height: 52px; }
+.pq-sheet.mch .btn.beurre, .pq-bilan.mch .btn.beurre { background: #D9622B; color: #fff; box-shadow: 0 4px 0 #A8441A; }
+.pq-sheet.mch .btn.sombre { background: #4A2E1C; box-shadow: 0 4px 0 #2E1A0C; }
+.pq-sheet.mch .pq-dons li::marker { color: #D9622B; }
+.pq-sheet.mch .btn.lavande { background: #7B4A2A; box-shadow: 0 4px 0 #5A3218; }
+.pq-sheet.mch .ht-aide { background: #F6E7D2; color: #5A3218; box-shadow: inset 0 0 0 2px #C9A27A; }
+.pq-sheet.mch .ht-aide i { background: #7B4A2A; } .pq-sheet.mch .ht-aide span { color: #7B4A2A; }
+.mch .btn.ht-btn, .pq-sheet.mch .btn.ht-btn { background: #D9622B; color: #fff; box-shadow: 0 4px 0 #A8441A; }
+.mch .mh-best-fete-pic > b { background: #D9622B; }
 .mc-annonce-scene { background: linear-gradient(180deg, #F7C977 0%, #F2A65A 55%, #D9622B 100%); }
 .mc-annonce-scene::after { background: #7B4A2A; }
 .mc-annonce-scene .ht-pic svg { filter: drop-shadow(0 4px 10px rgba(90, 50, 24, .35)); }
