@@ -517,6 +517,169 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* le défi du jour : « Relever le défi » et Retour forment son pied (collé en bas de la colonne de gauche) ; côte à côte en paysage */
 .defi-pied { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; gap: 10px; }
 @media (max-height: 460px) and (orientation: landscape) { .defi-pied { grid-template-columns: 1fr auto; gap: 8px; align-items: center; } }
+
+/* ─── l'écran titre : à gauche le logo et ton survivant en plan rapproché (la vitrine : la 3D derrière, dans la place libre), à droite
+   le bouton Jouer avec l'arène choisie (sa vignette ouvre le choix des arènes), quatre cartes de modes et la barre d'icônes du menu,
+   avec ses pastilles (une amélioration à ta portée, le coffre du jour, de quoi t'offrir un survivant) ─── */
+#ecran-titre { background: linear-gradient(90deg, rgba(31, 37, 51, 0) 28%, rgba(31, 37, 51, .38) 70%); }
+.titre-boite { width: min(1100px, 100%); height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 430px); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "gauche droite" "aide droite"; gap: 8px 26px; text-align: left; justify-items: stretch; align-items: stretch; }
+.titre-gauche { grid-area: gauche; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 0; }
+.titre-gauche .logo { justify-items: start; }
+.titre-gauche .accroche { max-width: 380px; font-size: 14px; }
+.vitrine-place { flex: 1 1 auto; min-height: 40px; width: 100%; }
+.vitrine-nom { display: grid; gap: 1px; padding: 6px 14px; border-radius: 14px; border: 2.5px solid var(--encre); background: rgba(255, 247, 236, .94); text-align: left; box-shadow: 0 3px 0 rgba(31, 37, 51, .4); }
+.vitrine-nom b { font: 700 16px/1.1 var(--titre); }
+.vitrine-nom small { font-size: 11.5px; color: #5A5F6B; font-weight: 700; }
+.vitrine-nom:active { transform: translateY(2px); }
+.titre-droite { grid-area: droite; display: flex; flex-direction: column; justify-content: center; gap: 9px; min-height: 0; }
+.titre-droite #titre-medailles { align-self: flex-end; }
+.titre-boite .aide { grid-area: aide; text-align: left; }
+.jouer-bloc { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; }
+.boutons-vides { display: none; }
+#b-jouer.jouer-carte { flex-direction: column; gap: 4px; border-radius: 22px; min-height: 86px; padding: 10px 16px; }
+.jouer-t { font-size: 36px; line-height: 1; }
+.jouer-arene { font: 700 13px/1.2 var(--texte); color: #5B4500; }
+.arene-choix { border: 3px solid var(--encre); border-radius: 18px; background: var(--creme); padding: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) auto; box-shadow: 0 4px 0 rgba(31, 37, 51, .45); }
+.arene-choix-img { background: #6A8A50 center / cover no-repeat; }
+.arene-choix small { font: 700 12.5px/1 var(--titre); padding: 6px 0 5px; text-align: center; background: var(--creme); }
+.arene-choix:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(31, 37, 51, .45); }
+.cartes-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.carte-mode { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: center; text-align: left; padding: 7px 10px; border-radius: 16px; border: 2.5px solid var(--encre); background: var(--creme); color: var(--encre); box-shadow: 0 3px 0 rgba(31, 37, 51, .45); min-height: 50px; }
+.carte-mode .ico { grid-row: 1 / span 2; width: 28px; height: 28px; }
+.carte-mode span { font: 700 15.5px/1.1 var(--titre); }
+.carte-mode small { font-size: 11px; color: #5A5F6B; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte-mode.defi-bouton { background: #FFF0C2; }
+.carte-mode:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(31, 37, 51, .45); }
+#b-ascension .ico { color: #8E5BE8; } #b-defi .ico { color: #E5533D; } #b-multi .ico { color: #2E9446; } #b-modes .ico { color: #3A7BD5; }
+.barre-icones { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; padding: 5px; border-radius: 18px; background: rgba(31, 37, 51, .84); border: 2.5px solid var(--encre); }
+.icone { position: relative; display: grid; justify-items: center; gap: 3px; padding: 6px 2px 5px; border-radius: 12px; border: 0; background: transparent; color: #fff; text-decoration: none; font: 700 10.5px/1.1 var(--texte); min-width: 0; }
+.icone .ico { width: 24px; height: 24px; color: var(--jaune); }
+.icone span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.icone:active { background: rgba(255, 255, 255, .14); transform: translateY(1px); }
+.notif { position: absolute; top: 3px; left: calc(50% + 7px); width: 11px; height: 11px; border-radius: 50%; background: #FF4D3D; border: 2px solid #1F2533; animation: notif 1.6s ease-in-out infinite; }
+@keyframes notif { 50% { transform: scale(1.3); } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (orientation: landscape) and (max-height: 620px) {
+  .titre-boite { grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); grid-template-areas: "gauche droite" "gauche droite"; column-gap: 18px; }
+  .titre-boite .logo { grid-area: auto; }
+  .titre-gauche .accroche, .titre-boite .aide { display: none; }
+  .titre-droite { gap: 7px; }
+  #b-jouer.jouer-carte { min-height: 72px; }
+  .jouer-t { font-size: 30px; }
+}
+@media (orientation: landscape) and (max-height: 400px) {
+  .titre-droite { gap: 6px; }
+  #b-jouer.jouer-carte { min-height: 62px; padding: 6px 14px; }
+  .jouer-t { font-size: 26px; }
+  .jouer-bloc { grid-template-columns: minmax(0, 1fr) 86px; }
+  .carte-mode { min-height: 42px; padding: 4px 9px; }
+  .carte-mode .ico { width: 24px; height: 24px; }
+  .carte-mode span { font-size: 14px; }
+  .icone { padding: 4px 1px 3px; }
+  .icone .ico { width: 21px; height: 21px; }
+  .titre-gauche .logo-2 { font-size: 40px; }
+}
+@media (orientation: portrait) {
+  .titre-boite { height: auto; grid-template-columns: 1fr; grid-template-areas: "gauche" "droite" "aide"; }
+  .vitrine-place { min-height: 180px; }
+}
+/* le choix de l'arène : une grille de vignettes (photographiées dans le jeu : outils/zombies/faire-vignettes.cjs) */
+.arenes-ecran { width: min(920px, 100%); }
+.arenes-ecran .arenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; overflow: visible; max-width: none; padding: 2px; -webkit-mask-image: none; mask-image: none; }
+.arenes-ecran .arene { width: auto; min-height: 0; padding: 0 0 8px; overflow: hidden; gap: 3px; }
+.arenes-ecran .arene > :not(.arene-img) { padding: 0 10px; }
+.arene-img { display: block; aspect-ratio: 9 / 5; background: #6A8A50 center / cover no-repeat; border-bottom: 3px solid var(--encre); margin-bottom: 3px; }
+.arene:disabled .arene-img { filter: grayscale(1) brightness(.75); }
+.arenes-ecran .arene small { display: none; }
+.arenes-ecran .arene b { font-size: 16px; }
+/* la Collection en paysage : la fenêtre à droite, ton survivant en plan rapproché à gauche */
+@media (orientation: landscape) { #ecran-collection > .collection { margin-right: 0; margin-left: auto; } }
+/* la Collection : chaque carte a son portrait (rendu par la 3D du jeu) et sa rareté ; un secret reste une silhouette */
+.col-liste { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.col-carte { position: relative; padding: 4px 6px 6px; align-content: start; }
+.col-portrait { width: 72px; height: 72px; display: block; margin: -2px auto 0; }
+.col-portrait:not([src]) { visibility: hidden; }
+.col-portrait.arme { width: 88px; height: 64px; object-fit: cover; }
+.col-carte.secret .col-portrait { filter: brightness(0) opacity(.35); }
+.col-carte.verrou:not(.secret) .col-portrait { filter: grayscale(.35) opacity(.85); }
+.col-carte .rar { position: absolute; top: 4px; left: 5px; font: 700 9.5px/1 var(--texte); font-style: normal; letter-spacing: .03em; text-transform: uppercase; padding: 2px 5px; border-radius: 6px; color: #fff; background: #9AA0A8; }
+.col-carte.rar-rare { border-color: #2B5FA8; box-shadow: inset 0 -26px 22px -18px rgba(58, 123, 213, .28); } .rar-rare .rar { background: #3A7BD5; }
+.col-carte.rar-epique { border-color: #6B3FC0; box-shadow: inset 0 -26px 22px -18px rgba(142, 91, 232, .3); } .rar-epique .rar { background: #8E5BE8; }
+.col-carte.rar-legendaire { border-color: #B87400; box-shadow: inset 0 -26px 22px -18px rgba(242, 162, 27, .38); } .rar-legendaire .rar { background: linear-gradient(90deg, #F2A21B, #FFD84A); color: #3A2600; }
+.col-carte.rar-commune .rar { display: none; }
+.col-carte .nom .pastille { display: inline-block; width: 11px; height: 11px; margin-right: 4px; vertical-align: -1px; border-width: 1.5px; }
+@media (max-height: 460px) and (orientation: landscape) { .col-portrait { width: 60px; height: 60px; } .col-portrait.arme { width: 76px; height: 54px; } .col-liste { max-height: none; overflow: visible; } }
+/* le Bunker en arbre : trois branches (Survie, Arsenal, Logistique) ; chaque nœud, son icône dans un anneau qui se remplit cran par cran,
+   relié au suivant par un trait ; ce qui est à ta portée brille */
+.bunker { width: min(820px, 100%); }
+.bunker-liste { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 10px; }
+.branche { display: grid; gap: 10px; padding: 8px; border-radius: 16px; background: rgba(31, 37, 51, .05); }
+.branche h3 { margin: 0; font: 700 14px/1 var(--titre); letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: center; }
+.branche .amelio { position: relative; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto; gap: 1px 8px; padding: 8px 10px; border: 2.5px solid transparent; }
+.branche .amelio + .amelio::before { content: ''; position: absolute; left: 32px; top: -13px; width: 4px; height: 14px; border-radius: 2px; background: var(--c); opacity: .55; }
+.branche .noeud { grid-row: 1 / span 3; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c) var(--p), #E2DED4 0); }
+.branche .noeud svg { width: 32px; height: 32px; padding: 4px; border-radius: 50%; background: #fff; box-sizing: content-box; width: 28px; height: 28px; }
+.branche .amelio b { grid-column: 2; font-size: 14.5px; }
+.branche .amelio small { grid-column: 2; font-size: 11.5px; }
+.branche .amelio .crans { grid-column: 2; color: var(--c); }
+.branche .amelio button { grid-column: 1 / -1; grid-row: auto; min-height: 36px; margin-top: 4px; }
+.branche .amelio.peut { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.branche .amelio.max { opacity: .8; }
+.branche .amelio.achete .noeud { animation: eclat .5s ease; }
+@keyframes eclat { 40% { transform: scale(1.25); filter: brightness(1.3); } }
+@media (max-width: 560px) { .bunker-liste { grid-template-columns: 1fr; } }
+@media (orientation: landscape) and (max-height: 460px) { .branche { gap: 8px; padding: 6px; } .branche .amelio { padding: 6px 8px; } .branche .amelio small { display: none; } .branche .noeud { width: 40px; height: 40px; } .branche .noeud svg { width: 24px; height: 24px; } .branche .amelio + .amelio::before { left: 26px; top: -11px; height: 12px; } }
+@media (prefers-reduced-motion: reduce) { .branche .amelio.achete .noeud { animation: none; } }
+@media (orientation: landscape) and (max-height: 620px) {
+  .bunker { position: relative; }
+  .bunker > .resume { display: none; }
+  .bunker > .medailles { position: absolute; top: 12px; right: 16px; }
+  .branche .amelio { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; }
+  .branche .amelio small { display: none; }
+  .branche .amelio button { grid-column: 3; grid-row: 1 / span 2; margin-top: 0; min-width: 62px; min-height: 38px; padding: 0 8px; font-size: 15px; }
+}
+@media (orientation: landscape) and (max-width: 720px) {
+  .branche .amelio { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; }
+  .branche .amelio b { font-size: 13.5px; }
+  .branche .amelio button { grid-column: 2; grid-row: 3; justify-self: start; min-height: 30px; min-width: 56px; margin-top: 3px; font-size: 14px; }
+  .branche .noeud { grid-row: 1 / span 3; }
+}
+/* l'atelier en tiroir : seulement ce qui sert (les équipements encore verrouillés n'y sont pas ; ils arrivent avec la vague qui les
+   débloque, en brillant) ; les boutons se rangent en colonnes de cinq, sans trous */
+.h-btn.def[data-etat="verrou"] { display: none; }
+.h-cols { display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); gap: 6px; }
+.h-col { display: contents; }
+.h-btn.neuf { animation: neuf 1s ease 3; box-shadow: 0 0 0 3px var(--jaune), 0 3px 0 rgba(31, 37, 51, .35); }
+@keyframes neuf { 50% { transform: scale(1.12); } }
+.h-poignee.signal { background: var(--jaune); color: var(--encre); animation: signal 1.2s ease-in-out infinite; }
+@keyframes signal { 50% { transform: translateX(-4px); } }
+@media (prefers-reduced-motion: reduce) { .h-btn.neuf, .h-poignee.signal { animation: none; } }
+@media (orientation: landscape) and (max-height: 400px) { .h-cols { gap: 5px; } }
+/* le bilan de fin, animé : le titre tombe, les lignes arrivent l'une après l'autre (les chiffres comptent), les médailles sautent, le
+   tampon « Nouveau record ! », la barre du pass qui se remplit */
+.carte-ecran.anime .fin-titre { animation: tombe .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.carte-ecran.anime .fin-chiffres dt, .carte-ecran.anime .fin-chiffres dd { animation: arrive .35s ease both; animation-delay: calc(.12s + var(--i) * 70ms); }
+.carte-ecran.anime .fin-medailles { animation: saute .5s cubic-bezier(.2, 1.6, .4, 1) .75s both; }
+.carte-ecran.anime .fin-record:not([hidden]) { animation: tampon .5s cubic-bezier(.2, 1.5, .4, 1) .3s both, pulse 1s ease 1.2s infinite; }
+@keyframes tombe { from { opacity: 0; transform: translateY(-18px) scale(1.15); } }
+@keyframes arrive { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes saute { from { opacity: 0; transform: scale(.4); } }
+@keyframes tampon { from { opacity: 0; transform: scale(2.4) rotate(-12deg); } }
+.fin-pass { display: grid; gap: 4px; padding: 6px 10px; border-radius: 12px; background: #fff; }
+.fin-pass-t { font: 700 13px/1.2 var(--titre); color: #6B3FC0; }
+.fin-pass .prog-barre i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8E5BE8, #B88CFF); border-radius: inherit; }
+@media (prefers-reduced-motion: reduce) { .carte-ecran.anime .fin-titre, .carte-ecran.anime .fin-chiffres dt, .carte-ecran.anime .fin-chiffres dd, .carte-ecran.anime .fin-medailles, .carte-ecran.anime .fin-record:not([hidden]) { animation: none; } }
+/* la ferraille qui vole vers son compteur ; le compteur sursaute */
+.h-vol { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; z-index: 3; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
+.h-vol svg { width: 100%; height: 100%; }
+.h-ferraille.pulse { animation: compteur .3s ease; }
+@keyframes compteur { 50% { transform: scale(1.22); } }
+/* les écrans arrivent en douceur (un léger glissé) */
+.ecran:not([hidden]) > * { animation: apparait .24s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes apparait { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .ecran:not([hidden]) > *, .h-ferraille.pulse { animation: none; } }
+/* le sous-titre d'une carte de mode : sur deux lignes s'il le faut, jamais coupé en plein mot */
+.carte-mode small { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.12; }
 </style>
 </head>
 <body>
@@ -534,24 +697,42 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
   <section class="ecran" id="ecran-titre" hidden>
     <div class="titre-boite">
-      <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
-      <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
-      <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
-      <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
-      <div class="boutons">
-        <button type="button" class="gros" id="b-jouer">Jouer</button>
-        <button type="button" class="moyen defi-bouton" id="b-ascension"><span>L’Ascension</span><small class="asc-sous"></small></button>
-        <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
-        <button type="button" class="moyen" id="b-multi">À plusieurs</button>
-        <button type="button" class="moyen" id="b-modes">Modes</button>
-        <button type="button" class="moyen" id="b-bunker">Bunker</button>
-        <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
-        <button type="button" class="moyen" id="b-collection">Collection</button>
-        <button type="button" class="moyen" id="b-social">Social</button>
-        <button type="button" class="moyen" id="b-reglages">Réglages</button>
-        <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
+      <div class="titre-gauche">
+        <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
+        <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
+        <div class="vitrine-place" aria-hidden="true"></div>
+        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button>
+      </div>
+      <div class="titre-droite">
+        <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
+        <div class="jouer-bloc">
+          <button type="button" class="gros jouer-carte" id="b-jouer"><span class="jouer-t">Jouer</span><small class="jouer-arene"></small></button>
+          <button type="button" class="arene-choix" id="b-arenes" aria-label="Changer d’arène"><span class="arene-choix-img"></span><small>Arène ›</small></button>
+        </div>
+        <div class="cartes-modes">
+          <button type="button" class="carte-mode defi-bouton" id="b-ascension"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20l6-10 4 6 3-4 5 8z" fill="currentColor"/><path d="M9 10V4l4 2-4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>L’Ascension</span><small class="asc-sous"></small></button>
+          <button type="button" class="carte-mode defi-bouton" id="b-defi"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 3v4M16 3v4M3.5 10h17" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="15" r="2.2" fill="currentColor"/></svg><span>Défi du jour</span><small class="defi-sous"></small></button>
+          <button type="button" class="carte-mode" id="b-multi"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8" r="3.2" fill="currentColor"/><circle cx="16.5" cy="9" r="2.6" fill="currentColor"/><path d="M2.5 20c.5-4.5 3-6.5 6-6.5s5.5 2 6 6.5zM14 20c.3-2.7 1.2-4.6 2.6-5.6 2.7.2 4.6 2 5 5.6z" fill="currentColor"/></svg><span>À plusieurs</span><small>2 à 4, chacun chez soi</small></button>
+          <button type="button" class="carte-mode" id="b-modes"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9 9M4 9l5-5M14 13l-2 2 3 3 2-2zM19 4l-9 9M20 9l-5-5M10 13l2 2-3 3-2-2z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Modes</span><small>Infection, duel…</small></button>
+        </div>
+        <nav class="barre-icones" aria-label="Menu">
+          <button type="button" class="icone" id="b-bunker"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" fill="currentColor"/><path d="M8.5 12l2.4 2.4 4.6-4.8" fill="none" stroke="#1F2533" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Bunker</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-progression"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3" fill="currentColor"/><path d="M8 8.5l1.6 1.6L12.5 7M8 15h8M14 9h2" fill="none" stroke="#1F2533" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Missions</span><small class="sr"></small><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-collection"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="currentColor"/></svg><span>Collection</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-social"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 1 0 18 9 9 0 0 1 0-18zM3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="2.1"/></svg><span>Social</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-reglages"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2.3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Réglages</span></button>
+          <a class="icone" id="b-accueil" href="../" aria-label="Salle de jeux"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".55"/></svg><span>Jeux</span></a>
+        </nav>
       </div>
       <p class="aide">Glisse le pouce n’importe où pour courir : ton survivant tire tout seul sur le zombie le plus proche. Entre les vagues, dépense ta ferraille dans l’atelier, à droite.</p>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-arenes" hidden>
+    <div class="carte-ecran arenes-ecran">
+      <h2>Choisis ton arène</h2>
+      <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
+      <div class="pied"><button type="button" class="moyen" id="b-arenes-ok">Retour</button></div>
     </div>
   </section>
 
@@ -571,6 +752,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <h2 class="fin-titre">Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <div class="fin-pass" hidden><span class="fin-pass-t"></span><div class="prog-barre"><i></i></div></div>
       <p class="fin-defi" hidden></p>
       <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
       <dl class="fin-chiffres"></dl>
@@ -3342,7 +3524,7 @@ const PRESEAU = (() => {
       }
       if (!pris) continue;
       jeu.objets.splice(i, 1);
-      if (o.type === 'ferraille') { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur }); }
+      if (o.type === 'ferraille') { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur, x: o.x, z: o.z }); }
       else if (o.type === 'soin') { pris.vie = Math.min(pris.vieMax, pris.vie + o.valeur); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'soin', valeur: o.valeur }); }
       else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
     }
@@ -4115,7 +4297,7 @@ const ZRENDU = (() => {
         else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
       s.mixer.update(dt);
-      s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
+      s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
     }
     const survivants = new Map();
     const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95, canon: 1.05, minigun: 0.85, doublecanon: 0.78, roquettes: 0.95 };
@@ -4145,7 +4327,7 @@ const ZRENDU = (() => {
         s.bg.position.z = 0.22; s.bd.position.z = -0.22;
         s.arme.position.set(0.48 + s.longueur / 2 - s.recul * 0.08, 1.0, 0);
         // clignote un peu après un coup reçu
-        s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
+        s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
       }
       for (const [id, s] of survivants) if (!vus.has(id)) { scene.remove(s.g); survivants.delete(id); }
     }
@@ -4435,6 +4617,11 @@ const ZRENDU = (() => {
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
     let decal = 0, decalVoulu = 0;
+    // la vitrine (l'écran titre, la Collection) : la caméra descend en plan rapproché sur le survivant, posé là où l'écran le demande
+    // (x, y : sa place, en fraction de l'écran, par un décalage de la vue) ; le passage vers le jeu et retour est un travelling continu
+    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1;
+    const _cn = T ? new T.Vector3() : null, _cv = T ? new T.Vector3() : null, _vn = T ? new T.Vector3() : null, _vv = T ? new T.Vector3() : null;
+    function vitrine(on, x, y, dist) { vitVoulu = on ? 1 : 0; if (x != null) vitX = x; if (y != null) vitY = y; if (dist != null) vitDist = dist; }
     const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
     const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
     const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
@@ -4452,6 +4639,14 @@ const ZRENDU = (() => {
       decal += (decalVoulu - decal) * k; fx += decal * 0.7; haut -= Math.abs(decal) * 1.4; recul -= Math.abs(decal) * 0.4; // (la collection : le survivant à gauche, en plus gros)
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
       camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
+      vit += (vitVoulu - vit) * (1 - Math.exp(-2.6 * dt)); if (Math.abs(vitVoulu - vit) < 1e-3) vit = vitVoulu;
+      if (vit > 0) {
+        const e = vit * vit * (3 - 2 * vit), d = vitDist; // (en douceur)
+        _cn.copy(camera.position); _vn.set(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
+        _cv.set(cam.x + 3.2 * d, 4.6 * d + 0.6, cam.z + 9.4 * d); _vv.set(cam.x, 1.0, cam.z);
+        camera.position.lerpVectors(_cn, _cv, e); _vn.lerp(_vv, e); camera.lookAt(_vn);
+        camera.setViewOffset(W, H, (0.5 - vitX) * W * e, (0.5 - vitY) * H * e, W, H);
+      } else if (camera.view && camera.view.enabled) camera.clearViewOffset();
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
       soleil.position.set(cam.x - 9, 22, cam.z + 12); soleil.target.position.set(cam.x, 0, cam.z);
     }
@@ -4530,7 +4725,56 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    // ─── les portraits (Collection, vitrine) : un survivant ou une arme, rendu à part dans une petite image au fond transparent, gardé en
+    // cache ; rendu au double de sa taille puis réduit (lissé sans multi-échantillonnage). null tant que le modèle ou sa texture manque.
+    const portraits = new Map();
+    let rtP = null, sceneP = null, camP = null;
+    function portrait(type, id, opts) {
+      opts = opts || {};
+      if (!MOD || !MOD.pret) return null;
+      const L = opts.taille || 160, cle = `${type}|${id}|${opts.finition || ''}|${L}`;
+      if (portraits.has(cle)) return portraits.get(cle);
+      let objet = null;
+      if (type === 'survivant') {
+        const SD = D.SURVIVANTS[id]; if (SD && SD.texture && !MOD.persosPrets) return null;
+        const S = MOD.survivant(id); if (S.map && !(S.map.image && S.map.image.complete && S.map.image.naturalWidth > 0)) return null; // (la texture arrive)
+        const o = S.gltf.scene.clone(true), cache = new Map();
+        o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); } });
+        const clip = S.gltf.animations.find((c) => c.name === 'idle');
+        if (clip) { const mx = new T.AnimationMixer(o); mx.clipAction(clip).play(); mx.update(0.4); }
+        objet = new T.Group(); objet.add(o); o.rotation.y = -0.45;
+      } else if (type === 'arme') {
+        if (!MOD.armesPretes) return null;
+        const o = MOD.arme(id, 1, opts.finition || null); if (!o) return null;
+        objet = new T.Group(); objet.add(o); o.rotation.set(0.12, -Math.PI / 2 + 0.35, 0.18);
+      } else return null;
+      if (!rtP) {
+        rtP = new T.WebGLRenderTarget(L * 2, L * 2); if ('colorSpace' in rtP.texture) rtP.texture.colorSpace = T.SRGBColorSpace;
+        sceneP = new T.Scene(); sceneP.add(new T.HemisphereLight('#FFFFFF', '#7A8696', 1.7));
+        const d = new T.DirectionalLight('#FFF1D8', 2.4); d.position.set(3, 5, 6); sceneP.add(d);
+        const r = new T.DirectionalLight('#9FC4FF', 1.1); r.position.set(-5, 2, -3); sceneP.add(r); // (un liseré froid derrière)
+        camP = new T.PerspectiveCamera(26, 1, 0.05, 60);
+      }
+      if (rtP.width !== L * 2) rtP.setSize(L * 2, L * 2);
+      sceneP.add(objet); objet.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(objet), c = new T.Vector3(), t3 = new T.Vector3(); b.getCenter(c); b.getSize(t3);
+      const rayon = Math.max(t3.x, t3.y, t3.z * 0.6) / 2, dist = rayon / Math.tan(T.MathUtils.degToRad(camP.fov / 2)) * (type === 'arme' ? 1.05 : 1.3);
+      camP.position.set(c.x, c.y + t3.y * 0.08, c.z + dist); camP.lookAt(c.x, c.y, c.z); camP.updateProjectionMatrix();
+      const avantRT = renderer.getRenderTarget(), avantC = renderer.getClearColor(new T.Color()), avantA = renderer.getClearAlpha(), avantOmbre = renderer.shadowMap.autoUpdate;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.setRenderTarget(rtP); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sceneP, camP);
+      const px = new Uint8Array(L * L * 16); renderer.readRenderTargetPixels(rtP, 0, 0, L * 2, L * 2, px);
+      renderer.setRenderTarget(avantRT); renderer.setClearColor(avantC, avantA); renderer.shadowMap.autoUpdate = avantOmbre;
+      sceneP.remove(objet);
+      const grand = document.createElement('canvas'); grand.width = grand.height = L * 2;
+      const gx = grand.getContext('2d'), img = gx.createImageData(L * 2, L * 2), ligne = L * 2 * 4;
+      for (let y = 0; y < L * 2; y++) img.data.set(px.subarray((L * 2 - 1 - y) * ligne, (L * 2 - y) * ligne), y * ligne); // (WebGL lit de bas en haut)
+      gx.putImageData(img, 0, 0);
+      const petit = document.createElement('canvas'); petit.width = petit.height = L;
+      const px2 = petit.getContext('2d'); px2.imageSmoothingQuality = 'high'; px2.drawImage(grand, 0, 0, L, L);
+      const url = petit.toDataURL('image/png'); portraits.set(cle, url); return url;
+    }
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, vitrine, get enVitrine() { return vit; }, portrait, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();
@@ -4915,7 +5159,9 @@ const ZHUD = (() => {
     replier(!ouvert ? false : true, true);
     vu = {};
   }
-  function replier(o, silence) { ouvert = o; el.atelier.classList.toggle('ouvert', o); $('.h-poignee').setAttribute('aria-label', o ? 'Replier l’atelier' : 'Ouvrir l’atelier'); if (!silence) try { localStorage.setItem('zombies.atelier', o ? 'ouvert' : 'ferme'); } catch (e) { /* rien */ } }
+  // l'atelier replié : sa poignée pulse quand quelque chose devient abordable ou se débloque (jusqu'à ce qu'on l'ouvre)
+  function signaler() { if (!ouvert) $('.h-poignee').classList.add('signal'); }
+  function replier(o, silence) { ouvert = o; if (o) $('.h-poignee').classList.remove('signal'); el.atelier.classList.toggle('ouvert', o); $('.h-poignee').setAttribute('aria-label', o ? 'Replier l’atelier' : 'Ouvrir l’atelier'); if (!silence) try { localStorage.setItem('zombies.atelier', o ? 'ouvert' : 'ferme'); } catch (e) { /* rien */ } }
   let infoT = 0;
   function info(k, quoi) {
     const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
@@ -4970,6 +5216,9 @@ const ZHUD = (() => {
       const etat = verrou ? 'verrou' : n >= mx ? 'max' : j.ferraille >= T.prix ? 'ok' : 'cher';
       const cle = `${etat}|${n}/${mx}`;
       if (vu['d' + k] !== cle) {
+        const avant = vu['d' + k] ? vu['d' + k].split('|')[0] : null;
+        if (avant === 'verrou' && etat !== 'verrou') { b.classList.add('neuf'); setTimeout(() => b.classList.remove('neuf'), 3200); toast(`Nouveau à l’atelier : ${T.nom}`); signaler(); } // (débloqué : il apparaît, et le dit)
+        else if (avant && avant !== 'ok' && etat === 'ok') signaler();
         vu['d' + k] = cle; b.dataset.etat = etat;
         b.querySelector('.prix').innerHTML = verrou ? `V${T.depuis}` : `<span class="ico">${ICO.ecrou}</span>${T.prix}`;
         b.querySelector('.nb').textContent = verrou ? '' : `${n}/${mx}`;
@@ -4980,6 +5229,7 @@ const ZHUD = (() => {
       const a = D.AMELIORATIONS[k], b = el.ams[k], n = j.niveaux[k] || 0, p = J.prixAmelioration(j, k), etat = p === Infinity ? 'max' : j.ferraille >= p ? 'ok' : 'cher';
       const cle = `${etat}|${n}|${p}`;
       if (vu['a' + k] !== cle) {
+        if (vu['a' + k] && vu['a' + k].split('|')[0] !== 'ok' && etat === 'ok') signaler();
         vu['a' + k] = cle; b.dataset.etat = etat;
         b.querySelector('.prix').innerHTML = p === Infinity ? 'MAX' : `<span class="ico">${ICO.ecrou}</span>${p}`;
         b.querySelector('.niv').textContent = n ? `${n}/${a.crans}` : '';
@@ -5071,6 +5321,7 @@ const ZHUD = (() => {
         else if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
+        else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'ferraille' && e.x != null) voler(e.x, e.z);
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
       for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
@@ -5082,6 +5333,17 @@ const ZHUD = (() => {
       c2.d.style.transform = `translate(${(p2[0] + c2.dx).toFixed(1)}px, ${p2[1].toFixed(1)}px) translate(-50%, -50%) scale(${(k < 0.15 ? 0.6 + k * 4 : 1.2 - k * 0.3).toFixed(2)})`;
       c2.d.style.opacity = k > 0.6 ? ((1 - k) / 0.4).toFixed(2) : '1';
     }
+  }
+  // la ferraille ramassée vole jusqu'à son compteur, qui sursaute (au plus 10 en vol à la fois)
+  const vols = []; let iVol = 0;
+  function voler(x, z) {
+    if (!projeter || !el.fer || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    if (!vols.length) for (let k = 0; k < 10; k++) { const d = document.createElement('span'); d.className = 'h-vol'; d.innerHTML = ICO.ecrou; d.hidden = true; R.appendChild(d); vols.push(d); }
+    const d = vols[iVol]; iVol = (iVol + 1) % vols.length;
+    const de = projeter(x, 0.6, z), cible = el.fer.getBoundingClientRect(), ax = cible.left + cible.width / 2, ay = cible.top + cible.height / 2;
+    d.hidden = false; if (d.anim) d.anim.cancel();
+    d.anim = d.animate([{ transform: `translate(${de[0]}px, ${de[1]}px) scale(.6)`, opacity: 1 }, { transform: `translate(${(de[0] + ax) / 2}px, ${Math.min(de[1], ay) - 40}px) scale(1.15)`, opacity: 1, offset: 0.45 }, { transform: `translate(${ax}px, ${ay}px) scale(.7)`, opacity: .9 }], { duration: 560, easing: 'cubic-bezier(.4,0,.7,1)' });
+    d.anim.onfinish = () => { d.hidden = true; const f = el.fer.parentElement; f.classList.remove('pulse'); void f.offsetWidth; f.classList.add('pulse'); };
   }
   function chiffre(x, y, z, texte, classe) {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
@@ -5650,7 +5912,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
+  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -5737,8 +5999,44 @@ const ZENLIGNE = (() => {
     const enJeu = nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'), inf = !!(jeu && jeu.mode === 'infection');
     $('#hud').hidden = !enJeu || inf; $('#hud-inf').hidden = !enJeu || !inf;
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    rendu.decaler(nom === 'collection' ? 6 : 0);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); }
+    rendu.decaler(0);
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); majTitre(); }
+    if (nom === 'arenes') remplirArenes();
+    placerVitrine();
+  }
+  // ─── la vitrine : dans les menus, la caméra descend en plan rapproché sur ton survivant (la démonstration), posé dans la place libre
+  // du titre (à gauche) ou à gauche de la Collection ; en partie, elle remonte au-dessus de l'arène ───
+  const MENUS = new Set(['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
+  function placerVitrine() {
+    if (!MENUS.has(ecran) || (jeu && !jeu.fini)) { rendu.vitrine(false); return; }
+    const W = window.innerWidth, H = window.innerHeight, paysage = W > H;
+    let x = null, y = null, h = 0;
+    if (ecran === 'collection' && paysage) {
+      const pnl = $('.collection').getBoundingClientRect();
+      if (pnl.left > 150) { x = pnl.left / 2 / W; y = 0.56; h = H * 0.62; }
+    } else if (ecran === 'titre') {
+      const r = $('.vitrine-place').getBoundingClientRect();
+      if (r.height > 40 && r.width > 40) { x = (r.left + r.width / 2) / W; y = (r.top + r.height * 0.54) / H; h = r.height; }
+    }
+    if (x == null) { rendu.vitrine(true); return; } // (les autres menus : la vitrine reste où le titre l'a mise)
+    const f = Math.min(0.62, Math.max(0.12, (h * 0.68) / H)), d = Math.min(1.2, Math.max(0.26, (1.75 / f) / 0.728 / 10.8));
+    rendu.vitrine(true, x, y, d);
+  }
+  window.addEventListener('resize', () => setTimeout(placerVitrine, 60));
+  // le titre : le nom du survivant sous la vitrine, l'arène choisie sur le bouton Jouer (sa vignette à côté), les pastilles du menu
+  function majTitre() {
+    const A = D.ARENES[arene], r = save.records[arene], C = save.collection;
+    $('.jouer-arene').textContent = `${A.nom}${r && r.vague ? ` · record : vague ${r.vague}` : ''}`;
+    $('.arene-choix-img').style.backgroundImage = `url(vignettes/${arene}.webp)`;
+    $('.vitrine-skin').textContent = (D.SURVIVANTS[C.skin] || D.SURVIVANTS.gardien).nom;
+    majBadges();
+  }
+  function majBadges() {
+    const m = save.meta.medailles, C = save.collection;
+    const bunker = Object.keys(D.BUNKER).some((k) => { const B = D.BUNKER[k], n = save.meta.bunker[k] || 0; return n < B.crans && m >= B.prix[n]; });
+    const col = Object.keys(D.SURVIVANTS).some((k) => D.SURVIVANTS[k].prix && !C.skins.includes(k) && m >= D.SURVIVANTS[k].prix) || Object.keys(D.EMOTES).some((k) => D.EMOTES[k].prix && !C.emotes.includes(k) && m >= D.EMOTES[k].prix);
+    const notif = (id, on, titre) => { const i = document.querySelector(`#${id} .notif`); if (i) { i.hidden = !on; i.title = on ? titre : ''; } };
+    notif('b-bunker', bunker, 'Une amélioration à ta portée'); notif('b-collection', col, 'De quoi t’offrir un survivant ou une émote'); notif('b-progression', coffrePret(), 'Le coffre du jour t’attend');
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -5746,7 +6044,7 @@ const ZENLIGNE = (() => {
       const A = D.ARENES[id], ok = debloquee(id), r = save.records[id], k = D.ORDRE_ARENES.indexOf(id);
       const prec = k > 0 ? D.ARENES[D.ORDRE_ARENES[k - 1]].nom : '';
       return `<button type="button" class="arene" role="radio" data-arene="${id}" aria-checked="${id === arene}" ${ok ? '' : 'disabled'}>
-        <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
+        <span class="arene-img" style="background-image:url(vignettes/${id}.webp)"></span><b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
     const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
@@ -5758,12 +6056,14 @@ const ZENLIGNE = (() => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
       nouvelleDemo(); PSONS.ui('tap');
+      if (ecran === 'arenes') setTimeout(() => montrer('titre'), 160); // (choisie : retour au titre, sur son bouton Jouer)
     }));
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
     demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
+    const p = demo.joueurs[0]; p.x -= 2.2; p.z += 0.6; // (un pas de côté : la tourelle ne le cache plus dans le plan rapproché du titre)
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null; mode = null;
@@ -5802,7 +6102,7 @@ const ZENLIGNE = (() => {
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
     $('.fin-chiffres').innerHTML = [
       ['Vague atteinte', jeu.vague], ['Niveau', j.niveau], ['Zombies', j.tues], ['Boss abattus', j.boss], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
-    ].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+    ].map(([a, b], i) => `<dt style="--i:${i}">${a}</dt><dd style="--i:${i}"${typeof b === 'number' ? ` data-val="${b}"` : ''}>${b}</dd>`).join('');
     $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${medailles} médaille${medailles > 1 ? 's' : ''} pour le Bunker`; medaillesPartie = medailles;
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
@@ -5811,10 +6111,24 @@ const ZENLIGNE = (() => {
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension(); finMode(); if (CL.etat().rejoint) publierProfil('menu').catch(() => {});
     const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
+    const fp = $('.fin-pass'); fp.hidden = !passFin || !passFin.gain;
+    if (passFin && passFin.gain) { const P = passFin; fp.querySelector('.fin-pass-t').textContent = `Pass de saison · palier ${P.apres.palier}${P.apres.palier > P.avant.palier ? ` (+${P.apres.palier - P.avant.palier})` : ''} · +${P.gain} points`; fp.dataset.de = P.apres.palier > P.avant.palier ? 0 : Math.round(P.avant.xp / D.PASS.xpPalier * 100); fp.dataset.a = Math.round(P.apres.xp / D.PASS.xpPalier * 100); }
     const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
-    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
+    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; animerFin(); } }, 1400);
+  }
+  // le bilan s'anime : les lignes arrivent l'une après l'autre, les chiffres comptent jusqu'à leur valeur, la barre du pass se remplit
+  function animerFin() {
+    const box = $('#ecran-fin .carte-ecran'); box.classList.remove('anime'); void box.offsetWidth; box.classList.add('anime');
+    const calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('.fin-chiffres dd[data-val]').forEach((dd, i) => {
+      const v = +dd.dataset.val; if (calme || !(v > 0)) return;
+      const t0 = performance.now() + 120 + i * 70, d = 650;
+      const pas = (t) => { const u = Math.min(1, Math.max(0, (t - t0) / d)); dd.textContent = nf(v * (1 - Math.pow(1 - u, 3))); if (u < 1) requestAnimationFrame(pas); else dd.textContent = nf(v); };
+      dd.textContent = '0'; requestAnimationFrame(pas);
+    });
+    const fp = $('.fin-pass'); if (!fp.hidden) { const i = fp.querySelector('i'); i.style.transition = 'none'; i.style.width = `${fp.dataset.de}%`; void i.offsetWidth; i.style.transition = calme ? 'none' : 'width 1.1s cubic-bezier(.2,.8,.2,1) .5s'; i.style.width = `${fp.dataset.a}%`; }
   }
   function quitter() { quitterSalon(); jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
 
@@ -5861,18 +6175,26 @@ const ZENLIGNE = (() => {
 
   // ─── le Bunker : les améliorations permanentes ───
   function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; const pm = $('#prog-medailles'); if (pm) pm.innerHTML = h; }
+  const BRANCHES_BUNKER = [['Survie', '#E5533D', ['vie', 'xp']], ['Arsenal', '#8E5BE8', ['degats', 'grenade', 'arme']], ['Logistique', '#2E9446', ['ferraille']]];
+  const ICO_BUNKER = {
+    vie: ZHUD.ICO.coeur, ferraille: ZHUD.ICO.ecrou, degats: ZHUD.ICO.degats, grenade: ZHUD.ICO.grenade,
+    xp: '<svg viewBox="0 0 40 40"><path d="M7 9c5-2 9-1 13 2v21c-4-3-8-4-13-2z" fill="#F2EBD9" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M33 9c-5-2-9-1-13 2v21c4-3 8-4 13-2z" fill="#FFF7EC" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 15h6M10 20h6M24 15h6M24 20h6" stroke="#8E5BE8" stroke-width="2" stroke-linecap="round"/></svg>',
+    arme: '<svg viewBox="0 0 40 40"><rect x="5" y="13" width="30" height="20" rx="3" fill="#C99B62" stroke="#2B2A33" stroke-width="2.4"/><path d="M5 20h30M20 13v20" stroke="#5A3D22" stroke-width="2.2"/><path d="M11 9h18l2 4H9z" fill="#5E6347" stroke="#2B2A33" stroke-width="2.2" stroke-linejoin="round"/></svg>',
+  };
   function remplirBunker() {
     majMedailles();
-    $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
-      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null;
-      return `<div class="amelio"><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
-        <button type="button" data-bunker="${k}" ${prix == null || save.meta.medailles < prix ? 'disabled' : ''} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
-    }).join('');
+    // trois branches ; chaque amélioration : son icône dans un anneau qui se remplit cran par cran, ses crans, son prix
+    $('.bunker-liste').innerHTML = BRANCHES_BUNKER.map(([nom, couleur, cles]) => `<section class="branche" style="--c:${couleur}"><h3>${nom}</h3>${cles.map((k) => {
+      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null, peut = prix != null && save.meta.medailles >= prix;
+      return `<div class="amelio${prix == null ? ' max' : ''}${peut ? ' peut' : ''}"><span class="noeud" style="--p:${Math.round(n / B.crans * 100)}%">${ICO_BUNKER[k] || ''}</span><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
+        <button type="button" data-bunker="${k}" ${peut ? '' : 'disabled'} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
+    }).join('')}</section>`).join('');
   }
   $('.bunker-liste').addEventListener('click', (e) => {
     const b = e.target.closest('[data-bunker]'); if (!b || b.disabled) return;
     const k = b.dataset.bunker, B = D.BUNKER[k], n = save.meta.bunker[k] || 0; if (n >= B.crans || save.meta.medailles < B.prix[n]) return;
     save.meta.medailles -= B.prix[n]; save.meta.bunker[k] = n + 1; ecrire(); remplirBunker();
+    const nd = document.querySelector(`[data-bunker="${k}"]`); if (nd) nd.closest('.amelio').classList.add('achete'); // (un éclat sur le nœud acheté)
     try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
   });
 
@@ -6016,7 +6338,8 @@ const ZENLIGNE = (() => {
     for (const k in ecrans) ecrans[k].hidden = true;
     montrer('collection'); remplirCollection();
   }
-  function remplirCollection() {
+  function remplirCollection() { remplirCollection0(); remplirPortraits(); }
+  function remplirCollection0() {
     const C = save.collection, box = $('.col-liste');
     document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
     $('.col-armes').hidden = ongletCol !== 'finitions';
@@ -6025,7 +6348,8 @@ const ZENLIGNE = (() => {
       box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
         const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
         const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
-        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+        const rar = rareteSurv(S), cache = !eu && S.secret;
+        return `<button type="button" class="col-carte rar-${rar}${porte ? ' porte' : ''}${eu ? '' : ' verrou'}${cache ? ' secret' : ''}" data-skin="${k}"><img class="col-portrait" alt="" data-portrait="survivant|${k}|"><i class="rar">${RARETES[rar]}</i><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
       }).join('');
       box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
         const k = b.dataset.skin, S = D.SURVIVANTS[k];
@@ -6037,9 +6361,9 @@ const ZENLIGNE = (() => {
     } else if (ongletCol === 'finitions') {
       const fins = finitionsEues();
       $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
-      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
         const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
-        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou secret'}" data-fin="${f}"><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|${f}"><span class="nom"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span>${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
       }).join('');
       box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
         const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
@@ -6055,6 +6379,25 @@ const ZENLIGNE = (() => {
         save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
       }));
     }
+  }
+  // les portraits des cartes (rendus par la 3D du jeu, gardés en cache) : trois par image pour ne rien saccader ; ceux dont le modèle ou
+  // la texture arrive encore sont refaits un peu plus tard
+  const RARETES = { commune: 'Commun', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
+  const rareteSurv = (S) => (S.depart ? 'commune' : S.secret ? 'legendaire' : S.exploit ? 'epique' : S.prix >= 40 ? 'rare' : 'commune');
+  let portraitsEnCours = false;
+  function remplirPortraits() {
+    if (portraitsEnCours) return; portraitsEnCours = true;
+    const etape = () => {
+      if (ecran !== 'collection') { portraitsEnCours = false; return; }
+      const liste = [...document.querySelectorAll('.col-liste img[data-portrait]:not([src])')]; let faits = 0, manque = 0;
+      for (const im of liste) {
+        if (faits >= 3) break;
+        const [t, id, f] = im.dataset.portrait.split('|'), u = rendu.portrait(t, id, { finition: f || null, taille: 128 });
+        if (u) { im.src = u; faits++; } else { manque++; im.dataset.essais = (+im.dataset.essais || 0) + 1; if (+im.dataset.essais > 40) im.removeAttribute('data-portrait'); }
+      }
+      if (liste.length > faits && (faits || manque)) { if (faits) requestAnimationFrame(etape); else setTimeout(etape, 300); } else portraitsEnCours = false;
+    };
+    requestAnimationFrame(etape);
   }
   // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
   function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
@@ -6087,15 +6430,16 @@ const ZENLIGNE = (() => {
     if (P.palier >= D.PASS.paliers) P.xp = 0;
     return gains;
   }
+  let passFin = null; // (le bilan de fin : le pass avant et après la partie)
   function bilanProgression(j) {
-    majProgression();
+    majProgression(); const avantPass = { palier: save.prog.palier, xp: save.prog.xp };
     const P = save.prog, b = { tues: j.tues, boss: j.boss, crits: jeu.stats.crits, ferraille: jeu.stats.ferraille, construits: jeu.stats.construits, grenades: jeu.stats.grenades, caisses: jeu.stats.caisses, vague: jeu.vague, echelons: ascension && jeu.gagne ? 1 : 0, coop: partie ? 1 : 0, defi: defi ? 1 : 0 };
     const faites = [];
     for (const m of P.missions) { const X = D.MISSIONS.find((x) => x.id === m.id); if (!X) continue; m.fait = X.cumul ? m.fait + (b[X.mesure] || 0) : Math.max(m.fait, b[X.mesure] || 0); if (m.fait >= m.but) faites.push(m); }
     let xp = D.PASS.xpPartie(j.score);
     for (const m of faites) { P.missions.splice(P.missions.indexOf(m), 1); P.rang++; xp += D.PASS.xpMission; }
     majProgression();
-    const gains = gagnerXpPass(xp); ecrire();
+    const gains = gagnerXpPass(xp); ecrire(); passFin = { avant: avantPass, apres: { palier: save.prog.palier, xp: save.prog.xp }, gain: xp, missions: faites.length };
     const t = []; if (faites.length) t.push(`${faites.length} mission${faites.length > 1 ? 's' : ''} réussie${faites.length > 1 ? 's' : ''}`); if (gains.length) t.push(`pass : ${gains.join(', ')}`);
     return t.join(' · ');
   }
@@ -6153,9 +6497,9 @@ const ZENLIGNE = (() => {
     $('.fin-titre').textContent = gagne ? 'L’épidémie a gagné !' : jeu.raison === 'abattu' ? 'Abattu par les survivants' : 'Les survivants ont tenu';
     $('.fin-chiffres').innerHTML = [['Survivants mordus', `${jeu.mordus} / ${jeu.joueurs.length}`], ['Score', jeu.score], ['Temps', `${Math.floor(jeu.t / 60)} min ${String(Math.floor(jeu.t % 60)).padStart(2, '0')} s`], ['Record', I.meilleur]].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
     $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${med} médaille${med > 1 ? 's' : ''} pour le Bunker${gains.length ? ' · pass : ' + gains.join(', ') : ''}`;
-    $('.fin-record').hidden = true; $('.fin-defi').hidden = true; $('.fin-attente').hidden = true; $('#b-rejouer').hidden = false; $('#b-rejouer').textContent = 'Rejouer';
+    $('.fin-record').hidden = true; $('.fin-pass').hidden = true; $('.fin-defi').hidden = true; $('.fin-attente').hidden = true; $('#b-rejouer').hidden = false; $('#b-rejouer').textContent = 'Rejouer';
     ZCONTROLES.activer(false);
-    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
+    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; animerFin(); } }, 1400);
   }
 
   // le duel : 8 divisions, des points gagnés (+25) ou perdus (−15) à chaque duel
@@ -6232,6 +6576,9 @@ const ZENLIGNE = (() => {
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
+  clic('#b-arenes', () => { PSONS.ui('tap'); montrer('arenes'); });
+  clic('#b-arenes-ok', () => montrer('titre'));
+  clic('#b-vitrine', ouvrirCollection);
   clic('#b-reprendre', reprendre);
   clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } if (mode === 'infection') demarrerInfection(); else if (ascension) demarrerAscension(ascension.n); else if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-quitter', quitter);
@@ -6274,7 +6621,7 @@ const ZENLIGNE = (() => {
   clic('#b-lancer', () => { if (salon) { const r = salon.lancer(arene, modeSalon); if (r === 'duel-deux') { erreurSalon('Le duel se joue à deux exactement.'); return; } verrouiller(); } });
   clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
-  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); });
+  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;

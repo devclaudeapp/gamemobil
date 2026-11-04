@@ -1,5 +1,5 @@
 // Dernier Rempart : l'interface à plusieurs tailles de téléphone en paysage (petit Android, iPhone SE, iPhone courant, grand iPhone,
-// tablette). Pour chaque écran (titre, Bunker, Collection, Missions, Modes, Social, Réglages, Défi, Ascension, salon, pause, fin) :
+// tablette). Pour chaque écran (titre, choix de l'arène, Bunker, Collection, Missions, Modes, Social, Réglages, Défi, Ascension, salon, pause, fin) :
 // aucun bouton coupé ou hors de l'écran (les listes qui défilent exprès mises à part : le carrousel des arènes, les listes de la
 // Collection, du classement…), le pied de chaque fenêtre (Retour, OK, Monter) toujours visible sans rien faire défiler, l'écran lui-même
 // ne défile pas, aucun texte ne déborde de sa boîte. Puis le HUD : aucun texte qui en chevauche un autre au début d'une partie (compte
@@ -18,7 +18,7 @@ const out = process.env.CAPTURES || path.join(__dirname, 'shots', 'zombies-ui');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const TAILLES = (process.env.TAILLES || '667x375,740x360,844x390,932x430,1024x600').split(',').map((s) => s.split('x').map(Number));
-const ECRANS = ['titre', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon', 'pause', 'fin'];
+const ECRANS = ['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon', 'pause', 'fin'];
 const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .prog-corps, .liste-joueurs'; // (elles défilent exprès)
 
 (async () => {
@@ -57,7 +57,7 @@ const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .pr
           if (coupe && (sortie || bt.closest('.pied') || !bt.closest('.carte-ecran'))) pb.push(`bouton coupé : « ${(bt.innerText || bt.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 30)} »`);
         }
         for (const el of sec.querySelectorAll('button, b, small, span, p, h2, div')) {
-          if (!el.offsetParent || el.children.length > 2 || el.clientWidth === 0 || el.closest(LISTES)) continue;
+          if (!el.offsetParent || el.children.length > 2 || el.clientWidth <= 1 || el.closest(LISTES) || el.closest('.sr')) continue; // (.sr : le texte pour les lecteurs d'écran, invisible)
           if (el.scrollWidth > el.clientWidth + 2 && !/(auto|scroll)/.test(getComputedStyle(el).overflowX)) pb.push(`texte qui déborde : « ${el.innerText.trim().slice(0, 30)} »`);
         }
         const pied = sec.querySelector('.pied');

@@ -494,3 +494,166 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* le défi du jour : « Relever le défi » et Retour forment son pied (collé en bas de la colonne de gauche) ; côte à côte en paysage */
 .defi-pied { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; gap: 10px; }
 @media (max-height: 460px) and (orientation: landscape) { .defi-pied { grid-template-columns: 1fr auto; gap: 8px; align-items: center; } }
+
+/* ─── l'écran titre : à gauche le logo et ton survivant en plan rapproché (la vitrine : la 3D derrière, dans la place libre), à droite
+   le bouton Jouer avec l'arène choisie (sa vignette ouvre le choix des arènes), quatre cartes de modes et la barre d'icônes du menu,
+   avec ses pastilles (une amélioration à ta portée, le coffre du jour, de quoi t'offrir un survivant) ─── */
+#ecran-titre { background: linear-gradient(90deg, rgba(31, 37, 51, 0) 28%, rgba(31, 37, 51, .38) 70%); }
+.titre-boite { width: min(1100px, 100%); height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 430px); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "gauche droite" "aide droite"; gap: 8px 26px; text-align: left; justify-items: stretch; align-items: stretch; }
+.titre-gauche { grid-area: gauche; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 0; }
+.titre-gauche .logo { justify-items: start; }
+.titre-gauche .accroche { max-width: 380px; font-size: 14px; }
+.vitrine-place { flex: 1 1 auto; min-height: 40px; width: 100%; }
+.vitrine-nom { display: grid; gap: 1px; padding: 6px 14px; border-radius: 14px; border: 2.5px solid var(--encre); background: rgba(255, 247, 236, .94); text-align: left; box-shadow: 0 3px 0 rgba(31, 37, 51, .4); }
+.vitrine-nom b { font: 700 16px/1.1 var(--titre); }
+.vitrine-nom small { font-size: 11.5px; color: #5A5F6B; font-weight: 700; }
+.vitrine-nom:active { transform: translateY(2px); }
+.titre-droite { grid-area: droite; display: flex; flex-direction: column; justify-content: center; gap: 9px; min-height: 0; }
+.titre-droite #titre-medailles { align-self: flex-end; }
+.titre-boite .aide { grid-area: aide; text-align: left; }
+.jouer-bloc { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; }
+.boutons-vides { display: none; }
+#b-jouer.jouer-carte { flex-direction: column; gap: 4px; border-radius: 22px; min-height: 86px; padding: 10px 16px; }
+.jouer-t { font-size: 36px; line-height: 1; }
+.jouer-arene { font: 700 13px/1.2 var(--texte); color: #5B4500; }
+.arene-choix { border: 3px solid var(--encre); border-radius: 18px; background: var(--creme); padding: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) auto; box-shadow: 0 4px 0 rgba(31, 37, 51, .45); }
+.arene-choix-img { background: #6A8A50 center / cover no-repeat; }
+.arene-choix small { font: 700 12.5px/1 var(--titre); padding: 6px 0 5px; text-align: center; background: var(--creme); }
+.arene-choix:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(31, 37, 51, .45); }
+.cartes-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.carte-mode { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: center; text-align: left; padding: 7px 10px; border-radius: 16px; border: 2.5px solid var(--encre); background: var(--creme); color: var(--encre); box-shadow: 0 3px 0 rgba(31, 37, 51, .45); min-height: 50px; }
+.carte-mode .ico { grid-row: 1 / span 2; width: 28px; height: 28px; }
+.carte-mode span { font: 700 15.5px/1.1 var(--titre); }
+.carte-mode small { font-size: 11px; color: #5A5F6B; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte-mode.defi-bouton { background: #FFF0C2; }
+.carte-mode:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(31, 37, 51, .45); }
+#b-ascension .ico { color: #8E5BE8; } #b-defi .ico { color: #E5533D; } #b-multi .ico { color: #2E9446; } #b-modes .ico { color: #3A7BD5; }
+.barre-icones { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; padding: 5px; border-radius: 18px; background: rgba(31, 37, 51, .84); border: 2.5px solid var(--encre); }
+.icone { position: relative; display: grid; justify-items: center; gap: 3px; padding: 6px 2px 5px; border-radius: 12px; border: 0; background: transparent; color: #fff; text-decoration: none; font: 700 10.5px/1.1 var(--texte); min-width: 0; }
+.icone .ico { width: 24px; height: 24px; color: var(--jaune); }
+.icone span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.icone:active { background: rgba(255, 255, 255, .14); transform: translateY(1px); }
+.notif { position: absolute; top: 3px; left: calc(50% + 7px); width: 11px; height: 11px; border-radius: 50%; background: #FF4D3D; border: 2px solid #1F2533; animation: notif 1.6s ease-in-out infinite; }
+@keyframes notif { 50% { transform: scale(1.3); } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (orientation: landscape) and (max-height: 620px) {
+  .titre-boite { grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); grid-template-areas: "gauche droite" "gauche droite"; column-gap: 18px; }
+  .titre-boite .logo { grid-area: auto; }
+  .titre-gauche .accroche, .titre-boite .aide { display: none; }
+  .titre-droite { gap: 7px; }
+  #b-jouer.jouer-carte { min-height: 72px; }
+  .jouer-t { font-size: 30px; }
+}
+@media (orientation: landscape) and (max-height: 400px) {
+  .titre-droite { gap: 6px; }
+  #b-jouer.jouer-carte { min-height: 62px; padding: 6px 14px; }
+  .jouer-t { font-size: 26px; }
+  .jouer-bloc { grid-template-columns: minmax(0, 1fr) 86px; }
+  .carte-mode { min-height: 42px; padding: 4px 9px; }
+  .carte-mode .ico { width: 24px; height: 24px; }
+  .carte-mode span { font-size: 14px; }
+  .icone { padding: 4px 1px 3px; }
+  .icone .ico { width: 21px; height: 21px; }
+  .titre-gauche .logo-2 { font-size: 40px; }
+}
+@media (orientation: portrait) {
+  .titre-boite { height: auto; grid-template-columns: 1fr; grid-template-areas: "gauche" "droite" "aide"; }
+  .vitrine-place { min-height: 180px; }
+}
+/* le choix de l'arène : une grille de vignettes (photographiées dans le jeu : outils/zombies/faire-vignettes.cjs) */
+.arenes-ecran { width: min(920px, 100%); }
+.arenes-ecran .arenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; overflow: visible; max-width: none; padding: 2px; -webkit-mask-image: none; mask-image: none; }
+.arenes-ecran .arene { width: auto; min-height: 0; padding: 0 0 8px; overflow: hidden; gap: 3px; }
+.arenes-ecran .arene > :not(.arene-img) { padding: 0 10px; }
+.arene-img { display: block; aspect-ratio: 9 / 5; background: #6A8A50 center / cover no-repeat; border-bottom: 3px solid var(--encre); margin-bottom: 3px; }
+.arene:disabled .arene-img { filter: grayscale(1) brightness(.75); }
+.arenes-ecran .arene small { display: none; }
+.arenes-ecran .arene b { font-size: 16px; }
+/* la Collection en paysage : la fenêtre à droite, ton survivant en plan rapproché à gauche */
+@media (orientation: landscape) { #ecran-collection > .collection { margin-right: 0; margin-left: auto; } }
+/* la Collection : chaque carte a son portrait (rendu par la 3D du jeu) et sa rareté ; un secret reste une silhouette */
+.col-liste { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.col-carte { position: relative; padding: 4px 6px 6px; align-content: start; }
+.col-portrait { width: 72px; height: 72px; display: block; margin: -2px auto 0; }
+.col-portrait:not([src]) { visibility: hidden; }
+.col-portrait.arme { width: 88px; height: 64px; object-fit: cover; }
+.col-carte.secret .col-portrait { filter: brightness(0) opacity(.35); }
+.col-carte.verrou:not(.secret) .col-portrait { filter: grayscale(.35) opacity(.85); }
+.col-carte .rar { position: absolute; top: 4px; left: 5px; font: 700 9.5px/1 var(--texte); font-style: normal; letter-spacing: .03em; text-transform: uppercase; padding: 2px 5px; border-radius: 6px; color: #fff; background: #9AA0A8; }
+.col-carte.rar-rare { border-color: #2B5FA8; box-shadow: inset 0 -26px 22px -18px rgba(58, 123, 213, .28); } .rar-rare .rar { background: #3A7BD5; }
+.col-carte.rar-epique { border-color: #6B3FC0; box-shadow: inset 0 -26px 22px -18px rgba(142, 91, 232, .3); } .rar-epique .rar { background: #8E5BE8; }
+.col-carte.rar-legendaire { border-color: #B87400; box-shadow: inset 0 -26px 22px -18px rgba(242, 162, 27, .38); } .rar-legendaire .rar { background: linear-gradient(90deg, #F2A21B, #FFD84A); color: #3A2600; }
+.col-carte.rar-commune .rar { display: none; }
+.col-carte .nom .pastille { display: inline-block; width: 11px; height: 11px; margin-right: 4px; vertical-align: -1px; border-width: 1.5px; }
+@media (max-height: 460px) and (orientation: landscape) { .col-portrait { width: 60px; height: 60px; } .col-portrait.arme { width: 76px; height: 54px; } .col-liste { max-height: none; overflow: visible; } }
+/* le Bunker en arbre : trois branches (Survie, Arsenal, Logistique) ; chaque nœud, son icône dans un anneau qui se remplit cran par cran,
+   relié au suivant par un trait ; ce qui est à ta portée brille */
+.bunker { width: min(820px, 100%); }
+.bunker-liste { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 10px; }
+.branche { display: grid; gap: 10px; padding: 8px; border-radius: 16px; background: rgba(31, 37, 51, .05); }
+.branche h3 { margin: 0; font: 700 14px/1 var(--titre); letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: center; }
+.branche .amelio { position: relative; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto; gap: 1px 8px; padding: 8px 10px; border: 2.5px solid transparent; }
+.branche .amelio + .amelio::before { content: ''; position: absolute; left: 32px; top: -13px; width: 4px; height: 14px; border-radius: 2px; background: var(--c); opacity: .55; }
+.branche .noeud { grid-row: 1 / span 3; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c) var(--p), #E2DED4 0); }
+.branche .noeud svg { width: 32px; height: 32px; padding: 4px; border-radius: 50%; background: #fff; box-sizing: content-box; width: 28px; height: 28px; }
+.branche .amelio b { grid-column: 2; font-size: 14.5px; }
+.branche .amelio small { grid-column: 2; font-size: 11.5px; }
+.branche .amelio .crans { grid-column: 2; color: var(--c); }
+.branche .amelio button { grid-column: 1 / -1; grid-row: auto; min-height: 36px; margin-top: 4px; }
+.branche .amelio.peut { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.branche .amelio.max { opacity: .8; }
+.branche .amelio.achete .noeud { animation: eclat .5s ease; }
+@keyframes eclat { 40% { transform: scale(1.25); filter: brightness(1.3); } }
+@media (max-width: 560px) { .bunker-liste { grid-template-columns: 1fr; } }
+@media (orientation: landscape) and (max-height: 460px) { .branche { gap: 8px; padding: 6px; } .branche .amelio { padding: 6px 8px; } .branche .amelio small { display: none; } .branche .noeud { width: 40px; height: 40px; } .branche .noeud svg { width: 24px; height: 24px; } .branche .amelio + .amelio::before { left: 26px; top: -11px; height: 12px; } }
+@media (prefers-reduced-motion: reduce) { .branche .amelio.achete .noeud { animation: none; } }
+@media (orientation: landscape) and (max-height: 620px) {
+  .bunker { position: relative; }
+  .bunker > .resume { display: none; }
+  .bunker > .medailles { position: absolute; top: 12px; right: 16px; }
+  .branche .amelio { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; }
+  .branche .amelio small { display: none; }
+  .branche .amelio button { grid-column: 3; grid-row: 1 / span 2; margin-top: 0; min-width: 62px; min-height: 38px; padding: 0 8px; font-size: 15px; }
+}
+@media (orientation: landscape) and (max-width: 720px) {
+  .branche .amelio { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; }
+  .branche .amelio b { font-size: 13.5px; }
+  .branche .amelio button { grid-column: 2; grid-row: 3; justify-self: start; min-height: 30px; min-width: 56px; margin-top: 3px; font-size: 14px; }
+  .branche .noeud { grid-row: 1 / span 3; }
+}
+/* l'atelier en tiroir : seulement ce qui sert (les équipements encore verrouillés n'y sont pas ; ils arrivent avec la vague qui les
+   débloque, en brillant) ; les boutons se rangent en colonnes de cinq, sans trous */
+.h-btn.def[data-etat="verrou"] { display: none; }
+.h-cols { display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); gap: 6px; }
+.h-col { display: contents; }
+.h-btn.neuf { animation: neuf 1s ease 3; box-shadow: 0 0 0 3px var(--jaune), 0 3px 0 rgba(31, 37, 51, .35); }
+@keyframes neuf { 50% { transform: scale(1.12); } }
+.h-poignee.signal { background: var(--jaune); color: var(--encre); animation: signal 1.2s ease-in-out infinite; }
+@keyframes signal { 50% { transform: translateX(-4px); } }
+@media (prefers-reduced-motion: reduce) { .h-btn.neuf, .h-poignee.signal { animation: none; } }
+@media (orientation: landscape) and (max-height: 400px) { .h-cols { gap: 5px; } }
+/* le bilan de fin, animé : le titre tombe, les lignes arrivent l'une après l'autre (les chiffres comptent), les médailles sautent, le
+   tampon « Nouveau record ! », la barre du pass qui se remplit */
+.carte-ecran.anime .fin-titre { animation: tombe .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.carte-ecran.anime .fin-chiffres dt, .carte-ecran.anime .fin-chiffres dd { animation: arrive .35s ease both; animation-delay: calc(.12s + var(--i) * 70ms); }
+.carte-ecran.anime .fin-medailles { animation: saute .5s cubic-bezier(.2, 1.6, .4, 1) .75s both; }
+.carte-ecran.anime .fin-record:not([hidden]) { animation: tampon .5s cubic-bezier(.2, 1.5, .4, 1) .3s both, pulse 1s ease 1.2s infinite; }
+@keyframes tombe { from { opacity: 0; transform: translateY(-18px) scale(1.15); } }
+@keyframes arrive { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes saute { from { opacity: 0; transform: scale(.4); } }
+@keyframes tampon { from { opacity: 0; transform: scale(2.4) rotate(-12deg); } }
+.fin-pass { display: grid; gap: 4px; padding: 6px 10px; border-radius: 12px; background: #fff; }
+.fin-pass-t { font: 700 13px/1.2 var(--titre); color: #6B3FC0; }
+.fin-pass .prog-barre i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8E5BE8, #B88CFF); border-radius: inherit; }
+@media (prefers-reduced-motion: reduce) { .carte-ecran.anime .fin-titre, .carte-ecran.anime .fin-chiffres dt, .carte-ecran.anime .fin-chiffres dd, .carte-ecran.anime .fin-medailles, .carte-ecran.anime .fin-record:not([hidden]) { animation: none; } }
+/* la ferraille qui vole vers son compteur ; le compteur sursaute */
+.h-vol { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; z-index: 3; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
+.h-vol svg { width: 100%; height: 100%; }
+.h-ferraille.pulse { animation: compteur .3s ease; }
+@keyframes compteur { 50% { transform: scale(1.22); } }
+/* les écrans arrivent en douceur (un léger glissé) */
+.ecran:not([hidden]) > * { animation: apparait .24s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes apparait { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .ecran:not([hidden]) > *, .h-ferraille.pulse { animation: none; } }
+/* le sous-titre d'une carte de mode : sur deux lignes s'il le faut, jamais coupé en plein mot */
+.carte-mode small { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.12; }
