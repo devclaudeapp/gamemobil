@@ -926,11 +926,12 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   //     éco (marche) et ses décos (les paliers du Marché, la saison d'automne) ───
   const MC = { rouille: '#C8552A', creme: '#F6E7C8', or: '#E8B33A', mousse: '#7A9A3A', chataigne: '#7B4A2A', pomme: '#C8342B', pommeV: '#8DB33A', pommeJ: '#E8B33A', courge: '#E07B2A', courgeJ: '#E8A93A', paille: '#E2C26A', bois: '#A8743F', boisF: '#6B4026', fer: '#3A302C', feuilles: ['#D9622B', '#E8B33A', '#B8372A', '#C98A2B', '#8E3B2E'] };
   // la feuille d'érable : une forme plate (cinq lobes et sa queue), d'une unité d'épaisseur, environ 1,7 de haut
-  const erable = () => forme('erable', () => { const s = new THREE.Shape(), p = [[0, 1], [0.16, 0.56], [0.48, 0.72], [0.4, 0.36], [0.86, 0.36], [0.62, 0.08], [0.76, -0.06], [0.3, -0.12], [0.2, -0.4], [0.06, -0.3], [0.05, -0.72], [-0.05, -0.72], [-0.06, -0.3], [-0.2, -0.4], [-0.3, -0.12], [-0.76, -0.06], [-0.62, 0.08], [-0.86, 0.36], [-0.4, 0.36], [-0.48, 0.72], [-0.16, 0.56]]; s.moveTo(p[0][0], p[0][1]); for (const [x, y] of p.slice(1)) s.lineTo(x, y); s.closePath(); return s; });
+  // la feuille d'érable : treize points, ses trois grands lobes et ses deux petits (48 triangles extrudée)
+  const erable = () => forme('erable', () => { const s = new THREE.Shape(), p = [[0, 1], [0.2, 0.52], [0.6, 0.68], [0.46, 0.26], [0.86, 0.14], [0.3, -0.2], [0.05, -0.72], [-0.05, -0.72], [-0.3, -0.2], [-0.86, 0.14], [-0.46, 0.26], [-0.6, 0.68], [-0.2, 0.52]]; s.moveTo(p[0][0], p[0][1]); for (const [x, y] of p.slice(1)) s.lineTo(x, y); s.closePath(); return s; });
   const feuille = (x, y, z, s, col, o) => P(erable(), col, Object.assign({ x, y, z, sx: s, sy: s, sz: Math.max(0.4, s * 0.12) }, o || {}));
-  const partsPomme = (x, y, z, r, col) => [P(M.sphere(r, 8), col, { x, y: y + r * 0.92, z, sy: 0.92 }), P(M.cylindre(r * 0.1, r * 0.12, r * 0.55, 4), MC.boisF, { x, y: y + r * 1.62, z, rz: 0.3 })];
+  const partsPomme = (x, y, z, r, col) => [P(M.sphere(r, 7), col, { x, y: y + r * 0.92, z, sy: 0.92 }), P(M.cylindre(r * 0.1, r * 0.12, r * 0.55, 4), MC.boisF, { x, y: y + r * 1.62, z, rz: 0.3 })];
   function partsCourge(x, y, z, r, col, o) { // une courge (ou un potiron) : cinq côtes, son pédoncule ; o.plat : un potiron plus large que haut
-    const pr = [], sy = o && o.plat ? 0.78 : 1.05; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; pr.push(P(M.sphere(r * 0.62, 8), k % 2 ? col : M.eclaircir(col, 0.12), { x: x + Math.cos(a) * r * 0.42, y: y + r * 0.66 * sy, z: z + Math.sin(a) * r * 0.32, sy })); }
+    const pr = [], sy = o && o.plat ? 0.78 : 1.05; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; pr.push(P(M.sphere(r * 0.62, 6), k % 2 ? col : M.eclaircir(col, 0.12), { x: x + Math.cos(a) * r * 0.42, y: y + r * 0.66 * sy, z: z + Math.sin(a) * r * 0.32, sy })); }
     pr.push(P(M.cylindre(r * 0.1, r * 0.15, r * 0.45, 5), '#5A7A2E', { x, y: y + r * 1.2 * sy, z, rz: 0.25 })); return pr;
   }
   // une cagette de bois (le fond, quatre côtés en lattes avec leur jour, les coins) remplie : pommes, courges, châtaignes, champignons ou raisin
@@ -939,11 +940,11 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     L2.push(P(M.boiteSimple(w, e, d), M.assombrir(bois, 0.08)));
     for (const [sx, sz, lw, ld] of [[0, d / 2 - e / 2, w, e], [0, -d / 2 + e / 2, w, e], [w / 2 - e / 2, 0, e, d], [-w / 2 + e / 2, 0, e, d]]) for (const yy of [e, h * 0.58]) L2.push(P(M.boiteSimple(lw, h * 0.32, ld), bois, { x: sx, y: yy, z: sz }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) L2.push(P(M.boiteSimple(e * 1.4, h, e * 1.4), M.assombrir(bois, 0.12), { x: sx * (w / 2 - e * 0.7), z: sz * (d / 2 - e * 0.7) }));
-    const nx = Math.max(2, Math.round(w / (h * 0.9))), nz = Math.max(1, Math.round(d / (h * 0.9))), rx = w / nx / 2, rz = d / nz / 2, rr = Math.min(rx, rz) * 0.95;
+    const tc = contenu === 'courges' ? 1.25 : 0.9, nx = Math.max(2, Math.round(w / (h * tc))), nz = Math.max(1, Math.round(d / (h * tc))), rx = w / nx / 2, rz = d / nz / 2, rr = Math.min(rx, rz) * 0.95; // (les courges : moins nombreuses, plus grosses)
     for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
       const px = -w / 2 + rx * (2 * i + 1), pz = -d / 2 + rz * (2 * j + 1), yy = h * 0.55, k = i * 3 + j * 7;
       if (contenu === 'courges') L2.push(...partsCourge(px, yy - rr * 0.2, pz, rr * 1.05, k % 3 === 1 ? MC.courgeJ : MC.courge, { plat: true }));
-      else if (contenu === 'chataignes') { for (const [dx, dz] of [[-0.35, -0.3], [0.35, 0.2], [-0.1, 0.4], [0.3, -0.4]]) L2.push(P(M.sphere(rr * 0.48, 6), k % 2 ? MC.chataigne : '#8E5A33', { x: px + dx * rr, y: yy + rr * 0.3, z: pz + dz * rr, sy: 0.8 })); }
+      else if (contenu === 'chataignes') { for (const [dx, dz] of [[-0.35, -0.3], [0.35, 0.2], [-0.1, 0.4]]) L2.push(P(M.sphere(rr * 0.5, 5), k % 2 ? MC.chataigne : '#8E5A33', { x: px + dx * rr, y: yy + rr * 0.3, z: pz + dz * rr, sy: 0.8 })); }
       else if (contenu === 'champignons') { L2.push(P(M.cylindre(rr * 0.22, rr * 0.28, rr * 0.7, 6), '#F4E3C3', { x: px, y: yy, z: pz }), P(M.sphere(rr * 0.6, 8), k % 2 ? '#B5733C' : '#C98A3A', { x: px, y: yy + rr * 0.7, z: pz, sy: 0.55 })); }
       else if (contenu === 'raisin') { for (let g2 = 0; g2 < 5; g2++) L2.push(P(M.sphere(rr * 0.32, 6), k % 2 ? '#6B3A7A' : '#8E4E8E', { x: px + (g2 % 2 - 0.5) * rr * 0.5, y: yy + rr * (0.55 - g2 * 0.08), z: pz + (g2 - 2) * rr * 0.22 })); }
       else L2.push(...partsPomme(px, yy - rr * 0.35, pz, rr * 0.92, [MC.pomme, MC.pommeV, MC.pomme, MC.pommeJ][k % 4]));
@@ -1006,7 +1007,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function decoCagettes(c, place) { // les cagettes du perron : deux cagettes côte à côte (pommes, courges), une troisième dessus (châtaignes), un potiron devant
     const { LAY, K } = c, pl = place ? null : LAY.decos.find((x) => x.id === 's1'), D = place ? nouvelle('cagettes') : nouvelle('cagettes', { x: pl.x - 2 * K, z: c.wz(pl.y) - 4 * K }), pr = D.fixe;
     pr.push(...partsCagette(-8.5 * K, 0, 0, 16 * K, 10 * K, 6.5 * K, 'pommes', 0.08), ...partsCagette(8.5 * K, 0, 0.6, 16 * K, 10 * K, 6.5 * K, 'courges', -0.06), ...partsCagette(0.5 * K, 6.5 * K, -0.5, 15 * K, 9.5 * K, 6 * K, 'chataignes', 0.18));
-    pr.push(...partsCourge(-13 * K, 0, 8 * K, 3.8 * K, MC.courge, { plat: true }), ...partsCourge(-7.5 * K, 0, 9.5 * K, 2.6 * K, MC.courgeJ));
+    pr.push(...partsCourge(-12 * K, 0, 8.5 * K, 3.8 * K, MC.courge, { plat: true }));
     return D;
   }
   function decoLampions(c, place) { // les lampions de la Halle : une ficelle et cinq lampions qui s'allument le soir ; d'origine, tendue en haut de la fenêtre ;
@@ -1093,8 +1094,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
     lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
     D.vifs.push({ pr: lp, emi: '#FFB045', k: (E) => 0.35 + 0.65 * E.lampes + 0.06 * Math.sin(E.t * 9) + 0.04 * Math.sin(E.t * 23), m: null });
-    for (let k = 0; k < 5; k++) pr.push(feuille(-7 + k * 3.4, 0.6, 7 + (k % 2) * 1.5, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 }));
-    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7, y: 1.3, z: 5, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7, y: 2.5, z: 5 }));
+    for (let k = 0; k < 5; k++) pr.push(feuille(-7 + k * 3.4, 0.6, 4.6 + (k % 2) * 1.1, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (au pied, tout près du socle : sur le comptoir, rien ne déborde vers la salle)
+    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.4, y: 1.3, z: 3.6, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.4, y: 2.5, z: 3.6 }));
     return D;
   }
   function decoEpouvantail() { // l'épouvantail : le piquet et la traverse, la chemise à carreaux, la tête de toile cousue et son sourire, le chapeau de paille, la paille
