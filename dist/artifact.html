@@ -1443,7 +1443,7 @@ body :is(#hantee, #marche):is(.ht-boutique, .mc-boutique) > .pq-solde { box-shad
 .pq-sheet.mc .pq-palier.attend div > span i { color: #5A3218; }
 .pq-sheet.mc .pq-palier.attend .pq-etat { color: #7B4A2A; }
 .pq-sheet.mc .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #7A9A3A, var(--ombre-carte); }
-.pq-sheet.mc::before, .pq-bilan.mc::before { opacity: .22; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 48px no-repeat; transform: rotate(18deg); }
+.pq-sheet.mc::before, .pq-bilan.mc::before { opacity: .22; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 48px no-repeat; right: 2px; top: -2px; width: 52px; height: 52px; }
 .pq-sheet.mc .btn.beurre, .pq-bilan.mc .btn.beurre { background: #D9622B; color: #fff; box-shadow: 0 4px 0 #A8441A; }
 .pq-sheet.mc .btn.sombre { background: #4A2E1C; box-shadow: 0 4px 0 #2E1A0C; }
 .pq-sheet.mc .pq-dons li::marker { color: #D9622B; }
@@ -25243,7 +25243,7 @@ const EVENEMENTS = (() => {
     p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mc', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
     icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',
     decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosMarche) SCENE.decosMarche(l); },
-    boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: (cv, X) => sceneManoir(cv, X), // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle : la scène dessinée de repli
+    boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: () => null, // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle (?boutique=0, pas de WebGL) : pas de 3D, le fond de la scène et le repli en DOM des activités (jamais le Manoir d'Halloween)
     icoSorte: { ecureuil: 'chataigne', herisson: 'champignon', lapin: 'panier', renard: 'feuille', blaireau: 'panier', chouette: 'feuille', faon: 'champignon', marcassin: 'chataigne', ourson: 'panier' },
     icoApp: { feuille: 'feuille', chataigne: 'chataigne', champignon: 'champignon' },
     compagnon: { espece: 'ecureuil', cle: 'ecureuil', attend: 'Il t’attend dans la boutique ✓' },
@@ -28216,6 +28216,7 @@ const UI = (() => {
   const SAI_ON = (() => { try { if (window.__saison === true) return true; if (window.__saison === false) return false; return !navigator.webdriver; } catch (e) { return true; } })();
   const SAI = SAI_ON && typeof SAISONS !== 'undefined' ? SAISONS : null;
   const ICO_PISTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3l1.8 3.8 3.2-1.8-.5 3.9 3.9-.4-2.2 3 2.6 1.8-3.9 1.2 1.3 3.5-3.9-1.3L11 21l-2.2-3.6-3.8 1.4 1.3-3.6-3.9-1.2 2.6-1.8-2.2-3 3.9.4L6.1 5l3.1 1.8z" fill="#D9622B"/><path d="M17.5 13.5l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#E8B33A" stroke="#fff" stroke-width=".8"/></svg>';
+  const fmtXp = (n) => Math.max(0, Math.round(Number(n) || 0)).toLocaleString('fr-FR'); // (l'XP en entier : « 1 100 », jamais « 1,1 k »)
   const icoPiste = () => (ICONS.UI && ICONS.UI.piste) || ICO_PISTE;
   let tSaison = 0, lastPiste = '', pisteOuverte = false, pisteFin = null, tAnnoncePiste = 0;
   const maintenantSai = () => HORLOGE.maintenant();
@@ -28273,7 +28274,7 @@ const UI = (() => {
     const nom = (f && (f.court || f.nom)) || 'La saison';
     const cle = `${nom}|${n}|${xp}|${dus}|${titre}`; if (!force && cle === lastPiste && !el.hidden) return; lastPiste = cle;
     el.hidden = false; el.className = 'ticket piste' + (dus ? ' pret' : '') + (titre ? ' complet' : '');
-    const sous = titre ? `Le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} » est à toi` : fini ? `Le titre : ${G.fmt(xp)}/${G.fmt(cible)} XP` : `${G.fmt(xp)}/${G.fmt(cible)} XP`;
+    const sous = titre ? `Le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} » est à toi` : fini ? `Le titre : ${fmtXp(xp)}/${fmtXp(cible)} XP` : `${fmtXp(xp)}/${fmtXp(cible)} XP`;
     el.innerHTML = `<i class="ico">${icoPiste()}</i><span class="tk-txt"><b>${esc(nom.replace(/^La /, ''))} · cran ${n}/${nc}</b><small>${sous}</small><i class="pi-barre" aria-hidden="true"><b style="width:${(part * 100).toFixed(1)}%"></b></i></span>
       <span class="tk-pill">${dus ? 'Recevoir' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
     el.setAttribute('aria-label', `${nom} : cran ${n} sur ${nc}, ${xp} XP${dus ? `, ${dus} cran${dus > 1 ? 's' : ''} à recevoir` : ''}`);
@@ -28286,12 +28287,12 @@ const UI = (() => {
     const reste = Math.max(0, f.fin - maintenantSai()), jours = Math.ceil(reste / 864e5);
     const crans = C.map((c, k) => { const m = c.n || k + 1, etat = saiRecu(m) ? 'recu' : m <= n ? 'attend' : m === n + 1 ? 'encours' : 'avenir';
       return `<li class="pi-cran ${etat}${c.trophee ? ' trophee' : ''}" data-n="${m}"><span class="pi-n">${m}</span><span class="pi-vig" aria-hidden="true">${icoCran(c)}</span><b>${esc(nomCran(c))}</b>
-        ${etat === 'attend' ? `<button type="button" class="btn menthe pi-recevoir" data-a="pi-recevoir" data-n="${m}"><b>Recevoir</b></button>` : `<small>${etat === 'recu' ? 'Reçu ✓' : `${G.fmt(m * xc)} XP`}</small>`}</li>`; }).join('');
+        ${etat === 'attend' ? `<button type="button" class="btn menthe pi-recevoir" data-a="pi-recevoir" data-n="${m}"><b>Recevoir</b></button>` : `<small>${etat === 'recu' ? 'Reçu ✓' : `${fmtXp(m * xc)} XP`}</small>`}</li>`; }).join('');
     const tx = saiTitreXp(f), tPart = Math.max(0, Math.min(1, (xp - nc * xc) / Math.max(1, tx - nc * xc)));
-    openSheet(`<div class="pi-feuille" data-piste="1"><div class="pi-tete"><span class="pic">${icoPiste()}</span><div><h2>${esc(f.nom || 'La saison')}</h2><p class="sous">Cran ${n}/${nc} · ${G.fmt(xp)} XP · ${jours > 1 ? `encore ${jours} j` : jours === 1 ? 'dernier jour' : 'finie'}</p></div></div>
+    openSheet(`<div class="pi-feuille" data-piste="1"><div class="pi-tete"><span class="pic">${icoPiste()}</span><div><h2>${esc(f.nom || 'La saison')}</h2><p class="sous">Cran ${n}/${nc} · ${fmtXp(xp)} XP · ${jours > 1 ? `encore ${jours} j` : jours === 1 ? 'dernier jour' : 'finie'}</p></div></div>
       <div class="pi-piste" role="list" aria-label="La piste : ${nc} crans de ${xc} XP"><ol>${crans}</ol></div>
       ${dus.length > 1 ? `<button type="button" class="btn large beurre" data-a="pi-tout"><b>Tout recevoir (${dus.length})</b></button>` : ''}
-      <div class="pi-titre${titre ? ' fait' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Gagné ! Il est à côté de ton pseudo, au classement.' : `${G.fmt(xp)}/${G.fmt(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre ? 100 : tPart * 100).toFixed(1)}%"></b></i></div></div>
+      <div class="pi-titre${titre ? ' fait' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Gagné ! Il est à côté de ton pseudo, au classement.' : `${fmtXp(xp)}/${fmtXp(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre ? 100 : tPart * 100).toFixed(1)}%"></b></i></div></div>
       <h3 class="titre-section">D’où vient l’XP</h3>
       <ul class="pi-sources">${sourcesSaison(f).map((x) => `<li class="${x.fait ? 'fait' : ''}"><b>${esc(x.nom)}</b><small>${esc(x.detail)}</small><em>${esc(x.reste)}</em></li>`).join('')}</ul>
       <p class="note centre">Gratuite, rien à acheter : tout ce que tu reçois reste à vie. ${C.length} crans de ${xc} XP, jusqu’au ${esc(dateFinSaison(f))}.</p>

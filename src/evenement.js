@@ -1861,7 +1861,7 @@ const EVENEMENTS = (() => {
     p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mc', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
     icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',
     decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosMarche) SCENE.decosMarche(l); },
-    boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: (cv, X) => sceneManoir(cv, X), // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle : la scène dessinée de repli
+    boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: () => null, // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle (?boutique=0, pas de WebGL) : pas de 3D, le fond de la scène et le repli en DOM des activités (jamais le Manoir d'Halloween)
     icoSorte: { ecureuil: 'chataigne', herisson: 'champignon', lapin: 'panier', renard: 'feuille', blaireau: 'panier', chouette: 'feuille', faon: 'champignon', marcassin: 'chataigne', ourson: 'panier' },
     icoApp: { feuille: 'feuille', chataigne: 'chataigne', champignon: 'champignon' },
     compagnon: { espece: 'ecureuil', cle: 'ecureuil', attend: 'Il t’attend dans la boutique ✓' },
