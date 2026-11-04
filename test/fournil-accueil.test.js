@@ -40,6 +40,11 @@ check(ancien((s) => { s.arriere = { trouvee: true }; }).t === 1, 'la petite port
 { const a = ancien((s) => { s.tuto = 2; s.lifetime = 300; s.coins = 120; s.stations[1].niv = 1; s.stations[2].niv = 1; s.stats.meubles = 1; });
   check(a.t === 0 && a.r === 0 && a.d === 0 && a.o === ((1 << 0) | (1 << 4)), `une partie de 10 min (tuto 2, 300 €) → t 0, d 0, o = étapes faites (${a.o})`); }
 
+{ const a = ancien((s) => { s.created = T0 - 2 * 3600e3; s.tuto = 3; s.lifetime = 9e4; s.stations[0].niv = 30; s.stations[1].niv = 12; });
+  const ouverts = A.deblocages.filter((x) => a.d & (1 << x.bit)).map((x) => x.id);
+  check(a.t === 0 && ['modes', 'bonus'].every((x) => ouverts.includes(x)) && !ouverts.includes('defis') && !ouverts.includes('classement'), `une partie de 2 h d'avant l'accueil (tuto 3, 90 000 €, Journal à 100 000 €) : ce qui est atteint s'ouvre en silence (${ouverts.join()})`);
+  const s = neuf(); Object.assign(s, { created: T0 - 2 * 3600e3, tuto: 4, lifetime: 9e4 }); s.stations[0].niv = 30; s.stations[1].niv = 12; s.accueil = a;
+  const dus = G.deblocagesDus(s); check(!['modes', 'bonus'].some((x) => dus.includes(x)), `fin des premiers pas : ces boutons ne sont pas réannoncés (dus : ${dus.join()})`); }
 console.log('── 3. les étapes ──');
 check(A.etapes.length === 7 && A.etapes.map((e) => e.id).join() === 'painchoc,baguette25,mystere,evenement,meuble,bonus,objectifs', 'sept étapes, dans l’ordre du contrat');
 { const faits = [(s) => { s.stations[2].niv = 1; }, (s) => { s.stations[0].niv = 25; }, (s) => { s.stats.pourboires = 1; }, (s) => { s.stats.critiques = 1; }, (s) => { s.stats.meubles = 1; }, (s) => { s.ameliorations.farine = true; }, (s) => { s.stats.serieMax = 1; }];

@@ -2790,7 +2790,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '0ccdb899d347';</script>
+<script>window.FOURNIL_VERSION = 'b51913ab322c';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -3815,7 +3815,9 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       || !((Number(now) || 0) - (Number(s.created) || 0) <= 864e5) || !!(s.arriere && s.arriere.trouvee);
     if (ancienne) return { v: 1, o: ACCUEIL.TOUTES, r: 1, d: ACCUEIL.TOUS, t: 1 };
     const a = accueilNeuf(); a.o = etapesFaites(s);
-    try { for (const id of dusDe(s, a, {})) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
+    // une partie d'avant l'accueil voyait tous les boutons : ce dont le seuil est déjà atteint s'ouvre en silence, même au milieu des premiers pas
+    // (dusDe ne rend rien tant que tuto < 4, d'où la copie à tuto 4 ; les Défis, eux, attendent la fin des premiers pas)
+    try { for (const id of dusDe(Object.assign({}, s, { tuto: 4 }), a, {})) if (id !== 'defis' || (s.tuto | 0) >= 4) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
     return a;
   }
   function accueil(st, now) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet ; now : l'heure (st.now par défaut)
