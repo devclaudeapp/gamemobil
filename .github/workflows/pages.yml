@@ -347,11 +347,12 @@ jobs:
           PORT_PROGRESSION: '8894'
   # Dernier Rempart (zombies/) : ses règles pures dans Node (données, monde, vagues, atelier, armes, la navigation de Poncin réutilisée, un
   # joueur automatique sur chaque arène), puis de bout en bout sur un iPhone simulé (carte de la Salle de jeux, titre, joystick, vague,
-  # tourelle, pause, fin et record, portrait, hors ligne par le service worker), puis la coop à deux pages (salon local). Une tâche à part.
+  # tourelle, pause, fin et record, portrait, hors ligne par le service worker), puis la coop à deux pages (salon local), puis l'interface à
+  # cinq tailles de téléphone (rien de coupé, aucun texte du HUD qui en chevauche un autre). Une tâche à part.
   zombies:
     name: Dernier Rempart (Node et Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -368,6 +369,7 @@ jobs:
           node test/zombies-play.cjs
           node test/zombies-coop.cjs
           node test/zombies-defi.cjs
+          node test/zombies-ui.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

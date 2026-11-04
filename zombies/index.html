@@ -472,6 +472,48 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .salon-entree, .salon-dedans { display: grid; gap: 10px; }
 .salon-entree #b-creer, .salon-entree #b-inconnu { justify-self: center; }
+
+/* ─── ce qui doit toujours se voir, à toutes les tailles de téléphone ───
+   chaque fenêtre tient dans l'écran : son contenu défile dedans, et le pied (Retour, OK, Monter) reste collé en bas, sur un fondu
+   qui laisse deviner la suite ; en paysage, les Réglages, les Modes et le salon passent en colonnes (plus rien à faire défiler) */
+.carte-ecran { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.pied { position: sticky; bottom: -20px; z-index: 3; display: grid; margin: 0 -20px -20px; padding: 12px 20px 20px; background: linear-gradient(rgba(255, 247, 236, 0), var(--creme) 12px); }
+.asc-boutons.pied { display: flex; }
+@media (orientation: landscape) and (max-height: 620px) {
+  .pied { bottom: -14px; margin: 0 -16px -14px; padding: 10px 16px 14px; }
+  .reglages { width: min(700px, 100%); grid-template-columns: 1fr 1fr; }
+  .reglages > h2, .reglages > .pied, .reglages > .credits { grid-column: 1 / -1; }
+  .reglages .regle { padding: 8px 10px; }
+  .reglages .credits { margin: 0; font-size: 11px; }
+  .modes { width: min(820px, 100%); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .modes > h2, .modes > .pied { grid-column: 1 / -1; }
+  .mode-carte { align-content: start; }
+  .salon { width: min(640px, 100%); }
+  .salon-entree { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+  .salon-entree > .resume { grid-column: 1 / -1; }
+}
+/* le carrousel des arènes : un fondu du côté où il en reste */
+.arenes.fond-d { -webkit-mask-image: linear-gradient(to right, #000 80%, transparent); mask-image: linear-gradient(to right, #000 80%, transparent); }
+.arenes.fond-g { -webkit-mask-image: linear-gradient(to right, transparent, #000 20%); mask-image: linear-gradient(to right, transparent, #000 20%); }
+.arenes.fond-g.fond-d { -webkit-mask-image: linear-gradient(to right, transparent, #000 16%, #000 84%, transparent); mask-image: linear-gradient(to right, transparent, #000 16%, #000 84%, transparent); }
+/* le HUD : le compte à rebours entre deux vagues et les annonces s'empilent au milieu, entre le haut du HUD et les armes (plus rien ne se
+   chevauche) ; leur taille suit la hauteur de l'écran */
+.h-milieu { position: absolute; left: 0; right: 0; top: calc(100px + var(--ht)); bottom: calc(122px + var(--hb)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; pointer-events: none; }
+.h-milieu .h-entre { position: static; transform: none; gap: 8px; pointer-events: auto; }
+.h-milieu .h-annonce { position: static; transform: none; max-width: max(260px, calc(100vw - 400px)); white-space: normal; text-wrap: balance; }
+.h-entre-t { font-size: clamp(18px, 6.5vh, 26px); }
+.h-lancer { font-size: clamp(15px, 4.6vh, 18px); padding: clamp(7px, 2.4vh, 10px) 22px; }
+.h-annonce b { font-size: clamp(26px, 8.5vh, 46px); line-height: 1.05; }
+.h-annonce small { font-size: clamp(13px, 4.2vh, 18px); }
+.h-annonce.vu { animation-name: annonce-pile; }
+@keyframes annonce-pile { 0% { opacity: 0; transform: scale(1.5); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (orientation: portrait) { .h-milieu { top: calc(180px + var(--ht)); bottom: calc(200px + var(--hb)); } .h-milieu .h-annonce { max-width: calc(100vw - 40px); } }
+/* pendant le choix d'un atout, le haut du HUD s'efface (le titre « NIVEAU 2 ! » ne le recouvre plus) */
+.choix-ouvert .h-centre, .choix-ouvert .h-score, .choix-ouvert .h-boss, .choix-ouvert .h-milieu, .choix-ouvert .h-serie { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .h-annonce.vu { animation: none; } }
+@media (orientation: landscape) and (max-height: 620px) { .salon-entree #b-creer, .salon-entree #b-inconnu { justify-self: stretch; } }
+/* les petits téléphones en paysage : la barre de vie se resserre pour laisser la place aux compteurs du milieu */
+@media (orientation: landscape) and (max-width: 720px) { .h-vie .h-barre { width: 16vw; } .h-vie-n { font-size: 20px; margin-left: 6px; } }
 </style>
 </head>
 <body>
@@ -554,7 +596,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       </div>
       <p class="salon-etat" hidden></p>
       <p class="salon-erreur" role="alert" hidden></p>
-      <button type="button" class="moyen" id="b-salon-quitter">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-salon-quitter">Retour</button></div>
     </div>
   </section>
 
@@ -583,7 +625,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <p class="asc-n"></p>
       <dl class="asc-carte"></dl>
       <p class="asc-recomp"></p>
-      <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
+      <div class="asc-boutons pied"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
     </div>
   </section>
 
@@ -593,7 +635,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
-      <button type="button" class="moyen" id="b-col-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-col-retour">Retour</button></div>
     </div>
   </section>
 
@@ -602,7 +644,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="col-tete"><h2>Missions et pass</h2><div class="medailles" id="prog-medailles"></div></div>
       <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
       <div class="prog-corps"></div>
-      <button type="button" class="moyen" id="b-prog-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-prog-retour">Retour</button></div>
     </div>
   </section>
 
@@ -612,7 +654,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <button type="button" class="mode-carte mode-inf" id="b-mode-inf"><b>🧟 Infection</b><span>C’est toi l’épidémie : mords les survivants avant la fin du chrono. Chaque mordu traque les autres.</span><small></small></button>
       <button type="button" class="mode-carte" id="b-mode-cps"><b>🎯 Chacun pour soi</b><span>À plusieurs, la même arme pour tous, pas de relève : le dernier debout gagne.</span></button>
       <button type="button" class="mode-carte" id="b-mode-duel"><b>⚔️ Duel</b><span>À deux : tes zombies abattus en envoient à l’autre. Monte les huit divisions.</span><small class="duel-div"></small></button>
-      <button type="button" class="moyen" id="b-modes-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-modes-retour">Retour</button></div>
     </div>
   </section>
 
@@ -622,7 +664,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="onglets soc-onglets" role="tablist"><button type="button" role="tab" data-onglet="mondial">Mondial</button><button type="button" role="tab" data-onglet="amis">Amis</button><button type="button" role="tab" data-onglet="profil">Profil</button></div>
       <div class="soc-corps"></div>
       <p class="soc-etat"></p>
-      <button type="button" class="moyen" id="b-soc-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-soc-retour">Retour</button></div>
     </div>
   </section>
 
@@ -632,20 +674,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <p class="resume">Les médailles gagnées en jouant achètent des améliorations pour toutes tes parties.</p>
       <div class="medailles" id="bunker-medailles"></div>
       <div class="bunker-liste"></div>
-      <button type="button" class="gros" id="b-bunker-ok">Retour</button>
+      <div class="pied"><button type="button" class="gros" id="b-bunker-ok">Retour</button></div>
     </div>
   </section>
 
   <section class="ecran voile" id="ecran-reglages" hidden>
-    <div class="carte-ecran">
+    <div class="carte-ecran reglages">
       <h2>Réglages</h2>
       <label class="regle"><span>Sons</span><input type="checkbox" id="r-son"></label>
       <label class="regle"><span>Vibrations</span><input type="checkbox" id="r-vibre"></label>
       <label class="regle"><span>Graphismes économes <small>(batterie, vieux téléphones)</small></span><input type="checkbox" id="r-eco"></label>
       <label class="regle"><span>Joystick</span><select id="r-joy"><option value="flottant">Flottant (sous le pouce)</option><option value="fixe">Fixe (en bas à gauche)</option></select></label>
       <label class="regle"><span>Taille du joystick</span><select id="r-joyt"><option value="petit">Petit</option><option value="normal">Normal</option><option value="grand">Grand</option></select></label>
-      <button type="button" class="gros" id="b-reglages-ok">OK</button>
       <p class="credits">Modèles 3D CC0 de Kenney (horde, survivant, armes, défenses, voitures) et de KayKit par Kay Lousberg (les boss) ; décor fait main. Sons synthétisés.</p>
+      <div class="pied"><button type="button" class="gros" id="b-reglages-ok">OK</button></div>
     </div>
   </section>
 </div>
@@ -4826,8 +4868,10 @@ const ZHUD = (() => {
         <div class="h-info" hidden></div>
       </div>
       <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button></div></div>
-      <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
-      <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
+      <div class="h-milieu">
+        <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
+        <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
+      </div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
@@ -4984,7 +5028,7 @@ const ZHUD = (() => {
     // le choix d'un atout (la partie attend)
     const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
-      vu.choix = cc; el.choix.hidden = !c;
+      vu.choix = cc; el.choix.hidden = !c; R.classList.toggle('choix-ouvert', !!c); // (le haut du HUD s'efface derrière le choix)
       if (c) {
         el.choixT.textContent = `NIVEAU ${c.niveau} !`;
         el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');
@@ -5704,6 +5748,10 @@ const ZENLIGNE = (() => {
       </button>`;
     }).join('');
     const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
+    // un fondu sur le bord qui cache encore des arènes : le carrousel se devine (et le fondu suit le défilement)
+    const bords = () => { const g = box.scrollLeft > 4, d = box.scrollLeft + box.clientWidth < box.scrollWidth - 4; box.classList.toggle('fond-g', g); box.classList.toggle('fond-d', d); };
+    if (!box.dataset.bords) { box.dataset.bords = '1'; box.addEventListener('scroll', bords, { passive: true }); addEventListener('resize', bords); }
+    bords(); requestAnimationFrame(bords);
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
