@@ -18,7 +18,7 @@ const SOURCES = {
   journee: { xp: 10, parJour: 1 },   // les trois du jour réclamés (la journée complète)
   defi: { xp: 75, parJour: 1 },      // le défi de la semaine réclamé (une fois par semaine : il n'y en a qu'un)
   serie: { xp: 10, parJour: 1 },     // un jour de SUITE dans la série (la veille comptait aussi) ; classement : serie_auj et serie ≥ 2 ; sans classement : la série locale (§ 8.2)
-  palier: { xp: 20, parJour: 4 },    // un palier d'événement franchi (le Marché d'automne ; plus tard l'Avent)
+  palier: { xp: 20 },                // un palier d'événement franchi (le Marché d'automne ; plus tard l'Avent) ; sans plafond de plus : ils s'ouvrent déjà 2 ou 3 par jour
   casino: { xp: 5, parJour: 3 },     // un mini-objectif de l'arrière-salle réussi
 };
 const CRANS = 22, XP_CRAN = 50, XP_TITRE = 250; // 22 crans de 50 XP (1 100 XP), puis le titre de la saison à +250 (1 350 XP)

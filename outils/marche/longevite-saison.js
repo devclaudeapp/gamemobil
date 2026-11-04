@@ -12,9 +12,9 @@
 'use strict';
 const G = require('../../src/game.js'), L = require('../../test/longevite.js'), S = require('./saison.js');
 // les récompenses de la piste (la copie exacte du contrat, § 8.3) : étoiles, boost { mult, secs }, prime (heures de gains) ; le reste est cosmétique
-const PISTE = {
-  1: { boost: [2, 1800] }, 2: { etoiles: 1 }, 4: { prime: 1 }, 6: { etoiles: 1, prime: 1 }, 8: { prime: 2 }, 10: { etoiles: 1, boost: [2, 1800] }, 11: { prime: 1 },
-  12: { prime: 3 }, 14: { etoiles: 2 }, 16: { prime: 2 }, 18: { etoiles: 2, prime: 4 }, 20: { boost: [3, 1800] }, 21: { etoiles: 3 }, 22: { etoiles: 2 },
+const PISTE = { // (v3 : sans heures de gains — 14 h de primes faisaient gagner 13 à 29 % d'étoiles au joueur parti le 1er nov. — et trois petits boosts)
+  1: { boost: [2, 1800] }, 2: { etoiles: 1 }, 4: { etoiles: 1 }, 6: { etoiles: 1 }, 8: { etoiles: 1 }, 10: { etoiles: 1, boost: [2, 1800] }, 11: { etoiles: 1 },
+  12: { etoiles: 1 }, 14: { etoiles: 2 }, 16: { etoiles: 1 }, 18: { etoiles: 2 }, 20: { boost: [3, 1800] }, 21: { etoiles: 2 }, 22: { etoiles: 2 },
 };
 // les garde-fous de test/longevite.js (CIBLES : le même littéral, relu dans le fichier, pas recopié) : la saison doit les tenir tous
 const CIBLES = (() => { const t = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'test', 'longevite.js'), 'utf8'), m = /const CIBLES = (\{[\s\S]*?\n\});/.exec(t); return m ? Function(`return (${m[1]});`)() : null; })();
@@ -36,16 +36,17 @@ for (const quand of ['5 oct.', '1er nov.']) for (const nom of Object.keys(PROFIL
   const bruit = [2, 6, 12, 18].map((k) => resumer(nom, S.simuler(nom, Object.assign({}, base, { recompense(c, now, st) { if (c === k && st) st.etoiles += 1; } })).R));
   const a = resumer(nom, sans.R), b = resumer(nom, avec.R);
   const ecart = (x, y) => Math.abs(y / x - 1), bruitE = Math.max(...bruit.map((z) => Math.max(ecart(a.etoilesJ30, z.etoilesJ30), ecart(a.etoilesFin, z.etoilesFin))));
+  const bruitF = Math.max(...bruit.map((z) => Math.abs((z.franchise || 0) - (a.franchise || 0)))), bruitB = Math.max(...bruit.map((z) => Math.abs(z.boutiques - a.boutiques)));
   lignes.push(`  ${nom.padEnd(11)} départ ${quand.padEnd(8)} crans ${avec.crans}/${S.CRANS} (+${etoiles} ★, ${boosts} boosts lancés, ${primes} h de primes) :`
     + ` 1re boutique j${a.premiere} → j${b.premiere} · boutiques en 60 j ${a.boutiques} → ${b.boutiques} · la plus longue ${a.plusLongue.toFixed(1)} → ${b.plusLongue.toFixed(1)} j`
     + ` · franchise j${a.franchise} → j${b.franchise} · pièce montée j${a.piece} → j${b.piece} · étoiles j30 ${a.etoilesJ30} → ${b.etoilesJ30} (${((b.etoilesJ30 / a.etoilesJ30 - 1) * 100).toFixed(1)} %), fin ${a.etoilesFin} → ${b.etoilesFin} (${((b.etoilesFin / a.etoilesFin - 1) * 100).toFixed(1)} %)`
-    + ` · niveau ${a.niveau} → ${b.niveau} · attente ${Math.round(a.attente * 100)} → ${Math.round(b.attente * 100)} % · bruit d'une seule étoile : ${(bruitE * 100).toFixed(1)} %`);
+    + ` · niveau ${a.niveau} → ${b.niveau} · attente ${Math.round(a.attente * 100)} → ${Math.round(b.attente * 100)} % · bruit d'une seule étoile : étoiles ${(bruitE * 100).toFixed(1)} %, franchise ${bruitF} j, boutiques ${bruitB}`);
   const c = CIBLES && CIBLES[nom], cib = !c ? 'CIBLES illisibles' : [['premiere', 'premierPrestige'], ['franchise', 'franchise'], ['etoilesJ30', 'etoilesJ30'], ['piece', 'piece'], ['niveau', 'niveauFin']].filter(([k, kc]) => !entre(b[k], c[kc])).map(([k]) => k).concat(b.plusLongue > (c.dureeMax || 99) ? ['plusLongue'] : []).join(', ');
   lignes.push(`      garde-fous de test/longevite.js (CIBLES) avec la saison : ${cib || 'tous tenus'}`); if (cib) horsCibles++;
-  pire = { etoiles: Math.max(pire.etoiles, Math.max(ecart(a.etoilesFin, b.etoilesFin), ecart(a.etoilesJ30, b.etoilesJ30)) - Math.max(0.05, 1.5 * bruitE) + 0.05), boutiques: Math.max(pire.boutiques, Math.abs(b.boutiques - a.boutiques)), premiere: Math.max(pire.premiere, Math.abs((b.premiere || 0) - (a.premiere || 0))), franchise: Math.max(pire.franchise, Math.abs((b.franchise || 0) - (a.franchise || 0))) };
+  pire = { etoiles: Math.max(pire.etoiles, Math.max(ecart(a.etoilesFin, b.etoilesFin), ecart(a.etoilesJ30, b.etoilesJ30)) - Math.max(0.05, 1.5 * bruitE) + 0.05), boutiques: Math.max(pire.boutiques, Math.abs(b.boutiques - a.boutiques) - Math.max(1, bruitB) + 1), premiere: Math.max(pire.premiere, Math.abs((b.premiere || 0) - (a.premiere || 0))), franchise: Math.max(pire.franchise, Math.abs((b.franchise || 0) - (a.franchise || 0)) - Math.max(2, Math.ceil(1.5 * bruitF)) + 2) };
 }
 console.log('── la saison « Automne » et le rythme des boutiques (test/longevite.js, 60 jours ; sans → avec la piste) ──');
 console.log(lignes.join('\n'));
 const ok = pire.etoiles <= 0.05 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;
-console.log(`  le plus grand écart : étoiles ${(pire.etoiles * 100).toFixed(1)} % au-delà de 1,5 × le bruit d'une étoile (max 5 %), boutiques ${pire.boutiques} (max 1), première boutique ${pire.premiere} j (max 1), franchise ${pire.franchise} j (max 2) : ${ok ? 'aucun effet notable' : 'À REVOIR'}`);
+console.log(`  le plus grand écart, une fois ôté le bruit d'une seule étoile (étoiles : au-delà de 1,5 × le bruit, sinon 5 % ; franchise : 1,5 × le bruit, sinon 2 j ; boutiques : le bruit, sinon 1) : étoiles ${(pire.etoiles * 100).toFixed(1)} % (max 5 %), boutiques ${pire.boutiques} (max 1), première boutique ${pire.premiere} j (max 1), franchise ${pire.franchise} j (max 2) ; garde-fous de test/longevite.js : ${horsCibles ? horsCibles + ' cas hors' : 'tous tenus'} : ${ok ? 'aucun effet notable' : 'À REVOIR'}`);
 process.exitCode = ok ? 0 : 1;

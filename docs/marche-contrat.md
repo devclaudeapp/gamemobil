@@ -33,9 +33,10 @@ de 22 crans de récompenses à vie, nourrie d'XP plafonnée. La saison d'hiver (
 - **Piste « Automne »** : 22 crans de 50 XP (1 100 XP), le titre de la saison à 1 350 XP. Joueur déjà là depuis le 5 oct. : quotidien 1 h
   → **finie le 28 nov.** ; assidu 2 h → le 26 (+ le titre) ; très actif → le 24 (+ le titre) ; occasionnel 17 min 4 j/7 → **13/22 (59 %)**
   (17 min tous les jours : 18/22). Nouveau joueur le 13 : pareil ; nouveau le 20 : quotidien 13/22, occasionnel 7/22.
-- **Longévité** : avec toutes les récompenses de la piste (12 étoiles, 3 boosts lancés aussitôt, 14 h de primes), les boutiques de
-  `test/longevite.js` ne bougent pas (§ 8.3) ; avec 5 boosts jusqu'à ×5 (première version), le régulier parti le 1er nov. gagnait 12 %
-  d'étoiles et sortait de ses garde-fous : les boosts ont été réduits.
+- **Longévité** : avec toutes les récompenses de la piste (16 étoiles, 3 petits boosts lancés aussitôt, aucune prime), `test/longevite.js`
+  ne bouge pas au-delà du bruit (§ 8.3) et tient tous ses garde-fous. Deux versions plus généreuses ont été écartées : 5 boosts jusqu'à ×5 et
+  10 h de primes (+12 % d'étoiles au régulier parti le 1er nov.), puis 3 boosts et 14 h de primes (+13 à +29 %) : les **heures de gains**
+  pèsent lourd sur un jeune joueur, la piste n'en donne donc pas.
 
 ---
 
@@ -176,6 +177,7 @@ Récompenses totales (comme la Maison hantée) : 10 ★ aux douze premiers, 29 �
 
 ### 2.7 Les activités de la Halle (le lot 6 du Manoir, réhabillé ; chiffres identiques : `EVEIL`, `CLIENTS`, `PARFAIT`, `APPARITIONS`, `COMMANDES`)
 - **Le ×6 qui s'endort** : jauge « Le marché bat son plein : ×6 avec toi », « Le marché s'assoupit… », « Le marché somnole : touche ! ».
+- **Le drapeau du compagnon** : `q.chauvesouris` du moteur s'appelle `q.ecureuil` (la seule clé interne renommée).
 - **Les clients** : des enfants **déguisés en animaux de la forêt** (la fête des feuilles) ; `SORTES = ['ecureuil', 'herisson', 'lapin',
   'renard', 'blaireau', 'chouette', 'faon', 'marcassin', 'ourson']` (noms : « L'écureuil »… ; courts : « Écureuil »…).
 - **Les fournées parfaites** : inchangées (« Fournée parfaite ! ×2 »).
@@ -345,10 +347,10 @@ marqueurs de `st.piste` et crédite ce qui est nouveau, une seule fois, borné p
 | `journee` : les trois du jour réclamés | 10 | 1 / jour | `st.jour.etoileDonnee` (`j.c`) |
 | `defi` : le défi de la semaine réclamé | 75 | 1 / semaine | `st.semaine.reclame` (marqueur `sem` = la clé de la semaine) |
 | `serie` : un jour **de suite** dans la série | 10 | 1 / jour | classement : `resume().serie.auj && serie ≥ 2` (`ctx.serie`) ; sans classement : un objectif du jour réclamé aujourd'hui **et** hier (`veille`) |
-| `palier` : un palier d'événement franchi | 20 | 4 / jour | `st.marche.paliers.length` (marqueur `ev.marche`) ; l'Avent ajoutera sa clé |
+| `palier` : un palier d'événement franchi | 20 | aucun de plus (20 au Marché, ouverts 2 ou 3 par jour : rien ne se perd au retour d'une absence) | `st.marche.paliers.length` (marqueur `ev.marche`) ; l'Avent ajoutera sa clé |
 | `casino` : un mini-objectif de l'arrière-salle réussi | 5 | 3 / jour | `st.arriere.casino.objectifs[k].fait` (`j.k`) : leurs mises sont déjà ≤ 0,5 % de la caisse (src/casino.js) |
 
-Maximum hors événement : 65 XP par jour (+75 le jour du défi) ; le Marché ajoute au plus 80 par jour (400 en tout). Rien d'autre ne donne
+Maximum hors événement : 65 XP par jour (+75 le jour du défi) ; le Marché ajoute 400 XP en tout (60 au plus un jour ordinaire). Rien d'autre ne donne
 d'XP (ni l'argent, ni le temps passé, ni les mises). Le 13 novembre, ce qui est déjà réclamé le matin compte au premier `pas` (généreux et
 simple : même règle pour tous) ; une `j` réparée (abîmée) recompte à partir de l'état du moment (jamais deux fois).
 
@@ -356,20 +358,20 @@ simple : même règle pour tous) ; une `j` réparée (abîmée) recompte à part
 
 | Cran | XP | Récompense (à vie) | | Cran | XP | Récompense |
 |---|---|---|---|---|---|---|
-| 1 | 50 | boost ×2 30 min | | 12 | 600 | 3 h de gains |
+| 1 | 50 | boost ×2 30 min | | 12 | 600 | 1 ★ |
 | 2 | 100 | 1 ★ | | 13 | 650 | `automne-pull` (pull jacquard, haut, forme `sweat`) |
 | 3 | 150 | déco `couronne-feuilles` (la porte) | | 14 | 700 | 2 ★ |
-| 4 | 200 | 1 h de gains | | 15 | 750 | déco `lanterne-automne` (comptoir) |
-| 5 | 250 | `automne-gavroche` (casquette de tweed, tête, forme `casquette`) | | 16 | 800 | 2 h de gains |
-| 6 | 300 | 1 ★, 1 h de gains | | 17 | 850 | `automne-bottines` (pieds, forme `chaussures`) : la tenue de saison complète |
-| 7 | 350 | déco `guirlande-feuilles` (rebord) | | 18 | 900 | 2 ★, 4 h de gains |
-| 8 | 400 | 2 h de gains | | 19 | 950 | déco `epouvantail` (sol) |
+| 4 | 200 | 1 ★ | | 15 | 750 | déco `lanterne-automne` (comptoir) |
+| 5 | 250 | `automne-gavroche` (casquette de tweed, tête, forme `casquette`) | | 16 | 800 | 1 ★ |
+| 6 | 300 | 1 ★ | | 17 | 850 | `automne-bottines` (pieds, forme `chaussures`) : la tenue de saison complète |
+| 7 | 350 | déco `guirlande-feuilles` (rebord) | | 18 | 900 | 2 ★ |
+| 8 | 400 | 1 ★ | | 19 | 950 | déco `epouvantail` (sol) |
 | 9 | 450 | `automne-echarpe` (écharpe tricotée, accessoire, forme `foulard`) | | 20 | 1 000 | boost ×3 30 min |
-| 10 | 500 | 1 ★, boost ×2 30 min | | 21 | 1 050 | 3 ★ |
-| 11 | 550 | 1 h de gains | | 22 | 1 100 | **le trophée de fin de saison** `trophee-automne-2026` (déco + vitrine) et 2 ★ |
+| 10 | 500 | 1 ★, boost ×2 30 min | | 21 | 1 050 | 2 ★ |
+| 11 | 550 | 1 ★ | | 22 | 1 100 | **le trophée de fin de saison** `trophee-automne-2026` (déco + vitrine) et 2 ★ |
 | titre | 1 350 | la distinction **« Feuille d'or 2026 »** (au classement, à côté du pseudo) | | | | |
 
-Total : 12 ★ (+60 % de gains d'un débutant, < 1 % d'une partie de 30 jours), 3 boosts (×2, ×2, ×3, 30 min), 14 h de primes, la tenue de saison (4 pièces
+Total : 16 ★ (+80 % de gains d'un débutant, < 1 % d'une partie de 30 jours), 3 boosts (×2, ×2, ×3, 30 min), **aucune heure de gains**, la tenue de saison (4 pièces
 **cosmétiques, sans bonus** : collection `automne`, ensemble sans bonus, comme l'apprenti), 5 décos, le trophée, le titre. Aucun achat,
 aucune piste payante, aucune monnaie : la piste ne se « paie » jamais.
 
@@ -440,7 +442,22 @@ Avec les seuils de la Maison hantée tels quels : 11 / 15 / 17 / 20 (un jour de 
 Sources du quotidien : objectifs 270, journées 180, défis 225, série 170, paliers 280, casino 90.
 
 ### 8.3 La longévité (`longevite-saison-resultats.txt`)
-Voir § 12 (résultat recopié après la dernière exécution). `node test/longevite.js --test` (inchangé) passe sur master.
+Les joueurs de `test/longevite.js` aux deux départs qui couvrent la saison (5 oct., 1er nov.), 60 jours, sans puis avec la piste (étoiles
+versées, boosts **lancés aussitôt**, le pire cas). Le joueur simulé ouvre une nouvelle boutique sur des seuils : **une seule étoile de plus**
+décale une ouverture et change les étoiles de la fin jusqu'à 12,5 % (occasionnel parti le 1er nov.) ; on mesure ce bruit (4 parties à +1 ★)
+et on juge l'écart de la saison au-delà de lui.
+
+| Départ, profil | crans | boutiques en 60 j | 1re boutique | franchise | étoiles j30 | étoiles j60 | bruit d'1 ★ |
+|---|---|---|---|---|---|---|---|
+| 5 oct., occasionnel | 10 | 17 → 17 | j4 → j4 | j21 → j21 | 0,0 % | −0,0 % | 0,4 % |
+| 5 oct., régulier | 22 | 19 → 19 | j4 → j4 | j21 → j21 | 0,0 % | +0,5 % | 0,4 % |
+| 5 oct., assidu | 22 | 20 → 20 | j3 → j3 | j18 → j18 | 0,0 % | +0,3 % | 0,0 % |
+| 1er nov., occasionnel | 14 | 17 → 18 | j4 → j4 | j21 → j24 | −11,7 % | +9,6 % | 12,5 % |
+| 1er nov., régulier | 22 | 19 → 18 | j4 → j4 | j21 → j19 | −1,5 % | −4,1 % | 0,8 % |
+| 1er nov., assidu | 22 | 20 → 20 | j3 → j3 | j19 → j20 | +1,1 % | +2,0 % | 6,5 % |
+
+Verdict de l'outil : **aucun effet notable** (des écarts dans les deux sens, au niveau du bruit ; tous les garde-fous `CIBLES` de
+`test/longevite.js` tenus). `node test/longevite.js --test` (inchangé) passe.
 
 ---
 
@@ -460,7 +477,7 @@ d'un coup), `src/page.html` et `src/style.css` (B ; C n'y ajoute que ses classes
 - `src/classement.js` : `EVTS`, `NOMS_EVT`, `TITRES`, la photo (`dm`), `decosMarche`.
 - `build.js` : `… 'progression.js', 'saison.js', 'saison-automne.js', …, 'hantee.js', 'marche.js', 'boutiquehantee.js', 'boutiquemarche.js', 'hanteeactivites.js', …`.
 - `supabase/fournil-classement.sql` : la v6.9 recopiée (§ 4.4) ; `supabase/README.md` : une ligne « v6.9 : le Marché d'automne ».
-- Tests : `test/fournil-marche.test.js`, `test/fournil-marche-graines.js`, `test/fournil-saison.test.js`, la section v6.9 de
+- Tests : `test/fournil-marche.test.js`, `test/fournil-marche-graines.js` (les graines en parallèle, comme `test/fournil-hantee-graines.js`), `test/fournil-saison.test.js`, la section v6.9 de
   `test/fournil-classement-sql.cjs`.
 
 ### B — écran
@@ -542,4 +559,6 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
 - **Les simulations** : prototype construit sur `src/hantee.js` : si A change un chiffre du moteur, il refait `rythme.js` et la table.
 
 ## 12. Résultats recopiés et écarts
-(rempli par la dernière exécution des outils ; puis par les constructeurs)
+- 4 nov. (conception) : `rythme.js` complet (8 graines, 24 + 24 marathons, 170 s), `saison.js`, `longevite-saison.js` (verdict : aucun effet
+  notable), `sql-v69.cjs` (30/30), `node test/longevite.js --test` (vert). Les résultats bruts sont à côté des outils (`*-resultats.*`).
+- (les constructeurs ajoutent ici leurs écarts au contrat, datés)
