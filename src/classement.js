@@ -131,7 +131,7 @@
   // les notifications : actif (abonné), ses quatre cas, l'adresse d'envoi (endpoint) et l'heure « boutique pleine » déjà annoncée au serveur
   const notifsNeuves = (prefs) => ({ actif: false, prefs: nettoyerPrefs(prefs), endpoint: '', pleineA: 0 });
   // les événements génériques que ce téléphone connaît (version 5 du serveur : p_evt) ; chacun est aussi une période du classement
-  const EVTS = ['hantee'];
+  const EVTS = ['hantee', 'marche']; // les événements génériques (version 5) : la Maison hantée, le Marché d'automne (SQL v6.9, docs/marche-contrat.md § 3)
   const evtOk = (id) => EVTS.includes(id);
 
   // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
@@ -172,7 +172,7 @@
     { de: 7, a: 10, etoiles: 3, mult: 3, secs: 1800 }, // 7e à 10e : 3 étoiles, un boost ×3 de 30 min
     { de: 11, a: 15, etoiles: 2, mult: 2, secs: 1800 }, // 11e à 15e : 2 étoiles, un boost ×2 de 30 min
   ];
-  const NOMS_EVT = { hantee: 'la Maison hantée' }; // « Tu as fini 7e de la Maison hantée sur 12 »
+  const NOMS_EVT = { hantee: 'la Maison hantée', marche: 'le Marché d’automne' }; // « Tu as fini 7e de la Maison hantée sur 12 »
   function recompenseEvt(rang) { // { rang, etoiles, mult, secs, tenue } ; null hors du 1er au 15e
     const r = Number.isInteger(rang) ? RECOMPENSES_EVT.find((x) => rang >= x.de && rang <= x.a) : null;
     return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
@@ -191,6 +191,8 @@
   // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
   const TITRES = { 'legende-manoir': 'Légende du Manoir' };
   TITRES['main-de-velours'] = 'Main de velours'; // lot 7 : dix victoires de suite dans l'arrière-salle (src/casino.js)
+  TITRES['legende-marche'] = 'Légende du Marché'; // le 20e palier du Marché d'automne (src/marche.js)
+  TITRES['feuille-or-2026'] = 'Feuille d’or 2026'; // le titre de la saison d'automne 2026 (src/saison-automne.js)
   const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
@@ -422,7 +424,7 @@
   //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS : seize depuis les recettes de boutique ; une photo
   //       d'avant n'en a que huit, les autres restent à 0), m: { tables, four, vitrine, caisse, froid, deco } (crans),
   //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
-  //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
+  //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, dm (optionnel, absent s'il n'y en a pas) : celles du Marché d'automne, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
   //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné,
   //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
   //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
@@ -457,13 +459,13 @@
     if (!e || typeof e !== 'object' || Array.isArray(e) || !EV_PHOTO.includes(e.id)) return null;
     return { id: e.id, p: (Array.isArray(e.p) ? e.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0] : [0, 0])), d: idsOk(e.d, 8), pa: borne(e.pa, 0, 99), t: borne(e.t, 0, 1e18) };
   }
-  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st),
+  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh, dm (les décos gagnées, sinon lues dans st),
   //   ev: { id, q } (l'événement en cours et son état st[id], seulement s'il y est entré : l'interface en décide) }
   function photo(st, o) {
     o = o || {}; const G = leJeu(o.G);
     if (!st || typeof st !== 'object' || !G || !Array.isArray(st.stations)) return null;
     try {
-      const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos);
+      const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos), dm = idsOk(o.dm || (st.marche && st.marche.decos), 10);
       const p = {
         v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
         p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.PRODUITS[i] ? G.gradeApprenti(st, i) : 1]),
@@ -473,6 +475,7 @@
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
         l: G.standing ? borne(G.standing(st), 0, 5) : 0, // le standing de la boutique (0 à 5) : le copain la voit montée en gamme
       };
+      if (dm.length) p.dm = dm; // les décos du Marché d'automne (absentes : aucune ; un vieux téléphone ne les lit pas)
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
       { const a = G.codeAmenagement ? G.codeAmenagement(st.amenagement) : ''; if (a) p.a = a; } // a : la place de ses meubles (19 caractères ; absent : le plan d'origine)
       const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
@@ -510,6 +513,7 @@
       if (x.td != null) o.x.td = borne(x.td, 0, 200); // ses trophées dorés (absents d'une photo d'avant)
     }
     if (p.tp != null) { const k = borne(p.tp, 0, 1e4); if (k >= 1) o.tp = k; } // son rang de palier (absent, ou 0 : pas encore la n°40)
+    { const dm = idsOk(p.dm, 10); if (dm.length) o.dm = dm; } // les décos du Marché d'automne (absentes d'une photo d'avant, ou sans)
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
     if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
@@ -566,7 +570,7 @@
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
     const C = leChaine(), decos = p.dc && C ? C.decosDepuisCode(p.dc) : null; // ses décos posées ([[id, place]…]) ; null : le plan d'origine (une photo sans dc)
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, decosMarche: p.dm || [], pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null, // titre : « Légende du Manoir » (version 6.6), sinon null
       decos: decos && decos.length ? decos : null, chaine: p.ch || null,
       palier: p.tp || 0, titrePalier: p.tp && typeof G.titrePalier === 'function' ? G.titrePalier(p.tp) : null }; // palier : son rang (0 : avant la n°40), titrePalier : « Boulanger étoilé »…
   }
