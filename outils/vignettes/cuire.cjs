@@ -18,6 +18,11 @@ const SORTIE = path.join(ROOT, 'fournil', 'img', 'carnet'), TABLE = path.join(RO
 const BRUT = path.resolve(val('--brut', path.join(os.tmpdir(), 'vignettes-brut'))); fs.mkdirSync(BRUT, { recursive: true });
 const PLANCHE = path.resolve(val('--planche', path.join(BRUT, 'planche.png')));
 const COTE = 256, QUALITE = +val('--qualite', 70), QUALITE_ALPHA = 80; // (le côté final ; la qualité webp, réglée pour la lisibilité à 44 et 64 px : voir le README)
+// le budget de 1,5 Mo (test/fournil-vignettes.test.js) : les vignettes arrivées avec le Marché d'automne et sa saison (ses deux familles, ses
+// treize pièces, l'aura des feuilles d'or, l'écureuil) sont cuites à la qualité 55, l'alpha à 72 (sans différence visible à 44 et 64 px), les
+// autres gardent les leurs (leurs fichiers ne changent pas) ; --qualite force la même qualité pour toutes
+const MARCHE_AUTOMNE = (fam, id) => fam === 'marche' || fam === 'piste-automne' || (fam === 'tenues' && /^(marche-|automne-|aura-feuilles$)/.test(id)) || (fam === 'compagnons' && id === 'ecureuil');
+const qualiteDe = (fam, id) => (val('--qualite') ? QUALITE : MARCHE_AUTOMNE(fam, id) ? 55 : QUALITE), alphaDe = (fam, id) => (!val('--qualite') && MARCHE_AUTOMNE(fam, id) ? 72 : QUALITE_ALPHA);
 const PLAFOND = 12 * 1024; // (12 Ko par vignette au plus : au-delà, l'alpha descend d'un cran à la fois, puis la qualité, jusqu'au premier réglage qui tient)
 const encoder = (png, q, a) => sharp(png).resize(COTE, COTE, { kernel: 'lanczos3' }).webp({ quality: q, alphaQuality: a, effort: 6, smartSubsample: true }).toBuffer();
 const filtre = val('--seulement') ? val('--seulement').split(',').map((s) => s.trim()).filter(Boolean) : null;
@@ -53,12 +58,12 @@ const empreinte = (buf) => crypto.createHash('sha1').update(buf).digest('hex').s
     const png = Buffer.from(r.png.split(',')[1], 'base64'), dir = path.join(SORTIE, x.famille); fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(path.join(BRUT, x.famille), { recursive: true });
     fs.writeFileSync(path.join(BRUT, x.famille, x.id + '.png'), png);
     // (une lueur, une toile fine : c'est l'alpha qui pèse ; quelques crans de moins ne se voient pas, même à 256 px)
-    let q = QUALITE, a = QUALITE_ALPHA, webp = await encoder(png, q, a);
+    const q0 = qualiteDe(x.famille, x.id), a0 = alphaDe(x.famille, x.id); let q = q0, a = a0, webp = await encoder(png, q, a);
     while (webp.length > PLAFOND && (a > 60 || q > 50)) { if (a > 60) a--; else q--; webp = await encoder(png, q, a); }
     if (webp.length > PLAFOND) erreurs.push(`${x.famille}/${x.id} : ${webp.length} octets, plus de 12 Ko même à la qualité ${q}, alpha ${a}`);
     fs.writeFileSync(path.join(dir, x.id + '.webp'), webp);
     mesures.push({ famille: x.famille, id: x.id, octets: webp.length, qualite: q, alpha: a, cadre: r.cadre });
-    process.stdout.write(`${x.famille}/${x.id} ${(webp.length / 1024).toFixed(1)} Ko${q !== QUALITE || a !== QUALITE_ALPHA ? ` (qualité ${q}, alpha ${a})` : ''} · `);
+    process.stdout.write(`${x.famille}/${x.id} ${(webp.length / 1024).toFixed(1)} Ko${q !== q0 || a !== a0 ? ` (qualité ${q}, alpha ${a})` : ''} · `);
   }
   console.log('');
   // les fichiers qui ne sont plus au catalogue (un objet retiré du jeu) : effacés, au tour complet seulement
