@@ -1,0 +1,38 @@
+Le patch v6.9 dans PostgreSQL 18.3 (PGlite 0.5.8)
+── un Postgres comme Supabase, la v6.8 en ligne (le fichier complet) ──
+  ok   supabase/fournil-classement.sql (v6.8) se colle
+  ok   un joueur envoie ses bonbons pendant la Maison hantée ({"ok":true,"evt":"hantee"})
+  ok   la Maison hantée figée : ses quinze premiers (15)
+── le patch v6.9, collé deux fois ──
+  ok   il se colle (une fois)
+  ok   la requête de contrôle : {"evenements":"hantee, marche","valeurs":31,"borne_log10":"0.00","fin":"18.17","titre":"le Marché d'automne"}
+  ok   aucune donnée ne bouge (joueurs, scores, podiums, annonces…)
+  ok   aucune autre fonction ne change (définitions et droits comparés)
+  ok   fournil_evts et fournil_evt_titre gardent leurs droits (internes)
+  ok   il se colle (deux fois)
+  ok   aucune donnée ne bouge (joueurs, scores, podiums, annonces…)
+  ok   aucune autre fonction ne change (définitions et droits comparés)
+  ok   fournil_evts et fournil_evt_titre gardent leurs droits (internes)
+  ok   la ligne « hantee » est identique à celle de la v6.8 ; une seule ligne de plus
+  ok   la fenêtre du Marché : 2026-11-13T11:00:00.000Z → 2026-11-20T19:00:00.000Z, un pas de 6 h (le vendredi 13 à midi au vendredi 20 à 20 h, heure de Paris)
+  ok   sa table est celle de la simulation (outils/marche/rythme-resultats.json), croissante : {11.65,16.05,16.05,16.3,16.5,16.65,16.75,16.85,16.9,17,17.05,17.1,17.15,17.2,17.2,17.3,17.35,17.4,17.5,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2}
+  ok   anon ne peut appeler ni fournil_evts ni fournil_evt_titre (internes)
+  ok   authenticated ne peut appeler ni fournil_evts ni fournil_evt_titre (internes)
+  ok   le titre des notifications : « le Marché d'automne » (la Maison hantée inchangée)
+── le Marché joué, en tant qu’anon ──
+  ok   avant le vendredi 13 à midi : la borne vaut 0
+  ok   la borne SQL est son miroir JavaScript (interpolation du log10), de l'ouverture à après la fin (écart 0.0e+0)
+  ok   avant l'ouverture : accepté, rien n'est compté ({"evt":"marche","score":null})
+  ok   le 13 à 18 h, 3e12 noisettes (sous la borne 1.12e+16) : comptées telles quelles
+  ok   1e19 une minute plus tard : ramené à la borne (1.12e+16, plafonné)
+  ok   le classement de la Maison hantée ne voit pas le Marché (0 lignes, toutes de la Maison hantée ; ses joueurs d'il y a douze jours s'effacent au ménage habituel)
+── le marathon du prototype, envoyé toutes les 10 minutes : jamais plafonné ──
+  ok   1056 envois (graine 7, Astuces offertes, 661 Bd à la fin) : 0 plafonné
+── la fin : le podium jusqu’au 15e, les récompenses, la Maison hantée intacte ──
+  ok   à 20 h 30 (dans l’heure de grâce) : pas encore figé
+  ok   à 21 h : figé, les quinze premiers ex æquo compris (16 lignes, deux 2e, deux 15e), 19 joueurs classés (les 17, Noisette et le marathon)
+  ok   le classement du Marché montre la médaille du podium final
+  ok   fournil_recompenses : evenements.marche = {"rang":14,"joueurs":19,"podium":3} (le 14e reçoit sa place ; le podium rendu à trois)
+  ok   il n’était pas à la Maison hantée : pas de place pour elle ({"rang":null})
+
+Tout passe (30 vérifications).
