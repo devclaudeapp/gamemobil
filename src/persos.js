@@ -228,22 +228,22 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // le Marché d'automne (src/boutiquemarche.js) : les neuf enfants déguisés en animaux de la forêt (SORTES, la fête des feuilles), chacun sa
   // capuche (oreilles, couleur, museau), son écharpe tricotée et ses habits d'automne ; l'écureuil et le renard ont leur queue
   const ANIMAUX = {
-    ecureuil: { col: '#C8662B', col2: '#F2C79A', oreilles: 'pointues', pointe: '#7B3A1A', queue: 'ecureuil', haut: '#7A9A3A', echarpe: '#E8B33A' },
-    herisson: { col: '#8A6A4E', col2: '#EBCFA8', oreilles: 'petites', piquants: '#5A3E2E', haut: '#D9622B', echarpe: '#7A9A3A' },
-    lapin: { col: '#ECE6DE', col2: '#FFC1B4', oreilles: 'longues', nez: '#F28B9B', haut: '#4F6D8C', echarpe: '#E8B33A' },
-    renard: { col: '#E0672A', col2: '#FFF3E2', oreilles: 'pointues', pointe: '#2E2420', queue: 'renard', haut: '#F2D3A0', echarpe: '#8E3B2E' },
-    blaireau: { col: '#7D7D86', col2: '#F4F1EA', oreilles: 'rondes', rayures: '#F4F1EA', haut: '#8E3B2E', echarpe: '#E8B33A' },
-    chouette: { col: '#9C6B3E', col2: '#E8D2A8', oreilles: 'plumes', haut: '#7A9A3A', echarpe: '#D9622B' },
-    faon: { col: '#C98B54', col2: '#F6E2C4', oreilles: 'petites', taches: '#FFF8EC', haut: '#B8372A', echarpe: '#F2D3A0' },
-    marcassin: { col: '#7A5A44', col2: '#D9B48A', oreilles: 'petites', rayures: '#D9B48A', nez: '#B8735A', haut: '#E8B33A', echarpe: '#4F6D8C' },
-    ourson: { col: '#8B5A3C', col2: '#E9C9A0', oreilles: 'rondes', haut: '#4F6D8C', echarpe: '#C8552A' },
+    ecureuil: { col: '#D9622B', col2: '#FBD9AE', oreilles: 'pointues', pointe: '#7B3A1A', queue: 'ecureuil', haut: '#7A9A3A', echarpe: '#E8B33A', k: 1.3 },
+    herisson: { col: '#A0805F', col2: '#F2DAB6', oreilles: 'petites', piquants: '#5A3E2E', haut: '#D9622B', echarpe: '#7A9A3A', k: 1.3 },
+    lapin: { col: '#F4F0EA', col2: '#FFB8AA', oreilles: 'longues', nez: '#F28B9B', haut: '#4F6D8C', echarpe: '#E8B33A', k: 1.2 },
+    renard: { col: '#F07A2A', col2: '#FFF6EA', oreilles: 'pointues', pointe: '#2E2420', queue: 'renard', haut: '#F2D3A0', echarpe: '#8E3B2E', k: 1.35 },
+    blaireau: { col: '#8E8E9A', col2: '#FFFFFF', oreilles: 'rondes', rayures: '#FFFFFF', haut: '#B8372A', echarpe: '#E8B33A', k: 1.3 },
+    chouette: { col: '#B57E48', col2: '#F2DEB8', oreilles: 'plumes', haut: '#7A9A3A', echarpe: '#D9622B', k: 1.3 },
+    faon: { col: '#D9A066', col2: '#FBEBD3', oreilles: 'petites', taches: '#FFFFFF', haut: '#B8372A', echarpe: '#F2D3A0', k: 1.35 },
+    marcassin: { col: '#8E6B4E', col2: '#E6C59A', oreilles: 'petites', rayures: '#EBCD9E', nez: '#C98670', haut: '#E8B33A', echarpe: '#4F6D8C', k: 1.3 },
+    ourson: { col: '#9C6B42', col2: '#EED2AE', oreilles: 'rondes', haut: '#3F7FBF', echarpe: '#C8552A', k: 1.35 },
   };
   for (const [s, a] of Object.entries(ANIMAUX)) DEGUISEMENTS[s] = { haut: a.haut, coiffure: 0, capuche: a, echarpe: a.echarpe, echarpeRaye: M.eclaircir(a.echarpe, 0.4), queueA: a.queue || null };
   // les huit amis de la forêt (l'équipe de la Halle, poste par poste : src/marche.js staffNom ; Gaspard l'écureuil… Sacha le marcassin) : la
   // capuche plus grande, le tablier crème au liseré rouille ; ils portent le plateau de leur poste
   const AMIS = [['ami-ecureuil', 'ecureuil', '#FFD7B5'], ['ami-herisson', 'herisson', '#F1B990'], ['ami-blaireau', 'blaireau', '#FFE3C9'], ['ami-chouette', 'chouette', '#C68B59'],
     ['ami-ours', 'ourson', '#F1B990', { col: '#6E4630', col2: '#D9B48A' }], ['ami-biche', 'faon', '#8D5A3C', { taches: null, col: '#B9824E' }], ['ami-renard', 'renard', '#FFD7B5'], ['ami-marcassin', 'marcassin', '#FFE3C9']];
-  for (const [id, s, peau, o] of AMIS) { const a = Object.assign({}, ANIMAUX[s], o || {}, { k: 1.28 }); DEGUISEMENTS[id] = { haut: a.col, peau, coiffure: 0, capuche: a, queueA: a.queue || null, tablier: true, garde: habit({ haut: { forme: 'tablier', metal: 'halle' } }) }; }
+  for (const [id, s, peau, o] of AMIS) { const a = Object.assign({}, ANIMAUX[s], o || {}, { k: 1.6 }); DEGUISEMENTS[id] = { haut: a.col, peau, coiffure: 0, capuche: a, queueA: a.queue || null, tablier: true, garde: habit({ haut: { forme: 'tablier', metal: 'halle' } }) }; }
   const deguiser = (o) => { const d = o && DEGUISEMENTS[o.deguisement]; return d ? Object.assign({}, o, d) : o || {}; };
   const creer = (o) => construire(deguiser(o));
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre

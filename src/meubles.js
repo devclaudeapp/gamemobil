@@ -55,8 +55,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // les tomettes de la Halle (le Marché d'automne) : des hexagones de terre cuite, trois tons à peine différents (une suite fixe : la tuile
   // est la même à chaque fois), leurs joints de mortier clair ; 16 colonnes × 14 rangs : la tuile de 256 se raccorde de tous les côtés
   function solTomettes(c, w, h, Q) {
-    const nc = 16, nr = 14, px = w / nc, hr = h / nr, r = px / 1.5, tons = [Q.sol, Q.sol2, M.eclaircir(Q.sol, 0.08), M.assombrir(Q.sol, 0.06)];
-    c.lineWidth = 1.7; c.strokeStyle = '#EED2AE'; c.lineJoin = 'round';
+    const nc = 26, nr = 22, px = w / nc, hr = h / nr, r = px / 1.5, tons = [Q.sol, Q.sol2, M.eclaircir(Q.sol, 0.06), M.assombrir(Q.sol, 0.04)];
+    c.lineWidth = 1.1; c.strokeStyle = 'rgba(240,214,180,.85)'; c.lineJoin = 'round';
     for (let i = -1; i <= nc; i++) for (let j = -1; j <= nr; j++) {
       const x = i * px, y = j * hr + ((i % 2 + 2) % 2) * hr / 2, k = (((i + nc) % nc) * 7 + ((j + nr) % nr) * 13 + (((i + nc) % nc) * ((j + nr) % nr)) % 5) % 4;
       c.fillStyle = tons[k]; c.beginPath(); c.moveTo(x - r, y); c.lineTo(x - r / 2, y - hr / 2); c.lineTo(x + r / 2, y - hr / 2); c.lineTo(x + r, y); c.lineTo(x + r / 2, y + hr / 2); c.lineTo(x - r / 2, y + hr / 2); c.closePath(); c.fill(); c.stroke();

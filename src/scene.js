@@ -548,7 +548,7 @@ const SCENE = (() => {
       let g = acteurs.get(c.id);
       if (!g) { const a = prendreMonstre(c.deg || BH().SORTES[c.id % 9]); if (!a) continue; g = a.g; g.userData.deg = a.sorte; g.userData.yaw = YAW[c.dir] || 0; scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); const a = g.userData.hd3, assis = c.etat === 'assis', marche = (c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse)) && !(c.joie > 0);
-      g.visible = c.alpha > 0.05; g.scale.setScalar((a.fantome ? U : ech) * (0.75 + 0.25 * Math.min(1, c.alpha)));
+      g.visible = c.alpha > 0.05; g.scale.setScalar((a.fantome ? U : ech * (a.echelle || 1)) * (0.75 + 0.25 * Math.min(1, c.alpha))); // (a.echelle : les enfants déguisés de la Halle, plus petits)
       const y = a.fantome ? (0.32 + 0.06 * Math.sin(t * 2.4 + c.id) + (assis ? 0.3 : 0) + (c.joie > 0 || feteT > 0 ? 0.08 * Math.abs(Math.sin(t * 9)) : 0)) * U : assis && c.siege ? (ASSIS_Y[c.siege.zone] || 0) * U : 0;
       poserMonstre(a, c.x, y, wz(c.y) - (1 - c.alpha) * 30, YAW[c.dir] || 0, dt);
       if (a.fantome) g.rotation.x = marche ? 0.2 : 0; // le drap penche dans le sens de la marche

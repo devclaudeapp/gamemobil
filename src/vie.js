@@ -29,7 +29,7 @@ const VIE = (() => {
     // le Marché d'automne (src/boutiquemarche.js : la Halle, en qualité éco ou sans HD) : un mur de halle à colombages (poutres de chêne,
     // torchis crème, croix de Saint-André), des tomettes rouges au sol, le comptoir rouille et crème, le bois de châtaignier ; dehors, la
     // place du village, ses étals rayés et ses arbres roux
-    marche: { id: 'marche', mur: '#FBEBD2', mur2: '#EED3AC', murStyle: 'halle', sol: '#C7764A', sol2: '#A95B37', solStyle: 'tomettes', comptoir: '#B5552B', comptoir2: '#F4E3C3', bois: '#7B4A2A', accent: '#D9622B', cadre: '#6B4026', plante: '#D98C2B', hauts: ['#D9622B', '#E8B33A', '#7A9A3A', '#8E3B2E', '#4F6D8C', '#F2D3A0'], vue: 'marche' },
+    marche: { id: 'marche', mur: '#FBEBD2', mur2: '#EED3AC', murStyle: 'halle', sol: '#C97B4E', sol2: '#BC6C42', solStyle: 'tomettes', comptoir: '#B5552B', comptoir2: '#F4E3C3', bois: '#7B4A2A', accent: '#D9622B', cadre: '#6B4026', plante: '#D98C2B', hauts: ['#D9622B', '#E8B33A', '#7A9A3A', '#8E3B2E', '#4F6D8C', '#F2D3A0'], vue: 'marche' },
   };
   Q = DECORS.village;
   // les quartiers du parcours (la gare, l'île… : GAME.QUARTIERS) portent leur décor dans leurs données (theme) : lu tel quel, une fois
