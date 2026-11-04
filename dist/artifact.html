@@ -1421,6 +1421,11 @@ body :is(#hantee, #marche):is(.ht-boutique, .mc-boutique) > .pq-solde { box-shad
 #marche .pq-act-btn { box-shadow: 0 3px 0 rgba(74, 46, 28, .28), 0 4px 10px rgba(42, 26, 14, .18); }
 #marche .pq-act-btn.actif { box-shadow: 0 3px 0 rgba(74, 46, 28, .28), 0 4px 10px rgba(42, 26, 14, .18), inset 0 0 0 2px var(--mh-orange); }
 #marche .pq-pastille, #marche .pq-paliers-btn.pret { color: #fff; }
+#marche .carte.pq.verrou { border-color: #E9D3BC; }
+#marche .carte.pq .btn.non { background: #F4EADF; color: #B39880; box-shadow: 0 4px 0 #E6D5C2; }
+#marche .carte.pq.rj-carte::after { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 34px no-repeat; transform: rotate(14deg); }
+#marche .mh-best-mini i.vide, .pq-sheet.mch .mh-best-case.vide { background: #F3E6D6; }
+.pq-sheet.mch .mh-best-fete-pic > b { background: #D9622B; }
 .mc-deco { overflow: hidden; }
 .mc-guirlande { position: absolute; top: -2px; right: 6px; display: flex; gap: 2px; opacity: .55; }
 .mc-guirlande b { display: block; width: 16px; height: 16px; transform: rotate(calc(var(--k) * 37deg - 40deg)); }
@@ -26510,7 +26515,7 @@ const EVENEMENTS = (() => {
     chataigne: SVG_M('<path d="M24 9c10 0 15 9 13 18-2 8-7 12-13 12s-11-4-13-12C9 18 14 9 24 9z" fill="#7B4A2A"/><ellipse cx="24" cy="34" rx="9" ry="4" fill="#E9D5BC"/><ellipse cx="18" cy="18" rx="3" ry="6" fill="#fff" opacity=".3"/>'),
     champignon: SVG_M('<path d="M8 24c0-10 32-10 32 0z" fill="#B5733C"/><path d="M19 24h10l2 16H17z" fill="#FFF4E4" stroke="#9C7B5E" stroke-width="1.5"/>'),
   };
-  const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; return Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); };
+  const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; const o = Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); if (!o.bestiaire) o.bestiaire = o.album; return o; }; // (le moteur des activités lit « bestiaire » : l'album de la forêt)
   const HABILLAGE_MARCHE = {
     p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mch', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
     icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',

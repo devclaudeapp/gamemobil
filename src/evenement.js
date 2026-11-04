@@ -1856,7 +1856,7 @@ const EVENEMENTS = (() => {
     chataigne: SVG_M('<path d="M24 9c10 0 15 9 13 18-2 8-7 12-13 12s-11-4-13-12C9 18 14 9 24 9z" fill="#7B4A2A"/><ellipse cx="24" cy="34" rx="9" ry="4" fill="#E9D5BC"/><ellipse cx="18" cy="18" rx="3" ry="6" fill="#fff" opacity=".3"/>'),
     champignon: SVG_M('<path d="M8 24c0-10 32-10 32 0z" fill="#B5733C"/><path d="M19 24h10l2 16H17z" fill="#FFF4E4" stroke="#9C7B5E" stroke-width="1.5"/>'),
   };
-  const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; return Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); };
+  const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; const o = Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); if (!o.bestiaire) o.bestiaire = o.album; return o; }; // (le moteur des activités lit « bestiaire » : l'album de la forêt)
   const HABILLAGE_MARCHE = {
     p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mch', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
     icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',
