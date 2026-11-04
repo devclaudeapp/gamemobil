@@ -14,6 +14,11 @@
 //     collée : le test le dit clairement (« v6.8 pas encore collée : colle supabase/fournil-projets-v68.sql ») SANS échouer (le jeu marche
 //     sans : la feuille du classement dit « bientôt ») ; elle est appelée AVANT d'inscrire les joueurs de test (leurs points ne comptent pas
 //     dans le prix du premier chantier) ;
+//  0 sexies. version 6.9, le Marché d'automne (supabase/fournil-classement-v69.sql : la ligne 'marche' de fournil_evts(), du 13 nov. 2026
+//     à midi au 20 nov. à 20 h) : A envoie 1e24 noisettes avec p_evt = 'marche'. Collée, la réponse dit evt = 'marche' (avant l'ouverture,
+//     rien n'est compté ; pendant, 1e24 est ramené à la limite du moment, qui doit être celle de la table du patch, lue dans le fichier). Pas
+//     encore collée (evt null) : le test le dit clairement (« v6.9 pas encore collée : colle supabase/fournil-classement-v69.sql ») ; avant
+//     le 13 à midi SANS échouer (le jeu marche sans : l'onglet « Marché » reste vide), à partir de là il échoue ;
 //  0 ter. version 6.6, les acharnés de la Maison hantée (supabase/fournil-classement-v66.sql) : si elle est collée, chaque ligne du classement
 //     porte titre (null, ou le titre que montre la photo de sa boutique : A envoie ti = 'legende-manoir', sa ligne le rend), et la forme des
 //     places de l'événement est vérifiée quand il est figé (evenements.hantee = { rang 1 à 15 | null, joueurs, podium : trois premiers au
@@ -85,6 +90,13 @@ function lundiParis(ms = Date.now()) {
 // celles d'avant (la 6.4, la 6.3 et la 6.2, lues dans supabase/fournil-classement-v64.sql, -v63.sql et -v62.sql ; la 6) ───
 // une table de log10 à pas fixe depuis l'ouverture, interpolée (le miroir de fournil_quartier_borne et de fournil_evt_borne)
 const VERSIONS_EV = { quartier: ['v65', 'v64', 'v63', 'v62', 'v6'], hantee: ['v66', 'v65', 'v64', 'v63', 'v62', 'v6'] }, NOM_V = { v66: 'la v6.6', v65: 'la v6.5', v64: 'la v6.4', v63: 'la v6.3', v62: 'la v6.2', v6: 'la v6' };
+// la limite du Marché d'automne (version 6.9) : la ligne 'marche' de fournil_evts() dans supabase/fournil-classement-v69.sql
+const MARCHE_V69 = (() => {
+  let t = ''; try { t = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v69.sql'), 'utf8'); } catch (e) { t = ''; }
+  const m = /'marche'::text[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/.exec(t);
+  return { debut: Date.parse('2026-11-13T12:00:00+01:00'), fin: Date.parse('2026-11-20T20:00:00+01:00'), pas: 6 * 3600e3, v69: m ? m[1].slice(1, -1).split(',').map(Number) : null };
+})();
+const V69_MANQUE = '**v6.9 pas encore collée** : colle `supabase/fournil-classement-v69.sql` dans le SQL Editor (le Marché d’automne : une ligne de plus dans fournil_evts() et son titre ; aucune donnée ne bouge). Sans elle, les noisettes envoyées sont ignorées et l’onglet « Marché » reste vide : à coller avant le vendredi 13 novembre à midi.';
 const LIMITES = (() => {
   const texte = (f) => { try { return fs.readFileSync(path.join(__dirname, '..', 'supabase', f), 'utf8'); } catch (e) { return ''; /* rien : vérifié plus bas */ } };
   const t66 = texte('fournil-classement-v66.sql'), t65 = texte('fournil-classement-v65.sql'), t64 = texte('fournil-classement-v64.sql'), t63 = texte('fournil-classement-v63.sql'), t62 = texte('fournil-classement-v62.sql');
@@ -451,6 +463,27 @@ function arreter(message, conclusion) {
       check(ha.ok === true && ha.evt === 'hantee' && ha.evt_plafonne === true && ha.evt_score > 0 && ha.evt_score < 1e18, `pendant la Maison hantée : 1e24 bonbons (console) acceptés mais plafonnés (${Number(ha.evt_score).toExponential(2)}), A ${ha.rang_evt}e`);
       if (ha.evt_plafonne === true && msH.every(Number.isInteger)) verifierLimite('hantee', 'la limite de la Maison hantée', ha.evt_score, msH[0], msH[1]);
     } else log(`  la limite de la Maison hantée (v6.6) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)${Date.now() < H.debut ? ' ; supabase/fournil-classement-v66.sql (les activités du Manoir) doit être collée AVANT l’ouverture : sa requête de contrôle montre le tableau installé' : ''}`);
+    // version 6.9 : le Marché d'automne (du vendredi 13 novembre 2026 à midi au vendredi 20 à 20 h, heure de Paris) : 1e24 noisettes
+    { const MK = MARCHE_V69;
+      log('  (10,5 s : les noisettes du Marché d’automne, la v6.9)');
+      await attendre(10500);
+      const hmAvant = await rpc('fournil_heure', {});
+      r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_evt: 'marche', p_score: 1e24 });
+      const ma = r.data || {}, hmApres = await rpc('fournil_heure', {}), msM = [hmAvant.data && hmAvant.data.ms, hmApres.data && hmApres.data.ms], avantOuverture = Number.isInteger(msM[1]) ? msM[1] < MK.debut : Date.now() < MK.debut;
+      check(!!MK.v69 && MK.v69.length === 31, `la table du Marché se lit dans supabase/fournil-classement-v69.sql (${MK.v69 ? MK.v69.length : 0} valeurs)`);
+      if (ma.ok === true && ma.evt === 'marche') {
+        if (Number.isInteger(msM[0]) && msM[0] >= MK.debut && msM[1] < MK.fin + 3600e3) {
+          const lo = limite(MK, MK.v69, msM[0]), hi = limite(MK, MK.v69, msM[1]);
+          check(ma.evt_plafonne === true && ma.evt_score >= lo * (1 - 1e-9) && ma.evt_score <= hi * (1 + 1e-9), `la v6.9 est collée : pendant le Marché, 1e24 noisettes plafonnées à la limite de la v6.9 (${Number(ma.evt_score).toExponential(3)}, attendu ${lo.toExponential(3)} à ${hi.toExponential(3)}), A ${ma.rang_evt}e`);
+        } else check(!(ma.evt_score > 0) || msM[0] >= MK.fin + 3600e3, `la v6.9 est collée : p_evt « marche » est connu (${avantOuverture ? 'avant le 13 novembre à midi : rien n’est compté' : 'après la fin et l’heure de grâce : rien n’est compté'} ; ${JSON.stringify({ evt: ma.evt, score: ma.evt_score })})`);
+        const qm = await rpc('fournil_classement', { p_periode: 'marche', p_limite: 1 }), dm = qm.data || {};
+        check(qm.statut === 200 && dm.periode === 'marche' && Array.isArray(dm.lignes), `le classement du Marché (p_periode = 'marche') répond : ${dm.joueurs} joueur(s) avec des noisettes`);
+      } else if (ma.ok === true && (ma.evt === null || ma.evt === undefined)) {
+        versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V69_MANQUE;
+        if (avantOuverture) log('  ATTENTION v6.9 pas encore collée (p_evt « marche » inconnu du serveur : evt null) : colle supabase/fournil-classement-v69.sql dans le SQL Editor AVANT le vendredi 13 novembre à midi ; le jeu marche sans (l’onglet « Marché » reste vide)');
+        else check(false, 'v6.9 pas encore collée (p_evt « marche » inconnu du serveur : evt null) alors que le Marché d’automne est ouvert : colle supabase/fournil-classement-v69.sql dans le SQL Editor de Supabase (les noisettes envoyées jusqu’ici sont ignorées ; le prochain envoi compte)');
+      } else check(false, `l’envoi des noisettes du Marché : une réponse inattendue (${r.texte ? r.texte.slice(0, 160) : resume(r)})`);
+    }
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);

@@ -2675,6 +2675,8 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .pi-recevoir b { font-size: 13px; }
 .pi-titre { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; margin: 12px 0 4px; padding: 10px 12px; border-radius: 16px; background: #FFF8E6; box-shadow: inset 0 0 0 2px #F1D58A; }
 .pi-titre.fait { background: #FFF3C4; box-shadow: inset 0 0 0 2px #E8B33A; }
+.pi-titre.attend { box-shadow: inset 0 0 0 3px #D9622B; }
+.pi-titre .pi-recevoir { margin-top: 6px; }
 .pi-titre-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; }
 .pi-titre-ico svg { width: 30px; height: 30px; }
 .pi-titre b { display: block; font: 700 14px/1.2 var(--titre); }

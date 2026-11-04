@@ -804,7 +804,9 @@ const UI = (() => {
   //     Marché), la feuille de fin. L'XP se compte une fois par seconde (pasSaison, dans frame), par constat, même carte cachée (un nouveau
   //     joueur : la carte paraît à son déblocage, « piste », les crans déjà atteints sont à recevoir). Éteinte sous navigator.webdriver (les
   //     tests) sauf window.__saison === true (test/fournil-saison.cjs) : ni pas, ni st.piste, ni carte, ni annonce. Rien n'est dans st.saison
-  //     (la recette de saison) : tout est dans st.piste ; l'annonce vue : st.pisteAnnonce (l'id de la saison).
+  //     (la recette de saison) : tout est dans st.piste ; l'annonce vue : st.pisteAnnonce (l'id de la saison). L'API des règles (src/saison.js) :
+  //     pas → { xp, nouveaux, titre, fin } ; aRecevoir (le titre : n = crans + 1) ; recevoir → le lot, que verser distribue ; titre → { xp,
+  //     atteint, recu, nom } ; restes (d'où vient l'XP) ; la fin : finDue (les lots dus, donnés d'office ici, une fois) puis recevoirFin.
   const SAI_ON = (() => { try { if (window.__saison === true) return true; if (window.__saison === false) return false; return !navigator.webdriver; } catch (e) { return true; } })();
   const SAI = SAI_ON && typeof SAISONS !== 'undefined' ? SAISONS : null;
   const ICO_PISTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3l1.8 3.8 3.2-1.8-.5 3.9 3.9-.4-2.2 3 2.6 1.8-3.9 1.2 1.3 3.5-3.9-1.3L11 21l-2.2-3.6-3.8 1.4 1.3-3.6-3.9-1.2 2.6-1.8-2.2-3 3.9.4L6.1 5l3.1 1.8z" fill="#D9622B"/><path d="M17.5 13.5l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#E8B33A" stroke="#fff" stroke-width=".8"/></svg>';
@@ -815,7 +817,8 @@ const UI = (() => {
   const saiFiche = () => { if (!SAI || !st) return null; const f = SAI.active(maintenantSai()); if (f) return f; const p = st.piste; return p && p.id && SAI.fiche ? SAI.fiche(p.id) : null; };
   const saiCrans = (f) => (f && Array.isArray(f.crans) ? f.crans : []);
   const saiXpCran = (f) => (f && f.xpCran > 0 ? f.xpCran : 50);
-  const saiTitreXp = (f) => (f && f.titre ? (f.titre.xp > saiXpCran(f) * saiCrans(f).length ? f.titre.xp : saiXpCran(f) * saiCrans(f).length + (f.titre.xp || 0)) : Infinity); // (le titre : 250 XP après le 22e, 1 350 en tout ; ou l'XP totale)
+  const saiTitreXp = (f) => (f && f.xpTitre > 0 ? f.xpTitre : f && f.titre ? saiXpCran(f) * saiCrans(f).length + (f.titre.xp || 0) : Infinity); // (le titre : 250 XP après le 22e, 1 350 en tout)
+  const saiTitre = () => { let t = null; try { t = SAI.titre(st); } catch (e) { t = null; } return t && typeof t === 'object' ? t : { atteint: !!t, recu: !!t }; }; // { xp, atteint, recu, nom }
   const saiNb = (x) => (Array.isArray(x) ? x.length : Number(x) || 0);
   const saiDus = () => { try { const l = SAI.aRecevoir(st); return Array.isArray(l) ? l.slice() : []; } catch (e) { return []; } };
   const saiAtteints = () => { try { return Math.max(0, saiNb(SAI.crans(st))); } catch (e) { return 0; } };
@@ -823,11 +826,21 @@ const UI = (() => {
   const pisteVisible = () => !!(SAI && st && st.piste && st.piste.id && SAI.active(maintenantSai()) && ouvertA('piste'));
   // le contexte de la série (src/saison.js, la source « serie ») : le classement la compte (resume().serie : jours de suite, joué aujourd'hui) ;
   // sans classement (l'artefact, un joueur pas inscrit), rien : la règle de secours des règles s'applique (un objectif hier et aujourd'hui)
-  function ctxSaison() { try { const r = classement && classement.resume(), se = r && r.serie; return se ? { serie: !!(se.aujourdhui && se.jours >= 2) } : {}; } catch (e) { return {}; } }
+  function ctxSaison() { try { const r = classement && classement.resume(), se = r && r.serie; return se ? { serie: { aujourdhui: !!se.aujourdhui, jours: se.jours | 0 } } : {}; } catch (e) { return {}; } }
   // un lot de la piste, donné à la boulangerie : des étoiles, un boost en réserve, une pièce de la tenue de saison (la garde-robe) ; les décos et le
   // trophée sont au carnet (SAISONS.possede : « Mes décos », famille piste-automne) → les lignes de la feuille
   function donnerLotSaison(lot) {
     const l = []; if (!lot) return l;
+    if (SAI && SAI.verser) { // les règles distribuent (src/saison.js, verser) ; ici, les mots
+      try { SAI.verser(st, lot, G); } catch (e) { /* une pièce ou un titre que le jeu ne connaît pas encore */ }
+      if (lot.etoiles > 0) l.push(`+${lot.etoiles} étoile${lot.etoiles > 1 ? 's' : ''} (+${Math.round(lot.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`);
+      if (lot.boost) l.push(`un boost ×${lot.boost.mult} de ${G.fmtDuree(lot.boost.secs)}, dans ta réserve`);
+      if (lot.vetement) { let nomV = lot.vetement; try { const x = G.vetement && G.vetement(lot.vetement); if (x) nomV = x.nom; } catch (e) { /* rien */ } l.push(`${nomV} pour la garde-robe du boulanger`); }
+      if (lot.deco && lot.deco !== lot.trophee) l.push(`${nomDecoSaison(lot.deco)} : dans « Mes décos », à poser où tu veux`);
+      if (lot.trophee) l.push(`${nomDecoSaison(lot.trophee)} : le trophée de fin de saison, dans « Mes décos » et la vitrine`);
+      if (lot.titre || lot.distinction) { let nomT = ''; try { const dd = G.DISTINCTIONS && G.DISTINCTIONS[lot.distinction]; nomT = dd ? dd.nom : ''; } catch (e) { nomT = ''; } const f = saiFiche(); l.push(`le titre « ${nomT || (f && f.titre && f.titre.nom) || 'de la saison'} », à côté de ton pseudo au classement`); }
+      return l;
+    }
     if (lot.etoiles > 0) { st.etoiles += lot.etoiles; l.push(`+${lot.etoiles} étoile${lot.etoiles > 1 ? 's' : ''} (+${Math.round(lot.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`); }
     for (const b of [].concat(lot.boost || [], lot.boosts || [])) if (b && b.mult > 1 && b.secs > 0) { G.donnerBoostReserve(st, b.mult, b.secs); l.push(`un boost ×${b.mult} de ${G.fmtDuree(b.secs)}, dans ta réserve`); }
     for (const v of [].concat(lot.vetement || [], lot.vetements || [])) { let nomV = v; try { const x = G.vetement && G.vetement(v); if (x) nomV = x.nom; if (G.donnerVetement) G.donnerVetement(st, v); } catch (e) { /* une pièce que la garde-robe ne connaît pas encore */ } l.push(`${nomV} pour la garde-robe du boulanger`); }
@@ -860,7 +873,7 @@ const UI = (() => {
   function majPiste(force) {
     const el = $('#piste'); if (!el) return;
     if (!pisteVisible()) { if (!el.hidden) { el.hidden = true; lastPiste = ''; } return; }
-    const f = saiFiche(), p = st.piste, nc = saiCrans(f).length, xc = saiXpCran(f), n = Math.min(nc, saiAtteints()), dus = saiDus().length, titre = !!(SAI.titre && SAI.titre(st));
+    const f = saiFiche(), p = st.piste, nc = saiCrans(f).length, xc = saiXpCran(f), n = Math.min(nc, saiAtteints()), dus = saiDus().length, T0 = saiTitre(), titre = !!T0.recu;
     const xp = Math.max(0, Math.floor(p.xp || 0)), fini = n >= nc, cible = fini ? saiTitreXp(f) : (n + 1) * xc, de = fini ? nc * xc : n * xc;
     const part = titre ? 1 : Math.max(0, Math.min(1, (xp - de) / Math.max(1, cible - de)));
     const nom = (f && (f.court || f.nom)) || 'La saison';
@@ -875,7 +888,7 @@ const UI = (() => {
   function sheetPiste() {
     if (!SAI || !st || !st.piste) return;
     const f = saiFiche(); if (!f) return;
-    const p = st.piste, C = saiCrans(f), nc = C.length, xc = saiXpCran(f), xp = Math.max(0, Math.floor(p.xp || 0)), n = Math.min(nc, saiAtteints()), dus = saiDus(), titre = !!(SAI.titre && SAI.titre(st));
+    const p = st.piste, C = saiCrans(f), nc = C.length, xc = saiXpCran(f), xp = Math.max(0, Math.floor(p.xp || 0)), n = Math.min(nc, saiAtteints()), dus = saiDus(), T0 = saiTitre(), titre = !!T0.recu, titreDu = dus.includes(nc + 1);
     const reste = Math.max(0, f.fin - maintenantSai()), jours = Math.ceil(reste / 864e5);
     const crans = C.map((c, k) => { const m = c.n || k + 1, etat = saiRecu(m) ? 'recu' : m <= n ? 'attend' : m === n + 1 ? 'encours' : 'avenir';
       return `<li class="pi-cran ${etat}${c.trophee ? ' trophee' : ''}" data-n="${m}"><span class="pi-n">${m}</span><span class="pi-vig" aria-hidden="true">${icoCran(c)}</span><b>${esc(nomCran(c))}</b>
@@ -884,7 +897,7 @@ const UI = (() => {
     openSheet(`<div class="pi-feuille" data-piste="1"><div class="pi-tete"><span class="pic">${icoPiste()}</span><div><h2>${esc(f.nom || 'La saison')}</h2><p class="sous">Cran ${n}/${nc} · ${fmtXp(xp)} XP · ${jours > 1 ? `encore ${jours} j` : jours === 1 ? 'dernier jour' : 'finie'}</p></div></div>
       <div class="pi-piste" role="list" aria-label="La piste : ${nc} crans de ${xc} XP"><ol>${crans}</ol></div>
       ${dus.length > 1 ? `<button type="button" class="btn large beurre" data-a="pi-tout"><b>Tout recevoir (${dus.length})</b></button>` : ''}
-      <div class="pi-titre${titre ? ' fait' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Gagné ! Il est à côté de ton pseudo, au classement.' : `${fmtXp(xp)}/${fmtXp(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre ? 100 : tPart * 100).toFixed(1)}%"></b></i></div></div>
+      <div class="pi-titre${titre ? ' fait' : titreDu ? ' attend' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Reçu ! Il est à côté de ton pseudo, au classement.' : `${fmtXp(xp)}/${fmtXp(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre || titreDu ? 100 : tPart * 100).toFixed(1)}%"></b></i>${titreDu ? `<button type="button" class="btn menthe pi-recevoir" data-a="pi-recevoir" data-n="${nc + 1}"><b>Recevoir le titre</b></button>` : ''}</div></div>
       <h3 class="titre-section">D’où vient l’XP</h3>
       <ul class="pi-sources">${sourcesSaison(f).map((x) => `<li class="${x.fait ? 'fait' : ''}"><b>${esc(x.nom)}</b><small>${esc(x.detail)}</small><em>${esc(x.reste)}</em></li>`).join('')}</ul>
       <p class="note centre">Gratuite, rien à acheter : tout ce que tu reçois reste à vie. ${C.length} crans de ${xc} XP, jusqu’au ${esc(dateFinSaison(f))}.</p>
@@ -901,6 +914,14 @@ const UI = (() => {
   function dateFinSaison(f) { const d = G.paris ? G.paris(f.fin - 1) : new Date(f.fin - 1 + 3600e3); return `${d.getUTCDate()} ${MOIS_LONGS[d.getUTCMonth()]}`; }
   // les six sources et ce qui reste à prendre aujourd'hui (les marqueurs du jour de st.piste.j ; le défi : la semaine ; les paliers : sans plafond)
   function sourcesSaison(f) {
+    if (SAI.restes) { // les règles disent ce qui reste à prendre aujourd'hui (src/saison.js, restes)
+      let R0 = []; try { R0 = SAI.restes(st, maintenantSai()) || []; } catch (e) { R0 = []; }
+      const mc = MCE && MC && MC.fenetre(maintenantSai()), pal = st.marche && Array.isArray(st.marche.paliers) ? st.marche.paliers.length : 0;
+      const NOMS_SRC = { objectif: 'Les objectifs du jour', journee: 'Les trois du jour', defi: 'Le défi de la semaine', serie: 'Ta série', palier: 'Les paliers du Marché', casino: 'L’arrière-salle' };
+      return R0.map((x) => { const libre = x.max == null, fait = !libre && x.reste === 0;
+        const detail = x.id === 'objectif' ? `${x.xp} XP par objectif réclamé, ${x.max} par jour` : x.id === 'journee' ? `${x.xp} XP de plus quand les trois sont réclamés` : x.id === 'defi' ? `${x.xp} XP, une fois par semaine` : x.id === 'serie' ? `${x.xp} XP par jour de suite` : x.id === 'palier' ? `${x.xp} XP par palier franchi${mc && (mc.ouvert || pal) ? ` · ${pal}/20` : ''}` : x.id === 'casino' ? `${x.xp} XP par mini-objectif réussi, ${x.max} par jour` : `${x.xp} XP`;
+        return { k: x.id, nom: NOMS_SRC[x.id] || x.nom, detail, fait, reste: libre ? (x.id === 'palier' ? (mc && mc.ouvert ? 'sans plafond' : 'fermé') : 'sans plafond') : fait ? (x.parSemaine ? 'fait cette semaine ✓' : 'fait aujourd’hui ✓') : `encore ${fmtXp(x.reste * x.xp)} XP` }; });
+    }
     const S = (f && f.sources) || SAI.SOURCES || {}, j = (st.piste && st.piste.j) || {}, aujourd = j.d === G.dayKey(maintenantSai());
     const v = (k, cle) => (aujourd ? Number(j[cle]) || 0 : 0), x = (k) => (S[k] && S[k].xp) || 0, pl = (k, d) => (S[k] && S[k].plafond != null ? S[k].plafond : d);
     const defiFait = !!(st.semaine && st.semaine.reclame) || (st.piste && st.semaine && st.piste.sem === st.semaine.key);
@@ -918,7 +939,7 @@ const UI = (() => {
   function recevoirCran(n, rouvrir) {
     if (!SAI || !st) return null; let lot = null; try { lot = SAI.recevoir(st, n); } catch (e) { lot = null; } if (!lot) { son.non(); return null; }
     const l = donnerLotSaison(lot); save(); son.deblocage(); buzz([10, 30, 10]); confettis(lot.trophee ? 1.2 : 0.6);
-    toast(`Cran ${n} : ${l[0] ? l[0].replace(/ \(.*\)$/, '') : 'reçu'} !`); renderBoosts(); lastHud = ''; hud(); majPiste(true);
+    toast(lot.titre ? `${l[0] ? l[0].charAt(0).toUpperCase() + l[0].slice(1) : 'Le titre'} : il est à toi !` : `Cran ${n} : ${l[0] ? l[0].replace(/ \(.*\)$/, '') : 'reçu'} !`); renderBoosts(); lastHud = ''; hud(); majPiste(true);
     if (rouvrir && pisteOuverte) sheetPiste();
     return lot;
   }
@@ -929,22 +950,15 @@ const UI = (() => {
     toast(`${dus.length} crans reçus !`); if (pisteOuverte) sheetPiste();
     return dus.length;
   }
-  // le titre de la saison (« Feuille d'or 2026 ») : donné une fois, quand l'XP l'atteint (GAME.donnerDistinction : au classement, à côté du pseudo)
-  function titreSaison(f) {
-    if (!f || !f.titre || !f.titre.distinction || !SAI.titre || !SAI.titre(st) || typeof G.donnerDistinction !== 'function') return false;
-    let r = null; try { r = G.donnerDistinction(st, f.titre.distinction); } catch (e) { r = null; }
-    if (r && r.nouveau) { save(); son.deblocage(); confettis(1.2); toast(`Le titre « ${(r.distinction && r.distinction.nom) || f.titre.nom} » est à toi : à côté de ton pseudo, au classement !`); return true; }
-    return false;
-  }
   // une fois par seconde (frame) : la fin d'une saison (les crans dus donnés d'office, puis archivés), l'XP du moment, le titre, la carte
   function pasSaison() {
     if (!SAI || !st) return;
     const t = maintenantSai();
-    if (st.piste && st.piste.id && SAI.fin) { let r = null; try { r = SAI.fin(st, t); } catch (e) { r = null; } if (r) { const lots = [].concat(r.lots || r.lot || []), l = []; for (const x of lots) l.push(...donnerLotSaison(x)); pisteFin = { r, lignes: l }; save(); lastPiste = ''; renderBoosts(); setTimeout(() => tenterAnnonces(true), 600); } }
+    if (SAI.finDue) { let r = null; try { if (SAI.etat) SAI.etat(st, t); r = SAI.finDue(st); } catch (e) { r = null; } if (r && !pisteFin) { const lots = [].concat(r.lots || []), l = []; for (const x of lots) l.push(...donnerLotSaison(x)); try { SAI.recevoirFin(st); } catch (e) { /* rien */ } pisteFin = { r, lignes: l }; save(); lastPiste = ''; renderBoosts(); setTimeout(() => tenterAnnonces(true), 600); } } // une saison finie : ses crans dus (et le titre), donnés d'office une fois, puis la feuille
+    else if (st.piste && st.piste.id && SAI.fin) { let r = null; try { r = SAI.fin(st, t); } catch (e) { r = null; } if (r) { const lots = [].concat(r.lots || r.lot || []), l = []; for (const x of lots) l.push(...donnerLotSaison(x)); pisteFin = { r, lignes: l }; save(); lastPiste = ''; renderBoosts(); setTimeout(() => tenterAnnonces(true), 600); } }
     const f = SAI.active(t); if (!f) { majPiste(); return; }
-    const avant = saiAtteints(); let g = 0; try { g = SAI.pas(st, t, ctxSaison()) || 0; } catch (e) { g = 0; }
-    if (g > 0) { save(); const apres = saiAtteints(); if (apres > avant && pisteVisible()) { son.deblocage(); toast(`Saison : cran ${apres} atteint ! Touche la carte pour le recevoir.`); } }
-    titreSaison(f);
+    const avant = saiAtteints(); let g = 0; try { const r = SAI.pas(st, t, ctxSaison()); g = typeof r === 'number' ? r : (r && r.xp) || 0; } catch (e) { g = 0; }
+    if (g > 0) { save(); const apres = saiAtteints(); if (apres > avant && pisteVisible()) { son.deblocage(); toast(`Saison : cran ${apres} atteint ! Touche la carte pour le recevoir.`); } else if (saiTitre().atteint && !saiTitre().recu && saiDus().includes(saiCrans(f).length + 1) && pisteVisible() && st.pisteTitreVu !== f.id) { st.pisteTitreVu = f.id; son.deblocage(); toast(`Le titre « ${(f.titre && f.titre.nom) || 'de la saison'} » t’attend : touche la carte pour le recevoir !`); } }
     majPiste();
     if (saisonAAnnoncer() && performance.now() - tAnnoncePiste > 5000) { tAnnoncePiste = performance.now(); tenterAnnonces(false); }
   }

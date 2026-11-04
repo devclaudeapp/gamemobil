@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // L'accueil des nouveaux joueurs (src/game.js, docs/accueil-contrat.md) : st.accueil et sa réparation, les vieilles sauvegardes (tout
-// ouvert), les sept étapes de « Ton premier jour », les quinze déblocages, la récompense (une seule fois), la tenue d'apprenti, le rythme
+// ouvert), les sept étapes de « Ton premier jour », les seize déblocages, la récompense (une seule fois), la tenue d'apprenti, le rythme
 // du joueur simulé (test/longevite.js) et l'entrée des nouveautés.
 // Lancer : TZ=Europe/Paris node test/fournil-accueil.test.js
 'use strict';
@@ -60,8 +60,8 @@ check(A.etapes.length === 7 && A.etapes.map((e) => e.id).join() === 'painchoc,ba
 
 console.log('── 4. les déblocages ──');
 const ids = A.deblocages.map((d) => d.id), bits = A.deblocages.map((d) => d.bit);
-check(ids.join() === 'boulanger,defis,modes,bonus,etoiles,journal,saison,classement,atelier,decos,evenements,garderobe,nouveautes,casino,chaine', 'quinze déblocages, dans l’ordre du contrat');
-check(new Set(bits).size === bits.length && bits.every((b, k) => b === k) && A.TOUS === (1 << 15) - 1 && bits.every((b) => A.TOUS & (1 << b)), 'des bits uniques ; TOUS les couvre tous');
+check(ids.join() === 'boulanger,defis,modes,bonus,etoiles,journal,saison,classement,atelier,decos,evenements,garderobe,nouveautes,casino,chaine,piste', 'seize déblocages, dans l’ordre du contrat (la piste de saison, bit 15 : docs/marche-contrat.md § 7.6)');
+check(new Set(bits).size === bits.length && bits.every((b, k) => b === k) && A.TOUS === (1 << 16) - 1 && bits.every((b) => A.TOUS & (1 << b)), 'des bits uniques ; TOUS les couvre tous');
 { const s = neuf(); s.lifetime = 1e9; s.boutiques = 3; s.etoiles = 5; s.xp = 1e6; s.stations[0].niv = 10;
   for (const t of [0, 1, 2, 3]) { s.tuto = t; if (G.deblocagesDus(s).length) check(false, `tuto ${t} : rien ne s'ouvre`); }
   check(G.deblocagesDus(s).length === 0, 'deblocagesDus vide tant que tuto < 4');

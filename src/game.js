@@ -569,6 +569,9 @@
   // la chauve-souris : gagnée au bestiaire de la Maison hantée (src/hantee.js : les neuf sortes de clients-monstres servies dix fois, q.chauvesouris).
   // Lue sur st.hantee, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme le chien du quartier.
   const chauveSourisDuManoir = (st) => { const q = st && st.hantee; return !!q && typeof q === 'object' && q.chauvesouris === true; };
+  // l'écureuil roux : gagné à l'album de la forêt du Marché d'automne (src/marche.js : les neuf déguisements servis dix fois, q.ecureuil) ;
+  // lu sur st.marche, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme la chauve-souris
+  const ecureuilDuMarche = (st) => { const q = st && st.marche; return !!q && typeof q === 'object' && q.ecureuil === true; };
   // le pigeon voyageur : un objet rare de « Ma chaîne de boutiques » (src/chaine.js), acheté en jetons de chaîne ; lu sur st.chaine.objets.
   // Sans aucun bonus (décision du joueur : les objets rares n'accélèrent pas la boulangerie)
   const pigeonDeLaChaine = (st) => { const c = st && st.chaine; return !!c && typeof c === 'object' && Array.isArray(c.objets) && c.objets.includes('pigeon'); };
@@ -579,6 +582,7 @@
     { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', verrou: 'Pendant Halloween', nomDefaut: 'Réglisse', cri: null, bonus: { gains: { pct: 2 } }, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
     { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', bonus: { gains: { pct: 5 } }, phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
     { id: 'chauve-souris', nom: 'Chauve-souris', espece: 'chauve-souris', prix: null, condition: chauveSourisDuManoir, gagne: 'Gagnée au bestiaire du Manoir', verrou: 'Les neuf monstres du bestiaire', nomDefaut: 'Myrtille', cri: 'couic', bonus: { absence: 1 }, phrase: 'Toute ronde, des oreilles immenses et deux petits crocs : elle tourne sous le plafond et veille sur la boutique la nuit.' },
+    { id: 'ecureuil', nom: 'Écureuil roux', espece: 'ecureuil', prix: null, condition: ecureuilDuMarche, gagne: 'Gagné à l’album de la forêt', verrou: 'Les neuf déguisements de l’album', nomDefaut: 'Pirouette', cri: 'couic', bonus: { absence: 1 }, phrase: 'Il grimpe aux étagères et cache des noisettes dans les tiroirs.' },
     { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', bonus: { gains: { pct: 2 } }, phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
     { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', bonus: { pourboire: 10 }, phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
     { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, bonus: { absence: 1 }, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
@@ -808,6 +812,25 @@
     ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
     // le trophée du palier bonus 20 de la Maison hantée (après le maître) : une seule pièce, sans ensemble, distincte de la tenue en or
     ajouter(vet('hantee-lueur-chapeau', 'Chapeau phosphorescent', 'tete', 'hantee-lueur', 'chapeau', { vitesse: 1 }, 'epique', 'Le palier 20 du Manoir. Il brille dans le noir.'));
+    // l'événement « Le Marché d'automne » (src/marche.js, docs/marche-contrat.md § 2.8) : la tenue d'automne aux paliers 3, 5, 7 et 9 (les bonus
+    // de la tenue d'Halloween), la même en or pour le podium final, la couronne de feuilles d'or au palier 20. Formes pour persos.js : 'bonnet'
+    // (le bonnet à pompon), 'sweat' (le gilet de laine), 'bottes' (de pluie), 'panier' (d'osier, à la main), 'couronne' (de feuilles)
+    ajouter(vet('marche-bonnet', 'Bonnet à pompon', 'tete', 'marche', 'bonnet', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Tricoté main, un pompon roux qui saute à chaque pas.'));
+    ajouter(vet('marche-gilet', 'Gilet de laine', 'haut', 'marche', 'sweat', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Couleur rouille, de gros boutons en bois.'));
+    ajouter(vet('marche-bottes', 'Bottes de pluie', 'pieds', 'marche', 'bottes', { vitesse: 1.5 }, 'rare', 'Pour sauter dans les flaques entre deux fournées.'));
+    ajouter(vet('marche-panier', 'Panier d’osier', 'accessoire', 'marche', 'panier', { absence: 0.5 }, 'rare', 'Des pommes, des noix, et toujours une châtaigne au fond.'));
+    ajouter(vet('marche-or-bonnet', 'Bonnet doré', 'tete', 'marche-or', 'bonnet', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Le podium final du Marché d’automne.'));
+    ajouter(vet('marche-or-gilet', 'Gilet doré', 'haut', 'marche-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Une laine aux reflets de feuille d’or.'));
+    ajouter(vet('marche-or-bottes', 'Bottes dorées', 'pieds', 'marche-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Les flaques n’en reviennent pas.'));
+    ajouter(vet('marche-or-panier', 'Panier doré', 'accessoire', 'marche-or', 'panier', { absence: 0.5 }, 'legendaire', 'Un osier tressé de fils d’or.'));
+    // le trophée du palier bonus 20 du Marché : une seule pièce, sans ensemble, distincte de la tenue en or
+    ajouter(vet('marche-couronne', 'Couronne de feuilles d’or', 'tete', 'marche-couronne', 'couronne', { vitesse: 1 }, 'epique', 'Le palier 20 de la Halle. Des feuilles d’or qui ne tombent jamais.'));
+    // la saison gratuite « Automne » (src/saison-automne.js, docs/marche-contrat.md § 7.3) : la tenue de saison, aux crans 5, 9, 13 et 17 de
+    // la piste ; cosmétique, SANS aucun bonus (décision du joueur, 4 novembre), son ensemble non plus (comme la tenue d'apprenti)
+    ajouter(vet('automne-gavroche', 'Casquette de tweed', 'tete', 'automne', 'casquette', {}, 'epique', 'La saison d’automne 2026, cran 5. Un tweed chiné, la visière bien ronde.'));
+    ajouter(vet('automne-pull', 'Pull jacquard', 'haut', 'automne', 'sweat', {}, 'epique', 'La saison d’automne 2026, cran 13. Des feuilles et des glands tricotés en rang.'));
+    ajouter(vet('automne-bottines', 'Bottines d’automne', 'pieds', 'automne', 'chaussures', {}, 'epique', 'La saison d’automne 2026, cran 17. Cuir fauve, lacets rouges.'));
+    ajouter(vet('automne-echarpe', 'Écharpe tricotée', 'accessoire', 'automne', 'foulard', {}, 'epique', 'La saison d’automne 2026, cran 9. Assez longue pour deux tours de cou.'));
     // « Ma chaîne de boutiques » (src/chaine.js) : la tenue du patron, achetée pièce par pièce en jetons de chaîne (60 chacune) ; sans aucun
     // bonus et sans ensemble (décision du joueur : les objets rares n'accélèrent pas la boulangerie), comme la casquette néon
     ajouter(vet('chaine-toque', 'Toque à galon', 'tete', 'chaine', 'toque', {}, 'epique', 'Celle du patron de la chaîne.'));
@@ -827,6 +850,9 @@
       'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       hantee: { nom: 'Tenue d’Halloween', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'hantee-or': { nom: 'Tenue d’Halloween en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      marche: { nom: 'Tenue d’automne', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      'marche-or': { nom: 'Tenue d’automne en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      automne: { nom: 'Tenue de la saison d’automne', bonus: {} }, // cosmétique : sans bonus (la piste ne fait pas gagner plus vite)
       parcours: { nom: 'Tenue du parcours', bonus: { gains: { produit: null, pct: 5 }, vitesse: 2, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
@@ -834,10 +860,13 @@
   const vetement = (id) => (id && GARDEROBE.objets[id]) || null;
   // les auras (le 20e palier de la Maison hantée : l'aura phosphorescente) : une lueur douce autour du boulanger, sans bonus, gagnée à vie ;
   // elle se porte ou se retire dans la garde-robe (g.auras : celles gagnées, g.aura : celle portée, null : aucune), en plus des quatre pièces
-  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' } };
+  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' },
+    feuilles: { id: 'feuilles', nom: 'Aura des feuilles d’or', couleur: '#E8B33A', desc: 'Le 20e palier de la Halle. Des feuilles d’or qui tournoient doucement autour du boulanger.' } }; // (le Marché d'automne)
   // les distinctions gagnées, à vie (st.distinctions) : un titre montré à côté du pseudo dans le classement et dans la visite de sa boutique
   // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
-  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' } };
+  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' },
+    'legende-marche': { id: 'legende-marche', nom: 'Légende du Marché', desc: 'Le 20e palier du Marché d’automne.' }, // (src/marche.js)
+    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 350 XP).' } }; // (src/saison-automne.js)
   DISTINCTIONS['main-de-velours'] = { id: 'main-de-velours', nom: 'Main de velours', desc: 'Dix victoires de suite dans l’arrière-salle.' }; // lot 7 : le trophée « Main de velours » du casino (src/casino.js)
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
   const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };
@@ -1001,6 +1030,7 @@
       { id: 'nouveautes', bit: 12, seuil: (st, a) => a.r === 1 || st.boutiques >= 2 },
       { id: 'casino', bit: 13, seuil: (st, a) => (a.r === 1 && st.lifetime >= 1e8) || st.boutiques >= 2 },
       { id: 'chaine', bit: 14, seuil: (st, a, o) => st.boutiques >= 2 || o.chaine > 0 },
+      { id: 'piste', bit: 15, seuil: (st, a) => a.r === 1 || st.lifetime >= 1e6 }, // la saison gratuite (src/saison.js) : après « Ton premier jour » réussi, ou à 1 M€ (~12 min de jeu)
     ].map((d) => Object.freeze(d));
     const TOUS = deblocages.reduce((m, d) => m | (1 << d.bit), 0);
     return Object.freeze({ etapes: Object.freeze(etapes), deblocages: Object.freeze(deblocages), recompense: Object.freeze({ vetements: Object.freeze(['apprenti-tablier', 'apprenti-foulard']), boost: Object.freeze({ mult: 2, secs: 1800 }) }), TOUS, TOUTES: (1 << etapes.length) - 1 });

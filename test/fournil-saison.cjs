@@ -133,11 +133,16 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('05-feuille-cran-22');
   await T.fermer();
   await T.ev(() => { window.__fournil.st.piste.xp = 1350; window.__fournil.save(); }); await T.pas(); await sleep(400);
+  c = await T.carte(); check(c.pret && /Recevoir/.test(c.txt), `à 1 350 XP : le titre attend, « Recevoir » sur la carte (« ${c.txt} »)`);
+  await T.clic('#piste'); await sleep(800);
+  check(await T.ev(() => !!document.querySelector('#feuille .pi-titre.attend [data-a="pi-recevoir"]')), 'la feuille : « Recevoir le titre »');
+  await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('06a-feuille-titre-a-recevoir');
+  await T.clic('#feuille .pi-titre [data-a="pi-recevoir"]'); await sleep(900); await T.fermer();
   { const t = await T.ev(() => { const F = window.__fournil; let d = null; try { d = F.G.distinctions ? F.G.distinctions(F.st) : null; } catch (e) { d = null; } return { titre: F.st.piste.titre, d, connu: !!(F.G.DISTINCTIONS && F.G.DISTINCTIONS['feuille-or-2026']) }; });
-    check(t.titre === 1 || t.titre === true, 'à 1 350 XP : le titre de la saison est gagné (st.piste.titre)');
+    check(t.titre === 1 || t.titre === true, 'reçu : le titre de la saison (st.piste.titre)');
     if (t.connu) check(Array.isArray(t.d) && t.d.includes('feuille-or-2026'), 'la distinction « Feuille d’or 2026 », à côté du pseudo au classement'); else passe('la distinction « Feuille d’or 2026 » attend src/game.js (DISTINCTIONS : constructeur A)'); }
   c = await T.carte(); check(/22\/22/.test(c.txt) && /Feuille d’or 2026/.test(c.txt), `la carte : « ${c.txt} »`);
-  await T.clic('#piste'); await sleep(800); await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('06-feuille-titre'); await T.fermer();
+  await T.clic('#piste'); await sleep(800); await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('06b-feuille-titre-recu'); await T.fermer();
 
   console.log('── 360 × 640 ──');
   await T.page.setViewportSize({ width: 360, height: 640 }); await sleep(800);

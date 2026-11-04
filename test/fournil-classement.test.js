@@ -571,7 +571,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(egal(CL.ongletsEvenements(liste(), H.DEBUT + 3600e3), [['quartier', 'Événement'], ['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(true), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le 27 octobre après midi : le podium final du Quartier et Halloween (le Quartier masqué : Halloween seul)');
     check(Q.ECARTE === true && egal(CL.ongletsEvenements(liste(false, Q), Date.UTC(2026, 9, 20)), []) && egal(CL.ongletsEvenements(liste(false, Q), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le Quartier écarté : plus d’onglet, même pendant ses deux semaines de podium (Halloween seul)');
     check(egal(CL.ongletsEvenements(liste(), H.FIN + 13 * 864e5), [['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(), H.FIN + 15 * 864e5), []), 'deux semaines après Halloween, l’onglet s’efface');
-    check(CL.PERIODES.includes('hantee') && CL.EVTS.join() === 'hantee', 'la période « hantee » est connue du moteur'); }
+    check(CL.PERIODES.includes('hantee') && CL.EVTS.join() === 'hantee,marche' && CL.PERIODES.includes('marche'), 'les périodes « hantee » et « marche » (le Marché d’automne, SQL v6.9) sont connues du moteur'); }
 
   console.log('── les copains (contrat v6) : la photo de la boutique ──');
   const G = require('../src/game.js');
