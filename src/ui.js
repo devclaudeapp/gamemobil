@@ -59,7 +59,7 @@ const UI = (() => {
       if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       if (sansAccueil) s.accueil = G.accueilAncien(s, HORLOGE.maintenant()); // une sauvegarde d'avant l'accueil : tout ouvert, sauf une partie toute neuve (docs/accueil-contrat.md § 2.2)
-      G.accueil(s);
+      G.accueil(s, HORLOGE.maintenant()); // (un accueil abîmé, { } ou { o: 'x' } : comme une sauvegarde d'avant l'accueil, à l'heure d'aujourd'hui)
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
@@ -881,11 +881,12 @@ const UI = (() => {
   }
   const defileListe = (r) => { const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); };
   function indices() {
-    const el = $('#indice'), acc = accueilActif(), passer = el.querySelector('.passer');
+    const el = $('#indice'), acc = accueilActif(), passer = $('#b-passer');
     const guide = acc && st.tuto <= 3; // les premiers pas de l'accueil : « Passer », le texte d'attente, la bulle qui ramène à la boutique
-    if (passer && passer.hidden !== !guide) passer.hidden = !guide;
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
-      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue))) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
+    const ecran = st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
+      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue));
+    if (passer && passer.hidden !== !(guide && !ecran)) passer.hidden = !(guide && !ecran); // (« Passer » vit dans l'en-tête, loin des cartes et des onglets : une touche manquée ne saute pas le guidage)
+    if (ecran) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
     const h = INDICES[st.tuto];
     const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
@@ -909,7 +910,7 @@ const UI = (() => {
   }
   function passerTuto() { // « Passer » : le guidage s'arrête (la carte du premier jour et les déblocages continuent)
     if (!accueilActif() || st.tuto > 3) return;
-    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
+    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; $('#b-passer').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
   }
 
   // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour », les déblocages au fil du jeu et leurs annonces,
@@ -972,7 +973,9 @@ const UI = (() => {
   }
   // les annonces : une seule file, une bulle à la fois ; ECART entre deux (3 s pour la toute première après les premiers pas)
   const ECART = () => (window.__accueilEcart | 0) || 20000;
-  let annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  let evVol = false, annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  const SOUS_MAJ = new Set(['etoiles', 'classement', 'atelier', 'chaine', 'casino']), dusSousMaj = {}; // (leur bulle irait sous le bandeau de mise à jour)
+  const MAJ_ATTENTE = () => (window.__accueilMajAttente | 0) || 30000;
   const annonceAttente = (ms) => { finAnnoncePrec = performance.now() - ECART() + ms; }; // la prochaine annonce dans ms au plus tôt
   const SILENCE = { evenements: () => true, nouveautes: () => true, saison: () => !(st.saison && G.recetteSaison(st)), classement: () => !classement, decos: () => !CE, chaine: () => !CE, garderobe: () => !GRU };
   const TXT_ANNONCE = {
@@ -1012,9 +1015,9 @@ const UI = (() => {
     }
   }
   function peutAnnoncer() {
-    if (st.tuto < 5 || annonceId || performance.now() - finAnnoncePrec < ECART()) return false;
+    if (st.tuto < 5 || annonceId || evVol || performance.now() - finAnnoncePrec < ECART()) return false;
     if (!feuille.hidden || document.hidden || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert) || (RT && RT.ouvert) || SCENE.amenager) return false;
-    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || $('.maj') || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
+    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
     return true;
   }
   // après un bit posé : ce qui apparaît se redessine (le coin, la carte de saison, les cartes de la page Boulanger…)
@@ -1023,7 +1026,11 @@ const UI = (() => {
     lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
     majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
     if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }
-    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) setTimeout(() => { if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); }, 400); // un événement ouvert : son annonce à lui
+    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) { // un événement ouvert : son annonce à lui, après la bulle en cours
+      evVol = true; // (aucune bulle ne part en attendant : la feuille de l'événement l'effacerait aussitôt)
+      const tenter = () => { if (annonceId) { setTimeout(tenter, 500); return; } evVol = false; finAnnoncePrec = Math.max(finAnnoncePrec, performance.now() - ECART() + 3000); if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); };
+      setTimeout(tenter, 400);
+    }
   }
   function pasAccueil() {
     if (!accueilActif()) return;
@@ -1034,8 +1041,16 @@ const UI = (() => {
     const dus = G.deblocagesDus(st, { chaine: CH ? CH.etat(st).b.length : 0 });
     let change = '';
     for (const id of dus) if (SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    // le bandeau de mise à jour (.maj) occupe le haut de la scène : les annonces du haut et de la scène l'attendent, puis, s'il reste là
+    // (il ne part qu'en rechargeant), leur bouton s'ouvre en silence ; les autres annonces passent normalement
+    const maj = !!$('.maj'), t = performance.now();
+    if (maj) for (const id of dus) {
+      if (!SOUS_MAJ.has(id) || G.accueilOuvert(st, id)) continue;
+      if (!(id in dusSousMaj)) dusSousMaj[id] = t;
+      else if (t - dusSousMaj[id] > MAJ_ATTENTE()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    }
     if (change) save();
-    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id)) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
+    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id) || (maj && SOUS_MAJ.has(id))) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
     majAccueil();
   }
   function montrerAnnonce(id, c) {
@@ -2921,7 +2936,7 @@ const UI = (() => {
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     { const db = $('#debutant'); if (db) db.addEventListener('click', () => { audio(); son.tap(); sheetDebutant(); }); } // l'accueil : la carte « Ton premier jour »
-    { const ps = $('#indice .passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
+    { const ps = $('#b-passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
     document.addEventListener('pointerdown', () => { if (annonceId && performance.now() - annonceDebut > 800) finAnnonce(); }, true); // l'annonce s'efface au premier toucher (le geste passe)
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés

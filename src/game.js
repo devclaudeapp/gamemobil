@@ -1018,9 +1018,19 @@
     try { for (const id of dusDe(s, a, {})) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
     return a;
   }
-  function accueil(st) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet
-    let a = st.accueil;
-    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, st.now);
+  function accueil(st, now) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet ; now : l'heure (st.now par défaut)
+    let a = st.accueil; if (now == null) now = st.now;
+    const ent = (x, max) => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= max;
+    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, now);
+    else if (!(a.t === 0 || a.t === 1) || !ent(a.o, ACCUEIL.TOUTES) || !ent(a.d, 0x7fffffff)) { // abîmé ({}, { o: 'x' }…) : en cas de doute, comme une
+      // sauvegarde d'avant l'accueil (une partie avancée repart tout ouverte) ; ce qui reste lisible est gardé (bits faits, ouverts, récompense)
+      const b = accueilAncien(st, now);
+      if (a.t === 1) Object.assign(b, { o: ACCUEIL.TOUTES, r: 1, d: ACCUEIL.TOUS, t: 1 });
+      if (ent(a.o, ACCUEIL.TOUTES)) b.o |= a.o;
+      if (ent(a.d, 0x7fffffff)) b.d |= a.d;
+      if (a.r) b.r = 1;
+      a = st.accueil = b;
+    }
     a.v = 1;
     const o = Math.floor(Number(a.o)); a.o = o >= 0 && o <= ACCUEIL.TOUTES ? o : 0;
     a.r = a.r ? 1 : 0;

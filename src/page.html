@@ -5,6 +5,7 @@
     <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
   <div class="haut-btns">
+    <button id="b-passer" class="pastille passer" type="button" data-a="passer-tuto" aria-label="Passer le guidage" hidden>Passer</button>
     <button id="b-classement" class="pastille classement" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
@@ -60,7 +61,7 @@
   <button type="button" data-page="journal"><i class="ico" data-ico="journal"></i><span>Journal</span><i class="badge" hidden></i></button>
   <button type="button" data-page="reglages"><i class="ico" data-ico="reglages"></i><span>Réglages</span><i class="badge" hidden></i></button>
 </nav>
-<div id="indice" hidden><button type="button" class="passer" data-a="passer-tuto" hidden>Passer</button><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="annonce-accueil" role="status" aria-live="polite" hidden><div class="bulle"><span class="aa-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="atelier" role="dialog" aria-modal="true" aria-labelledby="at-titre" hidden>
   <div class="at-haut">

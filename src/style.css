@@ -349,8 +349,9 @@ button.staff-ok::after { content: ""; position: absolute; left: 0; right: 0; top
 #indice.haut .main, #annonce-accueil.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
 /* l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Passer » (le seul élément touchable de la bulle, du côté opposé à la cible),
    l'annonce d'un déblocage (même gabarit, violet), la carte « Ton premier jour », la pulsation d'un bouton qui apparaît */
-#indice .passer { pointer-events: auto; align-self: flex-end; min-width: 72px; min-height: 36px; padding: 0 16px; border-radius: 999px; background: rgba(255, 255, 255, .96); color: var(--texte); font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--gris-sombre), 0 4px 12px var(--ombre); }
-#indice .passer:active { transform: translateY(2px); }
+/* « Passer » (l’accueil, premiers pas) : dans l’en-tête, à droite, loin des cartes et des onglets (les pastilles du haut sont encore cachées) */
+.pastille.passer { padding: 0 16px; font: 700 15px/1 var(--titre); }
+.pastille.passer[hidden] { display: none; }
 #annonce-accueil .bulle { background: #5E4BB6; box-shadow: 0 6px 18px rgba(94, 75, 182, .4); }
 #onglets.reduit { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
 .barre-achat.vide { display: none; }
