@@ -589,6 +589,8 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
   · Résultats : `test/fournil-marche.test.js` (91 vérifications : quotidien 14, assidu 16, très actif 20 le 8e jour sur 8 graines ; marathon
     ×2,20 au plus juste sous la table), `test/fournil-saison.test.js` (quotidien finie le 28, occasionnel 4 j/7 10/22 avec les récompenses
     versées — 13/22 sans elles, comme l'outil —, très actif le 24 ; longévité : aucun effet notable), PGlite 1 588 vérifications.
+  · Sur cette branche seule, `test/fournil-vignettes.test.js` (ligne Node du déploiement) échoue : les 13 pièces et l'écureuil ajoutés à
+    `src/game.js` n'ont pas encore leur vignette (constructeur C, `outils/vignettes/cuire.cjs`, § 6) ; tout le reste de la ligne est vert.
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
