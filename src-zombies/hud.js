@@ -93,6 +93,7 @@ const ZHUD = (() => {
         <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       </div>
+      <div class="h-trouve" hidden></div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
@@ -214,10 +215,11 @@ const ZHUD = (() => {
     if (infoT > 0) { infoT -= dt; if (infoT <= 0) el.info.hidden = true; }
     // les armes
     for (let i = 0; i < 2; i++) {
-      const s = j.armes[i], b = el.slots[i], cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}` : 'vide';
+      const s = j.armes[i], b = el.slots[i], fin = s && j.finitions ? j.finitions[s.id] : null, img = s && A.portraitArme ? A.portraitArme(s.id, fin) : null;
+      const cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}|${img ? 1 : 0}` : 'vide';
       if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
       b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
-      b.innerHTML = s ? `${iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
+      b.innerHTML = s ? `${img ? `<img class="h-slot-img" alt="" src="${img}">` : iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
@@ -235,7 +237,7 @@ const ZHUD = (() => {
       if (e.t === 'blesse' && e.id === idMoi) rougeur = Math.min(1, rougeur + 0.35 + e.degats / 60);
       else if (e.t === 'vague') annonce(`VAGUE ${e.n}`, e.boss ? `${D.ZOMBIES[e.boss] ? D.ZOMBIES[e.boss].nom : 'Un boss'} arrive !` : `${e.total} zombies`, 2.4);
       else if (e.t === 'vagueFinie') annonce('VAGUE TERMINÉE', `+${e.prime} points · construis, améliore`, 2.4);
-      else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet') toast(`${D.ARMES[e.arme].nom} !`);
+      else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet' && !e.trouvee) toast(`${D.ARMES[e.arme].nom} !`); // (trouvée : sa carte le dit déjà)
       else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');
       else if (e.t === 'serie' && e.mult >= 3) el.serie.classList.remove('pulse'), void el.serie.offsetWidth, el.serie.classList.add('pulse');
       else if (e.t === 'casse') toast(`${D.DEFENSES[e.type].nom} détruite`);
@@ -297,6 +299,7 @@ const ZHUD = (() => {
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
         else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'ferraille' && e.x != null) voler(e.x, e.z);
+        else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'caisse' && e.arme) carteArme(e.arme, j.finitions ? j.finitions[e.arme] : null);
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
       for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
@@ -320,12 +323,21 @@ const ZHUD = (() => {
     d.anim = d.animate([{ transform: `translate(${de[0]}px, ${de[1]}px) scale(.6)`, opacity: 1 }, { transform: `translate(${(de[0] + ax) / 2}px, ${Math.min(de[1], ay) - 40}px) scale(1.15)`, opacity: 1, offset: 0.45 }, { transform: `translate(${ax}px, ${ay}px) scale(.7)`, opacity: .9 }], { duration: 560, easing: 'cubic-bezier(.4,0,.7,1)' });
     d.anim.onfinish = () => { d.hidden = true; const f = el.fer.parentElement; f.classList.remove('pulse'); void f.offsetWidth; f.classList.add('pulse'); };
   }
+  // une caisse ouverte : la carte de l'arme trouvée (son portrait, son nom, sa rareté), un instant au milieu de l'écran
+  const RARS = { commune: 'Commune', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
+  function carteArme(id, fin) {
+    const Ar = D.ARMES[id], c = R.querySelector('.h-trouve'); if (!Ar || !c) return;
+    if (annonceT > 0 && !el.annonce.hidden) { setTimeout(() => carteArme(id, fin), annonceT * 1000 + 80); return; } // (une annonce au milieu : la carte attend qu'elle finisse)
+    const rar = D.RARETE(Ar), img = A.portraitArme ? A.portraitArme(id, fin) : null;
+    c.className = `h-trouve rar-${rar}`; c.innerHTML = `${img ? `<img alt="" src="${img}">` : iconeArme(id)}<span><small>ARME TROUVÉE · ${RARS[rar].toUpperCase()}</small><b>${Ar.nom}</b></span>`;
+    c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 1900);
+  }
   function chiffre(x, y, z, texte, classe) {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
     c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;
     c.d.textContent = texte; c.d.className = 'num' + (classe ? ' ' + classe : ''); c.d.hidden = false;
     nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
-  function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
+  function reinit() { const tr = R && R.querySelector('.h-trouve'); if (tr) tr.hidden = true; for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
   return { init, maj, annonce, toast, flash, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, iconeArme, get atelierOuvert() { return ouvert; } };
 })();
