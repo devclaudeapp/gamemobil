@@ -17,6 +17,17 @@ check(eq(neuf().accueil, { v: 1, o: 0, r: 0, d: 0, t: 0 }), 'newState : accueil 
 { const s = neuf(); s.accueil = { o: 'x', d: -3, r: 'oui', t: 0 }; const a = G.accueil(s); check(eq(a, { o: 0, d: 0, r: 1, t: 0, v: 1 }) || (a.o === 0 && a.d === 0 && a.r === 1 && a.t === 0 && a.v === 1), 'accueil(st) répare { o: "x", d: -3 } : o 0, d 0'); }
 { const s = neuf(); s.accueil = { v: 1, o: 999, r: 0, d: 1 << 20, t: 0 }; const a = G.accueil(s); check(a.o === 0 && a.d === (1 << 20), 'o hors bornes → 0 ; un bit inconnu (version future) gardé'); }
 
+// un accueil abîmé sur une partie avancée : en cas de doute, comme une sauvegarde d'avant l'accueil (tout ouvert, sans carte ni annonce)
+const avancee = () => { const s = G.newState(T0 - 90 * 864e5); Object.assign(s, { tuto: 7, boutiques: 35, lifetime: 1e20, etoiles: 1e6, now: T0 }); return s; };
+for (const [nom, abime] of [['{}', {}], ['{ o: "x", d: -3 }', { o: 'x', d: -3 }], ['{ t: 2 }', { v: 1, o: 0, r: 0, d: 0, t: 2 }], ['{ t: "0" }', { v: 1, o: 5, r: 0, d: 3, t: '0' }], ['{ o: 1.5 }', { v: 1, o: 1.5, r: 0, d: 0, t: 0 }]]) {
+  const s = avancee(); s.accueil = abime; const a = G.accueil(s);
+  check(a.t === 1 && a.r === 1 && a.o === A.TOUTES && a.d === A.TOUS && G.deblocagesDus(s).length === 0, `partie avancée, accueil ${nom} → t 1, tout ouvert, rien de dû`);
+}
+{ const s = avancee(); s.accueil = { v: 1, o: 0, r: 0, d: 0, t: 0 }; check(G.accueil(s).t === 0, 'un accueil valide (t 0) n’est pas touché, même sur une partie avancée'); }
+{ const s = neuf(); s.accueil = { o: 'x', d: 1 << 3, r: 1, t: 0 }; const a = G.accueil(s); check(a.t === 0 && a.r === 1 && a.d === (1 << 3), 'partie neuve, accueil abîmé : t 0, la récompense et les bits lisibles gardés'); }
+{ const s = neuf(); s.accueil = { o: 'x', t: 1 }; const a = G.accueil(s); check(a.t === 1 && a.d === A.TOUS, 'abîmé mais t 1 : reste tout ouvert'); }
+{ const s = avancee(); delete s.now; s.accueil = {}; check(G.accueil(s, T0).t === 1, 'accueil(st, now) : l’heure donnée sert (lire passe l’horloge)'); }
+
 console.log('── 2. vieilles sauvegardes ──');
 const ancien = (f) => { const s = neuf(); f(s); delete s.accueil; return G.accueilAncien(s, T0 + 600e3); };
 { const a = ancien((s) => { s.tuto = 7; }); check(a.t === 1 && a.r === 1 && a.o === 127 && a.d === A.TOUS, 'tuto 7 → t 1, r 1, o 127, d TOUS'); }

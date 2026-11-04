@@ -113,9 +113,11 @@ Les premiers pas n'ont **pas** de champ à eux : ils restent `st.tuto` (index da
 ### 2.1 newState et réparation
 
 - `GAME.newState` : `accueil: accueilNeuf()` (= `{ v: 1, o: 0, r: 0, d: 0, t: 0 }`).
-- `GAME.accueil(st)` remet d'aplomb et rend l'objet (comme `garderobe(st)`) : pas un objet → `accueilAncien(st, st.now)` ; sinon
-  `v = 1`, `o = entier 0..127` (sinon 0), `r = r ? 1 : 0`, `d = entier ≥ 0` (sinon 0), `t = t ? 1 : 0`. Appelée par toutes les
-  fonctions de l'accueil (jamais d'exception sur une sauvegarde abîmée).
+- `GAME.accueil(st, now = st.now)` remet d'aplomb et rend l'objet (comme `garderobe(st)`) : pas un objet → `accueilAncien(st, now)` ;
+  **un objet abîmé** (`t` autre que 0 ou 1, `o` pas un entier 0..127, `d` pas un entier ≥ 0 : `{}`, `{ o: 'x', d: -3 }`…) →
+  `accueilAncien(st, now)` aussi (en cas de doute, tout ouvert : une partie avancée repart `t: 1`), en gardant ce qui reste lisible
+  (`o` et `d` valides en OU, `r` posé, `t: 1`) ; sinon `v = 1`, `r = r ? 1 : 0`. `lire` passe l'horloge (`HORLOGE.maintenant()`).
+  Appelée par toutes les fonctions de l'accueil (jamais d'exception sur une sauvegarde abîmée).
 
 ### 2.2 Vieilles sauvegardes (règle « un joueur existant ne perd jamais rien »)
 
@@ -157,9 +159,9 @@ Les textes « pret » des étapes 0 à 3 gardent les mots que `play.cjs` attend 
 « Léo ») : même allumé, le parcours de `play.cjs` reste lisible. Les montants entre accolades sont formatés par `G.fmtEur`.
 
 - **Une étape à la fois** : c'est déjà la règle de `indices()` (une seule entrée `INDICES[st.tuto]`).
-- **Passer** : `<button type="button" class="passer" data-a="passer-tuto">Passer</button>` dans `#indice` (sous la bulle), seul
-  élément cliquable de `#indice` (`#indice .passer { pointer-events: auto }`), cible tactile ≥ 44 × 32 px, montré seulement accueil
-  actif et `st.tuto <= 3`. Toucher : `st.tuto = 5`, `hintStep = -1`, bulle cachée, `save()`. La carte du premier jour et les
+- **Passer** : `<button id="b-passer" class="pastille passer" data-a="passer-tuto">Passer</button>` dans l'en-tête (`.haut-btns`,
+  voir « Après la relecture » en fin de contrat ; d'abord prévu dans `#indice`, sous la bulle), cible tactile ≥ 44 × 32 px, montré
+  seulement accueil actif et `st.tuto <= 3`. Toucher : `st.tuto = 5`, `hintStep = -1`, bulle cachée, `save()`. La carte du premier jour et les
   déblocages continuent normalement (on saute le guidage, pas le jeu).
 - **Reprise après rechargement** : `st.tuto` est sauvé à chaque étape franchie (déjà : `save()` dans `indices()`) et chaque `fini()`
   se lit dans l'état : on reprend à l'étape en cours ; `hintDefile` repart à -1 (la liste redéfile une fois vers la cible).
@@ -294,7 +296,9 @@ Les seuils sont monotones (`lifetime` ne baisse jamais ; `stations`, `ameliorati
   `ECART` ms depuis la fin de la précédente** (`ECART = window.__accueilEcart || 20000` ; 3 000 ms pour la toute première après les
   premiers pas), `feuille.hidden`, `!document.hidden`, aucun écran (`MINIJEUX.ouvert`, `EVS.ouvert`, `AR.ouvert`, `CE.ouvert`,
   `visite`, `chaineVue`, `TC.ouvert`, `SCENE.amenager`), `!retourEnCours`, aucune annonce existante en vol (`annonceOuverte`,
-  `lundiOuvert`, `copainsOuvert`, `progMinuteur` en attente), pas de bandeau `.maj`.
+  `lundiOuvert`, `copainsOuvert`, `progMinuteur` en attente), pas d'annonce d'événement en vol (`evVol`). Le bandeau `.maj` ne
+  retient que les annonces du haut et de la scène (`etoiles`, `classement`, `atelier`, `chaine`, `casino` : leur bulle irait sous lui) ;
+  s'il reste là (il ne part qu'en rechargeant), elles s'ouvrent en silence après 30 s (`window.__accueilMajAttente`).
 - On prend la **première** annonce due dont la cible peut se montrer (élément dans l'écran, pas sous le tiroir ni sous les onglets,
   page Boutique pour les cibles du tiroir — on peut afficher la page Boutique mais jamais forcer le tiroir ; une zone de la scène doit
   être au-dessus du tiroir). Une cible qui ne peut pas se montrer attend sans bloquer les suivantes.
@@ -308,7 +312,7 @@ Les seuils sont monotones (`lifetime` ne baisse jamais ; `stations`, `ameliorati
   en silence ; seuls les nouveaux seuils s'annoncent.
 - Annonce de l'événement (`evenements`) : les deux appels existants à `EVS.annoncer` (au lancement et toutes les 20 s) ne partent que
   si `ouvertA('evenements')` ; quand le bit se pose et qu'un événement est ouvert, `EVS.annoncer(true)` une fois (sa feuille), c'est
-  tout. L'icône du coin suit `majCoinQuartier()` (`&& ouvertA('evenements')`).
+  tout : aucune bulle ne part au même pas, et si une bulle est déjà là, la feuille de l'événement attend sa fin. L'icône du coin suit `majCoinQuartier()` (`&& ouvertA('evenements')`).
 
 ---
 
@@ -481,3 +485,16 @@ E. **360 × 640** : partie neuve : bulle et « Passer » entièrement dans l'éc
 - Deux tests existants modifiés, au minimum : `test/fournil-progression.cjs` cherche sa nouveauté par son id (`2026-11-03-a`) au lieu
   de la première de la liste ; `test/fournil-equipe3d.cjs` compte 46 pièces de garde-robe (44 + la tenue d'apprenti).
 - La tâche CI `fournil12` utilise le port 8897 (8891 est pris par `fournil-decos`).
+
+### Après la relecture (4 nov.)
+
+- **« Passer » est dans l'en-tête** (`#b-passer`, une pastille à droite de `.haut-btns`), plus dans `#indice` : sous la bulle, il
+  couvrait des boutons (« Débloquer » des croissants, « Embaucher », « Améliorer », l'onglet Réglages) et une touche manquée sautait
+  tout le guidage. Pendant les premiers pas, les pastilles du haut sont encore cachées : il n'y couvre rien. Visible accueil actif,
+  `st.tuto <= 3`, sans feuille ni écran ouverts. Test : `elementsFromPoint` sous « Passer » à chaque étape, 390 × 844 et 360 × 640.
+- **Le bandeau `.maj` ne bloque plus les déblocages** (§ 5.1) : les annonces du bas passent, celles du haut et de la scène s'ouvrent
+  en silence après 30 s de bandeau. Test : section F de `test/fournil-accueil.cjs`.
+- **Un accueil abîmé sur une sauvegarde** (§ 2.1) est traité comme une sauvegarde d'avant l'accueil. Tests : `fournil-accueil.test.js`
+  § 1 et la section C (boutique n°35, `accueil: {}` et `{ o: 'x', d: -3 }`).
+- **L'annonce d'un événement** (§ 5.1) n'efface plus une bulle de l'accueil. Test : section G (la Maison hantée ouverte, sans
+  `__sansEvenements`).
