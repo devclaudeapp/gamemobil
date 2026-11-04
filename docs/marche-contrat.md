@@ -589,6 +589,30 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
   · Résultats : `test/fournil-marche.test.js` (91 vérifications : quotidien 14, assidu 16, très actif 20 le 8e jour sur 8 graines ; marathon
     ×2,20 au plus juste sous la table), `test/fournil-saison.test.js` (quotidien finie le 28, occasionnel 4 j/7 10/22 avec les récompenses
     versées — 13/22 sans elles, comme l'outil —, très actif le 24 ; longévité : aucun effet notable), PGlite 1 588 vérifications.
+- 4 nov., constructeur B (écran) :
+  · **`.mc` était déjà pris** (la petite carte à jouer du casino, `src/arriere.js` : `display: inline-flex`) : les feuilles du Marché
+    portent `pq-sheet ht mch` et l'écran `#marche` la classe `mch` (les ids restent `mc-…`, les touches d'automne `.mc-guirlande`, `.mc-f`,
+    `.mc-tombe`). Le constructeur C ne doit pas styler `.mc` seul ; la boutique de la Halle peut poser `.mc-boutique` **ou** `.ht-boutique`
+    sur `#marche` : les règles `:is(#hantee, #marche):is(.ht-boutique, .mc-boutique)` couvrent les deux.
+  · `ficheBoutique(R, T)` : T est l'habillage (`HABILLAGE_HANTEE`, `HABILLAGE_MARCHE` dans `src/evenement.js`) ; la Maison hantée rend
+    exactement les mêmes textes qu'avant (ses tests passent sans changement). Le repli du Marché sans sa boutique (`?boutique=0`, pas de
+    WebGL, ou l'amorce de C) n'est **pas** le Manoir d'Halloween : pas de 3D, le fond de la scène et le repli en DOM des activités.
+  · Les icônes du Marché : `ICONS.MARCHE` (C) ; en attendant, un petit jeu de repli dessiné dans `src/evenement.js` (feuille d'érable,
+    noisette de la fiche, panier, châtaigne, champignon, la Halle) ; `ICONS.UI.marche` (le coin) et `ICONS.UI.piste` (la carte) : une feuille
+    dessinée par défaut. Le prix en noisettes : `#marche .bb` (la noisette au lieu du bonbon).
+  · `src/hanteeactivites.js` lit la boutique (`F.scene3`), les icônes (`F.ico.jeu`), le compagnon de la collection (`F.compagnon` :
+    l'écureuil, sa clé `ecureuil`) et les ids (`#${F.p}-…`) sur la fiche ; alias `EVT_ACTIVITES`.
+  · La saison à l'écran suit l'API réelle de `src/saison.js` (A) : le titre se reçoit comme le 23e cran (« Recevoir le titre » dans la
+    feuille, la pastille de la carte), les lots par `SAISONS.verser`, « D'où vient l'XP » par `restes`, la fin par `finDue` (versée une
+    fois, puis `recevoirFin`, puis la feuille dans la file `tenterAnnonces`). L'annonce de la saison vue : `st.pisteAnnonce` (l'id de la
+    saison), hors de `st.piste`.
+  · Le classement à cinq onglets (du 13 au 16 nov. : Semaine · Tous · Halloween · Marché · Chat) : une règle `.segments` pour cinq
+    (13 px, chacun à sa largeur), sans débordement à 390 et 360 px.
+  · Nouveautés : `2026-11-12-a` (la mise en ligne au plus tard le 12 au soir ; « du vendredi 13 novembre à midi… »).
+  · CI : `fournil-marche.cjs` et `fournil-saison.cjs` dans `fournil2` (8884, 8885 ; sa limite passe à 40 min), `fournil-marche-activites.cjs`
+    dans `fournil13` (8886), dans les `needs` du déploiement. `fournil-marche-activites.cjs` ne passe en haute et en éco qu'avec la boutique
+    de la Halle (C) : avant elle, seul `QUALITES=` (le repli en DOM) est vert. `fournil-marche-boutique.cjs` (C) n'existe pas encore : sa
+    ligne est à ajouter à côté de celle de `fournil-hantee-boutique.cjs` (qui n'est dans aucune tâche de `pages.yml` aujourd'hui).
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
