@@ -68,7 +68,7 @@
   }
   const possede = (st, id) => { const p = st && st.piste; if (!p) return false; for (const [sid, x] of Object.entries(Object.assign({}, p.passees, p.id ? { [p.id]: null } : {}))) { const f = fiche(sid); if (!f) continue; for (const c of f.crans) { if (c.deco !== id && c.trophee !== id) continue; if (x ? x.crans >= c.n : (p.recus & (1 << (c.n - 1)))) return true; } } return false; };
   function pas(st, now, ctx) {
-    const f = active(now); if (!f) { if (st && st.piste && st.piste.id) { const r = fin(st, now); if (r) st.piste.finie = r; } return 0; }
+    const f = active(now); if (!f) return 0; // (après la fin : l'écran appelle fin(), qui donne les crans dus et archive)
     const p = etat(st, now); if (!p) return 0;
     const d = dayKey(now), av = p.xp;
     const jr = st.jour && st.jour.date === d ? st.jour : null;
