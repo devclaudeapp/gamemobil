@@ -62,7 +62,7 @@ jobs:
   fournil2:
     name: Le Fournil, événements (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,13 +74,15 @@ jobs:
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       # test/fournil-quartier.cjs (l'écran de la Planque) : écarté avec la Planque le 27 oct., à remettre à son retour (QUARTIER.ECARTE, src/quartier.js) ;
       # ses règles (fournil-quartier.test.js, Node) restent testées
-      - name: Les règles du Quartier, la Maison hantée (son annonce et sa vidéo)
+      - name: Les règles du Quartier, la Maison hantée (son annonce et sa vidéo), le Marché d'automne et la saison d'automne (leurs écrans)
         run: |
           node build.js
           node test/fournil-quartier.test.js
           node test/fournil-hantee.test.js
           node test/fournil-hantee.cjs
           node test/fournil-hantee-annonce.cjs
+          node test/fournil-marche.cjs
+          node test/fournil-saison.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -93,6 +95,8 @@ jobs:
           PORT_MEUBLES: '8870'
           PORT_HANTEE_ACTIVITES: '8881'
           PORT_HANTEE_ANNONCE: '8883'
+          PORT_MARCHE: '8884'
+          PORT_SAISON: '8885'
   # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
   # les recettes de boutique et le parcours du boulanger.
   fournil6:
@@ -297,6 +301,29 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_HANTEE_ACTIVITES: '8881'
+  # Les activités du Marché d'automne (test/fournil-hantee-activites.cjs calqué geste pour geste sur la Halle : le tiroir du Manoir, la jauge,
+  # les clients, les apparitions, la commande, l'album ; en haute puis en éco, puis le repli en DOM) : ~30 minutes, seules (comme fournil9).
+  fournil13:
+    name: Le Fournil, les activités de la Halle (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les activités du Marché d'automne
+        run: |
+          node build.js
+          node test/fournil-marche-activites.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_MARCHE_ACTIVITES: '8886'
   # L'accueil des nouveaux joueurs (docs/accueil-contrat.md) : les premiers pas guidés, la carte « Ton premier jour » et sa récompense, les
   # déblocages et leurs annonces, une vieille sauvegarde qui garde tout, l'interrupteur, le 360 × 640 (seul : fournil4 est près de sa limite)
   fournil12:
@@ -404,7 +431,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/pglite" --no-save --no-package-lock --no-audit --no-fund @electric-sql/pglite@0.5.8
           node test/zombies-defi-sql.cjs "$RUNNER_TEMP/pglite"
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, fournil12, zombies]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, fournil12, fournil13, zombies]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
