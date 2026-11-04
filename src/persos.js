@@ -110,7 +110,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // toujours 8 appels de dessin au plus.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
-    const gd = o.garde || null, pieceG = (p) => (gd && gd[p] ? gd[p] : null), metalDe = (p) => { const x = pieceG(p); return x && x.metal && TENUES[x.metal] ? TENUES[x.metal] : null; };
+    const gd = o.garde || null, pieceG = (p) => (gd && gd[p] ? gd[p] : null), metalDe = (p) => { const x = pieceG(p), t = x && x.metal ? TENUES[x.metal] : null; return t ? (t.formes && t.formes[x.forme]) || t : null; }; // (formes : la palette d'une forme de la collection, quand elle a la sienne : src/garderobe.js)
     const tnL = o.tenue && o.tenue.tissu ? o.tenue : null; // l'ancienne option : toque et tablier au même métal
     const tnT = metalDe('tete') || tnL, tnH = metalDe('haut') || tnL, tnP = metalDe('pieds'), tnA = metalDe('accessoire');
     const casquette = !!pieceG('tete') && pieceG('tete').forme === 'casquette', sweat = !!pieceG('haut') && pieceG('haut').forme === 'sweat', pieds = pieceG('pieds'), acc = pieceG('accessoire');
@@ -337,7 +337,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (forme === 'baskets') { const c = tn || TENUES.quartier; return [M.part(M.boiteSimple(7.8, 1.5, 10.4), BLANC, { y: -17.5, z: 1.6 }), M.part(M.boite(7, 3.8, 9.4, 1.3), c.tissu, { y: -16.1, z: 1.4 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: -3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: 3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 3.4 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 4.8 })]; }
     if (forme === 'bottes' && tn && tn.pluie) return [M.part(M.boite(7.4, 4.6, 10.2, 2.2), tn.tissu, { y: -17.5, z: 1.8 }), M.part(M.boiteSimple(7.6, 1, 10.4), tn.fonce, { y: -17.5, z: 1.8 }), M.part(M.cylindre(4, 3.8, 9, 10), tn.tissu, { y: -15.4 }), M.part(M.cylindre(4.3, 4.3, 1.4, 10), tn.fonce, { y: -7.2 }), M.part(M.sphere(0.9, 6), tn.clair, { x: -3.6, y: -10, z: 1.6 })]; // les bottes de pluie du Marché : le bout rond, la tige droite, le revers
     if (forme === 'bottes') { const c = tn || TENUES.hantee; return [M.part(M.boite(7.2, 4.6, 9.6, 1.6), c.tissu, { y: -17.5, z: 1.6 }), M.part(M.cone(2.6, 4.6, 8), c.tissu, { y: -15.4, z: 6.4, rx: 1.15 }), M.part(M.sphere(1.1, 6), c.fonce, { y: -12.9, z: 8.6 }), M.part(M.cylindre(3.9, 3.6, 7, 10), c.tissu, { y: -14.5 }), M.part(M.cylindre(4.2, 4.2, 1.6, 10), c.fonce, { y: -8.6 }), M.part(M.boite(2.4, 2, 0.8, 0.3), c.bijou || OR, { y: -12.8, z: 3.8 })]; } // les bottes de sorcière : bout pointu relevé, tige, revers orange, boucle
-    if (tn) return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), tn.tissu, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), tn.fonce, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(5, 0.8, 1.2), tn.fonce, { y: -14.2, z: 3.2 })];
+    if (tn) return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), tn.tissu, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), tn.fonce, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(5, 0.8, 1.2), tn.lacet || tn.fonce, { y: -14.2, z: 3.2 })]; // (lacet : les bottines d'automne, aux lacets rouges)
     return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), '#C8864F', { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), '#8B5A3C', { y: -17.5, z: 1.4 })]; // les sabots
   }
   function boulanger(rang, tenue) {
