@@ -1088,7 +1088,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     return D;
   }
   function decoLanterneAutomne() { // la lanterne d'automne : le socle et le toit de cuivre, quatre montants, la bougie qui luit derrière le verre ambré, des feuilles et deux glands au pied
-    const D = nouvelle('lanterne-automne'), pr = D.fixe, cu = '#B87333', lp = [];
+    const D = nouvelle('lanterne-automne', { sx: 0.9, sy: 0.9, sz: 0.9 }), pr = D.fixe, cu = '#B87333', lp = []; // (un peu plus petite que nature : elle tient dans sa place du comptoir)
     pr.push(P(bo(12, 1.6, 12, 0.5), cu), P(bo(11, 1.2, 11, 0.4), cu, { y: 15 }), P(M.cone(8.2, 5, 4), cu, { y: 16.2, ry: Math.PI / 4 }), P(M.tore(1.6, 0.45, TAU, 4, 8), cu, { y: 22.4 }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.boiteSimple(1.1, 13.6, 1.1), M.assombrir(cu, 0.2), { x: sx * 4.9, y: 1.4, z: sz * 4.9 }));
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
