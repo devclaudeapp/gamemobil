@@ -3,7 +3,11 @@ Dernier Rempart — la 3D
 Modèles 3D (zombies/modeles/, préparés par outils/zombies/faire-modeles.mjs, lus par src-zombies/modeles.js) — tous en CC0 (domaine public) :
 - kenney/ : Kenney (www.kenney.nl) — Graveyard Kit (le zombie de la horde, le fossoyeur qui sert de survivant), Tower Defense Kit (la tourelle,
   le canon qui sert de mortier), Car Kit (les voitures du Parking). Licences : kenney/LICENCE-*.txt.
-- armes/ : Kenney (www.kenney.nl) — Blaster Kit (les 24 armes se partagent ses 18 blasters, recolorés). Licence : armes/LICENCE-blaster-kit.txt.
+- armes/reel-*.glb : Quaternius (quaternius.com) — Ultimate Gun Pack (les 12 vraies armes : pistolets, revolver, mitraillettes, fusils à
+  pompe, d'assaut, de précision), converties par outils/zombies/faire-armes-reelles.mjs. Licence : armes/LICENCE-ultimate-gun-pack.txt.
+  Le minigun, le lance-roquettes, le lance-grenades, le lance-flammes et l'arbalète sont faits par le code (src-zombies/modeles.js), dans ce style.
+- armes/blaster-*.glb : Kenney (www.kenney.nl) — Blaster Kit (les armes d'énergie et les plus étranges : laser, plasma, Tesla, cryo, acide,
+  scies, cloueuse ; et le repli si une vraie arme manque). Licence : armes/LICENCE-blaster-kit.txt.
 - persos/ : Kenney (www.kenney.nl) — Blocky Characters (les survivants à collectionner : un modèle, 18 textures réduites). Licence : persos/LICENCE-blocky-characters.txt.
 - kaykit/ : KayKit de Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons (le Golem squelette), Mystery Monthly Series 4 (le
   loup-garou) et 5 (le Golem de glace, le vampire), Character Animations (les clips des boss). Licences : kaykit/LICENCE-kaykit-*.txt.
