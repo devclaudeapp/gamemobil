@@ -1,0 +1,11 @@
+── le rythme des paliers (8 graines par profil ; 157 s) ──
+  occasionnel  17 min/j : plus haut palier 10 en médiane (10 à 10 : 10, 10, 10, 10, 10, 10, 10, 10) · le 12e : jour —/—/—/—/—/—/—/— · le 20e : —/—/—/—/—/—/—/— · par jour (graine 1) 1 1 2 2 2 1 1 0 · 165 Bn noisettes
+  quotidien    60 min/j : plus haut palier 14 en médiane (14 à 14 : 14, 14, 14, 14, 14, 14, 14, 14) · le 12e : jour 5/5/5/5/5/5/5/5 · le 20e : —/—/—/—/—/—/—/— · par jour (graine 1) 3 3 3 2 2 1 0 0 · 2,2 Bd noisettes
+  assidu      120 min/j : plus haut palier 16 en médiane (16 à 17 : 17, 17, 16, 17, 16, 16, 16, 16) · le 12e : jour 4/4/4/4/4/4/4/4 · le 20e : —/—/—/—/—/—/—/— · par jour (graine 1) 3 3 3 3 2 2 0 1 · 5,4 Bd noisettes
+  tresactif   480 min/j : plus haut palier 20 en médiane (20 à 20 : 20, 20, 20, 20, 20, 20, 20, 20) · le 12e : jour 4/4/4/4/4/4/4/4 · le 20e : 8/8/8/8/8/8/8/8 · par jour (graine 1) 3 3 3 3 2 2 2 2 · 96,3 Bd noisettes
+── l'enveloppe du serveur : la ligne 'marche' de fournil_evts(), un pas de 6 h, 31 valeurs ──
+  {11.65,16,16,16.3,16.5,16.65,16.75,16.85,16.95,17,17.05,17.1,17.15,17.2,17.2,17.3,17.35,17.4,17.5,17.55,17.65,17.75,17.8,17.85,17.95,18,18.05,18.1,18.15,18.15,18.2}
+  croissante : true · marathon le plus haut à la fin : 662 Bd noisettes (log10 17.82)
+  marge sur les 24 marathons du réglage : ×2.20 au plus juste (graine 7, Astuces offertes, 174.0 h), ×12.4 au plus large après 7 h 15
+  marge sur 24 marathons qu'elle n'a pas vus : ×2.21 au plus juste (graine 212, Astuces offertes, 174.1 h), ×13.1 au plus large après 7 h 15
+(157 s en tout)

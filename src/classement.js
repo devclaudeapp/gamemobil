@@ -184,9 +184,10 @@
     return EVTS.filter((id) => rec.evenements[id] && recompenseEvt(rec.evenements[id].rang) && !(rec.evtPayes || []).includes(id))
       .map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang) }));
   }
-  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 »
+  const deNom = (n) => (/^le /.test(n) ? 'du ' + n.slice(3) : /^les /.test(n) ? 'des ' + n.slice(4) : 'de ' + n); // « de la Maison hantée », « du Marché d’automne »
+  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 », « Tu as fini 7e du Marché d’automne sur 12 »
     if (!p || !rangOk(p.rang) || !NOMS_EVT[p.id]) return '';
-    return `Tu as fini ${rangTexte(p.rang)} de ${NOMS_EVT[p.id]}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
+    return `Tu as fini ${rangTexte(p.rang)} ${deNom(NOMS_EVT[p.id])}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
   }
   // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
   const TITRES = { 'legende-manoir': 'Légende du Manoir' };

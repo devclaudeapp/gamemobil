@@ -6,12 +6,13 @@
 //     achetées et offertes dès le 12e (le pire cas), sur les graines GRAINES_ENV, minute par minute ; la table (un pas de 6 h, log10)
 //     = max(marathon) × 2,2 arrondi au 0,05 supérieur, croissante, relevée là où l'interpolation passerait sous la marge ; puis vérifiée
 //     sur GRAINES_CTRL, des graines qu'elle n'a pas vues (au moins ×2), et la marge la plus large après les sept premières heures (≤ ×20).
-// Une simulation par cœur (worker_threads). Lancer : TZ=Europe/Paris node outils/marche/rythme.js [--vite] [--json fichier]
+// Une simulation par cœur (worker_threads). Lancer : TZ=Europe/Paris node outils/marche/rythme.js [--vite] [--reel] [--json fichier]
+// --reel : sur src/marche.js (les vraies règles) au lieu du prototype ; résultats : outils/marche/rythme-reel-resultats.* ; --table "{…}" : les marges d une table donnée (celle du SQL).
 // --vite : 3 graines par profil et 4 + 4 pour l'enveloppe (réglage) ; sans : 8 graines par profil, 12 + 12 pour l'enveloppe.
 'use strict';
 const { Worker, isMainThread, parentPort } = require('worker_threads'), os = require('os'), path = require('path'), fs = require('fs');
 if (!isMainThread) {
-  const M = require('./proto.js').charger();
+  const M = process.argv.includes('--reel') || (require('worker_threads').workerData || {}).reel ? require('../../src/marche.js') : require('./proto.js').charger();
   parentPort.on('message', ({ k, t }) => {
     const s = M.simuler(t.profil, 8, { graine: t.graine, offertes: !!t.offertes });
     parentPort.postMessage({ k, r: { total: s.total, paliersJour: s.paliersJour, parJour: s.parJour.map((d) => d.total), trace: t.trace ? s.trace.map((x) => [x.t, x.total]) : undefined } });
@@ -19,7 +20,8 @@ if (!isMainThread) {
   return;
 }
 const VITE = process.argv.includes('--vite'), iJ = process.argv.indexOf('--json'), SORTIE = iJ > 0 ? process.argv[iJ + 1] : null;
-const M = require('./proto.js').charger();
+const REEL = process.argv.includes('--reel'); // --reel : les VRAIES règles (src/marche.js), et non le prototype (la vérification du constructeur, docs/marche-contrat.md § 4.1)
+const M = REEL ? require('../../src/marche.js') : require('./proto.js').charger();
 const GRAINES = VITE ? [1, 2, 3] : [1, 2, 3, 4, 5, 6, 7, 8];
 const GRAINES_ENV = VITE ? [7, 1, 2, 3] : [7, 1, 2, 3, 13, 17, 49, 78, 103, 111, 21, 34];
 const GRAINES_CTRL = VITE ? [201, 202, 203, 204] : [201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212];
@@ -29,7 +31,7 @@ function lancer(taches) {
     const res = new Array(taches.length), n = Math.max(1, Math.min(taches.length, os.availableParallelism ? os.availableParallelism() : os.cpus().length));
     let suivante = 0, finis = 0; if (!taches.length) ok(res);
     for (let w = 0; w < n; w++) {
-      const wk = new Worker(__filename);
+      const wk = new Worker(__filename, { workerData: { reel: REEL } });
       const donner = () => { if (suivante < taches.length) { const k = suivante++; wk.postMessage({ k, t: taches[k] }); } else wk.terminate(); };
       wk.on('message', ({ k, r }) => { res[k] = r; process.stderr.write('.'); if (++finis === taches.length) { process.stderr.write('\n'); ok(res); } donner(); });
       wk.on('error', ko); donner();
@@ -75,6 +77,8 @@ const T0 = 11.65, L2 = Math.log10(2.2), PAS_H = 6, PAS_J = PAS_H / 24, N = Math.
     T[k] = plafond(T[k] + 0.05); for (let i = k + 1; i < N; i++) T[i] = Math.max(T[i], T[i - 1]);
   }
   T[0] = T0;
+  const iV = process.argv.indexOf('--table'); // --table "{…}" : vérifier une table donnée (celle du SQL) au lieu de la retirée
+  if (iV > 0) { const v = process.argv[iV + 1].replace(/[{}\s]/g, '').split(',').map(Number); if (v.length !== N) throw new Error(`--table : ${N} valeurs attendues`); for (let k = 0; k < N; k++) T[k] = v[k]; console.log('  (la table donnée par --table)'); }
   const marges = (lst) => { let min = Infinity, ou = '', max = -Infinity; for (const { g, o, tr } of lst) for (const [t, v] of tr) if (v > 0) { const m = borne(T, t) - Math.log10(v); if (m < min) { min = m; ou = `graine ${g}${o ? ', Astuces offertes' : ''}, ${(t * 24).toFixed(1)} h`; } if (t > 7.25 / 24) max = Math.max(max, m); } return { min: Math.pow(10, min), ou, max: Math.pow(10, max) }; };
   const mv = marges(traces), mc = marges(ctrl), fin = Math.max(...traces.map((x) => x.tr[x.tr.length - 1][1]));
   console.log(`── l'enveloppe du serveur : la ligne 'marche' de fournil_evts(), un pas de ${PAS_H} h, ${N} valeurs ──`);
