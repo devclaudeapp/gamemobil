@@ -5781,9 +5781,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
                objectif du jour réclamé aujourd'hui ET hier (st.piste.veille)              10 XP, 1 par jour
      palier    un palier d'événement franchi et reçu (st[cle].paliers ; les clés : fiche.evenements, 'marche' en automne)   20 XP, sans plafond
      casino    un mini-objectif de l'arrière-salle réussi (st.arriere.casino.objectifs[k].fait, du jour)                    5 XP, 3 par jour
-   Le premier pas d'une saison (la piste créée) compte ce qui est DÉJÀ réclamé aujourd'hui (même règle pour tous) ; le défi de la semaine déjà
-   réclamé avant, lui, ne compte pas (on ne sait pas quand il l'a été : comme outils/marche/saison.js, qui a réglé la piste) ; une `j`
-   abîmée repart avec les compteurs du moment (rien n'est compté deux fois).
+   Le premier pas d'une saison (la piste créée) compte ce qui est DÉJÀ réclamé (même règle pour tous, généreux : les objectifs du jour, le
+   défi de la semaine, les paliers reçus ; comme outils/marche/saison.js, qui a réglé la piste) ; une saison qui enchaîne sur une autre
+   garde le défi déjà compté ; une `j` abîmée repart avec les compteurs du moment (rien n'est compté deux fois).
 
    La piste : fiche.crans (une récompense par cran : { etoiles, boost: { mult, secs }, deco, vetement, trophee }), fiche.xpCran XP chacun ;
    le titre (fiche.titre : { xp, distinction }) fiche.titre.xp XP après le dernier. Un cran atteint et pas reçu est « à recevoir » pour
@@ -5846,11 +5846,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const objet = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
   const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0 });
   function neuve(id, passees) { return { v: 1, id: id || '', xp: 0, recus: 0, titre: 0, j: jVide(''), sem: '', veille: '', ev: {}, passees: passees || {}, dus: null }; }
-  // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé AUJOURD'HUI comptera au premier pas (j vide), les paliers
-  // déjà reçus aussi (ev à 0) ; le défi de la semaine déjà réclamé, non (sem posé : on ne sait pas quand il l'a été)
-  function ouvrir(st, F, now, passees, dus) {
+  // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé comptera au premier pas, la même règle pour tous (j vide :
+  // les objectifs du jour ; ev à 0 : les paliers reçus ; sem vide : le défi de cette semaine, comme outils/marche/saison.js, qui a réglé la
+  // piste) ; sem : celui de la saison d'avant, quand l'une enchaîne sur l'autre (le défi de la même semaine ne compte pas deux fois)
+  function ouvrir(st, F, now, passees, dus, sem) {
     const n = neuve(F.id, passees); n.dus = dus || null; n.j = jVide(dayKey(now)); for (const cle of F.evenements) n.ev[cle] = 0;
-    n.sem = constats(st, now, F).sem || ''; return n;
+    n.sem = typeof sem === 'string' ? sem : ''; return n;
   }
   // ce que le jeu montre en ce moment (pour remettre d'aplomb sans rien compter deux fois)
   function constats(st, now, F) {
@@ -5871,10 +5872,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function reparer(st, now) { // remet st.piste d'aplomb (jamais d'exception) ; rend st.piste, ou null (rien et pas de saison : rien n'est créé)
     let p = st.piste;
     const F = active(now);
-    if (p == null) { if (!F) return null; return (st.piste = ouvrir(st, F, now)); } // créée pendant la saison (une vieille sauvegarde, un nouveau joueur)
+    if (p === undefined) { if (!F) return null; return (st.piste = ouvrir(st, F, now)); } // créée pendant la saison (une vieille sauvegarde, un nouveau joueur)
     if (!objet(p)) { p = st.piste = neuve(F ? F.id : ''); if (F) { const c = constats(st, now, F); p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0 }; p.sem = c.sem || ''; p.ev = c.ev; } return p; } // abîmée : neuve, avec les compteurs du moment
     p.v = 1;
-    if (typeof p.id !== 'string') p.id = '';
+    if (typeof p.id !== 'string') p.id = F ? F.id : ''; // (abîmée pendant une saison : c'est la sienne, ses compteurs repris plus bas, rien n'est recompté)
     if (!(typeof p.xp === 'number' && Number.isFinite(p.xp) && p.xp >= 0)) p.xp = 0; else p.xp = Math.floor(p.xp);
     if (!(entier(p.recus) && p.recus <= 0x7fffffff)) p.recus = 0; // (les bits au-delà des crans sont gardés)
     p.titre = p.titre === 1 || p.titre === true ? 1 : 0;
@@ -5895,7 +5896,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const p = reparer(st, now); if (!p) return null;
     const F = active(now);
     if (p.id && (!F || p.id !== F.id)) fin(st, now); // la saison de la piste est finie (ou inconnue) : archivée, ses dus rangés
-    else if (!p.id && F) st.piste = ouvrir(st, F, now, p.passees, p.dus); // une saison s'ouvre
+    else if (!p.id && F) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre
     return st.piste;
   }
 
@@ -6005,7 +6006,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const lots = F ? toutRecevoir(st) : [];
     const res = { id: p.id, nom: F ? F.nom : p.id, lots, xp: p.xp, crans: F ? crans(st) : 0, titre: F && F.titre ? p.titre : 0 };
     const passees = Object.assign({}, p.passees); passees[p.id] = { xp: res.xp, crans: res.crans, titre: res.titre };
-    const n = Fa ? ouvrir(st, Fa, now, passees) : neuve('', passees);
+    const n = Fa ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!Fa) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
     n.dus = lots.length ? res : (p.dus || null); // (des dus d'avant pas encore montrés : gardés)
     if (lots.length && p.dus && Array.isArray(p.dus.lots)) res.lots = p.dus.lots.concat(lots);
     st.piste = n;

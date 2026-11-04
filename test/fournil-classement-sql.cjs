@@ -48,6 +48,11 @@
 //     fermées (anon et authenticated refusés), le scénario de l'essai semaine après semaine (prix, semaine vide, reste au chantier suivant,
 //     plafond de 60 actifs), au plus 20 chantiers finis par appel ; l'enveloppe relevée de 1e18 à 1e21 € (fournil_paliers : jamais
 //     abaissée, toujours interne) ; le fichier complet porte le même code ; le vrai moteur lit le chantier.
+//   · le patch v6.9 (supabase/fournil-classement-v69.sql : le Marché d'automne, la ligne 'marche' de fournil_evts() et son titre) collé deux
+//     fois par-dessus la v6.8 telle que sur Supabase (test/fournil-classement-v68-complet.sql), une Maison hantée figée : aucune donnée ni
+//     autre fonction ne bouge, la ligne 'hantee' identique, la table vérifiée sur les vraies règles, la requête de contrôle ; le Marché joué
+//     en anon (rien avant midi, un score sous la borne compté, un énorme ramené à la borne, la borne = son miroir JS), le marathon de
+//     src/marche.js jamais plafonné, le podium figé jusqu'au 15e ; le fichier complet porte le même code.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -1529,8 +1534,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const HT = require('../src/hantee.js');
     await vider(); await entetes(null);
     const publierH = async (j, pseudo, fortune, score, evt = 'hantee', role = 'anon') => (await comme(role, 'select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_evt => $7, p_score => $8) as r', [j.id, j.jeton, pseudo, String(fortune), '0', lundiDe(horloge), evt, score == null ? null : String(score)]))[0].r;
-    const evts = await sup('select nom, debut, fin, pas, tableau from public.fournil_evts()');
-    check(evts.length === 1 && evts[0].nom === 'hantee' && Date.parse(evts[0].debut) === HT.DEBUT && Date.parse(evts[0].fin) === HT.FIN, `un seul événement générique, « hantee », à la fenêtre du jeu : du ${new Date(HT.DEBUT).toISOString()} au ${new Date(HT.FIN).toISOString()}`);
+    const evts = (await sup('select nom, debut, fin, pas, tableau from public.fournil_evts() order by debut')).filter((x) => x.nom === 'hantee').concat((await sup('select nom, debut, fin, pas, tableau from public.fournil_evts() order by debut')).filter((x) => x.nom !== 'hantee'));
+    check(evts.map((x) => x.nom).join() === 'hantee,marche' && Date.parse(evts[0].debut) === HT.DEBUT && Date.parse(evts[0].fin) === HT.FIN, `deux événements génériques, « hantee » à la fenêtre du jeu (du ${new Date(HT.DEBUT).toISOString()} au ${new Date(HT.FIN).toISOString()}) et « marche » (v6.9, éprouvé plus bas)`);
     const tab = evts[0].tableau, pas = evts[0].pas * 3600e3;
     const borneJS = (ms) => { if (ms < HT.DEBUT) return 0; const j = Math.min((ms - HT.DEBUT) / pas, tab.length - 1), k = Math.floor(j); return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k)); };
     const borneH = async (ms, evt = 'hantee') => (await sup('select public.fournil_evt_borne($1, $2::timestamptz) as b', [evt, new Date(ms).toISOString()]))[0].b;
@@ -2197,11 +2202,13 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const V66_FNS = ['fournil_classement', 'fournil_evt_figer', 'fournil_recompenses']; // les fonctions que la v6.6 remplace, en plus de fournil_evts() (les acharnés de la Maison hantée)
     const V67_FNS = ['fournil_points_plafond', 'fournil_publier', 'fournil_reponse', 'fournil_serie_bonus']; // celles que la v6.7 remplace ou ajoute (le barème du lot 7 et la série), comparées à part, au patch v6.7
     const V68_FNS = ['fournil_paliers', 'fournil_projet_actifs', 'fournil_projet_base', 'fournil_projet_total', 'fournil_projets']; // celles que la v6.8 ajoute (les projets de quartier) ou remplace (fournil_paliers : l'enveloppe relevée de 1e18 à 1e21 €) : le fichier complet les porte, les versions d'avant non ; comparées au patch v6.8
-    const sansV68 = V68_FNS.map((n) => `'${n}'`).join(', ');
+    const V69_FNS = ['fournil_evts', 'fournil_evt_titre']; // celles que la v6.9 remplace (le Marché d'automne) : le fichier complet les porte, comparées à son patch (plus bas)
+    const sansV68 = V68_FNS.concat(V69_FNS).map((n) => `'${n}'`).join(', ');
     // la ligne d'un joueur sans la colonne serie (version 6.7) : le fichier complet recollé par-dessus une version d'avant l'ajoute (0 pour tous), rien d'autre ne bouge
     const sansSerie = (t) => (t === 'fournil_joueurs' ? `to_jsonb(x) - 'serie'` : 'x');
     const memes = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, k) => x === b[k]);
-    const SQL6 = TF.qBrut && TF.hBrut ? SQL.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
+    const SQL68 = fs.readFileSync(path.join(__dirname, 'fournil-classement-v68-complet.sql'), 'utf8'); // (la base de ces essais : le fichier complet d'avant la v6.9, sans le Marché d'automne, que les patchs 6.2 à 6.4 ne connaissaient pas)
+    const SQL6 = TF.qBrut && TF.hBrut ? SQL68.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
     const JOUR = 86400e3, PAS_H = 6 * 3600e3;
     // la borne d'une table de log10 à pas fixe (le miroir de fournil_quartier_borne et de fournil_evt_borne)
     const borneJS = (tab, debut, pasMs, ms) => { if (ms < debut) return 0; const j = Math.min((ms - debut) / pasMs, tab.length - 1), k = Math.floor(j); return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k)); };
@@ -2694,7 +2701,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
         from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' order by 1, 2`));
       const corps71 = async () => JSON.stringify(await s71(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
           has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
-        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' order by 1, 2`));
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' and p.proname not in ('fournil_evts', 'fournil_evt_titre') order by 1, 2`)); // (la v6.9 les remplace : comparées à son patch, plus bas)
       const controle = (res) => { const l = res && res[res.length - 1] && res[res.length - 1].rows.length === 1 ? Object.assign({}, res[res.length - 1].rows[0]) : null; if (l) for (const k of ['aujourdhui', 'nouveau_bareme_le']) if (l[k] instanceof Date) l[k] = l[k].toISOString().slice(0, 10); if (l) for (const k of ['joueurs_en_serie', 'bonus_serie_semaine']) l[k] = Number(l[k]); return l; };
       const plaf71 = async (n) => (await s71('select public.fournil_points_plafond($1) as p', [n]))[0].p;
       try { await coller71(V66C); } catch (err) { check(false, 'la v6.6 s’installe : ' + err.message); }
@@ -2920,6 +2927,125 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       check(apres === avant && JSON.stringify(await s8('select * from public.fournil_projets order by rang')) === donnees && (await refus8('anon', 'select * from public.fournil_projets')) === '42501',
         'le fichier complet porte le même code que le patch v6.8 (les quatre fonctions et la table de l’enveloppe, caractère pour caractère, leurs droits) ; recollé, les chantiers restent et la table reste fermée'); }
     await d8.close();
+  }
+
+  // ─── la version 6.9 (supabase/fournil-classement-v69.sql) : le Marché d'automne, un événement générique de plus (docs/marche-contrat.md
+  // § 4). Collée DEUX fois par-dessus la v6.8 telle que sur Supabase (test/fournil-classement-v68-complet.sql : le fichier complet de la
+  // v6.8, le même code que la v6.6 complète + v6.7 + v6.7.1 + v6.8, plus haut), une Maison hantée jouée et figée : aucune donnée ne bouge,
+  // aucune autre fonction ne change (définition et droits), la ligne « hantee » est identique, la ligne « marche » porte la table vérifiée
+  // par test/fournil-marche.test.js (les vraies règles), les deux fonctions restent internes, la requête de contrôle. Puis le Marché joué
+  // en tant qu'anon (rien avant midi le 13 ; un score sous la borne compté tel quel ; un score énorme ramené à la borne ; la borne SQL = son
+  // miroir JavaScript), le marathon des VRAIES règles (src/marche.js) envoyé toutes les 10 minutes jamais plafonné, le podium figé une heure
+  // après la fin jusqu'au 15e (ex æquo, joueurs), evenements.marche ; enfin le fichier complet recollé : le même code que le patch.
+  {
+    const P69 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v69.sql'), 'utf8');
+    const V68C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v68-complet.sql'), 'utf8');
+    const MC = require('../src/marche.js');
+    const TABLE69 = [11.65, 16.05, 16.05, 16.3, 16.5, 16.65, 16.75, 16.85, 16.95, 17, 17.05, 17.1, 17.15, 17.2, 17.2, 17.3, 17.35, 17.4, 17.5, 17.55, 17.65, 17.75, 17.8, 17.85, 17.95, 18, 18.05, 18.1, 18.15, 18.15, 18.2]; // (test/fournil-marche.test.js la vérifie sur les vraies règles)
+    const REMPLACEES = ['fournil_evts', 'fournil_evt_titre'];
+    titre('la version 6.9 : le Marché d’automne, collée par-dessus la v6.8');
+    { const sans = P69.replace(/--[^\n]*/g, ''), hors = sans.replace(/create or replace function[\s\S]*?\n\$\$;/g, '').replace(/\ndo \$\$[\s\S]*?\n\$\$;/g, '');
+      const fns = [...P69.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(), revokes = hors.match(/\brevoke [^;]*;/gi) || [];
+      check(/^-- ═+\n--  Le Fournil — le classement, version 6\.9/.test(P69) && /^begin;$/m.test(P69) && /^commit;$/m.test(P69) && /PAR-DESSUS la version 6\.8/.test(P69) && /colle d''abord la version 6\.8/.test(P69)
+        && JSON.stringify(fns) === JSON.stringify(REMPLACEES.slice().sort()) && !/\b(insert|update|delete|truncate|drop|alter|grant|create\s+table)\b/i.test(hors) && revokes.length === 2,
+      'le patch v6.9 : l’en-tête (à coller par-dessus la v6.8), un garde-fou (la v6.6 au moins), begin/commit ; il ne remplace que fournil_evts et fournil_evt_titre, ne touche à aucune table ni donnée, referme leurs droits'); }
+    const d9 = await PGlite.create();
+    const s9 = async (sql, p) => (await d9.query(sql, p)).rows;
+    const c9 = async (role, sql, p) => { await d9.exec(`set role ${role}`); try { return (await d9.query(sql, p)).rows; } finally { await d9.exec('reset role'); } };
+    const refus9 = async (role, sql) => { try { await c9(role, sql); return 'accepté'; } catch (err) { return err.code || err.message; } };
+    const coller9 = async (t) => { await d9.exec('set role proprio'); try { return await d9.exec(t); } finally { await d9.exec('reset role'); } };
+    await d9.exec(`
+      create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+      create role proprio nologin createrole;
+      grant usage, create on schema public to proprio; grant usage on schema public to anon, authenticated, service_role;
+      set role proprio;
+      alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+      alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+      alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+      reset role;
+      create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+      grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+    const horloge9 = () => s9(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`);
+    const heure9 = (iso) => s9('update banc.horloge set t = $1', [iso]);
+    const parisIso = (j, h, m = 0) => new Date(Date.UTC(2026, 10, j, h - 1, m)).toISOString(); // novembre 2026 : heure d'hiver (UTC+1)
+    try { await coller9(V68C); await horloge9(); check(true, 'la v6.8 telle que sur Supabase (test/fournil-classement-v68-complet.sql) s’installe'); } catch (err) { check(false, 'la v6.8 s’installe : ' + err.message); }
+    const pub9 = async (j, pseudo, score, evt) => (await c9('anon', 'select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_evt => $7, p_score => $8) as r',
+      [j.id, j.jeton, pseudo, String(1e9), '0', null, evt, score == null ? null : String(score)]))[0].r;
+    const borne9 = async (evt, iso) => (await s9('select public.fournil_evt_borne($1, $2::timestamptz) as b', [evt, iso]))[0].b;
+    // la Maison hantée jouée (seize joueurs), puis figée (le 2 nov. à 21 h) : comme sur Supabase avant le patch ; et 'marche' encore inconnu
+    const H9 = Array.from({ length: 16 }, () => joueur());
+    await heure9(parisIso(1, 18)); for (const [k, j] of H9.entries()) await pub9(j, `Hantée ${k + 1}`, 1e9 * (k + 1), 'hantee');
+    await heure9(parisIso(1, 18, 1)); for (const [k, j] of H9.entries()) await pub9(j, `Hantée ${k + 1}`, 1e9 * (k + 1) + 1, 'hantee'); // (deux envois : une inscription jamais suivie d'un envoi part au ménage des 7 jours)
+    await heure9(parisIso(3, 9)); await c9('anon', 'select public.fournil_classement(p_periode => $1) as r', ['hantee']); await s9('select public.fournil_evt_figer(public.fournil_maintenant())');
+    const podH = await s9(`select rang, pseudo from public.fournil_evt_podium where evt = 'hantee' order by rang, pseudo`);
+    const Avant = joueur(); await heure9(parisIso(13, 13)); const rAvant = await pub9(Avant, 'Avant', 1e6, 'marche');
+    check(podH.length === 15 && podH[0].pseudo === 'Hantée 16' && rAvant.ok === true && rAvant.evt === null, `sous la v6.8 : la Maison hantée figée (ses quinze premiers), et le 13 à 13 h des noisettes envoyées sont ignorées (evt ${JSON.stringify(rAvant.evt)}) : rien ne casse`);
+    await heure9(parisIso(13, 9));
+    // l'instantané : les données, les fonctions (sauf les deux que le patch remplace), leurs droits
+    const TABLES9 = (await s9(`select tablename from pg_tables where schemaname = 'public' order by tablename`)).map((x) => x.tablename);
+    const donnees9 = async () => { const o = {}; for (const t of TABLES9) o[t] = (await s9(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select * from public.${t}) x`))[0].j; return JSON.stringify(o); };
+    const fonctions9 = async () => JSON.stringify(await s9(`select p.proname, pg_get_function_identity_arguments(p.oid) as a, md5(pg_get_functiondef(p.oid)) as d, p.proacl::text as acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and not (p.proname = any($1)) and p.proname <> 'fournil_maintenant' order by 1, 2`, [REMPLACEES]));
+    const contrat9 = async () => JSON.stringify(await s9(`select p.proname, pg_get_function_identity_arguments(p.oid) as a, pg_get_function_result(p.oid) as r, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
+        array_to_string(p.proconfig, ',') as conf, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth,
+        exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0) as pour_public
+      from pg_proc p join pg_language l on l.oid = p.prolang join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = any($1) order by 1`, [REMPLACEES]));
+    const code9 = async () => JSON.stringify(await s9(`select p.proname, md5(p.prosrc) as m from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = any($1) order by 1`, [REMPLACEES]));
+    const evts9 = () => s9('select nom, debut, fin, pas, tableau from public.fournil_evts() order by debut');
+    const [d0, f0, k0, e0] = [await donnees9(), await fonctions9(), await contrat9(), await evts9()];
+    for (const fois of ['une', 'deux']) {
+      let sortie = null;
+      try { sortie = await coller9(P69); await horloge9(); check(true, `le patch v6.9 se colle par-dessus la v6.8 (${fois} fois ; rôle propriétaire non superutilisateur)`); } catch (err) { check(false, `le patch v6.9 se colle (${fois} fois) : ${err.message}`); continue; }
+      const ctrl = sortie[sortie.length - 1] && sortie[sortie.length - 1].rows && sortie[sortie.length - 1].rows[0];
+      if (fois === 'une') check(!!ctrl && ctrl.evenements === 'hantee, marche' && ctrl.marche_valeurs === 31 && JSON.stringify(ctrl.marche) === JSON.stringify(TABLE69) && Number(ctrl.borne_marche) === 0 && Number(ctrl.borne_marche_fin_log10) === 18.17 && ctrl.titre === "le Marché d'automne",
+        `la requête de contrôle (le 13 à 9 h) : ${JSON.stringify(ctrl && { evenements: ctrl.evenements, valeurs: ctrl.marche_valeurs, borne: ctrl.borne_marche, borne_log10: ctrl.borne_marche_log10, fin_log10: ctrl.borne_marche_fin_log10, titre: ctrl.titre })}`);
+      check(await donnees9() === d0, `aucune donnée ne bouge (joueurs, scores, podiums, annonces… : ${TABLES9.length} tables)`);
+      check(await fonctions9() === f0, 'aucune autre fonction ne change (définitions et droits comparés)');
+      check(await contrat9() === k0, 'fournil_evts et fournil_evt_titre : les mêmes signatures, langage, volatilité, search_path, propriétaire, droits (internes)');
+    }
+    const e1 = await evts9(), m9 = e1.find((x) => x.nom === 'marche');
+    check(e0.length === 1 && e1.length === 2 && JSON.stringify(e1[0]) === JSON.stringify(e0[0]), 'la ligne « hantee » est identique à celle de la v6.8 ; une seule ligne de plus');
+    check(m9 && new Date(m9.debut).getTime() === MC.DEBUT && new Date(m9.fin).getTime() === MC.FIN && m9.pas === 6, `la fenêtre du Marché est celle de src/marche.js (${m9 && new Date(m9.debut).toISOString()} → ${m9 && new Date(m9.fin).toISOString()}), un pas de 6 h`);
+    check(m9 && JSON.stringify(m9.tableau) === JSON.stringify(TABLE69), `sa table : celle que test/fournil-marche.test.js vérifie sur les vraies règles ({${m9 && m9.tableau.join(',')}})`);
+    for (const r of ['anon', 'authenticated']) check(await refus9(r, 'select * from public.fournil_evts()') === '42501' && await refus9(r, `select public.fournil_evt_titre('marche')`) === '42501', `${r} ne peut appeler ni fournil_evts ni fournil_evt_titre (internes)`);
+    check((await s9(`select public.fournil_evt_titre('marche') as t`))[0].t === "le Marché d'automne" && (await s9(`select public.fournil_evt_titre('hantee') as t`))[0].t === 'la Maison hantée' && (await s9(`select public.fournil_evt_titre('quartier') as t`))[0].t === 'le Quartier', 'le titre des notifications : « le Marché d’automne » (la Maison hantée et le Quartier inchangés)');
+    // le Marché joué, en tant qu'anon
+    const miroir = (h) => { const t = TABLE69, j = Math.min(h / 6, t.length - 1), k = Math.floor(j); return Math.pow(10, k >= t.length - 1 ? t[t.length - 1] : t[k] + (t[k + 1] - t[k]) * (j - k)); };
+    check(await borne9('marche', parisIso(13, 11, 59)) === 0, 'avant le vendredi 13 à midi : la borne vaut 0');
+    let ecart = 0; for (const h of [0, 1, 5.5, 6, 13, 24, 47.3, 100, 143.9, 175.9, 176, 190]) { const b = await borne9('marche', new Date(MC.DEBUT + h * 3600e3).toISOString()); ecart = Math.max(ecart, Math.abs(b / miroir(h) - 1)); }
+    check(ecart < 1e-9, `la borne SQL est son miroir JavaScript (interpolation du log10), de l’ouverture à après la fin (écart ${ecart.toExponential(1)})`);
+    const J9 = joueur();
+    await heure9(parisIso(13, 11, 50)); let r9 = await pub9(J9, 'Noisette', 1e6, 'marche');
+    check(r9.ok && r9.evt === 'marche' && !(r9.evt_score > 0), `avant l’ouverture : accepté, rien n’est compté (${JSON.stringify({ evt: r9.evt, score: r9.evt_score })})`);
+    await heure9(parisIso(13, 18)); r9 = await pub9(J9, 'Noisette', 3e12, 'marche');
+    check(r9.ok && r9.evt_score === 3e12 && !r9.evt_plafonne, 'le 13 à 18 h, 3e12 noisettes (sous la borne) : comptées telles quelles');
+    await heure9(parisIso(13, 18, 1)); r9 = await pub9(J9, 'Noisette', 1e19, 'marche'); const b18 = await borne9('marche', parisIso(13, 18, 1));
+    check(r9.ok && r9.evt_plafonne === true && Math.abs(r9.evt_score / b18 - 1) < 1e-9, `1e19 une minute plus tard : ramené à la borne (${r9.evt_score && Number(r9.evt_score).toExponential(2)}, plafonné)`);
+    // le marathon des vraies règles (Astuces offertes dès le 12e : le pire cas), envoyé toutes les 10 minutes
+    { const s = MC.simuler('marathon', MC.JOURS, { graine: 7, offertes: true }), K = joueur(); let plafonne = 0, n = 0, prochain = 0;
+      for (const { t, total: v } of s.trace) { const ms = MC.DEBUT + t * 864e5; if (ms < prochain || !(v > 0)) continue; prochain = ms + 600e3; await heure9(new Date(ms + 11e3).toISOString()); const x = await pub9(K, 'Marathon', Math.floor(v), 'marche'); n++; if (x.evt_plafonne) plafonne++; }
+      check(plafonne === 0 && n > 1000, `le marathon de src/marche.js (graine 7, Astuces offertes, ${MC.fmt(s.total)} à la fin) envoyé toutes les 10 minutes : ${n} envois, ${plafonne} plafonné`); }
+    // la fin : le podium jusqu'au 15e, les récompenses ; la Maison hantée intacte
+    { const L = Array.from({ length: 17 }, () => joueur()); await heure9(parisIso(20, 19));
+      const scores = [1.2e18, 1.1e18, 1.1e18, 1.05e18, 1e18, 9.8e17, 9.6e17, 9.4e17, 9.2e17, 9e17, 8.8e17, 8.6e17, 8.4e17, 8.2e17, 8e17, 8e17, 7e17]; // des ex æquo au 2e et au 15e
+      for (const [k, j] of L.entries()) await pub9(j, `Marché ${k + 1}`, scores[k], 'marche');
+      await heure9(parisIso(20, 20, 30)); await c9('anon', 'select public.fournil_classement(p_periode => $1) as r', ['marche']);
+      check((await s9(`select count(*)::int as n from public.fournil_evenements where nom = 'marche'`))[0].n === 0, 'à 20 h 30 (dans l’heure de grâce) : pas encore figé');
+      await heure9(parisIso(20, 21, 1)); const c = (await c9('anon', 'select public.fournil_classement(p_periode => $1, p_id => $2) as r', ['marche', L[1].id]))[0].r;
+      const pod = await s9(`select rang, pseudo from public.fournil_evt_podium where evt = 'marche' order by rang, pseudo`), fe = (await s9(`select joueurs from public.fournil_evenements where nom = 'marche'`))[0];
+      check(pod.length === 16 && pod.filter((x) => x.rang === 2).length === 2 && pod.filter((x) => x.rang === 15).length === 2 && fe && fe.joueurs === 19, `à 21 h : figé, les quinze premiers ex æquo compris (${pod.length} lignes, deux 2e, deux 15e), ${fe && fe.joueurs} joueurs classés`);
+      check(c.moi && c.moi.podium === 2 && c.lignes[0].podium === 1, 'le classement du Marché montre la médaille du podium final');
+      const rec = (await c9('anon', 'select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [L[13].id, L[13].jeton]))[0].r;
+      check(rec.ok && rec.evenements && rec.evenements.marche && rec.evenements.marche.rang === 14 && rec.evenements.marche.joueurs === 19 && rec.evenements.marche.podium.length === 3 && (!rec.evenements.hantee || rec.evenements.hantee.rang == null),
+        `fournil_recompenses : evenements.marche = ${JSON.stringify(rec.evenements && rec.evenements.marche && { rang: rec.evenements.marche.rang, joueurs: rec.evenements.marche.joueurs })} (le 14e), le podium à trois ; pas de place à la Maison hantée`);
+      const podH2 = await s9(`select rang, pseudo from public.fournil_evt_podium where evt = 'hantee' order by rang, pseudo`);
+      check(JSON.stringify(podH2) === JSON.stringify(podH), 'le podium de la Maison hantée n’a pas bougé'); }
+    // le fichier complet recollé par-dessus : le même code que le patch
+    { const avantCode = await code9(), avantContrat = await contrat9(), avantDonnees = await donnees9();
+      try { await coller9(SQL); await horloge9(); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.9'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.9 : ' + err.message); }
+      check(await code9() === avantCode && await contrat9() === avantContrat && await donnees9() === avantDonnees && /Version 6\.9/.test(SQL),
+        'le fichier complet porte le même code que le patch v6.9 (fournil_evts et fournil_evt_titre, caractère pour caractère, leurs droits) ; recollé, aucune donnée ne bouge ; son en-tête dit « Version 6.9 »'); }
+    await d9.close();
   }
 
   // ─── le chat (supabase/fournil-chat.sql), collé par-dessus la v6, deux fois ───
