@@ -305,7 +305,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-height: 460px) and (orientation: landscape) {
   .defi { padding: 12px 16px 14px; }
   .defi-gauche { grid-template-columns: 1fr auto; gap: 6px 8px; }
-  .defi-gauche > :not(#b-defi-jouer):not(#b-defi-retour) { grid-column: 1 / -1; }
+  .defi-gauche > * { grid-column: 1 / -1; }
   .defi-perso { font-size: 14px; }
   .defi-carte { padding: 8px 12px; }
   .defi-liste { max-height: 250px; }
@@ -491,3 +491,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (orientation: landscape) and (max-height: 620px) { .salon-entree #b-creer, .salon-entree #b-inconnu { justify-self: stretch; } }
 /* les petits téléphones en paysage : la barre de vie se resserre pour laisser la place aux compteurs du milieu */
 @media (orientation: landscape) and (max-width: 720px) { .h-vie .h-barre { width: 16vw; } .h-vie-n { font-size: 20px; margin-left: 6px; } }
+/* le défi du jour : « Relever le défi » et Retour forment son pied (collé en bas de la colonne de gauche) ; côte à côte en paysage */
+.defi-pied { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; gap: 10px; }
+@media (max-height: 460px) and (orientation: landscape) { .defi-pied { grid-template-columns: 1fr auto; gap: 8px; align-items: center; } }
