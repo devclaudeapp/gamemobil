@@ -499,7 +499,7 @@ const SCENE = (() => {
     if (on) {
       BHD = BH(); const A0 = (BHD.HD && BHD.HD.ambianceHD) || null; // (la Halle donne la sienne : un jour doré d'automne ; le Manoir, sa nuit)
       scene.fog = A0 ? (A0.fog ? new THREE.Fog(A0.fog[0], A0.fog[1], A0.fog[2]) : null) : new THREE.Fog('#2A2048', 1650, 2700); scene.environment = A0 && A0.env && RICHE.actif ? envMap() : null; renderer.setClearColor(A0 ? A0.clear : '#120E22');
-      renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = A0 ? A0.exposition : 1.35;
+      renderer.toneMapping = A0 && A0.ton === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = A0 ? A0.exposition : 1.35;
       while (lampesHD.length < 5) { const l = new THREE.PointLight('#FFB060', 0, 150, 1); l.castShadow = false; lampesHD.push(l); }
       for (const l of lampesHD) scene.add(l);
     } else {
