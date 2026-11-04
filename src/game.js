@@ -793,6 +793,10 @@
     ajouter(vet('parcours-tablier', 'Tablier du parcours', 'haut', 'parcours', 'tablier', { gains: { produit: null, pct: 2 } }, 'epique', 'Une poche par quartier.'));
     ajouter(vet('parcours-chaussures', 'Chaussures du parcours', 'pieds', 'parcours', 'chaussures', { vitesse: 1.5 }, 'epique', 'Elles ont fait vingt-trois boutiques.'));
     ajouter(vet('parcours-foulard', 'Foulard du parcours', 'accessoire', 'parcours', 'foulard', { absence: 0.5 }, 'epique', 'Noué à la boutique n°29.'));
+    // l'accueil des nouveaux joueurs (docs/accueil-contrat.md § 4.2) : la tenue d'apprenti, la récompense de « Ton premier jour », bleu de travail ;
+    // sans bonus et sans ensemble (un objet cosmétique n'accélère pas la boulangerie)
+    ajouter(vet('apprenti-tablier', 'Tablier d’apprenti', 'haut', 'apprenti', 'tablier', {}, 'rare', 'Bleu de travail, une poche pour le carnet de recettes.'));
+    ajouter(vet('apprenti-foulard', 'Foulard d’apprenti', 'accessoire', 'apprenti', 'foulard', {}, 'rare', 'Noué le premier jour. Il sent encore la farine.'));
     // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 5, 7 et 9, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
@@ -962,7 +966,92 @@
       // le lot « progression » : les paliers au-delà de la n°30 (et le pas d'étoiles), les trophées dorés, les compteurs des trophées secrets
       // (st.second, st.rivales, st.projets : src/progression.js, PROGRESSION.etat les crée et les remet d'aplomb)
       paliers: { recus: [], titre: '', objets: [] }, dores: {}, secrets: {},
+      accueil: accueilNeuf(), // l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : étapes du premier jour, récompense, déblocages
     };
+  }
+
+  // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour » (7 étapes et sa récompense) et les déblocages au fil
+  //     du jeu. st.accueil = { v, o, r, d, t } : o les étapes faites (bits), r la récompense donnée, d les déblocages ouverts (bits, jamais
+  //     effacés), t « tout ouvert » (une vieille sauvegarde). Les premiers pas restent st.tuto (src/ui.js, INDICES). Des règles pures, sans DOM ───
+  const evReussis = (st) => (st.stats.commandes || 0) + (st.stats.critiques || 0) + (st.stats.petrissages || 0) + (st.stats.pannes || 0);
+  const ACCUEIL = (() => {
+    const etapes = [
+      { id: 'painchoc', txt: 'Débloque les pains au chocolat', fait: (st) => !!st.stations[2] && st.stations[2].niv >= 1 },
+      { id: 'baguette25', txt: 'Monte la baguette au niveau 25 : gains ×2 !', fait: (st) => !!st.stations[0] && st.stations[0].niv >= 25 },
+      { id: 'mystere', txt: 'Touche un client mystère', fait: (st) => (st.stats.pourboires || 0) >= 1 },
+      { id: 'evenement', txt: 'Réussis un événement de la boutique', fait: (st) => evReussis(st) >= 1 },
+      { id: 'meuble', txt: 'Améliore un meuble du salon', fait: (st) => (st.stats.meubles || 0) >= 1 },
+      { id: 'bonus', txt: 'Achète ton premier bonus', fait: (st) => Object.keys(st.ameliorations || {}).length >= 1 },
+      { id: 'objectifs', txt: 'Réussis les trois objectifs du jour', fait: (st) => (st.stats.serieMax || 0) >= 1 },
+    ].map((e) => Object.freeze(e));
+    // l'ordre du tableau est l'ordre de priorité des annonces ; un bit est donné pour toujours (jamais réutilisé)
+    const deblocages = [
+      { id: 'boulanger', bit: 0, seuil: (st) => niveau(st) >= 2 || ptsTalents(st) > 0 },
+      { id: 'defis', bit: 1, seuil: () => true },
+      { id: 'modes', bit: 2, seuil: (st) => st.stations.some((s) => s.niv >= 10) },
+      { id: 'bonus', bit: 3, seuil: (st) => st.lifetime >= 6000 },
+      { id: 'etoiles', bit: 4, seuil: (st) => st.etoiles >= 1 || etoilesGagnables(st) >= 1 || st.boutiques >= 2 },
+      { id: 'journal', bit: 5, seuil: (st) => evReussis(st) + (st.stats.pourboires || 0) >= 1 || st.lifetime >= 1e5 },
+      { id: 'saison', bit: 6, seuil: (st) => st.lifetime >= 1e5 },
+      { id: 'classement', bit: 7, seuil: (st) => st.lifetime >= 2.5e5 },
+      { id: 'atelier', bit: 8, seuil: (st) => st.lifetime >= 1e6 },
+      { id: 'decos', bit: 9, seuil: (st) => (st.stats.meubles || 0) >= 3 || st.lifetime >= 1e7 },
+      { id: 'evenements', bit: 10, seuil: (st) => st.lifetime >= 1e7 },
+      { id: 'garderobe', bit: 11, seuil: (st) => Object.keys(garderobe(st).objets).some((id) => vetement(id) && vetement(id).collection !== 'base') },
+      { id: 'nouveautes', bit: 12, seuil: (st, a) => a.r === 1 || st.boutiques >= 2 },
+      { id: 'casino', bit: 13, seuil: (st, a) => (a.r === 1 && st.lifetime >= 1e8) || st.boutiques >= 2 },
+      { id: 'chaine', bit: 14, seuil: (st, a, o) => st.boutiques >= 2 || o.chaine > 0 },
+    ].map((d) => Object.freeze(d));
+    const TOUS = deblocages.reduce((m, d) => m | (1 << d.bit), 0);
+    return Object.freeze({ etapes: Object.freeze(etapes), deblocages: Object.freeze(deblocages), recompense: Object.freeze({ vetements: Object.freeze(['apprenti-tablier', 'apprenti-foulard']), boost: Object.freeze({ mult: 2, secs: 1800 }) }), TOUS, TOUTES: (1 << etapes.length) - 1 });
+  })();
+  function accueilNeuf() { return { v: 1, o: 0, r: 0, d: 0, t: 0 }; }
+  const etapesFaites = (s) => ACCUEIL.etapes.reduce((m, e, k) => { let f = false; try { f = !!e.fait(s); } catch (x) { f = false; } return f ? m | (1 << k) : m; }, 0);
+  // une sauvegarde sans st.accueil (d'avant ce lot) : « ancienne » au moindre signe (en cas de doute, tout ouvert, sans récompense ni annonce) ;
+  // sinon une partie neuve qui reprend : ses étapes déjà faites, ses déblocages déjà atteints ouverts en silence
+  function accueilAncien(s, now) {
+    s = s && typeof s === 'object' ? s : {};
+    const ancienne = (s.tuto | 0) >= 4 || (s.boutiques | 0) >= 2 || (Number(s.lifetime) || 0) >= 1e5 || (Number(s.etoiles) || 0) >= 1
+      || !((Number(now) || 0) - (Number(s.created) || 0) <= 864e5) || !!(s.arriere && s.arriere.trouvee);
+    if (ancienne) return { v: 1, o: ACCUEIL.TOUTES, r: 1, d: ACCUEIL.TOUS, t: 1 };
+    const a = accueilNeuf(); a.o = etapesFaites(s);
+    try { for (const id of dusDe(s, a, {})) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
+    return a;
+  }
+  function accueil(st) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet
+    let a = st.accueil;
+    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, st.now);
+    a.v = 1;
+    const o = Math.floor(Number(a.o)); a.o = o >= 0 && o <= ACCUEIL.TOUTES ? o : 0;
+    a.r = a.r ? 1 : 0;
+    const d = Math.floor(Number(a.d)); a.d = Number.isFinite(d) && d >= 0 ? Math.min(d, 0x7fffffff) : 0; // (les bits d'une version future restent)
+    a.t = a.t ? 1 : 0;
+    return a;
+  }
+  function accueilPas(st) { // les étapes du premier jour faites depuis le dernier passage (une étape faite le reste)
+    const a = accueil(st); if (a.t) return { nouvelles: [], toutes: true };
+    const f = etapesFaites(st), nouvelles = [];
+    ACCUEIL.etapes.forEach((e, k) => { if ((f & (1 << k)) && !(a.o & (1 << k))) nouvelles.push(k); });
+    a.o |= f;
+    return { nouvelles, toutes: a.o === ACCUEIL.TOUTES };
+  }
+  function accueilOuvert(st, id) { const a = accueil(st); if (a.t) return true; const x = ACCUEIL.deblocages.find((y) => y.id === id); return !x || !!(a.d & (1 << x.bit)); }
+  function dusDe(st, a, o) {
+    if (a.t || !((st.tuto | 0) >= 4)) return [];
+    const ctx = { chaine: (o && Number(o.chaine)) || 0 };
+    return ACCUEIL.deblocages.filter((x) => { if (a.d & (1 << x.bit)) return false; try { return !!x.seuil(st, a, ctx); } catch (e) { return false; } }).map((x) => x.id);
+  }
+  const deblocagesDus = (st, o) => dusDe(st, accueil(st), o); // les déblocages dont le seuil est atteint, pas encore ouverts, dans l'ordre du tableau
+  function marquerDeblocage(st, id) { const a = accueil(st), x = ACCUEIL.deblocages.find((y) => y.id === id); if (!x || (a.d & (1 << x.bit))) return false; a.d |= 1 << x.bit; return true; }
+  function recompenseAccueil(st) { // une seule fois : la tenue d'apprenti (portée d'office) et un boost ×2 de 30 min dans la réserve
+    const a = accueil(st); if (a.t || a.r) return { ok: false };
+    accueilPas(st); if (a.o !== ACCUEIL.TOUTES) return { ok: false };
+    a.r = 1;
+    const vetements = ACCUEIL.recompense.vetements.map((id) => donnerVetement(st, id).objet).filter(Boolean);
+    equiperCollection(st, 'apprenti');
+    const b = ACCUEIL.recompense.boost; donnerBoostReserve(st, b.mult, b.secs);
+    note(st, 'Premier jour réussi : tenue d’apprenti et boost ×2');
+    return { ok: true, vetements, boost: { mult: b.mult, secs: b.secs } };
   }
 
   // ─── temps, hasard déterministe ───
@@ -2037,5 +2126,6 @@
     // le lot « progression » : les paliers au-delà de la n°30, le pas d'étoiles, les trophées qui rapportent (familles, dorés, secrets)
     PALIER_PAS, PALIER_PREMIER, estPalier, rangPalier, boutiqueDuPalier, TITRES_PALIER, titrePalier, FINITIONS, finitionDe, finitionsDe, RARES_PALIER, TEINTES, BOOST_PALIER, recompensePalier,
     paliers, rarePossede, donnerPalier, rattraperPaliers, titreBoulanger, DEFIS_PALIER, defiPalier, paliersListe, COMPTEURS, SOUPAPE, STAT_NOMS, PAS, pasEtoiles, conseilEtoiles, ETOILES_CONSEIL, romain,
-    TROPHEES_BONUS, FAMILLES, FAMILLE_DE, DORES, secrets, noterOuverture, noterCaresse, noterNom, noterVisite, bilanTrophees, tropheesMult, medailles, projetsAides };
+    TROPHEES_BONUS, FAMILLES, FAMILLE_DE, DORES, secrets, noterOuverture, noterCaresse, noterNom, noterVisite, bilanTrophees, tropheesMult, medailles, projetsAides,
+    ACCUEIL, accueilNeuf, accueil, accueilAncien, accueilPas, accueilOuvert, deblocagesDus, marquerDeblocage, recompenseAccueil };
 });

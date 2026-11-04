@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-11-04-a', date: '2026-11-04', titre: 'Un meilleur accueil pour les nouveaux boulangers',
+      points: [
+        'Les nouveaux boulangers sont guidés pas à pas : cuire, vendre, améliorer, embaucher. Un doigt montre où toucher, et « Passer » saute le guidage.',
+        'Puis une carte « Ton premier jour » : sept étapes, et à la fin une tenue d’apprenti pour la garde-robe et un boost ×2 de 30 minutes.',
+        'Les boutons (classement, Atelier, Ma chaîne, événements…) apparaissent au fil du jeu, quand ils servent, avec une petite bulle.',
+        'Si tu joues déjà : rien ne change pour toi, tout reste ouvert.',
+      ],
+    },
+    {
       id: '2026-11-03-a', date: '2026-11-03', titre: 'Paliers, second, trophées dorés, concours et chantiers',
       points: [
         'Après la boutique n°30, le voyage continue sans fin : toutes les dix boutiques, un palier (n°40, 50, 60…) avec un nouveau titre, de « Boulanger étoilé » à « Empereur de la baguette », une finition pour ta boutique, un objet rare et un boost ×5 d’une heure.',
