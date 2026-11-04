@@ -212,7 +212,12 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     const tabs = await ev(() => [...document.querySelectorAll('#feuille [data-tab]')].map((b) => ({ id: b.dataset.tab, t: b.textContent, ok: b.scrollWidth <= b.clientWidth + 1 })));
     check(tabs.some((x) => x.id === 'marche' && /Marché/.test(x.t)) && tabs.some((x) => x.id === 'hantee') && tabs.every((x) => x.ok), `les onglets : ${tabs.map((x) => x.t).join(' · ')} (le Marché, et Halloween jusqu’au 16)`);
     const t = await feuille(); check(/noisettes gagnées à la Halle/.test(t) && /noisettes/.test(t) && /Mamie Jo/.test(t), `l’onglet « Marché » : « ${(t.split('\n').find((l) => /Halle/.test(l)) || '').trim()} »`);
-    await shot('06-classement-marche'); await fermerFeuille();
+    await shot('06-classement-marche');
+    await page.setViewportSize({ width: 360, height: 640 }); await sleep(800);
+    { const t3 = await ev(() => [...document.querySelectorAll('#feuille [data-tab]')].map((b) => ({ t: b.textContent, ok: b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().right <= innerWidth + 0.5 })));
+      check(t3.length >= 4 && t3.every((x) => x.ok), `en 360 × 640 aussi, les onglets tiennent : ${t3.map((x) => x.t).join(' · ')}`); }
+    await ev(() => { const b = document.querySelector('#feuille [data-tab="marche"]'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await shot('06b-classement-marche-360x640');
+    await page.setViewportSize({ width: 390, height: 844 }); await sleep(500); await fermerFeuille();
   } else passe('l’onglet « Marché » et p_evt = \'marche\' attendent le moteur du classement (src/classement.js, EVTS : constructeur A)');
 
   console.log('── les Réglages : masquer le Marché ──');

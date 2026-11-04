@@ -608,7 +608,8 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     saison), hors de `st.piste`.
   · Le classement à cinq onglets (du 13 au 16 nov. : Semaine · Tous · Halloween · Marché · Chat) : une règle `.segments` pour cinq
     (13 px, chacun à sa largeur), sans débordement à 390 et 360 px.
-  · Nouveautés : `2026-11-12-a` (la mise en ligne au plus tard le 12 au soir ; « du vendredi 13 novembre à midi… »).
+  · Nouveautés : `2026-11-04-b`, datée du jour (test/fournil-nouveautes.cjs refuse une date d'avance) : à RE-DATER le jour de la mise en
+    ligne (au plus tard `2026-11-12-a`), après les entrées des autres lots ; le texte dit déjà « du vendredi 13 novembre à midi… ».
   · CI : `fournil-marche.cjs` et `fournil-saison.cjs` dans `fournil2` (8884, 8885 ; sa limite passe à 40 min), `fournil-marche-activites.cjs`
     dans `fournil13` (8886), dans les `needs` du déploiement. `fournil-marche-activites.cjs` ne passe en haute et en éco qu'avec la boutique
     de la Halle (C) : avant elle, seul `QUALITES=` (le repli en DOM) est vert. `fournil-marche-boutique.cjs` (C) n'existe pas encore : sa
