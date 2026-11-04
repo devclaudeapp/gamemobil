@@ -348,11 +348,46 @@ button.staff-ok::after { content: ""; position: absolute; left: 0; right: 0; top
 .ev-barre { position: absolute; left: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .75); border-radius: 0 3px 3px 0; transition: width .5s linear; }
 
 /* ─── indice (tutoriel) ─── */
-#indice { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
-#indice .bulle { padding: 10px 14px; border-radius: 18px; background: var(--texte); color: #fff; font: 700 15px/1.3 var(--texte-font); text-align: center; box-shadow: 0 6px 16px var(--ombre); text-wrap: balance; }
-#indice .main { width: 36px; height: 36px; animation: tape .9s ease-in-out infinite; }
-#indice.haut { flex-direction: column-reverse; }
-#indice.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
+#indice, #annonce-accueil { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
+#indice .bulle, #annonce-accueil .bulle { padding: 10px 14px; border-radius: 18px; background: var(--texte); color: #fff; font: 700 15px/1.3 var(--texte-font); text-align: center; box-shadow: 0 6px 16px var(--ombre); text-wrap: balance; }
+#indice .main, #annonce-accueil .main { width: 36px; height: 36px; animation: tape .9s ease-in-out infinite; }
+#indice.haut, #annonce-accueil.haut { flex-direction: column-reverse; }
+#indice.haut .main, #annonce-accueil.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
+/* l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Passer » (le seul élément touchable de la bulle, du côté opposé à la cible),
+   l'annonce d'un déblocage (même gabarit, violet), la carte « Ton premier jour », la pulsation d'un bouton qui apparaît */
+#indice .passer { pointer-events: auto; align-self: flex-end; min-width: 72px; min-height: 36px; padding: 0 16px; border-radius: 999px; background: rgba(255, 255, 255, .96); color: var(--texte); font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--gris-sombre), 0 4px 12px var(--ombre); }
+#indice .passer:active { transform: translateY(2px); }
+#annonce-accueil .bulle { background: #5E4BB6; box-shadow: 0 6px 18px rgba(94, 75, 182, .4); }
+#onglets.reduit { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.barre-achat.vide { display: none; }
+.ticket.debutant { background: linear-gradient(100deg, #FFF8E6, var(--carte) 60%); }
+.ticket.debutant > .ico { background: #FFF3C4; }
+.ticket.debutant .tk-txt b { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ticket.debutant .db-titre { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ticket.debutant .tk-txt small { -webkit-line-clamp: 1; }
+.db-points { flex: 0 0 auto; display: inline-flex; gap: 3px; }
+.db-points i { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px var(--beurre-sombre); }
+.db-points i.on { background: var(--beurre-sombre); }
+.ticket.debutant.pret { box-shadow: 0 0 0 3px var(--beurre), var(--ombre-carte); animation: pulse 1.6s ease-in-out infinite; }
+.ticket.debutant.pret .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
+.db-liste { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; gap: 6px; }
+.db-liste li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: var(--carte); box-shadow: 0 2px 0 var(--gris-sombre); font: 700 14px/1.3 var(--texte-font); color: var(--texte-2); }
+.db-liste li.fait { color: var(--texte); background: var(--menthe-clair); box-shadow: none; }
+.db-liste li.suivante { box-shadow: 0 0 0 2px var(--beurre), 0 2px 0 var(--gris-sombre); color: var(--texte); }
+.db-coche { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--gris); color: var(--texte-2); font: 800 13px/1 var(--texte-font); }
+.db-coche svg { width: 16px; height: 16px; }
+.db-liste li.fait .db-coche { background: var(--menthe); }
+.db-liste .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.db-cadeau { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 12px; border-radius: 16px; background: var(--or-clair); }
+.db-cadeau > span:last-child { display: grid; gap: 2px; }
+.db-cadeau b { font: 700 15px/1.2 var(--titre); }
+.db-cadeau small { font: 700 13px/1.3 var(--texte-font); color: var(--texte-2); }
+.db-portrait { flex: 0 0 auto; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #fff; }
+.db-portrait svg { width: 48px; height: 48px; }
+.db-portrait.grand { width: 120px; height: 120px; margin: 4px auto 6px; background: var(--ciel-clair); }
+.db-portrait.grand svg { width: 104px; height: 104px; }
+.accueil-neuf { animation: accueilNeuf 1s ease-in-out 2; }
+@keyframes accueilNeuf { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); filter: brightness(1.08); } }
 @keyframes tape { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
 @keyframes tapeHaut { 0%, 100% { transform: rotate(180deg) translateY(0); } 50% { transform: rotate(180deg) translateY(8px); } }
 
@@ -2339,7 +2374,7 @@ body.essai #chaine { top: 24px; }
 #b-jetons { display: none; font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
 #b-jetons .ico svg { width: 22px; height: 22px; }
 body.chaine-dans #b-jetons { display: inline-flex; }
-body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #boosts, #vote-bandeau, #evenement) { display: none !important; }
+body.chaine-dans :is(#b-classement, #b-nouveautes, #b-etoiles, #enseigne, #coin, #objectifs, #debutant, #boosts, #vote-bandeau, #evenement) { display: none !important; }
 body.chaine-dans.amenage .chaine-bandeau { opacity: .45; pointer-events: none; } /* (gardé à sa place : la scène ne change pas de taille en aménageant) */
 #b-decos { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; /* (44 px : toute la barre d'Aménager, #amenage-barre button) */ padding: 0 14px 0 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); }
 #b-decos .ico svg { width: 20px; height: 20px; }
@@ -2582,6 +2617,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
       <button id="b-ameliorations" class="btn-am" type="button"><i class="ico" data-ico="bonus"></i>Bonus<i class="badge" hidden></i></button>
       <button id="b-second" class="btn-am second" type="button" aria-label="Le second" hidden><i class="ico" data-ico="second"></i><span class="sd-mot">Second</span><i class="sd-point" aria-hidden="true"></i></button>
     </div>
+    <button id="debutant" class="ticket debutant" type="button" aria-label="Ton premier jour" hidden></button>
     <button id="objectifs" class="ticket" type="button" aria-label="Objectifs du jour"></button>
     <button id="boosts" class="ticket boosts" type="button" aria-label="Boosts en réserve" hidden></button>
     <div id="cartes"></div>
@@ -2601,7 +2637,8 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
   <button type="button" data-page="journal"><i class="ico" data-ico="journal"></i><span>Journal</span><i class="badge" hidden></i></button>
   <button type="button" data-page="reglages"><i class="ico" data-ico="reglages"></i><span>Réglages</span><i class="badge" hidden></i></button>
 </nav>
-<div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="indice" hidden><button type="button" class="passer" data-a="passer-tuto" hidden>Passer</button><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="annonce-accueil" role="status" aria-live="polite" hidden><div class="bulle"><span class="aa-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="atelier" role="dialog" aria-modal="true" aria-labelledby="at-titre" hidden>
   <div class="at-haut">
     <button type="button" class="at-fermer" data-at="fermer" aria-label="Quitter l’atelier"><i class="ico" data-ico="fermer"></i></button>
@@ -3538,6 +3575,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     ajouter(vet('parcours-tablier', 'Tablier du parcours', 'haut', 'parcours', 'tablier', { gains: { produit: null, pct: 2 } }, 'epique', 'Une poche par quartier.'));
     ajouter(vet('parcours-chaussures', 'Chaussures du parcours', 'pieds', 'parcours', 'chaussures', { vitesse: 1.5 }, 'epique', 'Elles ont fait vingt-trois boutiques.'));
     ajouter(vet('parcours-foulard', 'Foulard du parcours', 'accessoire', 'parcours', 'foulard', { absence: 0.5 }, 'epique', 'Noué à la boutique n°29.'));
+    // l'accueil des nouveaux joueurs (docs/accueil-contrat.md § 4.2) : la tenue d'apprenti, la récompense de « Ton premier jour », bleu de travail ;
+    // sans bonus et sans ensemble (un objet cosmétique n'accélère pas la boulangerie)
+    ajouter(vet('apprenti-tablier', 'Tablier d’apprenti', 'haut', 'apprenti', 'tablier', {}, 'rare', 'Bleu de travail, une poche pour le carnet de recettes.'));
+    ajouter(vet('apprenti-foulard', 'Foulard d’apprenti', 'accessoire', 'apprenti', 'foulard', {}, 'rare', 'Noué le premier jour. Il sent encore la farine.'));
     // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 5, 7 et 9, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
@@ -3707,7 +3748,92 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       // le lot « progression » : les paliers au-delà de la n°30 (et le pas d'étoiles), les trophées dorés, les compteurs des trophées secrets
       // (st.second, st.rivales, st.projets : src/progression.js, PROGRESSION.etat les crée et les remet d'aplomb)
       paliers: { recus: [], titre: '', objets: [] }, dores: {}, secrets: {},
+      accueil: accueilNeuf(), // l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : étapes du premier jour, récompense, déblocages
     };
+  }
+
+  // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour » (7 étapes et sa récompense) et les déblocages au fil
+  //     du jeu. st.accueil = { v, o, r, d, t } : o les étapes faites (bits), r la récompense donnée, d les déblocages ouverts (bits, jamais
+  //     effacés), t « tout ouvert » (une vieille sauvegarde). Les premiers pas restent st.tuto (src/ui.js, INDICES). Des règles pures, sans DOM ───
+  const evReussis = (st) => (st.stats.commandes || 0) + (st.stats.critiques || 0) + (st.stats.petrissages || 0) + (st.stats.pannes || 0);
+  const ACCUEIL = (() => {
+    const etapes = [
+      { id: 'painchoc', txt: 'Débloque les pains au chocolat', fait: (st) => !!st.stations[2] && st.stations[2].niv >= 1 },
+      { id: 'baguette25', txt: 'Monte la baguette au niveau 25 : gains ×2 !', fait: (st) => !!st.stations[0] && st.stations[0].niv >= 25 },
+      { id: 'mystere', txt: 'Touche un client mystère', fait: (st) => (st.stats.pourboires || 0) >= 1 },
+      { id: 'evenement', txt: 'Réussis un événement de la boutique', fait: (st) => evReussis(st) >= 1 },
+      { id: 'meuble', txt: 'Améliore un meuble du salon', fait: (st) => (st.stats.meubles || 0) >= 1 },
+      { id: 'bonus', txt: 'Achète ton premier bonus', fait: (st) => Object.keys(st.ameliorations || {}).length >= 1 },
+      { id: 'objectifs', txt: 'Réussis les trois objectifs du jour', fait: (st) => (st.stats.serieMax || 0) >= 1 },
+    ].map((e) => Object.freeze(e));
+    // l'ordre du tableau est l'ordre de priorité des annonces ; un bit est donné pour toujours (jamais réutilisé)
+    const deblocages = [
+      { id: 'boulanger', bit: 0, seuil: (st) => niveau(st) >= 2 || ptsTalents(st) > 0 },
+      { id: 'defis', bit: 1, seuil: () => true },
+      { id: 'modes', bit: 2, seuil: (st) => st.stations.some((s) => s.niv >= 10) },
+      { id: 'bonus', bit: 3, seuil: (st) => st.lifetime >= 6000 },
+      { id: 'etoiles', bit: 4, seuil: (st) => st.etoiles >= 1 || etoilesGagnables(st) >= 1 || st.boutiques >= 2 },
+      { id: 'journal', bit: 5, seuil: (st) => evReussis(st) + (st.stats.pourboires || 0) >= 1 || st.lifetime >= 1e5 },
+      { id: 'saison', bit: 6, seuil: (st) => st.lifetime >= 1e5 },
+      { id: 'classement', bit: 7, seuil: (st) => st.lifetime >= 2.5e5 },
+      { id: 'atelier', bit: 8, seuil: (st) => st.lifetime >= 1e6 },
+      { id: 'decos', bit: 9, seuil: (st) => (st.stats.meubles || 0) >= 3 || st.lifetime >= 1e7 },
+      { id: 'evenements', bit: 10, seuil: (st) => st.lifetime >= 1e7 },
+      { id: 'garderobe', bit: 11, seuil: (st) => Object.keys(garderobe(st).objets).some((id) => vetement(id) && vetement(id).collection !== 'base') },
+      { id: 'nouveautes', bit: 12, seuil: (st, a) => a.r === 1 || st.boutiques >= 2 },
+      { id: 'casino', bit: 13, seuil: (st, a) => (a.r === 1 && st.lifetime >= 1e8) || st.boutiques >= 2 },
+      { id: 'chaine', bit: 14, seuil: (st, a, o) => st.boutiques >= 2 || o.chaine > 0 },
+    ].map((d) => Object.freeze(d));
+    const TOUS = deblocages.reduce((m, d) => m | (1 << d.bit), 0);
+    return Object.freeze({ etapes: Object.freeze(etapes), deblocages: Object.freeze(deblocages), recompense: Object.freeze({ vetements: Object.freeze(['apprenti-tablier', 'apprenti-foulard']), boost: Object.freeze({ mult: 2, secs: 1800 }) }), TOUS, TOUTES: (1 << etapes.length) - 1 });
+  })();
+  function accueilNeuf() { return { v: 1, o: 0, r: 0, d: 0, t: 0 }; }
+  const etapesFaites = (s) => ACCUEIL.etapes.reduce((m, e, k) => { let f = false; try { f = !!e.fait(s); } catch (x) { f = false; } return f ? m | (1 << k) : m; }, 0);
+  // une sauvegarde sans st.accueil (d'avant ce lot) : « ancienne » au moindre signe (en cas de doute, tout ouvert, sans récompense ni annonce) ;
+  // sinon une partie neuve qui reprend : ses étapes déjà faites, ses déblocages déjà atteints ouverts en silence
+  function accueilAncien(s, now) {
+    s = s && typeof s === 'object' ? s : {};
+    const ancienne = (s.tuto | 0) >= 4 || (s.boutiques | 0) >= 2 || (Number(s.lifetime) || 0) >= 1e5 || (Number(s.etoiles) || 0) >= 1
+      || !((Number(now) || 0) - (Number(s.created) || 0) <= 864e5) || !!(s.arriere && s.arriere.trouvee);
+    if (ancienne) return { v: 1, o: ACCUEIL.TOUTES, r: 1, d: ACCUEIL.TOUS, t: 1 };
+    const a = accueilNeuf(); a.o = etapesFaites(s);
+    try { for (const id of dusDe(s, a, {})) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
+    return a;
+  }
+  function accueil(st) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet
+    let a = st.accueil;
+    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, st.now);
+    a.v = 1;
+    const o = Math.floor(Number(a.o)); a.o = o >= 0 && o <= ACCUEIL.TOUTES ? o : 0;
+    a.r = a.r ? 1 : 0;
+    const d = Math.floor(Number(a.d)); a.d = Number.isFinite(d) && d >= 0 ? Math.min(d, 0x7fffffff) : 0; // (les bits d'une version future restent)
+    a.t = a.t ? 1 : 0;
+    return a;
+  }
+  function accueilPas(st) { // les étapes du premier jour faites depuis le dernier passage (une étape faite le reste)
+    const a = accueil(st); if (a.t) return { nouvelles: [], toutes: true };
+    const f = etapesFaites(st), nouvelles = [];
+    ACCUEIL.etapes.forEach((e, k) => { if ((f & (1 << k)) && !(a.o & (1 << k))) nouvelles.push(k); });
+    a.o |= f;
+    return { nouvelles, toutes: a.o === ACCUEIL.TOUTES };
+  }
+  function accueilOuvert(st, id) { const a = accueil(st); if (a.t) return true; const x = ACCUEIL.deblocages.find((y) => y.id === id); return !x || !!(a.d & (1 << x.bit)); }
+  function dusDe(st, a, o) {
+    if (a.t || !((st.tuto | 0) >= 4)) return [];
+    const ctx = { chaine: (o && Number(o.chaine)) || 0 };
+    return ACCUEIL.deblocages.filter((x) => { if (a.d & (1 << x.bit)) return false; try { return !!x.seuil(st, a, ctx); } catch (e) { return false; } }).map((x) => x.id);
+  }
+  const deblocagesDus = (st, o) => dusDe(st, accueil(st), o); // les déblocages dont le seuil est atteint, pas encore ouverts, dans l'ordre du tableau
+  function marquerDeblocage(st, id) { const a = accueil(st), x = ACCUEIL.deblocages.find((y) => y.id === id); if (!x || (a.d & (1 << x.bit))) return false; a.d |= 1 << x.bit; return true; }
+  function recompenseAccueil(st) { // une seule fois : la tenue d'apprenti (portée d'office) et un boost ×2 de 30 min dans la réserve
+    const a = accueil(st); if (a.t || a.r) return { ok: false };
+    accueilPas(st); if (a.o !== ACCUEIL.TOUTES) return { ok: false };
+    a.r = 1;
+    const vetements = ACCUEIL.recompense.vetements.map((id) => donnerVetement(st, id).objet).filter(Boolean);
+    equiperCollection(st, 'apprenti');
+    const b = ACCUEIL.recompense.boost; donnerBoostReserve(st, b.mult, b.secs);
+    note(st, 'Premier jour réussi : tenue d’apprenti et boost ×2');
+    return { ok: true, vetements, boost: { mult: b.mult, secs: b.secs } };
   }
 
   // ─── temps, hasard déterministe ───
@@ -4782,7 +4908,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     // le lot « progression » : les paliers au-delà de la n°30, le pas d'étoiles, les trophées qui rapportent (familles, dorés, secrets)
     PALIER_PAS, PALIER_PREMIER, estPalier, rangPalier, boutiqueDuPalier, TITRES_PALIER, titrePalier, FINITIONS, finitionDe, finitionsDe, RARES_PALIER, TEINTES, BOOST_PALIER, recompensePalier,
     paliers, rarePossede, donnerPalier, rattraperPaliers, titreBoulanger, DEFIS_PALIER, defiPalier, paliersListe, COMPTEURS, SOUPAPE, STAT_NOMS, PAS, pasEtoiles, conseilEtoiles, ETOILES_CONSEIL, romain,
-    TROPHEES_BONUS, FAMILLES, FAMILLE_DE, DORES, secrets, noterOuverture, noterCaresse, noterNom, noterVisite, bilanTrophees, tropheesMult, medailles, projetsAides };
+    TROPHEES_BONUS, FAMILLES, FAMILLE_DE, DORES, secrets, noterOuverture, noterCaresse, noterNom, noterVisite, bilanTrophees, tropheesMult, medailles, projetsAides,
+    ACCUEIL, accueilNeuf, accueil, accueilAncien, accueilPas, accueilOuvert, deblocagesDus, marquerDeblocage, recompenseAccueil };
 });
 
 /* ── chaine.js ── */
@@ -5147,7 +5274,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // ─── textes ───
   const OBTENIR_TENUE = { base: 'Offerte dès le début', or: 'La 1re place du classement de la semaine', argent: 'La 2e place du classement de la semaine', bronze: 'La 3e place du classement de la semaine',
     quartier: 'Le Quartier, paliers 3, 6, 9 et 12', 'quartier-or': 'Le podium final du Quartier', 'quartier-neon': 'Le Quartier, palier 20', parcours: 'Le parcours du boulanger : boutiques n°11, 17, 23 et 29',
-    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons' };
+    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons', apprenti: 'L’objectif du premier jour' };
   const TITRES_PARCOURS = { 16: 'Boulanger de quartier', 22: 'Fournisseur officiel', 28: 'Grand maître du fournil', 30: 'Légende du Fournil' };
   const decosDe = (st, k) => { const q = st && st[k]; return q && typeof q === 'object' && Array.isArray(q.decos) ? q.decos : []; };
   const FAMILLES = [
@@ -8156,7 +8283,7 @@ const ICONS = (() => {
   // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
   const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
   // les palettes de la garde-robe : les métaux du podium, le quartier (anthracite, accent fraise) et le quartier en or (noir et or), la base (blanc)
-  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], parcours: ['#2F4A7A', '#C77B30', '#7FA0E0'], chaine: ['#7B2D42', '#D9A23A', '#A8506A'], etoile: ['#1F2B5C', '#FFC84A', '#3C5196'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or) ; la tenue étoilée des paliers (bleu nuit et or, comme persos.js)
+  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], parcours: ['#2F4A7A', '#C77B30', '#7FA0E0'], chaine: ['#7B2D42', '#D9A23A', '#A8506A'], etoile: ['#1F2B5C', '#FFC84A', '#3C5196'], apprenti: ['#5D8FC9', '#2F5A8A', '#BFD8F2'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or) ; la tenue étoilée des paliers (bleu nuit et or, comme persos.js)
   // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium), ou la garde-robe de GAME.tenueBoulanger(st) ({ tete, haut, accessoire: { forme, metal } })
   function boulanger(rang, tenue) {
     const gd = tenue && typeof tenue === 'object' ? tenue : null, pal = (p) => (gd && gd[p] && gd[p].metal && TENUES[gd[p].metal]) || null;
@@ -8575,7 +8702,7 @@ const VIGNETTES = (() => {
     'chaine': { 'souvenir-village': '7f739796', 'souvenir-paris': '926007d0', 'souvenir-mer': '8ef68485', 'souvenir-montagne': 'df19220e', 'souvenir-ville': 'ff6a95b8', 'souvenir-gare': '8594d05d', 'souvenir-ile': 'bd45bbd0', 'souvenir-chateau': '54ed3497', 'souvenir-cimes': '65c42c45', 'souvenir-capitale': '46946c78', 'chaine-plan': '4ca36770', 'chaine-cloche': '838d5410', 'chaine-globe': 'fa16278d', 'chaine-statue': '74c18e03', 'chaine-enseigne': '18be9f9c' },
     'trophees': { 'premiere': 'b1938048', 'cent': 'cc7c28b1', 'dixmille': '28d54c4e', 'million': '5dff0429', 'equipe': 'd89568b5', 'grande-equipe': 'ba19805a', 'livreur': '10c27988', 'traiteur': '35227a9a', 'presse': 'e7f8744c', 'etoile': 'ebb02d56', 'bras': '7b67a67f', 'eclair': 'b9cce6e3', 'bricoleur': '4ce33bfd', 'mystere': 'cc126607', 'genereux': '13ee6b0a', 'etoiles10': '51a14b3e', 'etoiles100': '3e3c4b8b', 'etoiles1000': '853901db', 'boutique2': 'f6e25c33', 'boutique5': '99e42eae', 'boutique10': '741c6a36', 'semaine': 'a4802b7d', 'defi': '8c4554b2', 'piece': '355a92e6', 'recette-boutique': 'b7847c97', 'carte': '5cc431c3', 'franchise': '945f9278', 'compagnon': 'f5d9a292', 'mof': '4a613cea', 'fidele': 'a6ab6036', 'salon': '4869f50d', 'decorateur': 'c9dbaec3', 'grade': '0f6b6e03', 'brigade': '4b7a7fb2', 'ronron': '01c56c37', 'saison1': '29890ace', 'saisons4': '0577e409', 'medaille': '5bfd8f9c', 'medaille-or': 'd4a5bd65', 'batisseur': '84e934c0', 'caresses': 'cd29f475', 'aube': '8d2947e7', 'nouvel-an': 'b1392d09', 'vendredi13': 'cf3dc76b', 'retour': 'ce0dc770', 'petrin': '218045db', 'bapteme': '4b6117a6', 'curieux': '5b60912b' },
     'compagnons': { 'chat-roux': '283c3b8a', 'chien': 'f8571904', 'lapin': '186dd477', 'chat-noir': '0c960187', 'chien-quartier': '36eb1d7b', 'chauve-souris': '1db19d12', 'poule': '52da9a29', 'canard': '266aa0d6', 'herisson': 'a98e39e2', 'pingouin': '22cba57e', 'raton': 'c49f471b', 'escargot': '880cac22', 'teckel': 'e1f35a48', 'croissant': 'fdd95fe4', 'dragon': '02e3373c', 'paon': '30a7d359', 'renard': 'f0c5b2f4', 'pigeon': '553a1d4f' },
-    'tenues': { 'toque-blanche': '3b34b1bb', 'tablier-blanc': 'a89a084d', 'sabots': 'a80a9470', 'lunettes-rondes': '02cd41be', 'or-toque': '152d1977', 'or-tablier': 'a95f9489', 'or-chaussures': 'c9ebd706', 'or-foulard': 'ecbf206a', 'argent-toque': '427f7e1b', 'argent-tablier': '63b8a5de', 'argent-chaussures': '3d2627db', 'argent-foulard': '8622bc90', 'bronze-toque': '10ccfab9', 'bronze-tablier': '1bc77011', 'bronze-chaussures': '8f4d5e2c', 'bronze-foulard': 'b90362ea', 'quartier-casquette': '0b051e2d', 'quartier-sweat': '0d6534aa', 'quartier-baskets': '99a3c53e', 'quartier-chaine': 'a6a62381', 'quartier-or-casquette': 'd4650e22', 'quartier-or-sweat': 'c75e0b8d', 'quartier-or-baskets': '64d3ad95', 'quartier-or-chaine': '5105afc9', 'quartier-neon-casquette': 'ff42edb3', 'parcours-toque': 'bbdbe07e', 'parcours-tablier': '22acbfbf', 'parcours-chaussures': '91b11989', 'parcours-foulard': '36d43ffe', 'hantee-chapeau': '1421e1d8', 'hantee-cape': '2569951f', 'hantee-bottes': '03ea5fc1', 'hantee-lanterne': 'e803667d', 'hantee-or-chapeau': '1be67222', 'hantee-or-cape': '3c0bd9fb', 'hantee-or-bottes': '37591731', 'hantee-or-lanterne': 'c861c534', 'hantee-lueur-chapeau': '98b3832f', 'etoile-toque': '72751bcf', 'etoile-tablier': '2f45fc06', 'chaine-toque': '99f7a60c', 'chaine-veste': '7285f43e', 'chaine-souliers': 'e8411715', 'chaine-cles': '652eac6b', 'aura-lueur': '6375df31' },
+    'tenues': { 'toque-blanche': '3b34b1bb', 'tablier-blanc': 'a89a084d', 'sabots': 'a80a9470', 'lunettes-rondes': '02cd41be', 'or-toque': '152d1977', 'or-tablier': 'a95f9489', 'or-chaussures': 'c9ebd706', 'or-foulard': 'ecbf206a', 'argent-toque': '427f7e1b', 'argent-tablier': '63b8a5de', 'argent-chaussures': '3d2627db', 'argent-foulard': '8622bc90', 'bronze-toque': '10ccfab9', 'bronze-tablier': '1bc77011', 'bronze-chaussures': '8f4d5e2c', 'bronze-foulard': 'b90362ea', 'quartier-casquette': '0b051e2d', 'quartier-sweat': '0d6534aa', 'quartier-baskets': '99a3c53e', 'quartier-chaine': 'a6a62381', 'quartier-or-casquette': 'd4650e22', 'quartier-or-sweat': 'c75e0b8d', 'quartier-or-baskets': '64d3ad95', 'quartier-or-chaine': '5105afc9', 'quartier-neon-casquette': 'ff42edb3', 'parcours-toque': 'bbdbe07e', 'parcours-tablier': '22acbfbf', 'parcours-chaussures': '91b11989', 'parcours-foulard': '36d43ffe', 'apprenti-tablier': '4b3c3bb1', 'apprenti-foulard': '8c3ad8df', 'hantee-chapeau': '1421e1d8', 'hantee-cape': '2569951f', 'hantee-bottes': '03ea5fc1', 'hantee-lanterne': 'e803667d', 'hantee-or-chapeau': '1be67222', 'hantee-or-cape': '3c0bd9fb', 'hantee-or-bottes': '37591731', 'hantee-or-lanterne': 'c861c534', 'hantee-lueur-chapeau': '98b3832f', 'etoile-toque': '72751bcf', 'etoile-tablier': '2f45fc06', 'chaine-toque': '99f7a60c', 'chaine-veste': '7285f43e', 'chaine-souliers': 'e8411715', 'chaine-cles': '652eac6b', 'aura-lueur': '6375df31' },
     'saison': { 'galette': '6bd1fe0b', 'crepe': '755aa47c', 'paques': 'fe3a41a0', 'glace': '41695689', 'citrouille': 'c29d1edc', 'buche': 'eba5896a' },
     'palier': { 'horloge-comtoise': '5e21da74', 'piano': '2c737703' },
     'casino-trophees': { 'premiere-main': 'cf8b27f3', 'blackjack': '5a5b9971', 'cinq-cartes': '083aa871', 'partage': 'eb173bf7', 'double': '94a58c33', 'paire-parfaite': '797cdbc0', 'plein': '01d46418', 'zero': 'd76979e2', 'habitue': 'c06088c5', 'serie-10': '3390949d', 'assidu': 'cc5436fd' },
@@ -18755,10 +18882,11 @@ const GARDEROBE_UI = (() => {
     if (!T['quartier-neon']) T['quartier-neon'] = { tissu: '#FF2E9A', fonce: '#2EF2FF', clair: '#FF8AD0', bijou: '#2EF2FF' };
     if (!T.parcours) T.parcours = { tissu: '#2F4A7A', fonce: '#C77B30', clair: '#7FA0E0', bijou: '#C77B30' }; // la tenue du parcours du boulanger : bleu nuit et cuivre
     if (!T['hantee-lueur']) T['hantee-lueur'] = { tissu: '#2E2547', fonce: '#7CFF6B', clair: '#B8FF9E', bijou: '#7CFF6B' };
+    if (!T.apprenti) T.apprenti = { tissu: '#5D8FC9', fonce: '#2F5A8A', clair: '#BFD8F2', bijou: '#E1496C' }; // la tenue d'apprenti (« Ton premier jour ») : bleu de travail, liseré fraise
     if (!T.chaine) T.chaine = { tissu: '#7B2D42', fonce: '#D9A23A', clair: '#A8506A', bijou: '#FFC84A' }; // la tenue du patron de « Ma chaîne » : grenat et or
   }
-  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger', etoile: 'Les paliers du boulanger' }; // (etoile : la tenue étoilée des paliers n°40, 70, 100 et 130, lot « progression »)
-  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.', etoile: 'Les paliers n°40, 70, 100 et 130 du parcours du boulanger.' };
+  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20', parcours: 'Le parcours du boulanger', etoile: 'Les paliers du boulanger', apprenti: 'Le premier jour' }; // (etoile : la tenue étoilée des paliers n°40, 70, 100 et 130, lot « progression »)
+  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».', parcours: 'Les boutiques n°11, 17, 23 et 29 du parcours du boulanger.', etoile: 'Les paliers n°40, 70, 100 et 130 du parcours du boulanger.', apprenti: 'L’objectif du premier jour.' };
   // une collection d'un événement écarté (le Quartier, QUARTIER.ECARTE, depuis le 27 oct. ; réintroduction plus tard) : ses pièces gagnées
   // restent à porter ; un ensemble dont on n'a rien ne se montre plus (plus moyen de l'avoir : pas de « Les paliers du Quartier » à qui est arrivé après)
   const ecartee = (c) => /^quartier(-|$)/.test(c) && typeof QUARTIER !== 'undefined' && !!QUARTIER.ECARTE;
@@ -24785,7 +24913,7 @@ const RETOURS = (() => {
   function majBandeau() {
     if (!bandeau) return;
     const v = moteur() && etat === 'ok' && rejoint() ? aVoter()[0] : null; // sans pseudo, pas d'invitation à voter
-    const feuille = $('#feuille'), cache = !v || ouvert() || (feuille && !feuille.hidden) || ($('#tchat') && !$('#tchat').hidden);
+    const feuille = $('#feuille'), cache = !v || ouvert() || (feuille && !feuille.hidden) || ($('#tchat') && !$('#tchat').hidden) || !!(d && d.accueil && !d.accueil()); // (l'accueil des nouveaux joueurs : avec le classement)
     bandeau.hidden = cache; if (cache) return;
     bandeau.dataset.n = v.n;
     const q = bandeau.querySelector('.vb-q'), r = bandeau.querySelector('.vb-reste'), t = `Vote : ${typo(v.question)}`, rr = `${reste(v.fin - maintenant())} · toucher pour voter`;
@@ -25607,6 +25735,15 @@ const CHAINE_ECRAN = (() => {
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-11-04-a', date: '2026-11-04', titre: 'Un meilleur accueil pour les nouveaux boulangers',
+      points: [
+        'Les nouveaux boulangers sont guidés pas à pas : cuire, vendre, améliorer, embaucher. Un doigt montre où toucher, et « Passer » saute le guidage.',
+        'Puis une carte « Ton premier jour » : sept étapes, et à la fin une tenue d’apprenti pour la garde-robe et un boost ×2 de 30 minutes.',
+        'Les boutons (classement, Atelier, Ma chaîne, événements…) apparaissent au fil du jeu, quand ils servent, avec une petite bulle.',
+        'Si tu joues déjà : rien ne change pour toi, tout reste ouvert.',
+      ],
+    },
+    {
       id: '2026-11-03-a', date: '2026-11-03', titre: 'Paliers, second, trophées dorés, concours et chantiers',
       points: [
         'Après la boutique n°30, le voyage continue sans fin : toutes les dix boutiques, un palier (n°40, 50, 60…) avec un nouveau titre, de « Boulanger étoilé » à « Empereur de la baguette », une finition pour ta boutique, un objet rare et un boost ×5 d’une heure.',
@@ -25938,6 +26075,11 @@ const UI = (() => {
   const CH = typeof CHAINE !== 'undefined' ? CHAINE : null, CE = typeof CHAINE_ECRAN !== 'undefined' && CHAINE_ECRAN.actif ? CHAINE_ECRAN : null; // « Ma chaîne » : les règles (src/chaine.js), l'écran (src/chaine-ecran.js)
   const PROG = typeof PROGRESSION !== 'undefined' ? PROGRESSION : null; // le lot « progression » : le second, les rivales, les projets (src/progression.js)
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : éteint sous un navigateur piloté (navigator.webdriver, les tests et les outils
+  // de capture : le jeu s'y comporte comme avant), sauf si la page le force (window.__accueil = true ; false l'éteint partout)
+  const ACC = (() => { try { if (window.__accueil === true) return true; if (window.__accueil === false) return false; return !navigator.webdriver; } catch (e) { return true; } })();
+  const accueilActif = () => ACC && !!st && !G.accueil(st).t; // un nouveau joueur (une vieille sauvegarde : t, tout ouvert)
+  const ouvertA = (id) => !accueilActif() || G.accueilOuvert(st, id); // ce bouton (ou cet onglet) est-il déjà débloqué ?
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
   // gerantsPayes : pour la même absence, ce que chaque gérant de la chaîne a déjà touché (n → ms) : le saut d'une heure sûre en retard le complète
@@ -25977,9 +26119,12 @@ const UI = (() => {
       if (!raw) return null;
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
       const fresh = G.newState(HORLOGE.maintenant());
+      const sansAccueil = !s.accueil || typeof s.accueil !== 'object' || Array.isArray(s.accueil); // (avant la boucle : elle y mettrait l'accueil d'une partie neuve)
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+      if (sansAccueil) s.accueil = G.accueilAncien(s, HORLOGE.maintenant()); // une sauvegarde d'avant l'accueil : tout ouvert, sauf une partie toute neuve (docs/accueil-contrat.md § 2.2)
+      G.accueil(s);
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
@@ -26088,7 +26233,7 @@ const UI = (() => {
   const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
   function renderSaison(force) { // la carte de la recette de saison : préparer, améliorer, cuire à la main ; la collection en barre
     const c = carteSaison; if (!c) return; const s = st.saison, r = G.recetteSaison(st);
-    if (!s || !r) { if (!c.el.hidden) { c.el.hidden = true; c.html = ''; } return; }
+    if (!s || !r || !ouvertA('saison')) { if (!c.el.hidden) { c.el.hidden = true; c.html = ''; } return; }
     const coll = (st.collection || {})[r.id], f = coll ? coll.fournees : 0, prix = G.coutSaison(st), ok = st.coins >= prix, max = s.niv >= G.SAISON.nivMax;
     const html = `<div class="icone">${ICONS.SAISON[r.id]}${s.niv ? `<span class="niv">${s.niv}</span>` : ''}</div>
       <div class="corps"><h3><span class="nom">${esc(r.nom)} <span class="tag saison">jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]}</span></span></h3>
@@ -26266,7 +26411,7 @@ const UI = (() => {
     if (pageActive === 'boulanger' && tiroir.pos !== 'ferme' && doresNonVus()) marquerDores();
     const aPayer = avecConcours() ? PROG.rivales(st).aPayer.length : 0, dpal = G.defiPassage(st), palierFait = !!(dpal && dpal.d && dpal.d.palier && dpal.fait), dnv = doresNonVus();
     const sOuvert = secondOuvert() && !chaineVue, sActif = sOuvert && PROG.second(st).actif, sNeuf = sOuvert && secondNeuf();
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}|${aPayer}|${palierFait}|${dnv}|${sOuvert}|${sActif}|${sNeuf}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}|${aPayer}|${palierFait}|${dnv}|${sOuvert}|${sActif}|${sNeuf}|${ACC ? `${st.accueil.d}:${st.accueil.r}:${st.accueil.t}:${st.tuto >= 4}` : ''}`;
     majEnseigne(nom); // avant le raccourci : les polices arrivent sans que rien d'autre ne change
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
@@ -26318,6 +26463,7 @@ const UI = (() => {
   // ─── pages : une seule visible ; un onglet ouvre le tiroir au moins à mi-hauteur ───
   function showPage(id) {
     if (!PAGES.includes(id)) return;
+    if (accueilActif() && !ouvertA(id) && G.marquerDeblocage(st, id)) { save(); majAccueil(); } // un lien interne vers un onglet encore fermé : il s'ouvre (jamais une page sans son onglet)
     pageActive = id;
     document.querySelectorAll('#pages .page').forEach((p) => { p.hidden = p.dataset.page !== id; });
     document.querySelectorAll('#onglets button').forEach((b) => { const on = b.dataset.page === id; b.classList.toggle('actif', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -26499,7 +26645,7 @@ const UI = (() => {
   const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
   const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${Object.keys(st.dores || {}).length}|${titreB(st)}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${Object.keys(st.dores || {}).length}|${titreB(st)}|${cleRecompenses()}|${!!st.chat}|${cleChaine()}|${GRU && GRU.vue3D ? 1 : 0}|${ACC ? `${st.accueil.d}:${st.accueil.t}` : ''}`, // (vue3D : le bouton « Voir mon boulanger en 3D » de la garde-robe, quand la HD est permise)
     html: () => {
       const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
       const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
@@ -26513,7 +26659,7 @@ const UI = (() => {
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
         <h3 class="titre-section"><span>Tenue et récompenses</span></h3>
-        ${GRU ? GRU.carte(st) : ''}
+        ${GRU && ouvertA('garderobe') ? GRU.carte(st) : ''}
         ${carteRecompenses()}
         ${avecFamilles() ? carteTropheesFamilles() : `<div class="card"><div class="c-tete"><span class="pic or">${ICONS.UI.trophee}</span><h3>Trophées</h3><span class="compte ${gagnes ? 'or' : ''}">${gagnes}/${G.TROPHEES.length}</span></div>
           ${gagnes ? `<div class="trophees">${G.TROPHEES.filter((t) => tr[t.id]).map(troph).join('')}</div>` : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
@@ -26765,11 +26911,15 @@ const UI = (() => {
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
     { txt: 'Touche la baguette pour la cuire et la vendre !', ou: 'pages', cible: () => cards[0].el.querySelector('.barre'), fini: () => st.stats.ventes >= 1 },
-    { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2 },
-    { txt: 'Débloque les croissants : 20 € la fournée !', ou: 'pages', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1 },
-    { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
-    { txt: 'Bravo ! Au niveau 25, 50, 75, 100… les gains montent d’un cran. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', ou: 'pages', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
-    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', ou: 'onglets', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
+    { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2,
+      attente: () => `Encore ! Touche la baguette : il te faut ${G.fmtEur(G.coutNiveau(0, st.stations[0].niv))} pour l’améliorer.`, cibleAttente: () => cards[0].el.querySelector('.barre') },
+    { txt: 'Débloque les croissants : 20 € la fournée !', ou: 'pages', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1,
+      attente: () => `Continue : les croissants s’ouvrent à ${G.fmtEur(G.PRODUITS[1].debloquer)}.`, cibleAttente: () => cards[0].el.querySelector('.barre') },
+    { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff,
+      attente: () => `Cuis et vends encore : Léo s’embauche à ${G.fmtEur(G.prixStaff(st, 0))}.`, cibleAttente: () => { const i = [0, 1].filter((k) => st.stations[k].niv > 0 && !st.stations[k].staff).sort((a, b) => G.revenuFournee(st, b) / G.temps(st, b) - G.revenuFournee(st, a) / G.temps(st, a))[0]; return cards[i == null ? 0 : i].el.querySelector('.barre'); } },
+    { txt: 'Bravo ! Au niveau 25, 50, 75, 100… les gains montent d’un cran. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', ou: 'pages', cible: () => (accueilActif() ? $('#debutant') : $('#objectifs')), pret: () => true, fini: () => performance.now() > hintUntil,
+      txtAccueil: 'Bravo, ta boulangerie tourne ! Voici ta carte du premier jour : 7 étapes, une tenue et un boost à la clé.' },
+    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', ou: 'onglets', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0 && ouvertA('boulanger'), fini: () => vuBoulanger || (accueilActif() && G.accueilOuvert(st, 'boulanger')) }, // (accueil : l'annonce de l'onglet Boulanger en tient lieu)
     { txt: 'Ton salon de thé ! Touche un meuble dans la boutique (les tables, le four, la vitrine…) pour l’améliorer, ou Réglages › Repeindre la boutique pour les voir tous.', ou: 'scene', cible: () => zoneCible('tables'), pret: () => G.MOBILIER.some((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)), fini: () => (st.stats.meubles || 0) > 0 },
   ];
   // une cible d'indice posée sur une zone de la scène (le canvas n'a pas d'éléments)
@@ -26778,31 +26928,197 @@ const UI = (() => {
     const r = $('#scene').getBoundingClientRect();
     return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) };
   }
-  function indices() {
-    const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)) { el.hidden = true; return; }
-    const h = INDICES[st.tuto];
-    if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
-    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
-    if (h.pret && !h.pret()) { el.hidden = true; return; }
-    if (st.tuto !== hintStep) { hintStep = st.tuto; $('#indice-txt').textContent = h.txt; if (st.tuto === 4) hintUntil = performance.now() + 8000; }
-    const cible = h.cible();
-    el.hidden = false;
-    if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
-    el.querySelector('.main').hidden = false;
+  // une bulle (l'indice, l'annonce de l'accueil) au-dessus ou au-dessous de sa cible, bornée à l'écran ; ou : 'pages' (sous le tiroir ou les
+  // onglets : on attend), 'scene' (au-dessus du tiroir), autre (toujours) ; defile(r) : la cible attend dans la liste. Rend false si elle ne se montre pas
+  function placerBulle(el, cible, ou, defile, strict) {
     const r = cible.getBoundingClientRect(), bw = Math.min(window.innerWidth * 0.78, 320), hautTiroir = $('#tiroir').getBoundingClientRect().top;
-    const visible = h.ou === 'pages' ? r.top >= hautTiroir + 30 && r.bottom <= $('#onglets').getBoundingClientRect().top + 2 : h.ou === 'scene' ? r.bottom <= hautTiroir + 2 : true; // sous le tiroir ou sous les onglets : on attend
-    if (!visible) { // la liste défile une fois jusqu'à la cible (et seulement la liste)
-      if (h.ou === 'pages' && hintDefile !== st.tuto) { hintDefile = st.tuto; const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); }
-      el.hidden = true; return;
-    }
+    const visible = ou === 'pages' ? r.top >= hautTiroir + 30 && r.bottom <= $('#onglets').getBoundingClientRect().top + 2 : ou === 'scene' ? r.bottom <= hautTiroir + 2 : true; // sous le tiroir ou sous les onglets : on attend
+    if (!visible || (strict && !(r.width > 0 && r.height > 0))) { if (!visible && defile) defile(r); el.hidden = true; return false; }
+    el.hidden = false; el.querySelector('.main').hidden = false;
     let x = r.left + r.width / 2 - bw / 2; x = Math.max(8, Math.min(window.innerWidth - bw - 8, x));
     el.style.left = x + 'px'; el.style.transform = 'none';
+    if (strict) { const m = el.querySelector('.main'), dx = Math.max(18 - bw / 2, Math.min(bw / 2 - 18, r.left + r.width / 2 - x - bw / 2)); m.style.position = 'relative'; m.style.left = Math.round(dx) + 'px'; } // (l'accueil : le doigt au-dessus de la cible, même quand la bulle bute contre le bord)
     const hauteur = el.offsetHeight || 90;
     if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; }
     else { el.classList.remove('haut'); el.style.top = (r.top - hauteur - 6) + 'px'; }
-    if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
+    if (r.bottom < 0 || r.top > window.innerHeight) { el.hidden = true; return false; }
+    return true;
   }
+  const defileListe = (r) => { const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); };
+  function indices() {
+    const el = $('#indice'), acc = accueilActif(), passer = el.querySelector('.passer');
+    const guide = acc && st.tuto <= 3; // les premiers pas de l'accueil : « Passer », le texte d'attente, la bulle qui ramène à la boutique
+    if (passer && passer.hidden !== !guide) passer.hidden = !guide;
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
+      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue))) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
+    const h = INDICES[st.tuto];
+    const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
+    if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
+      if (!guide) { el.hidden = true; return; }
+      ecrire(pageActive !== 'boutique' ? 'Reviens à la boutique pour continuer.' : 'Remonte le tiroir pour voir tes recettes.');
+      placerBulle(el, pageActive !== 'boutique' ? $('#onglets [data-page="boutique"]') : $('#poignee'), 'onglets'); return;
+    }
+    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; if (acc) { majAccueil(); renderDebutant(true); } return; }
+    let cible = null, texte = acc && h.txtAccueil ? h.txtAccueil : h.txt;
+    if (h.pret && !h.pret()) {
+      if (!(guide && h.attente)) { el.hidden = true; return; }
+      texte = h.attente(); cible = h.cibleAttente();
+    }
+    if (st.tuto !== hintStep) { hintStep = st.tuto; if (st.tuto === 4) hintUntil = performance.now() + 8000; }
+    ecrire(texte);
+    if (!cible) cible = h.cible();
+    el.hidden = false;
+    if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
+    placerBulle(el, cible, h.ou, h.ou === 'pages' ? (r) => { if (hintDefile !== st.tuto) { hintDefile = st.tuto; defileListe(r); } } : null, acc); // (la liste défile une fois jusqu'à la cible, et seulement la liste)
+  }
+  function passerTuto() { // « Passer » : le guidage s'arrête (la carte du premier jour et les déblocages continuent)
+    if (!accueilActif() || st.tuto > 3) return;
+    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
+  }
+
+  // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour », les déblocages au fil du jeu et leurs annonces,
+  //     une bulle à la fois (#annonce-accueil), jamais par-dessus une feuille ou un écran ───
+  const nbBits = (m) => { let n = 0; for (let k = 0; k < 7; k++) if (m & (1 << k)) n++; return n; };
+  let lastDeb = '';
+  function renderDebutant(force) {
+    const el = $('#debutant'); if (!el) return;
+    const voir = accueilActif() && st.tuto >= 4 && !st.accueil.r && !chaineVue;
+    if (!voir) { if (!el.hidden) el.hidden = true; lastDeb = ''; return; }
+    const a = st.accueil, n = nbBits(a.o), toutes = n === 7, suivante = G.ACCUEIL.etapes.find((e, k) => !(a.o & (1 << k))), key = `${a.o}`;
+    if (!force && key === lastDeb && !el.hidden) return; lastDeb = key;
+    el.hidden = false; el.className = 'ticket debutant' + (toutes ? ' pret' : '');
+    el.setAttribute('aria-label', `Ton premier jour : ${n} étape${n > 1 ? 's' : ''} sur 7${toutes ? ', ta récompense t’attend' : ''}`);
+    el.innerHTML = `<i class="ico">${ICONS.UI.soleil}</i><span class="tk-txt"><b><span class="db-titre">Ton premier jour · ${n}/7</span><span class="db-points" aria-hidden="true">${G.ACCUEIL.etapes.map((e, k) => `<i class="${a.o & (1 << k) ? 'on' : ''}"></i>`).join('')}</span></b><small>${toutes ? 'Bravo ! Ta récompense t’attend.' : esc(suivante.txt)}</small></span>
+      <span class="tk-pill">${toutes ? 'Cadeau !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
+  }
+  function sheetDebutant() {
+    if (!accueilActif() || st.accueil.r) return;
+    G.accueilPas(st); renderDebutant(true);
+    const a = st.accueil, n = nbBits(a.o), toutes = n === 7; let suivante = -1;
+    G.ACCUEIL.etapes.forEach((e, k) => { if (suivante < 0 && !(a.o & (1 << k))) suivante = k; });
+    openSheet(`<h2>Ton premier jour</h2><p class="sous">${toutes ? 'Les sept étapes sont faites : bravo, ta boulangerie est lancée !' : `Sept étapes pour bien démarrer · ${n}/7`}</p>
+      <ul class="db-liste">${G.ACCUEIL.etapes.map((e, k) => { const f = !!(a.o & (1 << k)); return `<li class="${f ? 'fait' : ''}${k === suivante ? ' suivante' : ''}"><span class="db-coche" aria-hidden="true">${f ? ICONS.UI.coche : k + 1}</span><span>${k === suivante ? `<b>${esc(e.txt)}</b>` : esc(e.txt)}${f ? '<span class="sr"> (fait)</span>' : ''}</span></li>`; }).join('')}</ul>
+      <div class="db-cadeau"><span class="db-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), { tete: { forme: 'toque', metal: null }, haut: { forme: 'tablier', metal: 'apprenti' }, pieds: { forme: 'chaussures', metal: null }, accessoire: { forme: 'foulard', metal: 'apprenti' }, aura: null, cle: 'apprenti' })}</span><span><b>La récompense</b><small>Une tenue d’apprenti pour ta garde-robe et un boost ×2 de 30 minutes</small></span></div>
+      ${toutes ? '<button type="button" class="btn large beurre" data-a="db-recevoir"><b>Recevoir ma récompense</b></button>' : ''}${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-a="db-recevoir"]', () => { audio(); recevoirDebutant(); });
+  }
+  function recevoirDebutant() {
+    const r = G.recompenseAccueil(st);
+    if (!r.ok) { son.non(); closeSheet(); renderDebutant(true); return r; }
+    son.deblocage(); buzz([20, 40, 20]); confettis(1.4); SCENE.fete();
+    save(); renderBoosts(); renderDebutant(true); lastHud = ''; hud(); lastPage = ''; if (pageActive !== 'boutique') renderPage(true);
+    const actif = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now;
+    openSheet(`<h2>Premier jour réussi !</h2><div class="db-portrait grand" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenueVue())}</div>
+      <p class="sous">Ta tenue d’apprenti est dans ta garde-robe (onglet Boulanger) : le boulanger la porte déjà.</p>
+      <div class="grand-nombre">Boost ×${r.boost.mult} · ${G.fmtDuree(r.boost.secs)}</div><p class="sous">Toutes les ventes ×${r.boost.mult}, quand tu veux.</p>
+      ${actif ? '<button type="button" class="btn large beurre" data-a="db-plus-tard"><b>Merci !</b></button>' : `<button type="button" class="btn large beurre" data-a="db-lancer"><b>Lancer le boost ×${r.boost.mult}</b></button><button type="button" class="btn large clair" data-a="db-plus-tard" style="margin-top:8px"><b>Plus tard</b></button>`}`);
+    on('[data-a="db-plus-tard"]', () => { son.tap(); closeSheet(); renderBoosts(); });
+    on('[data-a="db-lancer"]', () => { const k = indexBoost(r.boost.mult, r.boost.secs); closeSheet(); const x = k >= 0 ? G.lancerBoostReserve(st, k) : { ok: false }; if (x.ok) reussite(`Boost ×${x.boost.mult} lancé : toutes les ventes ×${x.boost.mult} pendant ${G.fmtDuree((x.boost.fin - st.now) / 1000)} !`); else son.non(); renderBoosts(); save(); });
+    return r;
+  }
+  // ce qu'ouvre chaque déblocage, sans mise à jour à lui : appliqué au démarrage, à chaque bit posé et une fois par seconde (seulement si ça change)
+  const cacher = (el, v) => { if (el && el.hidden !== v) el.hidden = v; };
+  function majAccueil() {
+    if (!ACC || !st) return;
+    cacher($('#b-atelier'), !ouvertA('atelier'));
+    cacher($('#b-etoiles'), !ouvertA('etoiles'));
+    cacher($('#b-nouveautes'), !ouvertA('nouveautes'));
+    const modes = $('.barre-achat .modes'), am = $('#b-ameliorations'), sec = $('#b-second');
+    cacher(modes, !ouvertA('modes')); cacher(am, !ouvertA('bonus'));
+    const ba = $('.barre-achat'); if (ba) { const vide = modes.hidden && am.hidden && (!sec || sec.hidden); if (ba.classList.contains('vide') !== vide) ba.classList.toggle('vide', vide); }
+    let reduit = false;
+    for (const p of ['defis', 'boulanger', 'journal']) { const b = $(`#onglets [data-page="${p}"]`), c = !ouvertA(p); cacher(b, c); if (c) reduit = true; }
+    const og = $('#onglets'); if (og.classList.contains('reduit') !== reduit) og.classList.toggle('reduit', reduit);
+    cacher($('#objectifs'), !ouvertA('defis'));
+    if (CE) cacher($('#b-decos'), !ouvertA('decos'));
+    renderDebutant();
+  }
+  // les annonces : une seule file, une bulle à la fois ; ECART entre deux (3 s pour la toute première après les premiers pas)
+  const ECART = () => (window.__accueilEcart | 0) || 20000;
+  let annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  const annonceAttente = (ms) => { finAnnoncePrec = performance.now() - ECART() + ms; }; // la prochaine annonce dans ms au plus tôt
+  const SILENCE = { evenements: () => true, nouveautes: () => true, saison: () => !(st.saison && G.recetteSaison(st)), classement: () => !classement, decos: () => !CE, chaine: () => !CE, garderobe: () => !GRU };
+  const TXT_ANNONCE = {
+    boulanger: () => (G.ptsTalents(st) > 0 ? 'Nouveau : l’onglet Boulanger ! Tu as un point de talent à dépenser.' : 'Nouveau : l’onglet Boulanger ! Ton niveau, tes talents et tes trophées.'),
+    defis: () => 'Nouveau : les Défis ! Trois objectifs par jour, une étoile quand tu les finis.',
+    modes: () => 'Achète par 10, par 100 ou au maximum : ça va plus vite !',
+    bonus: () => 'Nouveau : Bonus et mobilier, pour multiplier tes gains.',
+    etoiles: () => 'Ta première étoile ! Chacune ajoute des gains, pour toujours.',
+    journal: () => 'Nouveau : le Journal, l’histoire de ta boutique au jour le jour.',
+    saison: () => { const r = G.recetteSaison(st); return r ? `Nouveau : ${r.nom}, jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]} ! Elle se cuit à la main.` : ''; },
+    classement: () => 'Nouveau : le classement ! Mesure-toi aux autres boulangers, chaque semaine.',
+    atelier: () => 'Nouveau : l’Atelier, trois mini-jeux pour gagner un peu plus.',
+    decos: () => 'Nouveau : Mes décos, dans l’onglet Boulanger : arrange ta boutique.',
+    garderobe: () => 'Ta garde-robe est dans l’onglet Boulanger : essaie ta tenue d’apprenti !',
+    casino: () => 'Psst… on entend battre des cartes derrière la petite porte du fond.',
+    chaine: () => 'Nouveau : Ma chaîne ! Tes anciennes boutiques revivent sur ta petite planète.',
+  };
+  const zoneRect = (z) => { const r = $('#scene').getBoundingClientRect(); return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) }; };
+  // la cible d'une annonce ({ el, ou, defile }), ou null si elle ne peut pas se montrer maintenant (elle attend sans bloquer les suivantes)
+  function cibleAnnonce(id) {
+    const onglet = (p) => ({ el: $(`#onglets [data-page="${p}"]`), ou: 'onglets' });
+    const tiroirOk = pageActive === 'boutique' && tiroir.pos !== 'ferme' && !chaineVue && !SCENE.amenager;
+    const hautTiroir = $('#tiroir').getBoundingClientRect().top, coinOk = !chaineVue && !visite && $('#coin').getBoundingClientRect().top + 52 <= hautTiroir;
+    switch (id) {
+      case 'boulanger': case 'decos': case 'garderobe': return onglet('boulanger');
+      case 'defis': return onglet('defis');
+      case 'journal': return onglet('journal');
+      case 'modes': return tiroirOk ? { el: $('.barre-achat .modes'), ou: 'pages' } : null;
+      case 'bonus': return tiroirOk ? { el: $('#b-ameliorations'), ou: 'pages' } : null;
+      case 'saison': return tiroirOk && carteSaison ? { el: carteSaison.el, ou: 'pages', defile: true } : null;
+      case 'etoiles': return chaineVue ? null : { el: $('#b-etoiles'), ou: 'haut' };
+      case 'classement': return chaineVue ? null : { el: $('#b-classement'), ou: 'haut' };
+      case 'atelier': return coinOk ? { el: $('#b-atelier'), ou: 'scene' } : null;
+      case 'chaine': return coinOk ? { el: $('#b-chaine'), ou: 'scene' } : null;
+      case 'casino': { if (chaineVue || visite || SCENE.amenager || !SCENE.zoneArriere) return null; const z = SCENE.zoneArriere(); if (!z) return null; const c = zoneRect(z); return c.getBoundingClientRect().bottom <= hautTiroir + 2 ? { el: c, ou: 'scene', zone: true } : null; }
+      default: return null;
+    }
+  }
+  function peutAnnoncer() {
+    if (st.tuto < 5 || annonceId || performance.now() - finAnnoncePrec < ECART()) return false;
+    if (!feuille.hidden || document.hidden || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert) || (RT && RT.ouvert) || SCENE.amenager) return false;
+    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || $('.maj') || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
+    return true;
+  }
+  // après un bit posé : ce qui apparaît se redessine (le coin, la carte de saison, les cartes de la page Boulanger…)
+  function apresDeblocage(id) {
+    if (id === 'nouveautes' && NVS) st.nouveautesVues = NVS.derniere(); // (l'historique des mises à jour n'intéresse pas un nouveau : pas de point)
+    lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
+    majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
+    if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }
+    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) setTimeout(() => { if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); }, 400); // un événement ouvert : son annonce à lui
+  }
+  function pasAccueil() {
+    if (!accueilActif()) return;
+    if (st.tuto !== tutoVu) { if (st.tuto >= 5 && tutoVu >= 0 && tutoVu < 5) annonceAttente(3000); tutoVu = st.tuto; }
+    if (st.tuto < 4) { majAccueil(); return; }
+    const a = st.accueil, p = G.accueilPas(st);
+    if (p.nouvelles.length) { let n = nbBits(a.o) - p.nouvelles.length; for (const k of p.nouvelles) toast(`Premier jour : ✓ ${G.ACCUEIL.etapes[k].txt} (${++n}/7)`); renderDebutant(true); save(); }
+    const dus = G.deblocagesDus(st, { chaine: CH ? CH.etat(st).b.length : 0 });
+    let change = '';
+    for (const id of dus) if (SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    if (change) save();
+    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id)) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
+    majAccueil();
+  }
+  function montrerAnnonce(id, c) {
+    if ((id === 'decos' || id === 'garderobe') && G.marquerDeblocage(st, 'boulanger')) apresDeblocage('boulanger'); // (leur annonce montre l'onglet Boulanger : il s'ouvre avec)
+    G.marquerDeblocage(st, id); save(); apresDeblocage(id);
+    annonceId = id; annonceDebut = performance.now(); annonceCible = c;
+    $('#indice').hidden = true;
+    const el = $('#annonce-accueil'); el.querySelector('.aa-txt').textContent = TXT_ANNONCE[id] ? TXT_ANNONCE[id]() : '';
+    if (!c.zone && c.el.classList) { const x = c.el; x.classList.remove('accueil-neuf'); void x.offsetWidth; x.classList.add('accueil-neuf'); setTimeout(() => x.classList.remove('accueil-neuf'), 2200); }
+    if (c.defile) { const r = c.el.getBoundingClientRect(), hautTiroir = $('#tiroir').getBoundingClientRect().top; if (r.top < hautTiroir + 30 || r.bottom > $('#onglets').getBoundingClientRect().top) defileListe(r); }
+    son.tap(); placerAnnonce();
+  }
+  function placerAnnonce() { // à chaque image tant qu'elle est là (le tiroir bouge, le coin se resserre, la liste défile)
+    const el = $('#annonce-accueil'); if (!annonceId || !annonceCible) { if (!el.hidden) el.hidden = true; return; }
+    const t = performance.now(), ecran = !feuille.hidden || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert);
+    if (t - annonceDebut > 6000 || ecran) { finAnnonce(); return; }
+    placerBulle(el, annonceCible.el, annonceCible.ou, null, !annonceCible.zone);
+  }
+  function finAnnonce() { if (!annonceId) return; annonceId = ''; annonceCible = null; finAnnoncePrec = performance.now(); $('#annonce-accueil').hidden = true; }
 
   // ─── feuilles : bonus, étoiles, sauvegarde, nom, spécialité, retour d'absence ───
   const feuille = $('#feuille'), fc = $('#feuille-contenu'), voile = $('#voile');
@@ -27139,6 +27455,7 @@ const UI = (() => {
   let versionVol = false, versionVue = -Infinity;
   function verifierVersion() {
     if (!VERSION || versionVol || !/^https?:$/.test(location.protocol) || document.hidden || $('.maj')) return;
+    if (accueilActif() && st.tuto < 4) return; // (accueil : pas de bandeau pendant les premiers pas)
     if (performance.now() - versionVue < 60e3) return; // au plus une fois par minute
     versionVol = true; versionVue = performance.now();
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -27264,13 +27581,13 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
-  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible()); majMinuteurs(); } // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
+  function majCoinQuartier() { const ev = ouvertA('evenements'), bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible() && ev); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible() && ev); majMinuteurs(); } // (accueil : seulement une fois les événements débloqués) // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
   function majCoin() {
     majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
     if (!classement) { b.hidden = true; return; }
     const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
-    b.hidden = false;
+    b.hidden = !ouvertA('classement'); // (accueil : le classement s'ouvre à 250 000 €)
     if (cle === derniereCleCoin) return; derniereCleCoin = cle;
     const p = b.querySelector('.rang-pastille');
     p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
@@ -27812,8 +28129,8 @@ const UI = (() => {
   let cleCoinChaine = '';
   function majCoinChaine() {
     const b = $('#b-chaine'); if (!b) return; if (!CH || !CE || !st) { b.hidden = true; return; }
-    const r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
-    b.hidden = false; const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
+    const ouvre = ouvertA('chaine'), r = CH.resume(st, HORLOGE.maintenant()), k = `${r.boutiques}|${r.aPrendre}|${ouvre}`; if (k === cleCoinChaine) return; cleCoinChaine = k;
+    b.hidden = !ouvre; // (accueil : Ma chaîne s'ouvre à la boutique n°2) const p = b.querySelector('.rang-pastille'); // (toujours là : « Ma chaîne » se découvre avant la 2e boutique, l'écran dit quand elle commence) p.hidden = !r.aPrendre; p.textContent = r.aPrendre > 99 ? '99+' : String(r.aPrendre || '');
     b.setAttribute('aria-label', r.boutiques ? `Ma chaîne : ${r.boutiques} boutique${r.boutiques > 1 ? 's' : ''}${r.aPrendre ? `, ${r.aPrendre} jeton${r.aPrendre > 1 ? 's' : ''} à prendre` : ''}` : 'Ma chaîne : elle commence à ta 2e boutique');
   }
   function rafraichirChaine() { // après une action de l'écran de la chaîne (jetons pris, gérant, objet, boost)
@@ -27824,9 +28141,10 @@ const UI = (() => {
   const cleChaine = () => { if (!CH || !CE) return ''; const r = CH.resume(st, HORLOGE.maintenant()); return `${r.boutiques}|${r.gerants}|${r.or}|${r.aPrendre}|${r.jetons}`; };
   function carteChaine() {
     if (!CH || !CE) return '';
+    const ch = ouvertA('chaine'), dc = ouvertA('decos'); if (!ch && !dc) return ''; // (accueil : chacune à son déblocage)
     const r = CH.resume(st, HORLOGE.maintenant()), pl = (n, a, b) => `${n} ${n > 1 ? b : a}`;
-    return `<div class="ch-cartes-boulanger"><button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>
-      <button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
+    return `<div class="ch-cartes-boulanger">${ch ? `<button type="button" class="card chaine-carte" data-a="ma-chaine"><span class="pic">${ICONS.UI.planete}</span><span class="t"><b>Ma chaîne</b><small>${r.boutiques ? `${pl(r.boutiques, 'boutique', 'boutiques')} · ${pl(r.gerants, 'gérant', 'gérants')}${r.or ? ` · ${pl(r.or, 'Boutique d’or', 'Boutiques d’or')}` : ''}` : 'Elle commence à ta 2e boutique'}</small></span>${r.aPrendre ? `<span class="compte or">+${r.aPrendre}</span>` : `<span class="compte"><i class="ico">${ICONS.UI.cleChaine}</i>${r.jetons}</span>`}<i class="ico chev">${ICONS.UI.chevron}</i></button>` : ''}
+      ${dc ? `<button type="button" class="card chaine-carte" data-a="mes-decos"><span class="pic">${ICONS.UI.decos}</span><span class="t"><b>Mes décos</b><small>Ton carnet de collection, et les décos de ta boulangerie</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : ''}</div>`;
   }
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
@@ -28426,8 +28744,10 @@ const UI = (() => {
     // de dessous l'écran en profitent déjà : en pause, ils dureraient autant qu'on reste dans la Planque), et la commande se remplit seule
     // (prête, elle attend déjà sa livraison ; en pause, elle aurait tout le temps de se remplir)
     const tPas = HORLOGE.maintenant(), ecoule = tPas - st.now, evPause = atelier && st.ev && ['critique', 'petrissage', 'panne'].includes(st.ev.type) && ecoule > 0 && ecoule <= G.PAUSE_EV * 1000 ? st.ev : null;
+    const calme = !atelier && accueilActif() && st.tuto < 4; // les premiers pas de l'accueil : ni événement, ni client mystère, ni habitué (le premier au plus tôt 30 s après)
+    if (calme) { st.evTimer = Math.max(st.evTimer, 30); st.mystereTimer = Math.max(st.mystereTimer, 30); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 30); }
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); if (evPause) for (const k of ['debut', 'fin']) if (Number.isFinite(evPause[k])) evPause[k] += ecoule; }
-    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
+    const out = G.tick(st, dt, tPas, atelier || calme ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
     // le second : seulement pendant le jeu (jamais pendant l'absence) ; sous un écran couvrant, il s'arrête comme les événements
     if (PROG && PROG.secondPas && !atelier) { const a = PROG.secondPas(st, dt); if (a && a.length) achatsSecond(a); }
     // le concours : une semaine finie se range au premier passage du jour (rivalesPas : le rang, la médaille à récupérer)
@@ -28443,7 +28763,7 @@ const UI = (() => {
     if (out.habitue && !visite && !chaineVue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
     if (out.chat && $('#feuille').hidden && !visite && !chaineVue) sheetChat(true);
-    if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
+    if (out.saison && ouvertA('saison')) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
     if (out.venteSaison && !visite && !chaineVue) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { // les trophées et les dorés (verifierTrophees : { t, dore: true }) : un seul message, même pour cinq dorés d'un coup
@@ -28476,6 +28796,7 @@ const UI = (() => {
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
     if (now - tChat > 500) { tChat = now; majChat(); majCoinChaine(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
+    if (ACC) { if (now - tAccueil > 1000) { tAccueil = now; pasAccueil(); } renderDebutant(); placerAnnonce(); }
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
@@ -28663,6 +28984,9 @@ const UI = (() => {
     { const bs = $('#b-second'); if (bs) bs.addEventListener('click', () => { audio(); son.tap(); if (secondNeuf()) sheetSecondNouveau(); else sheetSecond(); }); } // le second (dès la boutique n°5) ; la première fois, son annonce
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
+    { const db = $('#debutant'); if (db) db.addEventListener('click', () => { audio(); son.tap(); sheetDebutant(); }); } // l'accueil : la carte « Ton premier jour »
+    { const ps = $('#indice .passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
+    document.addEventListener('pointerdown', () => { if (annonceId && performance.now() - annonceDebut > 800) finAnnonce(); }, true); // l'annonce s'efface au premier toucher (le geste passe)
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
@@ -28673,11 +28997,11 @@ const UI = (() => {
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.deplacer) { if (!glisse) debutGlisse(e, sx, sy); return; } // le mode Déplacer : on prend un meuble, rien d'autre
       if (chaineVue) { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) CE.meuble(chaineVue.v, id); else SCENE.tap(); return; } // une boutique de la chaîne : ses meubles, rien de la boulangerie (ni client mystère, ni porte du fond)
-      const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
+      const porte = !SCENE.amenager && ouvertA('casino') && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
-      else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
-      else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
+      else if (classement && ouvertA('classement') && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
+      else if (ouvertA('boulanger') && SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else if (porte) toquer(sx, sy);
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
@@ -28711,12 +29035,12 @@ const UI = (() => {
     if (rattrape.length || paliersRattrapes.length) { save(); const montrer = () => { sheetRecapParcours(rattrape, paliersRattrapes); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     retourProgression(HORLOGE.maintenant(), sortieLancement, true, true); // (ses annonces attendent que les feuilles du lancement soient refermées)
     HORLOGE.surSaut(payerSaut);
-    if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
+    if (EVS && ouvertA('evenements')) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // (accueil : seulement une fois les événements débloqués) // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
     setInterval(majMinuteurs, 15e3); // le minuteur des événements du coin : sa minute change sans attendre le reste
-    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (ouvertA('evenements') && !EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
@@ -28730,7 +29054,7 @@ const UI = (() => {
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); ongletsDuChat(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), pastille: majPastilleChat });
     { const box = $('#tc-onglets'); if (box) box.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b || b.dataset.tab === 'chat') return; audio(); son.tap(); TC.fermer(); sheetClassement(b.dataset.tab); }); }
     // les idées, les bugs et les votes : Réglages › Aide › « Idées & bugs » (sa pastille là, et sur l'onglet Réglages) ; le bandeau du vote reste dans la boutique
-    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees });
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; }, pastille: majPastilleIdees, accueil: () => ouvertA('classement') });
     try { // le coin se resserre au besoin (serrerCoin)
       const mo = new MutationObserver(serrerCoinBientot);
       mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
@@ -28745,6 +29069,7 @@ const UI = (() => {
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
+    majAccueil(); annonceAttente(3000); // l'accueil : ce qui est déjà débloqué ; la première annonce de la session, 3 s après le lancement au plus tôt
     majCoin();
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
@@ -28768,7 +29093,9 @@ const UI = (() => {
         ecran: (o) => ouvrirChaine(o), fermerEcran: () => { if (CE) CE.fermer(); }, get ecranOuvert() { return !!(CE && CE.ouvert); }, jetons: (r) => CE && CE.jetons(r), carnet: (cible) => CE && CE.carnet({ cible: cible || 0 }),
         donnerJetons: (k) => { const c = CH.etat(st); c.jetons += Math.max(0, k | 0); save(); rafraichirChaine(); return c.jetons; },
         absence: (ms) => { const t = HORLOGE.maintenant(); st.lastSeen = t - ms; for (const b of CH.etat(st).b) if (b.n !== CH.VUE.ouverte) b.vu = t - ms; const abs = G.absence(st, t), enc = encaisserChaine(t); gerantsPayes = payesDe(enc); sheetRetour(abs, enc); renderCards(true); save(); return { abs, enc }; },
-        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+        encaisser: () => encaisserChaine(HORLOGE.maintenant(), EN_JEU), essai: ESSAI, essaiVide: () => essaiVide, sheetEssai: () => ESSAI && sheetEssai() } : null, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null),
+      // l'accueil des nouveaux joueurs (test/fournil-accueil.cjs)
+      accueil: { actif: ACC, get etat() { return st.accueil; }, annonce: () => annonceId || '', passer: passerTuto, pas: pasAccueil, ouvert: ouvertA, recevoir: recevoirDebutant, debutant: sheetDebutant, fin: finAnnonce } };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
