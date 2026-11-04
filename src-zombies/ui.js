@@ -107,6 +107,10 @@
       </button>`;
     }).join('');
     const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
+    // un fondu sur le bord qui cache encore des arènes : le carrousel se devine (et le fondu suit le défilement)
+    const bords = () => { const g = box.scrollLeft > 4, d = box.scrollLeft + box.clientWidth < box.scrollWidth - 4; box.classList.toggle('fond-g', g); box.classList.toggle('fond-d', d); };
+    if (!box.dataset.bords) { box.dataset.bords = '1'; box.addEventListener('scroll', bords, { passive: true }); addEventListener('resize', bords); }
+    bords(); requestAnimationFrame(bords);
     box.querySelectorAll('.arene').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
