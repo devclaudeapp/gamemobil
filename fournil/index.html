@@ -663,6 +663,8 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .rec-carte.argent { background: #EEF2F7; }
 .rec-carte.bronze { background: #FBE6D4; }
 .rec-carte .rec-icone svg { width: 52px; height: 52px; display: block; }
+.rec-carte .rec-evt-ico { display: grid; place-items: center; width: 30px; height: 30px; } .rec-carte .rec-evt-ico svg { width: 26px; height: 26px; display: block; } /* l'icône de l'événement (citrouille, feuille) au-dessus de sa place */
+.rec-carte.mh-acharne[data-evt="marche"] { background: #FBE6CC; } .rec-carte.mh-acharne.or[data-evt="marche"] { background: #FFF3C4; box-shadow: inset 0 0 0 2px #D9622B; } /* le Marché d'automne : crème rousse */
 .rec-carte b { font: 700 16px/1.2 var(--titre); }
 .rec-carte small { font-size: 12px; line-height: 1.3; color: #5E463B; }
 .rec-choix-liste { display: grid; gap: 6px; }
@@ -2934,7 +2936,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '9f5120254b68';</script>
+<script>window.FOURNIL_VERSION = '4e8e67b7648b';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -28422,6 +28424,8 @@ const UI = (() => {
   const ICO_PISTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3l1.8 3.8 3.2-1.8-.5 3.9 3.9-.4-2.2 3 2.6 1.8-3.9 1.2 1.3 3.5-3.9-1.3L11 21l-2.2-3.6-3.8 1.4 1.3-3.6-3.9-1.2 2.6-1.8-2.2-3 3.9.4L6.1 5l3.1 1.8z" fill="#D9622B"/><path d="M17.5 13.5l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#E8B33A" stroke="#fff" stroke-width=".8"/></svg>';
   const fmtXp = (n) => Math.max(0, Math.round(Number(n) || 0)).toLocaleString('fr-FR'); // (l'XP en entier : « 1 100 », jamais « 1,1 k »)
   const icoPiste = () => (ICONS.UI && ICONS.UI.piste) || ICO_PISTE;
+  // l'icône du coin pendant le Marché d'automne (ICONS.UI.marche : src/icons.js, constructeur C) : en attendant, une feuille d'érable rousse au trait du coin
+  const ICO_REPLI = { marche: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l1.6 3.6 2.9-1.6-.4 3.5 3.5-.3-2 2.8 2.4 1.6-3.5 1.1 1.1 3.2-3.5-1.2L12 18.6l-1.7-3.4-3.5 1.2 1.1-3.2-3.5-1.1 2.4-1.6-2-2.8 3.5.3-.4-3.5 2.9 1.6z" fill="#E8833A"/><path d="M12 21.5v-8"/></svg>', piste: ICO_PISTE };
   let tSaison = 0, lastPiste = '', pisteOuverte = false, pisteFin = null, tAnnoncePiste = 0;
   const maintenantSai = () => HORLOGE.maintenant();
   const saiFiche = () => { if (!SAI || !st) return null; const f = SAI.active(maintenantSai()); if (f) return f; const p = st.piste; return p && p.id && SAI.fiche ? SAI.fiche(p.id) : null; };
@@ -29725,7 +29729,7 @@ const UI = (() => {
     const r = recVue(), l = r && r.evtAPayer ? r.evtAPayer : []; if (!l.length) return;
     const p = l[0], x = p.recompense, tenue = p.rang <= 3;
     evtOuvert = true; evtMontre = p.id;
-    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI[p.id] || ICONS.UI.hantee || ICONS.UI.podium}</span></div>
+    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI[p.id] || ICO_REPLI[p.id] || ICONS.UI.podium}</span></div>
       <h2>${esc(CLM.phraseEvt(p))}</h2>
       <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? `, et ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or` : ''}</p>
       <p class="sous">${tenue ? `Sur le podium final : les quatre pièces de ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or sont dans ta garde-robe, à vie. ` : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
@@ -29768,7 +29772,7 @@ const UI = (() => {
     const etatPlace = (p) => (p.payee ? 'Récupérée' : aPayer.some((x) => x.semaine === p.semaine) ? 'À récupérer' : p.rang <= 3 ? 'Tenue et coupe' : 'Avant les récompenses');
     const lignesPlaces = places.slice().reverse().slice(0, 30).map((p) => `<li class="rec-carte${p.rang <= 3 ? ' ' + CLM.metal(p.rang) : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>Semaine du ${insec(CLM.dateCourte(p.semaine))}</small>${p.recompense && (p.payee || aPayer.some((x) => x.semaine === p.semaine)) ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}</small>` : ''}<small><i>${etatPlace(p)}</i></small></li>`).join('');
     // version 6.6 : ses places au classement final des événements (la Maison hantée), leur récompense : versée ou à récupérer
-    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}" data-evt="${esc(p.id)}">${ICONS.UI[p.id] ? `<span class="rec-evt-ico" aria-hidden="true">${ICONS.UI[p.id]}</span>` : ''}<b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^./, (x) => x.toUpperCase()))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
+    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}" data-evt="${esc(p.id)}">${ICONS.UI[p.id] || ICO_REPLI[p.id] ? `<span class="rec-evt-ico" aria-hidden="true">${ICONS.UI[p.id] || ICO_REPLI[p.id]}</span>` : ''}<b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^./, (x) => x.toUpperCase()))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
     const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
     openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.${evp.length ? ' À la fin d’un événement, ses quinze premiers aussi.' : ''}</p></div></div>
       ${vide}${aPayer.length || evtAP.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${evp.length ? `<h3 class="titre-section">Mes événements</h3><ul class="rec-coupes" aria-label="Mes places au classement final des événements">${lignesEvt}</ul>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
@@ -30708,7 +30712,7 @@ const UI = (() => {
     if (!st.vu) st.vu = {};
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
     if (NVS && typeof st.nouveautesVues !== 'string') st.nouveautesVues = NVS.vueNeuve(); // une sauvegarde neuve, ou d'avant les nouveautés : tout est vu, sauf la plus récente
-    document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
+    document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ICO_REPLI[el.dataset.ico] || ''; });
     SCENE.choisirQualite(st.qualite); // Réglages › Qualité graphique : la scène naît à ce palier (Auto : la mesure décide)
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
