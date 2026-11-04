@@ -461,3 +461,23 @@ E. **360 × 640** : partie neuve : bulle et « Passer » entièrement dans l'éc
   découvre vers 20 minutes (voulu : il a d'abord une boulangerie qui tourne).
 - **La tenue en 3D** : forme existante (`tablier`, `foulard`), palette nouvelle ; à vérifier par une capture (equipe3d).
 - **Taille de la page** : quelques centaines de lignes ; rien de lourd (pas d'image nouvelle).
+
+---
+
+## 11. Écarts de la construction (4 nov.)
+
+- `#indice .passer` est placé **avant** `.bulle` (et non après) : la colonne flexible le met du côté opposé à la cible (au-dessus quand
+  la bulle est au-dessus de la cible, au-dessous sinon), jamais entre la bulle et le doigt.
+- Accueil actif, le doigt (`.main`) est décalé horizontalement au-dessus du centre de la cible quand la bulle bute contre le bord de
+  l'écran (l'embauche de Léo, à droite) ; éteint, rien ne change.
+- Les annonces `decos` et `garderobe` montrent l'onglet Boulanger : s'il n'était pas encore ouvert, il s'ouvre avec elles.
+- Le « Bravo » (étape 4) finit aussi tiroir fermé ou sur une autre page (sinon un joueur qui garde le tiroir fermé ne recevait plus
+  aucune annonce).
+- `chaine` et `garderobe` sont silencieuses sans leur écran (`CE`, `GRU`), comme `decos`.
+- Vignettes : `test/fournil-vignettes.test.js` exige une vignette pour chaque tenue ; l'outil `outils/vignettes/cuire.cjs` a tourné
+  ici (`--seulement "tenues/apprenti-tablier,tenues/apprenti-foulard"`) : deux webp et `src/vignettes.js`.
+- `src/equipe3d.js` inchangé : la variante `metal` rend bien le bleu de travail (vignette vérifiée) ; ajouter `apprenti` à `varTablier`
+  l'aurait rendu blanc (le nom croise la variante des apprentis).
+- Un test existant modifié, au minimum : `test/fournil-progression.cjs` cherche sa nouveauté par son id (`2026-11-03-a`) au lieu de la
+  première de la liste.
+- La tâche CI `fournil12` utilise le port 8897 (8891 est pris par `fournil-decos`).
