@@ -562,3 +562,11 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
 - 4 nov. (conception) : `rythme.js` complet (8 graines, 24 + 24 marathons, 170 s), `saison.js`, `longevite-saison.js` (verdict : aucun effet
   notable), `sql-v69.cjs` (30/30), `node test/longevite.js --test` (vert). Les résultats bruts sont à côté des outils (`*-resultats.*`).
 - (les constructeurs ajoutent ici leurs écarts au contrat, datés)
+
+## 13. Les questions qui restent pour le joueur (avec la recommandation)
+1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
+   ainsi (recommandé : jouer chaque jour paie, la moitié reste à portée de qui ne vient qu'en fin de semaine), ou passer à 24 crans ?
+2. **Les récompenses de la piste** : 16 ★, 3 petits boosts, aucune heure de gains, une tenue cosmétique (sans bonus), 5 décos, un trophée,
+   un titre. Recommandé tel quel (plus généreux, la longévité bouge) ; ou un petit bonus sur la tenue de saison complète (+2 %) ?
+3. **Le fichier SQL complet** : le patch v6.9 est essayé mais pas recopié dans `supabase/fournil-classement.sql`. Recommandé : le recopier dès
+   que les vraies règles confirment la table (convention du dépôt), et coller **le patch** sur Supabase avant le vendredi 13 à midi.
