@@ -26954,6 +26954,7 @@ const UI = (() => {
     const h = INDICES[st.tuto];
     const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
+      if (acc && st.tuto === 4 && h.fini()) { st.tuto++; save(); el.hidden = true; majAccueil(); return; } // (accueil : le « Bravo » ne retient pas les annonces si le tiroir reste fermé)
       if (!guide) { el.hidden = true; return; }
       ecrire(pageActive !== 'boutique' ? 'Reviens à la boutique pour continuer.' : 'Remonte le tiroir pour voir tes recettes.');
       placerBulle(el, pageActive !== 'boutique' ? $('#onglets [data-page="boutique"]') : $('#poignee'), 'onglets'); return;

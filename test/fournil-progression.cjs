@@ -437,7 +437,7 @@ const deborde = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].
   }
 
   // ─── les nouveautés ───
-  const NV = require('../src/nouveautes.js'), n0 = NV.NOUVEAUTES[0];
+  const NV = require('../src/nouveautes.js'), n0 = NV.NOUVEAUTES.find((x) => x.id === '2026-11-03-a') || NV.NOUVEAUTES[0]; // (par son id : d'autres lots ont paru depuis, en tête)
   check(n0.id === '2026-11-03-a' && n0.titre.length <= 60 && /paliers|Paliers/.test(n0.titre), `la nouveauté du lot : ${n0.id} « ${n0.titre} » (${n0.titre.length} caractères)`);
 
   await browser.close(); server.close();

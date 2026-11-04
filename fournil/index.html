@@ -2788,7 +2788,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '3da0fa037559';</script>
+<script>window.FOURNIL_VERSION = '18428ebdc308';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -26970,6 +26970,7 @@ const UI = (() => {
     const h = INDICES[st.tuto];
     const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
+      if (acc && st.tuto === 4 && h.fini()) { st.tuto++; save(); el.hidden = true; majAccueil(); return; } // (accueil : le « Bravo » ne retient pas les annonces si le tiroir reste fermé)
       if (!guide) { el.hidden = true; return; }
       ecrire(pageActive !== 'boutique' ? 'Reviens à la boutique pour continuer.' : 'Remonte le tiroir pour voir tes recettes.');
       placerBulle(el, pageActive !== 'boutique' ? $('#onglets [data-page="boutique"]') : $('#poignee'), 'onglets'); return;
