@@ -872,6 +872,7 @@ const UI = (() => {
     el.hidden = false; el.querySelector('.main').hidden = false;
     let x = r.left + r.width / 2 - bw / 2; x = Math.max(8, Math.min(window.innerWidth - bw - 8, x));
     el.style.left = x + 'px'; el.style.transform = 'none';
+    if (strict) { const m = el.querySelector('.main'), dx = Math.max(18 - bw / 2, Math.min(bw / 2 - 18, r.left + r.width / 2 - x - bw / 2)); m.style.position = 'relative'; m.style.left = Math.round(dx) + 'px'; } // (l'accueil : le doigt au-dessus de la cible, même quand la bulle bute contre le bord)
     const hauteur = el.offsetHeight || 90;
     if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; }
     else { el.classList.remove('haut'); el.style.top = (r.top - hauteur - 6) + 'px'; }
@@ -1037,6 +1038,7 @@ const UI = (() => {
     majAccueil();
   }
   function montrerAnnonce(id, c) {
+    if ((id === 'decos' || id === 'garderobe') && G.marquerDeblocage(st, 'boulanger')) apresDeblocage('boulanger'); // (leur annonce montre l'onglet Boulanger : il s'ouvre avec)
     G.marquerDeblocage(st, id); save(); apresDeblocage(id);
     annonceId = id; annonceDebut = performance.now(); annonceCible = c;
     $('#indice').hidden = true;

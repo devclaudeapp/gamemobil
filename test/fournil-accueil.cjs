@@ -63,9 +63,9 @@ const effleurer = (p) => p.tap('.solde'); // un toucher sans conséquence (le so
   e = await etat(p); console.log('   ', e.indice);
   check(await doigt(p, '.carte[data-i="0"] .barre'), 'le texte d’attente pointe la baguette');
   await shot(p, '02-premiers-pas-attente');
-  for (let k = 0; k < 12 && !(await p.evaluate(() => /améliore/.test(document.querySelector('#indice-txt').textContent))); k++) { await p.tap('.carte[data-i="0"] .barre'); await sleep(1150); }
+  for (let k = 0; k < 12 && !(await p.evaluate(() => /améliore la baguette/.test(document.querySelector('#indice-txt').textContent))); k++) { await p.tap('.carte[data-i="0"] .barre'); await sleep(1150); }
   e = await etat(p);
-  check(/améliore/.test(e.indice) && await doigt(p, '.carte[data-i="0"] [data-a="ameliorer"]'), 'assez d’euros : « améliore la baguette », le doigt sur « Améliorer »');
+  check(/améliore la baguette/.test(e.indice) && await doigt(p, '.carte[data-i="0"] [data-a="ameliorer"]'), 'assez d’euros : « améliore la baguette », le doigt sur « Améliorer »');
   await shot(p, '03-premiers-pas-ameliorer');
   await p.tap('.carte[data-i="0"] [data-a="ameliorer"]');
   check(await attendre(p, () => window.__fournil.st.tuto === 2), 'baguette niveau 2 : étape 2');
@@ -93,7 +93,8 @@ const effleurer = (p) => p.tap('.solde'); // un toucher sans conséquence (le so
   check(deb.vis && /Ton premier jour · [0-7]\/7/.test(deb.txt) && !deb.passer, `la carte « Ton premier jour » paraît (${deb.txt.split('\n')[0]}), plus de « Passer »`);
   check(await doigt(p, '#debutant'), 'le doigt pointe la carte du premier jour');
   await shot(p, '06-bravo-carte-premier-jour');
-  // les annonces : la première après le « Bravo » (8 s) et 3 s
+  // les annonces : la première après le « Bravo » (8 s) et 3 s ; le boulanger au niveau 2 (un humain l'atteint vers la première minute)
+  await p.evaluate(() => { const f = window.__fournil; while (f.G.niveau(f.st) < 2) f.xp(10); });
   check(await attendre(p, () => !!window.__fournil.accueil.annonce(), null, 16000), 'après le « Bravo » : une première annonce');
   const vues = new Set();
   const suivreAnnonce = async (attendu, ms = 9000) => { // attend une annonce (ou une parmi plusieurs), vérifie que son élément est là, puis l'efface d'un toucher
@@ -156,9 +157,9 @@ const effleurer = (p) => p.tap('.solde'); // un toucher sans conséquence (le so
   await p.evaluate(() => window.__fournil.meuble('tables')); await sleep(200);
   check(await p.evaluate(() => window.__fournil.st.stats.meubles >= 1), 'étape 5 : un meuble amélioré');
   await p.evaluate(() => document.querySelector('#pages').scrollTo(0, 0)); await sleep(200);
-  await p.tap('#b-ameliorations'); await sleep(400); await p.tap('[data-tab="bonus"]'); await sleep(300); await p.tap('[data-id="farine"]'); await sleep(300);
+  await p.tap('#b-ameliorations', { force: true }); await sleep(400); await p.tap('[data-tab="bonus"]'); await sleep(300); await p.tap('[data-id="farine"]'); await sleep(300);
   check(await p.evaluate(() => !!window.__fournil.st.ameliorations.farine), 'étape 6 : la farine de tradition achetée (Bonus)');
-  await p.evaluate(() => { const c = document.querySelector('#feuille [data-a="close"]'); if (c) c.click(); }); await sleep(300);
+  await p.keyboard.press('Escape'); await sleep(300);
   // les trois objectifs du jour réclamés dans Défis
   await p.evaluate(() => { for (const o of window.__fournil.st.jour.objectifs) { o.progres = o.cible; o.fait = true; } });
   await p.tap('#onglets [data-page="defis"]'); await sleep(500);
@@ -170,7 +171,7 @@ const effleurer = (p) => p.tap('.solde'); // un toucher sans conséquence (le so
   await sleep(1500); await p.evaluate(() => window.__fournil.accueil.fin());
   await shot(p, '08-carte-cadeau');
   const avantRes = await p.evaluate(() => window.__fournil.st.boosts.reserve.length);
-  await p.tap('#debutant'); await sleep(500);
+  await p.tap('#debutant', { force: true }); await sleep(500);
   check(await p.evaluate(() => /Ton premier jour/.test(document.querySelector('#feuille-contenu').innerText) && document.querySelectorAll('#feuille .db-liste li.fait').length === 7 && !!document.querySelector('[data-a="db-recevoir"]')), 'la feuille : les sept étapes faites, « Recevoir ma récompense »');
   await shot(p, '09-feuille-premier-jour');
   await p.tap('[data-a="db-recevoir"]'); await sleep(700);
