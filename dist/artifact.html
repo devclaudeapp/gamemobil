@@ -355,8 +355,9 @@ button.staff-ok::after { content: ""; position: absolute; left: 0; right: 0; top
 #indice.haut .main, #annonce-accueil.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
 /* l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Passer » (le seul élément touchable de la bulle, du côté opposé à la cible),
    l'annonce d'un déblocage (même gabarit, violet), la carte « Ton premier jour », la pulsation d'un bouton qui apparaît */
-#indice .passer { pointer-events: auto; align-self: flex-end; min-width: 72px; min-height: 36px; padding: 0 16px; border-radius: 999px; background: rgba(255, 255, 255, .96); color: var(--texte); font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--gris-sombre), 0 4px 12px var(--ombre); }
-#indice .passer:active { transform: translateY(2px); }
+/* « Passer » (l’accueil, premiers pas) : dans l’en-tête, à droite, loin des cartes et des onglets (les pastilles du haut sont encore cachées) */
+.pastille.passer { padding: 0 16px; font: 700 15px/1 var(--titre); }
+.pastille.passer[hidden] { display: none; }
 #annonce-accueil .bulle { background: #5E4BB6; box-shadow: 0 6px 18px rgba(94, 75, 182, .4); }
 #onglets.reduit { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
 .barre-achat.vide { display: none; }
@@ -2582,6 +2583,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
     <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
   <div class="haut-btns">
+    <button id="b-passer" class="pastille passer" type="button" data-a="passer-tuto" aria-label="Passer le guidage" hidden>Passer</button>
     <button id="b-classement" class="pastille classement" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-jetons" class="pastille jetons" type="button" aria-label="Les jetons de chaîne"><i class="ico" data-ico="cleChaine"></i><span>0</span></button>
@@ -2637,7 +2639,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
   <button type="button" data-page="journal"><i class="ico" data-ico="journal"></i><span>Journal</span><i class="badge" hidden></i></button>
   <button type="button" data-page="reglages"><i class="ico" data-ico="reglages"></i><span>Réglages</span><i class="badge" hidden></i></button>
 </nav>
-<div id="indice" hidden><button type="button" class="passer" data-a="passer-tuto" hidden>Passer</button><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="annonce-accueil" role="status" aria-live="polite" hidden><div class="bulle"><span class="aa-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="atelier" role="dialog" aria-modal="true" aria-labelledby="at-titre" hidden>
   <div class="at-haut">
@@ -3800,9 +3802,19 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     try { for (const id of dusDe(s, a, {})) a.d |= 1 << ACCUEIL.deblocages.find((x) => x.id === id).bit; } catch (x) { /* une sauvegarde abîmée : rien d'ouvert */ }
     return a;
   }
-  function accueil(st) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet
-    let a = st.accueil;
-    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, st.now);
+  function accueil(st, now) { // remis d'aplomb (jamais d'exception sur une sauvegarde abîmée) ; rend l'objet ; now : l'heure (st.now par défaut)
+    let a = st.accueil; if (now == null) now = st.now;
+    const ent = (x, max) => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= max;
+    if (!a || typeof a !== 'object' || Array.isArray(a)) a = st.accueil = accueilAncien(st, now);
+    else if (!(a.t === 0 || a.t === 1) || !ent(a.o, ACCUEIL.TOUTES) || !ent(a.d, 0x7fffffff)) { // abîmé ({}, { o: 'x' }…) : en cas de doute, comme une
+      // sauvegarde d'avant l'accueil (une partie avancée repart tout ouverte) ; ce qui reste lisible est gardé (bits faits, ouverts, récompense)
+      const b = accueilAncien(st, now);
+      if (a.t === 1) Object.assign(b, { o: ACCUEIL.TOUTES, r: 1, d: ACCUEIL.TOUS, t: 1 });
+      if (ent(a.o, ACCUEIL.TOUTES)) b.o |= a.o;
+      if (ent(a.d, 0x7fffffff)) b.d |= a.d;
+      if (a.r) b.r = 1;
+      a = st.accueil = b;
+    }
     a.v = 1;
     const o = Math.floor(Number(a.o)); a.o = o >= 0 && o <= ACCUEIL.TOUTES ? o : 0;
     a.r = a.r ? 1 : 0;
@@ -26124,7 +26136,7 @@ const UI = (() => {
       if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       if (sansAccueil) s.accueil = G.accueilAncien(s, HORLOGE.maintenant()); // une sauvegarde d'avant l'accueil : tout ouvert, sauf une partie toute neuve (docs/accueil-contrat.md § 2.2)
-      G.accueil(s);
+      G.accueil(s, HORLOGE.maintenant()); // (un accueil abîmé, { } ou { o: 'x' } : comme une sauvegarde d'avant l'accueil, à l'heure d'aujourd'hui)
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       if (CH) CH.etat(s, HORLOGE.maintenant()); // « Ma chaîne » : st.chaine remise d'aplomb ; une vieille sauvegarde y retrouve, une seule fois, ses anciennes boutiques rouvertes à neuf
@@ -26946,11 +26958,12 @@ const UI = (() => {
   }
   const defileListe = (r) => { const pg = $('#pages'), pr = pg.getBoundingClientRect(); pg.scrollTo({ top: pg.scrollTop + (r.top - pr.top) - (pr.height - r.height) / 2, behavior: reduceMotion ? 'auto' : 'smooth' }); };
   function indices() {
-    const el = $('#indice'), acc = accueilActif(), passer = el.querySelector('.passer');
+    const el = $('#indice'), acc = accueilActif(), passer = $('#b-passer');
     const guide = acc && st.tuto <= 3; // les premiers pas de l'accueil : « Passer », le texte d'attente, la bulle qui ramène à la boutique
-    if (passer && passer.hidden !== !guide) passer.hidden = !guide;
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
-      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue))) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
+    const ecran = st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)
+      || (acc && (annonceId || (EVS && EVS.ouvert) || (CE && CE.ouvert) || visite || chaineVue));
+    if (passer && passer.hidden !== !(guide && !ecran)) passer.hidden = !(guide && !ecran); // (« Passer » vit dans l'en-tête, loin des cartes et des onglets : une touche manquée ne saute pas le guidage)
+    if (ecran) { el.hidden = true; return; } // (accueil : pendant une annonce, l'indice attend)
     const h = INDICES[st.tuto];
     const txt = $('#indice-txt'), ecrire = (t) => { if (txt.textContent !== t) txt.textContent = t; };
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) {
@@ -26974,7 +26987,7 @@ const UI = (() => {
   }
   function passerTuto() { // « Passer » : le guidage s'arrête (la carte du premier jour et les déblocages continuent)
     if (!accueilActif() || st.tuto > 3) return;
-    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
+    st.tuto = 5; hintStep = -1; $('#indice').hidden = true; $('#b-passer').hidden = true; annonceAttente(3000); save(); majAccueil(); renderDebutant(true); renderCards(true); hud();
   }
 
   // ─── l'accueil des nouveaux joueurs (docs/accueil-contrat.md) : « Ton premier jour », les déblocages au fil du jeu et leurs annonces,
@@ -27037,7 +27050,9 @@ const UI = (() => {
   }
   // les annonces : une seule file, une bulle à la fois ; ECART entre deux (3 s pour la toute première après les premiers pas)
   const ECART = () => (window.__accueilEcart | 0) || 20000;
-  let annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  let evVol = false, annonceId = '', annonceDebut = 0, annonceCible = null, finAnnoncePrec = -1e9, tAccueil = 0, tutoVu = -1;
+  const SOUS_MAJ = new Set(['etoiles', 'classement', 'atelier', 'chaine', 'casino']), dusSousMaj = {}; // (leur bulle irait sous le bandeau de mise à jour)
+  const MAJ_ATTENTE = () => (window.__accueilMajAttente | 0) || 30000;
   const annonceAttente = (ms) => { finAnnoncePrec = performance.now() - ECART() + ms; }; // la prochaine annonce dans ms au plus tôt
   const SILENCE = { evenements: () => true, nouveautes: () => true, saison: () => !(st.saison && G.recetteSaison(st)), classement: () => !classement, decos: () => !CE, chaine: () => !CE, garderobe: () => !GRU };
   const TXT_ANNONCE = {
@@ -27077,9 +27092,9 @@ const UI = (() => {
     }
   }
   function peutAnnoncer() {
-    if (st.tuto < 5 || annonceId || performance.now() - finAnnoncePrec < ECART()) return false;
+    if (st.tuto < 5 || annonceId || evVol || performance.now() - finAnnoncePrec < ECART()) return false;
     if (!feuille.hidden || document.hidden || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (CE && CE.ouvert) || visite || chaineVue || (TC && TC.ouvert) || (RT && RT.ouvert) || SCENE.amenager) return false;
-    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || $('.maj') || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
+    if (annonceOuverte || lundiOuvert || copainsOuvert || progMinuteur || (typeof EQUIPE3D !== 'undefined' && EQUIPE3D.vue && EQUIPE3D.vue.ouvert)) return false;
     return true;
   }
   // après un bit posé : ce qui apparaît se redessine (le coin, la carte de saison, les cartes de la page Boulanger…)
@@ -27088,7 +27103,11 @@ const UI = (() => {
     lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
     majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
     if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }
-    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) setTimeout(() => { if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); }, 400); // un événement ouvert : son annonce à lui
+    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) { // un événement ouvert : son annonce à lui, après la bulle en cours
+      evVol = true; // (aucune bulle ne part en attendant : la feuille de l'événement l'effacerait aussitôt)
+      const tenter = () => { if (annonceId) { setTimeout(tenter, 500); return; } evVol = false; finAnnoncePrec = Math.max(finAnnoncePrec, performance.now() - ECART() + 3000); if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); };
+      setTimeout(tenter, 400);
+    }
   }
   function pasAccueil() {
     if (!accueilActif()) return;
@@ -27099,8 +27118,16 @@ const UI = (() => {
     const dus = G.deblocagesDus(st, { chaine: CH ? CH.etat(st).b.length : 0 });
     let change = '';
     for (const id of dus) if (SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    // le bandeau de mise à jour (.maj) occupe le haut de la scène : les annonces du haut et de la scène l'attendent, puis, s'il reste là
+    // (il ne part qu'en rechargeant), leur bouton s'ouvre en silence ; les autres annonces passent normalement
+    const maj = !!$('.maj'), t = performance.now();
+    if (maj) for (const id of dus) {
+      if (!SOUS_MAJ.has(id) || G.accueilOuvert(st, id)) continue;
+      if (!(id in dusSousMaj)) dusSousMaj[id] = t;
+      else if (t - dusSousMaj[id] > MAJ_ATTENTE()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    }
     if (change) save();
-    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id)) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
+    if (peutAnnoncer()) for (const id of dus) { if (G.accueilOuvert(st, id) || (maj && SOUS_MAJ.has(id))) continue; const c = cibleAnnonce(id); if (c && c.el) { montrerAnnonce(id, c); break; } }
     majAccueil();
   }
   function montrerAnnonce(id, c) {
@@ -28986,7 +29013,7 @@ const UI = (() => {
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     { const db = $('#debutant'); if (db) db.addEventListener('click', () => { audio(); son.tap(); sheetDebutant(); }); } // l'accueil : la carte « Ton premier jour »
-    { const ps = $('#indice .passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
+    { const ps = $('#b-passer'); if (ps) ps.addEventListener('click', (e) => { e.stopPropagation(); audio(); son.tap(); passerTuto(); }); }
     document.addEventListener('pointerdown', () => { if (annonceId && performance.now() - annonceDebut > 800) finAnnonce(); }, true); // l'annonce s'efface au premier toucher (le geste passe)
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
