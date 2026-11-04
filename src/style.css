@@ -1415,6 +1415,11 @@ body :is(#hantee, #marche):is(.ht-boutique, .mc-boutique) > .pq-solde { box-shad
 #marche .pq-act-btn { box-shadow: 0 3px 0 rgba(74, 46, 28, .28), 0 4px 10px rgba(42, 26, 14, .18); }
 #marche .pq-act-btn.actif { box-shadow: 0 3px 0 rgba(74, 46, 28, .28), 0 4px 10px rgba(42, 26, 14, .18), inset 0 0 0 2px var(--mh-orange); }
 #marche .pq-pastille, #marche .pq-paliers-btn.pret { color: #fff; }
+#marche .carte.pq.verrou { border-color: #E9D3BC; }
+#marche .carte.pq .btn.non { background: #F4EADF; color: #B39880; box-shadow: 0 4px 0 #E6D5C2; }
+#marche .carte.pq.rj-carte::after { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z' fill='%23D9622B'/%3E%3C/svg%3E") top right / 34px no-repeat; transform: rotate(14deg); }
+#marche .mh-best-mini i.vide, .pq-sheet.mch .mh-best-case.vide { background: #F3E6D6; }
+.pq-sheet.mch .mh-best-fete-pic > b { background: #D9622B; }
 .mc-deco { overflow: hidden; }
 .mc-guirlande { position: absolute; top: -2px; right: 6px; display: flex; gap: 2px; opacity: .55; }
 .mc-guirlande b { display: block; width: 16px; height: 16px; transform: rotate(calc(var(--k) * 37deg - 40deg)); }
