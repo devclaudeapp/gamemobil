@@ -1,0 +1,4 @@
+Ultimate Gun Pack — Quaternius (quaternius.com), juillet 2019.
+Licence : CC0 1.0 (domaine public), https://creativecommons.org/publicdomain/zero/1.0/
+Source : https://opengameart.org/content/low-poly-guns-pack (ultimate_gun_pack_by_quaternius.zip).
+Les reel-*.glb en sont convertis par outils/zombies/faire-armes-reelles.mjs (OBJ → glTF, meshopt).

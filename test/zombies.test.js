@@ -50,8 +50,10 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(Object.keys(D.ZOMBIES).filter((k) => D.ZOMBIES[k].boss).every((k) => fichiers.includes(`kaykit/${D.ZOMBIES[k].modele}.glb`)), 'chaque boss a son modèle KayKit');
   const blasters = [...new Set(Object.values(D.ARMES).map((a) => a.modele))], sw = fs.readFileSync(path.join(__dirname, '..', 'zombies', 'sw.js'), 'utf8');
   const tailleArmes = fs.readdirSync(path.join(dir, 'armes')).filter((f) => f.endsWith('.glb')).reduce((t, f) => t + fs.statSync(path.join(dir, 'armes', f)).size, 0);
-  check(blasters.every((c) => fs.existsSync(path.join(dir, 'armes', `blaster-${c}.glb`))) && lic('armes').length === 1 && /CC0|Creative Commons Zero/i.test(lic('armes')[0]) && /modeles\/armes\/blaster-/.test(sw) && tailleArmes < 600 * 1024,
-    `les armes : ${blasters.length} blasters du Blaster Kit de Kenney (CC0, licence à côté, ${(tailleArmes / 1024).toFixed(0)} Ko), gardés hors ligne`);
+  const REELS = ['pistolet', 'revolver', 'jumeaux', 'mitraillette', 'vipere', 'pompe', 'doublecanon', 'pompeauto', 'fusil', 'rafale', 'precision', 'canon'];
+  check(blasters.every((c) => fs.existsSync(path.join(dir, 'armes', `blaster-${c}.glb`))) && REELS.every((k) => D.ARMES[k] && fs.existsSync(path.join(dir, 'armes', `reel-${k}.glb`)))
+    && lic('armes').length === 2 && lic('armes').every((t) => /CC0|Creative Commons Zero/i.test(t)) && /modeles\/armes\/blaster-/.test(sw) && /modeles\/armes\/reel-/.test(sw) && tailleArmes < 1000 * 1024,
+    `les armes : ${REELS.length} vraies armes (Ultimate Gun Pack de Quaternius) et ${blasters.length} blasters du Blaster Kit de Kenney (CC0, licences à côté, ${(tailleArmes / 1024).toFixed(0)} Ko), gardés hors ligne`);
 }
 
 // ─── le monde ───
