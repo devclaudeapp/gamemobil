@@ -89,8 +89,10 @@ const ZHUD = (() => {
         <div class="h-info" hidden></div>
       </div>
       <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button></div></div>
-      <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
-      <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
+      <div class="h-milieu">
+        <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
+        <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
+      </div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
@@ -247,7 +249,7 @@ const ZHUD = (() => {
     // le choix d'un atout (la partie attend)
     const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
-      vu.choix = cc; el.choix.hidden = !c;
+      vu.choix = cc; el.choix.hidden = !c; R.classList.toggle('choix-ouvert', !!c); // (le haut du HUD s'efface derrière le choix)
       if (c) {
         el.choixT.textContent = `NIVEAU ${c.niveau} !`;
         el.cartes.innerHTML = c.options.map((k, i) => { const At = D.ATOUTS[k], r = j.atouts[k] || 0; return `<button type="button" class="h-carte-atout" data-atout="${k}"><span class="ico">${ICO[At.ico] || ''}</span><b>${At.nom}</b><small>${At.desc}</small><span class="rangs">${'●'.repeat(r)}<i>${'●'.repeat(Math.max(0, Math.min(At.max, r + 1) - r))}</i>${'○'.repeat(Math.max(0, At.max - r - 1))}</span><kbd>${i + 1}</kbd></button>`; }).join('');

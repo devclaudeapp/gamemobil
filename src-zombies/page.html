@@ -77,7 +77,7 @@
       </div>
       <p class="salon-etat" hidden></p>
       <p class="salon-erreur" role="alert" hidden></p>
-      <button type="button" class="moyen" id="b-salon-quitter">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-salon-quitter">Retour</button></div>
     </div>
   </section>
 
@@ -106,7 +106,7 @@
       <p class="asc-n"></p>
       <dl class="asc-carte"></dl>
       <p class="asc-recomp"></p>
-      <div class="asc-boutons"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
+      <div class="asc-boutons pied"><button type="button" class="gros" id="b-asc-jouer">Monter</button><button type="button" class="moyen" id="b-asc-retour">Retour</button></div>
     </div>
   </section>
 
@@ -116,7 +116,7 @@
       <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
-      <button type="button" class="moyen" id="b-col-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-col-retour">Retour</button></div>
     </div>
   </section>
 
@@ -125,7 +125,7 @@
       <div class="col-tete"><h2>Missions et pass</h2><div class="medailles" id="prog-medailles"></div></div>
       <div class="onglets prog-onglets" role="tablist"><button type="button" role="tab" data-onglet="missions">Missions</button><button type="button" role="tab" data-onglet="pass">Pass</button><button type="button" role="tab" data-onglet="coffre">Coffre</button></div>
       <div class="prog-corps"></div>
-      <button type="button" class="moyen" id="b-prog-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-prog-retour">Retour</button></div>
     </div>
   </section>
 
@@ -135,7 +135,7 @@
       <button type="button" class="mode-carte mode-inf" id="b-mode-inf"><b>🧟 Infection</b><span>C’est toi l’épidémie : mords les survivants avant la fin du chrono. Chaque mordu traque les autres.</span><small></small></button>
       <button type="button" class="mode-carte" id="b-mode-cps"><b>🎯 Chacun pour soi</b><span>À plusieurs, la même arme pour tous, pas de relève : le dernier debout gagne.</span></button>
       <button type="button" class="mode-carte" id="b-mode-duel"><b>⚔️ Duel</b><span>À deux : tes zombies abattus en envoient à l’autre. Monte les huit divisions.</span><small class="duel-div"></small></button>
-      <button type="button" class="moyen" id="b-modes-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-modes-retour">Retour</button></div>
     </div>
   </section>
 
@@ -145,7 +145,7 @@
       <div class="onglets soc-onglets" role="tablist"><button type="button" role="tab" data-onglet="mondial">Mondial</button><button type="button" role="tab" data-onglet="amis">Amis</button><button type="button" role="tab" data-onglet="profil">Profil</button></div>
       <div class="soc-corps"></div>
       <p class="soc-etat"></p>
-      <button type="button" class="moyen" id="b-soc-retour">Retour</button>
+      <div class="pied"><button type="button" class="moyen" id="b-soc-retour">Retour</button></div>
     </div>
   </section>
 
@@ -155,20 +155,20 @@
       <p class="resume">Les médailles gagnées en jouant achètent des améliorations pour toutes tes parties.</p>
       <div class="medailles" id="bunker-medailles"></div>
       <div class="bunker-liste"></div>
-      <button type="button" class="gros" id="b-bunker-ok">Retour</button>
+      <div class="pied"><button type="button" class="gros" id="b-bunker-ok">Retour</button></div>
     </div>
   </section>
 
   <section class="ecran voile" id="ecran-reglages" hidden>
-    <div class="carte-ecran">
+    <div class="carte-ecran reglages">
       <h2>Réglages</h2>
       <label class="regle"><span>Sons</span><input type="checkbox" id="r-son"></label>
       <label class="regle"><span>Vibrations</span><input type="checkbox" id="r-vibre"></label>
       <label class="regle"><span>Graphismes économes <small>(batterie, vieux téléphones)</small></span><input type="checkbox" id="r-eco"></label>
       <label class="regle"><span>Joystick</span><select id="r-joy"><option value="flottant">Flottant (sous le pouce)</option><option value="fixe">Fixe (en bas à gauche)</option></select></label>
       <label class="regle"><span>Taille du joystick</span><select id="r-joyt"><option value="petit">Petit</option><option value="normal">Normal</option><option value="grand">Grand</option></select></label>
-      <button type="button" class="gros" id="b-reglages-ok">OK</button>
       <p class="credits">Modèles 3D CC0 de Kenney (horde, survivant, armes, défenses, voitures) et de KayKit par Kay Lousberg (les boss) ; décor fait main. Sons synthétisés.</p>
+      <div class="pied"><button type="button" class="gros" id="b-reglages-ok">OK</button></div>
     </div>
   </section>
 </div>
