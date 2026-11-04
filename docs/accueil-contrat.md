@@ -478,6 +478,6 @@ E. **360 × 640** : partie neuve : bulle et « Passer » entièrement dans l'éc
   ici (`--seulement "tenues/apprenti-tablier,tenues/apprenti-foulard"`) : deux webp et `src/vignettes.js`.
 - `src/equipe3d.js` inchangé : la variante `metal` rend bien le bleu de travail (vignette vérifiée) ; ajouter `apprenti` à `varTablier`
   l'aurait rendu blanc (le nom croise la variante des apprentis).
-- Un test existant modifié, au minimum : `test/fournil-progression.cjs` cherche sa nouveauté par son id (`2026-11-03-a`) au lieu de la
-  première de la liste.
+- Deux tests existants modifiés, au minimum : `test/fournil-progression.cjs` cherche sa nouveauté par son id (`2026-11-03-a`) au lieu
+  de la première de la liste ; `test/fournil-equipe3d.cjs` compte 46 pièces de garde-robe (44 + la tenue d'apprenti).
 - La tâche CI `fournil12` utilise le port 8897 (8891 est pris par `fournil-decos`).
