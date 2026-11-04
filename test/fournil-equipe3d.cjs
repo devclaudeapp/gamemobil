@@ -12,7 +12,7 @@
 //   la page, avec et sans l'équipe 3D : les mêmes que src/game.js seul, dans Node, sur le même état) ;
 // · la préparation à petits pas, le processeur ralenti ×4 : de l'arrivée du lot au boulanger et aux apprentis en 3D (la cuisson, la tenue du
 //   boulanger préparée avec le reste, puis le boulanger, puis un apprenti par image), aucune image ne passe plus de 30 ms dans l'équipe ;
-// · les tenues : chacune des 44 pièces a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
+// · les tenues : chacune des 46 pièces (la tenue d’apprenti de l’accueil comprise) a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
 //   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces, ni des mains dans une pièce (toutes les
 //   pièces seules, les ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
 //   mains frottées de la boutique, la joie) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans rien cuire, ≤ 25 ms
@@ -342,7 +342,7 @@ function mesurerAura() {
       return { base, out, n: Object.keys(O).length };
     });
     const nonBase = P.out.filter((x) => !x.base), sigs = new Set(nonBase.map((x) => x.sig));
-    check(P.n === 44 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
+    check(P.n === 46 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
     check(nonBase.every((x) => x.sig !== P.base.sig) && sigs.size === nonBase.length && P.out.filter((x) => x.base).every((x) => x.sig === P.base.sig), `chaque pièce portée change le maillage : ${nonBase.length} maillages tous différents, et de la tenue de base (les trois pièces de base la redonnent)`);
     console.log(`        les kits : ${P.out.map((x) => `${x.id} ${x.kit} (${x.tris})`).join(' · ')}`);
     // la tenue de la chaîne : la palette TENUES.chaine (celle des chibis aussi), la veste de patron (pas un tablier), le trousseau à la ceinture
