@@ -20,11 +20,13 @@
 --  Ce qu'il fait, et rien d'autre :
 --    · fournil_evts() : la ligne 'hantee' INCHANGÉE (sa fenêtre et son tableau de la 6.6 : son podium déjà figé reste lisible, et
 --      fournil_classement('hantee') reste une période connue), et la ligne 'marche' : du vendredi 13 novembre 2026 à midi au vendredi
---      20 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures ; 31 log10 (0 à 180 h : la fenêtre fait 176 h). La table est celle de
+--      20 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures ; 31 log10 (0 à 180 h : la fenêtre fait 176 h). La table vient de
 --      outils/marche/rythme.js : le marathon (23 h 48 par jour, le ×6 jamais endormi, toutes les activités, la recette du jour et la
 --      collection au mieux, Astuces achetées ou offertes dès le 12e palier) sur 24 tirages, minute par minute, × 2,2 arrondi au 0,05
---      supérieur, croissante ; ×2,20 de marge au plus juste, et encore ×2,21 sur 24 autres tirages qu'elle n'a pas vus ; ×14,6 au plus
---      large après les sept premières heures. Sa valeur d'ouverture est celle de la Maison hantée (11,65) ;
+--      supérieur, croissante ; retirée sur le prototype puis sur les VRAIES règles (src/marche.js, --reel), elle est le plus haut des deux
+--      à chaque pas (les vraies règles ont demandé +0,05 à 48 h et à 144 h ; le prototype, +0,05 à 6 et 12 h). Sur les vraies règles :
+--      ×2,20 de marge au plus juste, et encore ×2,21 sur 24 autres tirages qu'elle n'a pas vus ; ×13,9 et ×14,7 au plus large après les
+--      sept premières heures (outils/marche/rythme-reel-table-v69.txt). Sa valeur d'ouverture est celle de la Maison hantée (11,65) ;
 --    · fournil_evt_titre : « le Marché d'automne » (le texte des notifications d'ouverture et de fin) ;
 --    · les mêmes signatures, le même langage, la même volatilité, le même search_path ; les mêmes droits (fonctions internes : ni anon
 --      ni authenticated). Aucune table, aucune donnée, aucune autre fonction n'est touchée.
