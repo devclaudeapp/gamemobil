@@ -10,6 +10,9 @@ Modèles 3D (zombies/modeles/, préparés par outils/zombies/faire-modeles.mjs, 
   Fichiers repris de la copie CC0 de github.com/series-ai/jam-ready-assets (la licence du créateur y est jointe à chaque pack).
 Le crédit n'est pas exigé par ces licences ; on le donne quand même.
 
+Les vignettes des arènes (zombies/vignettes/) sont des captures du jeu lui-même (outils/zombies/faire-vignettes.cjs) : les mêmes modèles CC0
+et le décor fait par le code ; les portraits de la Collection sont rendus à la volée, de la même façon.
+
 Le reste (le décor des arènes, la barricade, la mine, l'épouvantail, la ferraille, les effets, et les formes de secours quand les modèles ne
 sont pas chargés) est construit par le code (src-zombies/rendu.js), dans le style des packs Kenney.
 

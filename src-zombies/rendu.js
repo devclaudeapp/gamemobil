@@ -558,7 +558,7 @@ const ZRENDU = (() => {
         else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
       s.mixer.update(dt);
-      s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
+      s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
     }
     const survivants = new Map();
     const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95, canon: 1.05, minigun: 0.85, doublecanon: 0.78, roquettes: 0.95 };
@@ -588,7 +588,7 @@ const ZRENDU = (() => {
         s.bg.position.z = 0.22; s.bd.position.z = -0.22;
         s.arme.position.set(0.48 + s.longueur / 2 - s.recul * 0.08, 1.0, 0);
         // clignote un peu après un coup reçu
-        s.g.visible = !(j.invul > 0 && Math.floor(j.invul * 20) % 2 === 0);
+        s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
       }
       for (const [id, s] of survivants) if (!vus.has(id)) { scene.remove(s.g); survivants.delete(id); }
     }
@@ -878,6 +878,11 @@ const ZRENDU = (() => {
     const cam = { x: 0, z: 0, init: false };
     let secousse = 0, W = 1, H = 1;
     let decal = 0, decalVoulu = 0;
+    // la vitrine (l'écran titre, la Collection) : la caméra descend en plan rapproché sur le survivant, posé là où l'écran le demande
+    // (x, y : sa place, en fraction de l'écran, par un décalage de la vue) ; le passage vers le jeu et retour est un travelling continu
+    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1;
+    const _cn = T ? new T.Vector3() : null, _cv = T ? new T.Vector3() : null, _vn = T ? new T.Vector3() : null, _vv = T ? new T.Vector3() : null;
+    function vitrine(on, x, y, dist) { vitVoulu = on ? 1 : 0; if (x != null) vitX = x; if (y != null) vitY = y; if (dist != null) vitDist = dist; }
     const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
     const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
     const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
@@ -895,6 +900,14 @@ const ZRENDU = (() => {
       decal += (decalVoulu - decal) * k; fx += decal * 0.7; haut -= Math.abs(decal) * 1.4; recul -= Math.abs(decal) * 0.4; // (la collection : le survivant à gauche, en plus gros)
       let sx = 0, sz = 0; if (secousse > 0) { secousse = Math.max(0, secousse - dt); sx = (Math.random() - 0.5) * secousse * 0.6; sz = (Math.random() - 0.5) * secousse * 0.6; }
       camera.position.set(fx + sx, haut, fz + recul + sz); camera.lookAt(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
+      vit += (vitVoulu - vit) * (1 - Math.exp(-2.6 * dt)); if (Math.abs(vitVoulu - vit) < 1e-3) vit = vitVoulu;
+      if (vit > 0) {
+        const e = vit * vit * (3 - 2 * vit), d = vitDist; // (en douceur)
+        _cn.copy(camera.position); _vn.set(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
+        _cv.set(cam.x + 3.2 * d, 4.6 * d + 0.6, cam.z + 9.4 * d); _vv.set(cam.x, 1.0, cam.z);
+        camera.position.lerpVectors(_cn, _cv, e); _vn.lerp(_vv, e); camera.lookAt(_vn);
+        camera.setViewOffset(W, H, (0.5 - vitX) * W * e, (0.5 - vitY) * H * e, W, H);
+      } else if (camera.view && camera.view.enabled) camera.clearViewOffset();
       // l'ombre suit la caméra (une carte d'ombre de 48 m de côté autour d'elle)
       soleil.position.set(cam.x - 9, 22, cam.z + 12); soleil.target.position.set(cam.x, 0, cam.z);
     }
@@ -973,7 +986,56 @@ const ZRENDU = (() => {
       for (const [, r] of defs) scene.remove(r.g); defs.clear();
       arene = null;
     });
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    // ─── les portraits (Collection, vitrine) : un survivant ou une arme, rendu à part dans une petite image au fond transparent, gardé en
+    // cache ; rendu au double de sa taille puis réduit (lissé sans multi-échantillonnage). null tant que le modèle ou sa texture manque.
+    const portraits = new Map();
+    let rtP = null, sceneP = null, camP = null;
+    function portrait(type, id, opts) {
+      opts = opts || {};
+      if (!MOD || !MOD.pret) return null;
+      const L = opts.taille || 160, cle = `${type}|${id}|${opts.finition || ''}|${L}`;
+      if (portraits.has(cle)) return portraits.get(cle);
+      let objet = null;
+      if (type === 'survivant') {
+        const SD = D.SURVIVANTS[id]; if (SD && SD.texture && !MOD.persosPrets) return null;
+        const S = MOD.survivant(id); if (S.map && !(S.map.image && S.map.image.complete && S.map.image.naturalWidth > 0)) return null; // (la texture arrive)
+        const o = S.gltf.scene.clone(true), cache = new Map();
+        o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); } });
+        const clip = S.gltf.animations.find((c) => c.name === 'idle');
+        if (clip) { const mx = new T.AnimationMixer(o); mx.clipAction(clip).play(); mx.update(0.4); }
+        objet = new T.Group(); objet.add(o); o.rotation.y = -0.45;
+      } else if (type === 'arme') {
+        if (!MOD.armesPretes) return null;
+        const o = MOD.arme(id, 1, opts.finition || null); if (!o) return null;
+        objet = new T.Group(); objet.add(o); o.rotation.set(0.12, -Math.PI / 2 + 0.35, 0.18);
+      } else return null;
+      if (!rtP) {
+        rtP = new T.WebGLRenderTarget(L * 2, L * 2); if ('colorSpace' in rtP.texture) rtP.texture.colorSpace = T.SRGBColorSpace;
+        sceneP = new T.Scene(); sceneP.add(new T.HemisphereLight('#FFFFFF', '#7A8696', 1.7));
+        const d = new T.DirectionalLight('#FFF1D8', 2.4); d.position.set(3, 5, 6); sceneP.add(d);
+        const r = new T.DirectionalLight('#9FC4FF', 1.1); r.position.set(-5, 2, -3); sceneP.add(r); // (un liseré froid derrière)
+        camP = new T.PerspectiveCamera(26, 1, 0.05, 60);
+      }
+      if (rtP.width !== L * 2) rtP.setSize(L * 2, L * 2);
+      sceneP.add(objet); objet.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(objet), c = new T.Vector3(), t3 = new T.Vector3(); b.getCenter(c); b.getSize(t3);
+      const rayon = Math.max(t3.x, t3.y, t3.z * 0.6) / 2, dist = rayon / Math.tan(T.MathUtils.degToRad(camP.fov / 2)) * (type === 'arme' ? 1.05 : 1.3);
+      camP.position.set(c.x, c.y + t3.y * 0.08, c.z + dist); camP.lookAt(c.x, c.y, c.z); camP.updateProjectionMatrix();
+      const avantRT = renderer.getRenderTarget(), avantC = renderer.getClearColor(new T.Color()), avantA = renderer.getClearAlpha(), avantOmbre = renderer.shadowMap.autoUpdate;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.setRenderTarget(rtP); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sceneP, camP);
+      const px = new Uint8Array(L * L * 16); renderer.readRenderTargetPixels(rtP, 0, 0, L * 2, L * 2, px);
+      renderer.setRenderTarget(avantRT); renderer.setClearColor(avantC, avantA); renderer.shadowMap.autoUpdate = avantOmbre;
+      sceneP.remove(objet);
+      const grand = document.createElement('canvas'); grand.width = grand.height = L * 2;
+      const gx = grand.getContext('2d'), img = gx.createImageData(L * 2, L * 2), ligne = L * 2 * 4;
+      for (let y = 0; y < L * 2; y++) img.data.set(px.subarray((L * 2 - 1 - y) * ligne, (L * 2 - y) * ligne), y * ligne); // (WebGL lit de bas en haut)
+      gx.putImageData(img, 0, 0);
+      const petit = document.createElement('canvas'); petit.width = petit.height = L;
+      const px2 = petit.getContext('2d'); px2.imageSmoothingQuality = 'high'; px2.drawImage(grand, 0, 0, L, L);
+      const url = petit.toDataURL('image/png'); portraits.set(cle, url); return url;
+    }
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, vitrine, get enVitrine() { return vit; }, portrait, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();

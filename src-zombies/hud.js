@@ -134,7 +134,9 @@ const ZHUD = (() => {
     replier(!ouvert ? false : true, true);
     vu = {};
   }
-  function replier(o, silence) { ouvert = o; el.atelier.classList.toggle('ouvert', o); $('.h-poignee').setAttribute('aria-label', o ? 'Replier l’atelier' : 'Ouvrir l’atelier'); if (!silence) try { localStorage.setItem('zombies.atelier', o ? 'ouvert' : 'ferme'); } catch (e) { /* rien */ } }
+  // l'atelier replié : sa poignée pulse quand quelque chose devient abordable ou se débloque (jusqu'à ce qu'on l'ouvre)
+  function signaler() { if (!ouvert) $('.h-poignee').classList.add('signal'); }
+  function replier(o, silence) { ouvert = o; if (o) $('.h-poignee').classList.remove('signal'); el.atelier.classList.toggle('ouvert', o); $('.h-poignee').setAttribute('aria-label', o ? 'Replier l’atelier' : 'Ouvrir l’atelier'); if (!silence) try { localStorage.setItem('zombies.atelier', o ? 'ouvert' : 'ferme'); } catch (e) { /* rien */ } }
   let infoT = 0;
   function info(k, quoi) {
     const d = quoi === 'def' ? D.DEFENSES[k] : D.AMELIORATIONS[k];
@@ -189,6 +191,9 @@ const ZHUD = (() => {
       const etat = verrou ? 'verrou' : n >= mx ? 'max' : j.ferraille >= T.prix ? 'ok' : 'cher';
       const cle = `${etat}|${n}/${mx}`;
       if (vu['d' + k] !== cle) {
+        const avant = vu['d' + k] ? vu['d' + k].split('|')[0] : null;
+        if (avant === 'verrou' && etat !== 'verrou') { b.classList.add('neuf'); setTimeout(() => b.classList.remove('neuf'), 3200); toast(`Nouveau à l’atelier : ${T.nom}`); signaler(); } // (débloqué : il apparaît, et le dit)
+        else if (avant && avant !== 'ok' && etat === 'ok') signaler();
         vu['d' + k] = cle; b.dataset.etat = etat;
         b.querySelector('.prix').innerHTML = verrou ? `V${T.depuis}` : `<span class="ico">${ICO.ecrou}</span>${T.prix}`;
         b.querySelector('.nb').textContent = verrou ? '' : `${n}/${mx}`;
@@ -199,6 +204,7 @@ const ZHUD = (() => {
       const a = D.AMELIORATIONS[k], b = el.ams[k], n = j.niveaux[k] || 0, p = J.prixAmelioration(j, k), etat = p === Infinity ? 'max' : j.ferraille >= p ? 'ok' : 'cher';
       const cle = `${etat}|${n}|${p}`;
       if (vu['a' + k] !== cle) {
+        if (vu['a' + k] && vu['a' + k].split('|')[0] !== 'ok' && etat === 'ok') signaler();
         vu['a' + k] = cle; b.dataset.etat = etat;
         b.querySelector('.prix').innerHTML = p === Infinity ? 'MAX' : `<span class="ico">${ICO.ecrou}</span>${p}`;
         b.querySelector('.niv').textContent = n ? `${n}/${a.crans}` : '';
@@ -290,6 +296,7 @@ const ZHUD = (() => {
         else if (e.t === 'touche') { const q = parCible.get(e.cible) || { x: e.x, z: e.z, d: 0, crit: false, boss: e.boss }; q.d += e.degats; q.crit = q.crit || e.crit; parCible.set(e.cible, q); }
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
+        else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'ferraille' && e.x != null) voler(e.x, e.z);
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
       for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
@@ -301,6 +308,17 @@ const ZHUD = (() => {
       c2.d.style.transform = `translate(${(p2[0] + c2.dx).toFixed(1)}px, ${p2[1].toFixed(1)}px) translate(-50%, -50%) scale(${(k < 0.15 ? 0.6 + k * 4 : 1.2 - k * 0.3).toFixed(2)})`;
       c2.d.style.opacity = k > 0.6 ? ((1 - k) / 0.4).toFixed(2) : '1';
     }
+  }
+  // la ferraille ramassée vole jusqu'à son compteur, qui sursaute (au plus 10 en vol à la fois)
+  const vols = []; let iVol = 0;
+  function voler(x, z) {
+    if (!projeter || !el.fer || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    if (!vols.length) for (let k = 0; k < 10; k++) { const d = document.createElement('span'); d.className = 'h-vol'; d.innerHTML = ICO.ecrou; d.hidden = true; R.appendChild(d); vols.push(d); }
+    const d = vols[iVol]; iVol = (iVol + 1) % vols.length;
+    const de = projeter(x, 0.6, z), cible = el.fer.getBoundingClientRect(), ax = cible.left + cible.width / 2, ay = cible.top + cible.height / 2;
+    d.hidden = false; if (d.anim) d.anim.cancel();
+    d.anim = d.animate([{ transform: `translate(${de[0]}px, ${de[1]}px) scale(.6)`, opacity: 1 }, { transform: `translate(${(de[0] + ax) / 2}px, ${Math.min(de[1], ay) - 40}px) scale(1.15)`, opacity: 1, offset: 0.45 }, { transform: `translate(${ax}px, ${ay}px) scale(.7)`, opacity: .9 }], { duration: 560, easing: 'cubic-bezier(.4,0,.7,1)' });
+    d.anim.onfinish = () => { d.hidden = true; const f = el.fer.parentElement; f.classList.remove('pulse'); void f.offsetWidth; f.classList.add('pulse'); };
   }
   function chiffre(x, y, z, texte, classe) {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;

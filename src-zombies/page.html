@@ -12,24 +12,42 @@
 
   <section class="ecran" id="ecran-titre" hidden>
     <div class="titre-boite">
-      <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
-      <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
-      <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
-      <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
-      <div class="boutons">
-        <button type="button" class="gros" id="b-jouer">Jouer</button>
-        <button type="button" class="moyen defi-bouton" id="b-ascension"><span>L’Ascension</span><small class="asc-sous"></small></button>
-        <button type="button" class="moyen defi-bouton" id="b-defi"><span>Défi du jour</span><small class="defi-sous"></small></button>
-        <button type="button" class="moyen" id="b-multi">À plusieurs</button>
-        <button type="button" class="moyen" id="b-modes">Modes</button>
-        <button type="button" class="moyen" id="b-bunker">Bunker</button>
-        <button type="button" class="moyen defi-bouton" id="b-progression"><span>Missions</span><small></small></button>
-        <button type="button" class="moyen" id="b-collection">Collection</button>
-        <button type="button" class="moyen" id="b-social">Social</button>
-        <button type="button" class="moyen" id="b-reglages">Réglages</button>
-        <a class="moyen" id="b-accueil" href="../">Salle de jeux</a>
+      <div class="titre-gauche">
+        <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
+        <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
+        <div class="vitrine-place" aria-hidden="true"></div>
+        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button>
+      </div>
+      <div class="titre-droite">
+        <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
+        <div class="jouer-bloc">
+          <button type="button" class="gros jouer-carte" id="b-jouer"><span class="jouer-t">Jouer</span><small class="jouer-arene"></small></button>
+          <button type="button" class="arene-choix" id="b-arenes" aria-label="Changer d’arène"><span class="arene-choix-img"></span><small>Arène ›</small></button>
+        </div>
+        <div class="cartes-modes">
+          <button type="button" class="carte-mode defi-bouton" id="b-ascension"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20l6-10 4 6 3-4 5 8z" fill="currentColor"/><path d="M9 10V4l4 2-4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>L’Ascension</span><small class="asc-sous"></small></button>
+          <button type="button" class="carte-mode defi-bouton" id="b-defi"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 3v4M16 3v4M3.5 10h17" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="15" r="2.2" fill="currentColor"/></svg><span>Défi du jour</span><small class="defi-sous"></small></button>
+          <button type="button" class="carte-mode" id="b-multi"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8" r="3.2" fill="currentColor"/><circle cx="16.5" cy="9" r="2.6" fill="currentColor"/><path d="M2.5 20c.5-4.5 3-6.5 6-6.5s5.5 2 6 6.5zM14 20c.3-2.7 1.2-4.6 2.6-5.6 2.7.2 4.6 2 5 5.6z" fill="currentColor"/></svg><span>À plusieurs</span><small>2 à 4, chacun chez soi</small></button>
+          <button type="button" class="carte-mode" id="b-modes"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9 9M4 9l5-5M14 13l-2 2 3 3 2-2zM19 4l-9 9M20 9l-5-5M10 13l2 2-3 3-2-2z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Modes</span><small>Infection, duel…</small></button>
+        </div>
+        <nav class="barre-icones" aria-label="Menu">
+          <button type="button" class="icone" id="b-bunker"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" fill="currentColor"/><path d="M8.5 12l2.4 2.4 4.6-4.8" fill="none" stroke="#1F2533" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Bunker</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-progression"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3" fill="currentColor"/><path d="M8 8.5l1.6 1.6L12.5 7M8 15h8M14 9h2" fill="none" stroke="#1F2533" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Missions</span><small class="sr"></small><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-collection"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="currentColor"/></svg><span>Collection</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-social"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 1 0 18 9 9 0 0 1 0-18zM3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="2.1"/></svg><span>Social</span><i class="notif" hidden></i></button>
+          <button type="button" class="icone" id="b-reglages"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2.3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Réglages</span></button>
+          <a class="icone" id="b-accueil" href="../" aria-label="Salle de jeux"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".55"/></svg><span>Jeux</span></a>
+        </nav>
       </div>
       <p class="aide">Glisse le pouce n’importe où pour courir : ton survivant tire tout seul sur le zombie le plus proche. Entre les vagues, dépense ta ferraille dans l’atelier, à droite.</p>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-arenes" hidden>
+    <div class="carte-ecran arenes-ecran">
+      <h2>Choisis ton arène</h2>
+      <div class="arenes" role="radiogroup" aria-label="L’arène"></div>
+      <div class="pied"><button type="button" class="moyen" id="b-arenes-ok">Retour</button></div>
     </div>
   </section>
 
@@ -49,6 +67,7 @@
       <h2 class="fin-titre">Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <div class="fin-pass" hidden><span class="fin-pass-t"></span><div class="prog-barre"><i></i></div></div>
       <p class="fin-defi" hidden></p>
       <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
       <dl class="fin-chiffres"></dl>

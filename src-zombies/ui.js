@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
+  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -94,8 +94,44 @@
     const enJeu = nom === 'jeu' || nom === 'pause' || nom === 'fin' || (nom === 'reglages' && retourReglages === 'pause'), inf = !!(jeu && jeu.mode === 'infection');
     $('#hud').hidden = !enJeu || inf; $('#hud-inf').hidden = !enJeu || !inf;
     ZCONTROLES.activer(nom === 'jeu' && !enPause);
-    rendu.decaler(nom === 'collection' ? 6 : 0);
-    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); }
+    rendu.decaler(0);
+    if (nom === 'titre') { remplirArenes(); if (!demo) nouvelleDemo(); majMedailles(); majBoutonDefi(); majBoutonAscension(); majBoutonProgression(); majTitre(); }
+    if (nom === 'arenes') remplirArenes();
+    placerVitrine();
+  }
+  // ─── la vitrine : dans les menus, la caméra descend en plan rapproché sur ton survivant (la démonstration), posé dans la place libre
+  // du titre (à gauche) ou à gauche de la Collection ; en partie, elle remonte au-dessus de l'arène ───
+  const MENUS = new Set(['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
+  function placerVitrine() {
+    if (!MENUS.has(ecran) || (jeu && !jeu.fini)) { rendu.vitrine(false); return; }
+    const W = window.innerWidth, H = window.innerHeight, paysage = W > H;
+    let x = null, y = null, h = 0;
+    if (ecran === 'collection' && paysage) {
+      const pnl = $('.collection').getBoundingClientRect();
+      if (pnl.left > 150) { x = pnl.left / 2 / W; y = 0.56; h = H * 0.62; }
+    } else if (ecran === 'titre') {
+      const r = $('.vitrine-place').getBoundingClientRect();
+      if (r.height > 40 && r.width > 40) { x = (r.left + r.width / 2) / W; y = (r.top + r.height * 0.54) / H; h = r.height; }
+    }
+    if (x == null) { rendu.vitrine(true); return; } // (les autres menus : la vitrine reste où le titre l'a mise)
+    const f = Math.min(0.62, Math.max(0.12, (h * 0.68) / H)), d = Math.min(1.2, Math.max(0.26, (1.75 / f) / 0.728 / 10.8));
+    rendu.vitrine(true, x, y, d);
+  }
+  window.addEventListener('resize', () => setTimeout(placerVitrine, 60));
+  // le titre : le nom du survivant sous la vitrine, l'arène choisie sur le bouton Jouer (sa vignette à côté), les pastilles du menu
+  function majTitre() {
+    const A = D.ARENES[arene], r = save.records[arene], C = save.collection;
+    $('.jouer-arene').textContent = `${A.nom}${r && r.vague ? ` · record : vague ${r.vague}` : ''}`;
+    $('.arene-choix-img').style.backgroundImage = `url(vignettes/${arene}.webp)`;
+    $('.vitrine-skin').textContent = (D.SURVIVANTS[C.skin] || D.SURVIVANTS.gardien).nom;
+    majBadges();
+  }
+  function majBadges() {
+    const m = save.meta.medailles, C = save.collection;
+    const bunker = Object.keys(D.BUNKER).some((k) => { const B = D.BUNKER[k], n = save.meta.bunker[k] || 0; return n < B.crans && m >= B.prix[n]; });
+    const col = Object.keys(D.SURVIVANTS).some((k) => D.SURVIVANTS[k].prix && !C.skins.includes(k) && m >= D.SURVIVANTS[k].prix) || Object.keys(D.EMOTES).some((k) => D.EMOTES[k].prix && !C.emotes.includes(k) && m >= D.EMOTES[k].prix);
+    const notif = (id, on, titre) => { const i = document.querySelector(`#${id} .notif`); if (i) { i.hidden = !on; i.title = on ? titre : ''; } };
+    notif('b-bunker', bunker, 'Une amélioration à ta portée'); notif('b-collection', col, 'De quoi t’offrir un survivant ou une émote'); notif('b-progression', coffrePret(), 'Le coffre du jour t’attend');
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -103,7 +139,7 @@
       const A = D.ARENES[id], ok = debloquee(id), r = save.records[id], k = D.ORDRE_ARENES.indexOf(id);
       const prec = k > 0 ? D.ARENES[D.ORDRE_ARENES[k - 1]].nom : '';
       return `<button type="button" class="arene" role="radio" data-arene="${id}" aria-checked="${id === arene}" ${ok ? '' : 'disabled'}>
-        <b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
+        <span class="arene-img" style="background-image:url(vignettes/${id}.webp)"></span><b>${A.nom}</b>${ok ? `<small>${A.desc}</small>${r ? `<span class="rec">Record : vague ${r.vague} · ${r.score} pts</span>` : ''}` : `<span class="verrou">${ZHUD.ICO.cadenas}Atteins la vague ${D.DEBLOCAGE[id]} : ${prec}</span>`}
       </button>`;
     }).join('');
     const choisie = box.querySelector('[aria-checked="true"]'); if (choisie && choisie.scrollIntoView) try { choisie.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ }
@@ -115,12 +151,14 @@
       if (b.disabled) return; arene = b.dataset.arene; save.arene = arene; ecrire();
       box.querySelectorAll('.arene').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
       nouvelleDemo(); PSONS.ui('tap');
+      if (ecran === 'arenes') setTimeout(() => montrer('titre'), 160); // (choisie : retour au titre, sur son bouton Jouer)
     }));
   }
   // la démonstration du titre : le survivant (invincible) tient l'arène choisie, une tourelle à côté
   function nouvelleDemo() {
     demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
+    const p = demo.joueurs[0]; p.x -= 2.2; p.z += 0.6; // (un pas de côté : la tourelle ne le cache plus dans le plan rapproché du titre)
   }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null; mode = null;
@@ -159,7 +197,7 @@
     const min = Math.floor(jeu.t / 60), s = Math.floor(jeu.t % 60);
     $('.fin-chiffres').innerHTML = [
       ['Vague atteinte', jeu.vague], ['Niveau', j.niveau], ['Zombies', j.tues], ['Boss abattus', j.boss], ['Score', j.score], ['Ferraille ramassée', jeu.stats.ferraille], ['Défenses posées', jeu.stats.construits], ['Temps', `${min} min ${String(s).padStart(2, '0')} s`],
-    ].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+    ].map(([a, b], i) => `<dt style="--i:${i}">${a}</dt><dd style="--i:${i}"${typeof b === 'number' ? ` data-val="${b}"` : ''}>${b}</dd>`).join('');
     $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${medailles} médaille${medailles > 1 ? 's' : ''} pour le Bunker`; medaillesPartie = medailles;
     $('.fin-record').hidden = !record || r.parties <= 1 && j.score === 0;
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
@@ -168,10 +206,24 @@
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension(); finMode(); if (CL.etat().rejoint) publierProfil('menu').catch(() => {});
     const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
+    const fp = $('.fin-pass'); fp.hidden = !passFin || !passFin.gain;
+    if (passFin && passFin.gain) { const P = passFin; fp.querySelector('.fin-pass-t').textContent = `Pass de saison · palier ${P.apres.palier}${P.apres.palier > P.avant.palier ? ` (+${P.apres.palier - P.avant.palier})` : ''} · +${P.gain} points`; fp.dataset.de = P.apres.palier > P.avant.palier ? 0 : Math.round(P.avant.xp / D.PASS.xpPalier * 100); fp.dataset.a = Math.round(P.apres.xp / D.PASS.xpPalier * 100); }
     const neufs = verifierExploits(); if (neufs.length) setTimeout(() => ZHUD.toast(`Nouveau survivant : ${neufs.map((k) => D.SURVIVANTS[k].nom).join(', ')} !`), 1600);
     $('.fin-attente').hidden = !(partie && !partie.estHote);
     ZCONTROLES.activer(false);
-    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
+    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; animerFin(); } }, 1400);
+  }
+  // le bilan s'anime : les lignes arrivent l'une après l'autre, les chiffres comptent jusqu'à leur valeur, la barre du pass se remplit
+  function animerFin() {
+    const box = $('#ecran-fin .carte-ecran'); box.classList.remove('anime'); void box.offsetWidth; box.classList.add('anime');
+    const calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('.fin-chiffres dd[data-val]').forEach((dd, i) => {
+      const v = +dd.dataset.val; if (calme || !(v > 0)) return;
+      const t0 = performance.now() + 120 + i * 70, d = 650;
+      const pas = (t) => { const u = Math.min(1, Math.max(0, (t - t0) / d)); dd.textContent = nf(v * (1 - Math.pow(1 - u, 3))); if (u < 1) requestAnimationFrame(pas); else dd.textContent = nf(v); };
+      dd.textContent = '0'; requestAnimationFrame(pas);
+    });
+    const fp = $('.fin-pass'); if (!fp.hidden) { const i = fp.querySelector('i'); i.style.transition = 'none'; i.style.width = `${fp.dataset.de}%`; void i.offsetWidth; i.style.transition = calme ? 'none' : 'width 1.1s cubic-bezier(.2,.8,.2,1) .5s'; i.style.width = `${fp.dataset.a}%`; }
   }
   function quitter() { quitterSalon(); jeu = null; enPause = false; for (const k in ecrans) ecrans[k].hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } montrer('titre'); }
 
@@ -218,18 +270,26 @@
 
   // ─── le Bunker : les améliorations permanentes ───
   function majMedailles() { const h = `${ZHUD.ICO.medaille}<span>${save.meta.medailles}</span>`; $('#titre-medailles').innerHTML = h; $('#bunker-medailles').innerHTML = h; const c = $('#col-medailles'); if (c) c.innerHTML = h; const pm = $('#prog-medailles'); if (pm) pm.innerHTML = h; }
+  const BRANCHES_BUNKER = [['Survie', '#E5533D', ['vie', 'xp']], ['Arsenal', '#8E5BE8', ['degats', 'grenade', 'arme']], ['Logistique', '#2E9446', ['ferraille']]];
+  const ICO_BUNKER = {
+    vie: ZHUD.ICO.coeur, ferraille: ZHUD.ICO.ecrou, degats: ZHUD.ICO.degats, grenade: ZHUD.ICO.grenade,
+    xp: '<svg viewBox="0 0 40 40"><path d="M7 9c5-2 9-1 13 2v21c-4-3-8-4-13-2z" fill="#F2EBD9" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M33 9c-5-2-9-1-13 2v21c4-3 8-4 13-2z" fill="#FFF7EC" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 15h6M10 20h6M24 15h6M24 20h6" stroke="#8E5BE8" stroke-width="2" stroke-linecap="round"/></svg>',
+    arme: '<svg viewBox="0 0 40 40"><rect x="5" y="13" width="30" height="20" rx="3" fill="#C99B62" stroke="#2B2A33" stroke-width="2.4"/><path d="M5 20h30M20 13v20" stroke="#5A3D22" stroke-width="2.2"/><path d="M11 9h18l2 4H9z" fill="#5E6347" stroke="#2B2A33" stroke-width="2.2" stroke-linejoin="round"/></svg>',
+  };
   function remplirBunker() {
     majMedailles();
-    $('.bunker-liste').innerHTML = Object.keys(D.BUNKER).map((k) => {
-      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null;
-      return `<div class="amelio"><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
-        <button type="button" data-bunker="${k}" ${prix == null || save.meta.medailles < prix ? 'disabled' : ''} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
-    }).join('');
+    // trois branches ; chaque amélioration : son icône dans un anneau qui se remplit cran par cran, ses crans, son prix
+    $('.bunker-liste').innerHTML = BRANCHES_BUNKER.map(([nom, couleur, cles]) => `<section class="branche" style="--c:${couleur}"><h3>${nom}</h3>${cles.map((k) => {
+      const B = D.BUNKER[k], n = save.meta.bunker[k] || 0, prix = n < B.crans ? B.prix[n] : null, peut = prix != null && save.meta.medailles >= prix;
+      return `<div class="amelio${prix == null ? ' max' : ''}${peut ? ' peut' : ''}"><span class="noeud" style="--p:${Math.round(n / B.crans * 100)}%">${ICO_BUNKER[k] || ''}</span><b>${B.nom}</b><small>${B.desc}</small><span class="crans">${'●'.repeat(n)}${'○'.repeat(B.crans - n)}</span>
+        <button type="button" data-bunker="${k}" ${peut ? '' : 'disabled'} aria-label="${B.nom} : ${prix == null ? 'au maximum' : prix + ' médailles'}">${prix == null ? 'MAX' : `<span class="prix-m">${ZHUD.ICO.medaille}</span>${prix}`}</button></div>`;
+    }).join('')}</section>`).join('');
   }
   $('.bunker-liste').addEventListener('click', (e) => {
     const b = e.target.closest('[data-bunker]'); if (!b || b.disabled) return;
     const k = b.dataset.bunker, B = D.BUNKER[k], n = save.meta.bunker[k] || 0; if (n >= B.crans || save.meta.medailles < B.prix[n]) return;
     save.meta.medailles -= B.prix[n]; save.meta.bunker[k] = n + 1; ecrire(); remplirBunker();
+    const nd = document.querySelector(`[data-bunker="${k}"]`); if (nd) nd.closest('.amelio').classList.add('achete'); // (un éclat sur le nœud acheté)
     try { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } catch (err) { /* rien */ }
   });
 
@@ -373,7 +433,8 @@
     for (const k in ecrans) ecrans[k].hidden = true;
     montrer('collection'); remplirCollection();
   }
-  function remplirCollection() {
+  function remplirCollection() { remplirCollection0(); remplirPortraits(); }
+  function remplirCollection0() {
     const C = save.collection, box = $('.col-liste');
     document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.onglet === ongletCol)));
     $('.col-armes').hidden = ongletCol !== 'finitions';
@@ -382,7 +443,8 @@
       box.innerHTML = Object.keys(D.SURVIVANTS).map((k) => {
         const S = D.SURVIVANTS[k], eu = C.skins.includes(k), porte = C.skin === k;
         const etat = porte ? '<b class="porte">Porté</b>' : eu ? '<b>Porter</b>' : S.prix ? `<b class="prix">${ZHUD.ICO.medaille}${S.prix}</b>` : S.secret ? '<small>Secret</small>' : `<small>${echap(S.texte)} (${Math.min(progres(S.exploit).fait, progres(S.exploit).but)} / ${progres(S.exploit).but})</small>`;
-        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-skin="${k}"><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
+        const rar = rareteSurv(S), cache = !eu && S.secret;
+        return `<button type="button" class="col-carte rar-${rar}${porte ? ' porte' : ''}${eu ? '' : ' verrou'}${cache ? ' secret' : ''}" data-skin="${k}"><img class="col-portrait" alt="" data-portrait="survivant|${k}|"><i class="rar">${RARETES[rar]}</i><span class="nom">${eu || !S.secret ? echap(S.nom) : '???'}</span>${etat}</button>`;
       }).join('');
       box.querySelectorAll('[data-skin]').forEach((b) => b.addEventListener('click', () => {
         const k = b.dataset.skin, S = D.SURVIVANTS[k];
@@ -394,9 +456,9 @@
     } else if (ongletCol === 'finitions') {
       const fins = finitionsEues();
       $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
-      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
         const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
-        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou'}" data-fin="${f}"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span><span class="nom">${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
+        return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou secret'}" data-fin="${f}"><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|${f}"><span class="nom"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span>${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
       }).join('');
       box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
         const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
@@ -412,6 +474,25 @@
         save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
       }));
     }
+  }
+  // les portraits des cartes (rendus par la 3D du jeu, gardés en cache) : trois par image pour ne rien saccader ; ceux dont le modèle ou
+  // la texture arrive encore sont refaits un peu plus tard
+  const RARETES = { commune: 'Commun', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
+  const rareteSurv = (S) => (S.depart ? 'commune' : S.secret ? 'legendaire' : S.exploit ? 'epique' : S.prix >= 40 ? 'rare' : 'commune');
+  let portraitsEnCours = false;
+  function remplirPortraits() {
+    if (portraitsEnCours) return; portraitsEnCours = true;
+    const etape = () => {
+      if (ecran !== 'collection') { portraitsEnCours = false; return; }
+      const liste = [...document.querySelectorAll('.col-liste img[data-portrait]:not([src])')]; let faits = 0, manque = 0;
+      for (const im of liste) {
+        if (faits >= 3) break;
+        const [t, id, f] = im.dataset.portrait.split('|'), u = rendu.portrait(t, id, { finition: f || null, taille: 128 });
+        if (u) { im.src = u; faits++; } else { manque++; im.dataset.essais = (+im.dataset.essais || 0) + 1; if (+im.dataset.essais > 40) im.removeAttribute('data-portrait'); }
+      }
+      if (liste.length > faits && (faits || manque)) { if (faits) requestAnimationFrame(etape); else setTimeout(etape, 300); } else portraitsEnCours = false;
+    };
+    requestAnimationFrame(etape);
   }
   // l'aperçu : le survivant de la démonstration (derrière l'écran) porte le skin, et tient l'arme choisie avec sa finition
   function apercuArme() { if (!demo) return; const p = demo.joueurs[0]; p.skin = save.collection.skin; p.finitions = moiJoueur().finitions; p.armes[1] = { id: armeCol, mun: 999 }; p.main = 1; }
@@ -444,15 +525,16 @@
     if (P.palier >= D.PASS.paliers) P.xp = 0;
     return gains;
   }
+  let passFin = null; // (le bilan de fin : le pass avant et après la partie)
   function bilanProgression(j) {
-    majProgression();
+    majProgression(); const avantPass = { palier: save.prog.palier, xp: save.prog.xp };
     const P = save.prog, b = { tues: j.tues, boss: j.boss, crits: jeu.stats.crits, ferraille: jeu.stats.ferraille, construits: jeu.stats.construits, grenades: jeu.stats.grenades, caisses: jeu.stats.caisses, vague: jeu.vague, echelons: ascension && jeu.gagne ? 1 : 0, coop: partie ? 1 : 0, defi: defi ? 1 : 0 };
     const faites = [];
     for (const m of P.missions) { const X = D.MISSIONS.find((x) => x.id === m.id); if (!X) continue; m.fait = X.cumul ? m.fait + (b[X.mesure] || 0) : Math.max(m.fait, b[X.mesure] || 0); if (m.fait >= m.but) faites.push(m); }
     let xp = D.PASS.xpPartie(j.score);
     for (const m of faites) { P.missions.splice(P.missions.indexOf(m), 1); P.rang++; xp += D.PASS.xpMission; }
     majProgression();
-    const gains = gagnerXpPass(xp); ecrire();
+    const gains = gagnerXpPass(xp); ecrire(); passFin = { avant: avantPass, apres: { palier: save.prog.palier, xp: save.prog.xp }, gain: xp, missions: faites.length };
     const t = []; if (faites.length) t.push(`${faites.length} mission${faites.length > 1 ? 's' : ''} réussie${faites.length > 1 ? 's' : ''}`); if (gains.length) t.push(`pass : ${gains.join(', ')}`);
     return t.join(' · ');
   }
@@ -510,9 +592,9 @@
     $('.fin-titre').textContent = gagne ? 'L’épidémie a gagné !' : jeu.raison === 'abattu' ? 'Abattu par les survivants' : 'Les survivants ont tenu';
     $('.fin-chiffres').innerHTML = [['Survivants mordus', `${jeu.mordus} / ${jeu.joueurs.length}`], ['Score', jeu.score], ['Temps', `${Math.floor(jeu.t / 60)} min ${String(Math.floor(jeu.t % 60)).padStart(2, '0')} s`], ['Record', I.meilleur]].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
     $('.fin-medailles').innerHTML = `${ZHUD.ICO.medaille} +${med} médaille${med > 1 ? 's' : ''} pour le Bunker${gains.length ? ' · pass : ' + gains.join(', ') : ''}`;
-    $('.fin-record').hidden = true; $('.fin-defi').hidden = true; $('.fin-attente').hidden = true; $('#b-rejouer').hidden = false; $('#b-rejouer').textContent = 'Rejouer';
+    $('.fin-record').hidden = true; $('.fin-pass').hidden = true; $('.fin-defi').hidden = true; $('.fin-attente').hidden = true; $('#b-rejouer').hidden = false; $('#b-rejouer').textContent = 'Rejouer';
     ZCONTROLES.activer(false);
-    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; } }, 1400);
+    setTimeout(() => { if (jeu && jeu.fini) { ecran = 'fin'; document.body.dataset.ecran = 'fin'; ecrans.fin.hidden = false; animerFin(); } }, 1400);
   }
 
   // le duel : 8 divisions, des points gagnés (+25) ou perdus (−15) à chaque duel
@@ -589,6 +671,9 @@
   // ─── les boutons des écrans ───
   const clic = (s, f) => $(s).addEventListener('click', (e) => { e.preventDefault(); try { PSONS.ui('tap'); } catch (err) { /* rien */ } f(); });
   clic('#b-jouer', () => { verrouiller(); demarrer(arene); });
+  clic('#b-arenes', () => { PSONS.ui('tap'); montrer('arenes'); });
+  clic('#b-arenes-ok', () => montrer('titre'));
+  clic('#b-vitrine', ouvrirCollection);
   clic('#b-reprendre', reprendre);
   clic('#b-recommencer', () => { ecrans.pause.hidden = true; try { PSONS.suspendre(false); } catch (e) { /* rien */ } if (mode === 'infection') demarrerInfection(); else if (ascension) demarrerAscension(ascension.n); else if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-quitter', quitter);
@@ -631,7 +716,7 @@
   clic('#b-lancer', () => { if (salon) { const r = salon.lancer(arene, modeSalon); if (r === 'duel-deux') { erreurSalon('Le duel se joue à deux exactement.'); return; } verrouiller(); } });
   clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
-  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); });
+  clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;
