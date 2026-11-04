@@ -24,6 +24,7 @@
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
       <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
+      <button id="b-marche" class="rond marche" type="button" aria-label="L’événement : Le Marché d’automne" hidden><i class="ico" data-ico="marche"></i><small class="ev-reste" aria-hidden="true" hidden></small></button>
     </div>
     <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
@@ -43,6 +44,7 @@
     </div>
     <button id="debutant" class="ticket debutant" type="button" aria-label="Ton premier jour" hidden></button>
     <button id="objectifs" class="ticket" type="button" aria-label="Objectifs du jour"></button>
+    <button id="piste" class="ticket piste" type="button" aria-label="La saison : la piste de récompenses" hidden></button>
     <button id="boosts" class="ticket boosts" type="button" aria-label="Boosts en réserve" hidden></button>
     <div id="cartes"></div>
     <div id="chaine-cartes" hidden></div>
@@ -131,6 +133,19 @@
   <div class="pq-barre"><div class="modes pq-modes" role="group" aria-label="Quantité à acheter"><button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button></div><button type="button" class="btn-am pq-am" data-pq="ameliorations"><i class="ico" data-ico="bonus"></i>Sortilèges</button></div>
   <div id="ht-corps" class="pq-corps"></div>
   <div id="ht-cartes" class="pq-cartes-liste"></div>
+</div>
+<div id="marche" class="mc" role="dialog" aria-modal="true" aria-labelledby="mc-titre" data-ecran="" hidden>
+  <div class="at-haut">
+    <button type="button" class="at-fermer" data-pq="fermer" aria-label="Quitter la Halle"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="mc-titre">La Halle</b><small id="mc-sous"></small></div>
+    <button type="button" class="pq-paliers-btn pq-cl-btn" data-pq="classement" aria-label="Le classement de l’événement" hidden><i class="ico" data-ico="classement"></i><b></b></button>
+    <button type="button" class="pq-paliers-btn" data-pq="paliers" aria-label="Les paliers de l’événement"><i class="ico" data-ico="palierQ"></i><b>0/12</b></button>
+  </div>
+  <div class="pq-solde"><span class="pq-ico" aria-hidden="true"></span><div><b id="mc-billets">0</b><small id="mc-taux"></small></div><span id="mc-reste" class="pq-reste"></span></div>
+  <div class="pq-scene"><canvas id="mc-canvas" aria-label="La Halle en 3D : la boutique en marché d’automne, ses étals, ses cagettes, les amis de la forêt et les enfants déguisés."></canvas><div id="mc-ev" class="pq-ev" hidden></div></div>
+  <div class="pq-barre"><div class="modes pq-modes" role="group" aria-label="Quantité à acheter"><button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button></div><button type="button" class="btn-am pq-am" data-pq="ameliorations"><i class="ico" data-ico="bonus"></i>Astuces</button></div>
+  <div id="mc-corps" class="pq-corps"></div>
+  <div id="mc-cartes" class="pq-cartes-liste"></div>
 </div>
 <div id="visite" role="dialog" aria-modal="true" aria-labelledby="vi-titre" hidden>
   <div class="at-haut vi-haut">

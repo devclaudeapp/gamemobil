@@ -697,7 +697,7 @@ const UI = (() => {
   }
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}|${nonLues()}|${pastilleIdees.n}${pastilleIdees.admin}`,
+    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}${EVM().filter((E) => E !== HTE).map((E) => `${E.visible()}${st[E.cle] ? st[E.cle].masque : ''}`).join('')}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}|${nonLues()}|${pastilleIdees.n}${pastilleIdees.admin}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -720,7 +720,7 @@ const UI = (() => {
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
         ${QA && QA.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) ) : ''}
-        ${HTE && HTE.fenetre() && HTE.fenetre().ouvert ? groupe('Halloween', ligne('hantee', ICONS.UI.hantee, 'Masquer la Maison hantée', 'L’icône citrouille et le manoir disparaissent ; le reste du jeu ne change pas', sw(!!(st[HTE.cle] && st[HTE.cle].masque)))) : ''}
+        ${EVM().map((E) => { const f = E.fenetre(); if (!f || !f.ouvert) return ''; const x = REGLAGE_EVT[E.cle] || [E.F.nom, `Masquer ${E.F.nom}`, 'L’icône et l’écran de l’événement disparaissent ; le reste du jeu ne change pas']; return groupe(x[0], ligne(E.cle, ICONS.UI[E.cle] || ICONS.UI.hantee, x[1], x[2], sw(!!(st[E.cle] && st[E.cle].masque)))); }).join('')}
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
@@ -750,7 +750,7 @@ const UI = (() => {
       }
       onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
-      onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
+      for (const E of EVM()) onIn(sec, `[data-a="${E.cle}"]`, () => { E.masquer(!(st[E.cle] && st[E.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); }); // « Masquer » chaque événement ouvert (la Maison hantée, le Marché d'automne)
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
       onIn(sec, '[data-a="journal"]', () => { son.tap(); showPage('journal'); }); // « Les nouvelles » (l'ancienne cloche) : la page du Journal
@@ -1026,7 +1026,7 @@ const UI = (() => {
     lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
     majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
     if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }
-    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || (HTE && HTE.visible()))) { // un événement ouvert : son annonce à lui, après la bulle en cours
+    if (id === 'evenements' && EVS && ((EVT && EVT.visible()) || EVM().some((E) => E.visible()))) { // un événement ouvert : son annonce à lui, après la bulle en cours
       evVol = true; // (aucune bulle ne part en attendant : la feuille de l'événement l'effacerait aussitôt)
       const tenter = () => { if (annonceId) { setTimeout(tenter, 500); return; } evVol = false; finAnnoncePrec = Math.max(finAnnoncePrec, performance.now() - ECART() + 3000); if ($('#feuille').hidden && !EVS.ouvert) EVS.annoncer(true); };
       setTimeout(tenter, 400);
@@ -1455,12 +1455,22 @@ const UI = (() => {
   // les décos, le bilan dû en feuille simple), mais QA est nul : ni réglage, ni onglet au classement, ni billets envoyés, ni visite de Planque
   const QA = QT && !QT.ECARTE ? QT : null;
   const HTE = EVS && EVS.hantee && EVS.hantee.R ? EVS.hantee : null, HT = HTE ? HTE.R : null; // l'événement « La Maison hantée » (src/evenement.js, src/hantee.js)
-  // ce que le classement envoie de la Maison hantée : ses bonbons (p_evt = 'hantee'), pendant la fenêtre et l'heure de grâce ; deux noms
-  // proposés au moteur (src/classement.js, v5) : hantee() → nombre, evenement() → { id, valeur } ; un moteur v4 les ignore
-  function envoiHantee() {
-    if (!HTE) return {};
-    const bonbons = () => { const h = st && st[HTE.cle]; const t = HORLOGE.maintenant(); const ok = HT.envoiBillets ? HT.envoiBillets(t) : t >= HT.DEBUT && t < HT.FIN + 3600e3; return h && ok && h.total > 0 ? h.total : null; };
-    return { [HTE.cle]: bonbons, evenement: () => { const v = bonbons(); return v == null ? null : { id: HTE.cle, score: v, valeur: v }; } }; // classement v5 : evenement() → { id, score }
+  const MCE = EVS && EVS.marche && EVS.marche.R ? EVS.marche : null, MC = MCE ? MCE.R : null; // l'événement « Le Marché d'automne » (src/evenement.js, src/marche.js)
+  // les événements sur le moteur du Manoir (la Maison hantée, le Marché d'automne…) : tous ceux de EVS.liste sauf le Quartier (il a ses règles à lui)
+  const EVM = () => (EVS ? EVS.liste.filter((E) => E.cle !== 'quartier' && E.R) : []);
+  const REGLAGE_EVT = { // la ligne « Masquer » de chaque événement dans les Réglages : [groupe, titre, sous-titre]
+    hantee: ['Halloween', 'Masquer la Maison hantée', 'L’icône citrouille et le manoir disparaissent ; le reste du jeu ne change pas'],
+    marche: ['Le Marché d’automne', 'Masquer le Marché d’automne', 'L’icône feuille et la Halle disparaissent ; le reste du jeu ne change pas'],
+  };
+  // ce que le classement envoie d'un événement : son score (p_evt = sa clé : 'hantee', 'marche'), pendant sa fenêtre et l'heure de grâce. Un
+  // seul à la fois : l'événement de EVS.liste dont R.envoiBillets(t) est vrai (les fenêtres sont disjointes, la grâce comprise). Deux noms
+  // proposés au moteur (src/classement.js, v5) : <cle>() → nombre (un par événement), evenement() → { id, score, valeur } ; un moteur v4 les ignore
+  function envoiEvenement() {
+    const l = EVM(); if (!l.length) return {};
+    const score = (E) => { const h = st && st[E.cle]; const t = HORLOGE.maintenant(), R = E.R; const ok = R.envoiBillets ? R.envoiBillets(t) : t >= R.DEBUT && t < R.FIN + 3600e3; return h && ok && h.total > 0 ? h.total : null; };
+    const o = {}; for (const E of l) o[E.cle] = () => score(E);
+    o.evenement = () => { for (const E of l) { const v = score(E); if (v != null) return { id: E.cle, score: v, valeur: v }; } return null; }; // classement v5 : evenement() → { id, score }
+    return o;
   }
   // ─── le compagnon de la boutique : le chat roux de toujours, un chien, un lapin… jusqu'au mini-dragon (GAME.COMPAGNONS, src/game.js) ───
   // Un chat est noir d'office pendant la Maison hantée (pas masquée) ; le chat noir gagné y reste au choix, comme tous les autres, dans la
@@ -1518,9 +1528,12 @@ const UI = (() => {
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
   // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final) ; l'onglet Halloween : pareil pour la Maison hantée,
   // si le moteur du classement (src/classement.js, v5) connaît la période 'hantee'
-  const ongletHantee = () => !!(HTE && CLM && CLM.PERIODES && CLM.PERIODES.includes(HTE.cle) && !(st && st[HTE.cle] && st[HTE.cle].masque) && fenetreClassementHantee());
-  function fenetreClassementHantee() { const t = HORLOGE.maintenant(), f = HT.fenetre(t); if (typeof f.classement === 'boolean') return f.classement; return t >= HT.DEBUT && t < (HT.CLASSEMENT_JUSQUA || HT.FIN + 14 * 864e5); }
-  const periodes = () => { let p = QA && QA.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
+  // (et de même pour chaque événement du moteur du Manoir : l'onglet « Marché » du Marché d'automne, jusqu'au 4 décembre ; son nom : FICHE.classement.onglet)
+  const ongletEvt = (E) => !!(E && CLM && CLM.PERIODES && CLM.PERIODES.includes(E.cle) && !(st && st[E.cle] && st[E.cle].masque) && fenetreClassementEvt(E));
+  const ongletHantee = () => ongletEvt(HTE);
+  function fenetreClassementEvt(E) { const R = E.R, t = HORLOGE.maintenant(), f = R.fenetre(t); if (typeof f.classement === 'boolean') return f.classement; return t >= R.DEBUT && t < (R.CLASSEMENT_JUSQUA || R.FIN + 14 * 864e5); }
+  const nomOnglet = (E) => (E.R.FICHE && E.R.FICHE.classement && E.R.FICHE.classement.onglet) || (E === HTE ? 'Halloween' : E.F.nom);
+  const periodes = () => { let p = QA && QA.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; for (const E of EVM()) if (ongletEvt(E)) p = p.concat([[E.cle, nomOnglet(E)]]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   // ses points de boulanger de la semaine, tels qu'ils partent au classement
@@ -1532,7 +1545,7 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
-  function majCoinQuartier() { const ev = ouvertA('evenements'), bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible() && ev); const bh = $('#b-hantee'); if (bh) bh.hidden = !(HTE && HTE.visible() && ev); majMinuteurs(); } // (accueil : seulement une fois les événements débloqués) // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
+  function majCoinQuartier() { const ev = ouvertA('evenements'), bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible() && ev); for (const E of EVM()) { const b = $(`#b-${E.cle}`); if (b) b.hidden = !(E.visible() && ev); } majMinuteurs(); } // (accueil : seulement une fois les événements débloqués) // l'icône de chaque événement : seulement pendant sa fenêtre, et pas masqué ; son minuteur
   function majCoin() {
     majCoinQuartier(); majCoinChaine();
     const b = $('#b-classement'); if (!b) return;
@@ -1554,7 +1567,7 @@ const UI = (() => {
     return j ? `${j}\u00a0j\u00a0${h}\u00a0h` : h ? `${h}\u00a0h\u00a0${String(mn).padStart(2, '0')}` : `${mn}\u00a0min`;
   }
   function majMinuteurs() {
-    for (const [sel, E, nom] of [['#b-quartier', EVT, 'Le Quartier'], ['#b-hantee', HTE, 'La Maison hantée']]) {
+    for (const [sel, E, nom] of [['#b-quartier', EVT, 'Le Quartier']].concat(EVM().map((x) => [`#b-${x.cle}`, x, x.F.nom]))) {
       const b = $(sel), x = b && b.querySelector('.ev-reste'); if (!x) continue;
       let f = null; try { f = !b.hidden && E ? E.fenetre() : null; } catch (e) { f = null; }
       const t = f && f.ouvert && f.reste > 0 ? resteCourt(f.reste) : '';
@@ -1636,7 +1649,7 @@ const UI = (() => {
   }
   function sheetClassement(periode) {
     if (!classement) return;
-    if (periode === 'semaine' || periode === 'total' || ((periode === 'quartier' || (HTE && periode === HTE.cle)) && periodes().some(([id]) => id === periode))) ongletCl = periode;
+    if (periode === 'semaine' || periode === 'total' || ((periode === 'quartier' || EVM().some((E) => periode === E.cle)) && periodes().some(([id]) => id === periode))) ongletCl = periode;
     if (!periodes().some(([id]) => id === ongletCl)) ongletCl = 'semaine'; // l'onglet d'un événement a disparu (deux semaines après la fin)
     openSheet(htmlClassement()); vueCl = 'liste'; lierClassement();
     classement.ouvrir(ongletCl); // d'abord sa fortune (si on a rejoint), puis la liste
@@ -1667,17 +1680,20 @@ const UI = (() => {
   function listeClassement(d, r) {
     const semaine = ongletCl === 'semaine';
     const enPoints = d.version >= 3; // un serveur encore en version 2 classe à l'argent : on l'affiche comme avant
-    const hantee = !!HTE && ongletCl === HTE.cle, fh = hantee ? HT.fenetre(HORLOGE.maintenant()) : null;
+    // l'onglet d'un événement du moteur du Manoir (Halloween, Marché) : ses textes et sa devise se lisent sur sa fiche (FICHE.textes : classementInfo,
+    // classementFini, vide, videSous, podium ; F.fmt : « 12 noisettes »)
+    const evO = EVM().find((E) => E.cle === ongletCl) || null, hantee = !!evO, fh = hantee ? evO.R.fenetre(HORLOGE.maintenant()) : null, TO = hantee ? (evO.R.FICHE && evO.R.FICHE.textes) || {} : {};
+    const devO = hantee ? (evO.R.FICHE && evO.R.FICHE.devise && evO.R.FICHE.devise.nom) || 'bonbons' : '';
     const quartier = ongletCl === 'quartier' || hantee, fq = hantee ? fh : QA ? QA.fenetre(HORLOGE.maintenant()) : null;
-    const info = hantee ? (fh.fini ? 'La Maison hantée est finie : le podium final est figé' : 'Les bonbons gagnés au manoir · podium final le 2 nov. à 20 h') : quartier ? (fq && fq.fini ? 'Le Quartier est fini : le podium final est figé' : `Les billets gagnés dans la Planque · podium final le 27 oct. à midi`) : semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
-    const val = (l) => (hantee ? `<b class="cl-val">${HT.fmt(l.valeur)}<small>bonbons</small></b>` : quartier ? `<b class="cl-val">${G.fmtEur(l.valeur)}<small>billets</small></b>` : enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
+    const info = hantee ? (fh.fini ? TO.classementFini || `${evO.F.nom} est fini : le podium final est figé` : TO.classementInfo || `Les ${devO} de l’événement`) : quartier ? (fq && fq.fini ? 'Le Quartier est fini : le podium final est figé' : `Les billets gagnés dans la Planque · podium final le 27 oct. à midi`) : semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
+    const val = (l) => (hantee ? `<b class="cl-val">${evO.R.fmt(l.valeur)}<small>${esc(devO)}</small></b>` : quartier ? `<b class="cl-val">${G.fmtEur(l.valeur)}<small>billets</small></b>` : enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
     const enLigne = d.enLigneN > 0 ? `<span class="cl-n-ligne"><i class="cl-en-ligne"></i>${d.enLigneN} en ligne</span>` : ''; // ceux qui ont le jeu ouvert en ce moment (vus depuis moins de 4 min ; serveur v5)
     const tete = `<div class="cl-info"><span>${info}</span>${enLigne}<b>${CLM.boulangers(d.joueurs)}</b></div>`
       + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span>${val(d.moi)}</div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
-    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? 'Personne encore au manoir' : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? 'Les bonbons du manoir arrivent avec le prochain envoi.' : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
+    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? esc(TO.vide || 'Personne encore') : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? esc(TO.videSous || 'Les scores arrivent avec le prochain envoi.') : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
     const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique (semaine), sa fiche (tous les temps), sa Planque (événement)
     const evL = evDe(ongletCl), quoi = ongletCl === 'total' ? 'Voir les statistiques de' : evL ? `Visiter ${lieuDe(evL).le} de` : 'Visiter la boutique de';
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${etiquetteTitre(titreDe(l, moi))}${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${etiquetteTitre(titreDe(l, moi))}${quartier ? (l.podium ? `<i class="tag">${hantee && typeof TO.podium === 'function' ? esc(TO.podium(l.podium)) : `${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}`}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -1791,8 +1807,10 @@ const UI = (() => {
     const r = recVue(); if (!r) return;
     let neuves = 0; for (const m of r.coupes) neuves += G.donnerCollection(st, m).length; // un podium gagné = les quatre pièces de sa collection (or, argent ou bronze), une fois pour toutes
     if ([1, 2, 3].includes(r.quartier)) { const n = G.donnerCollection(st, 'quartier-or').length; if (n) { neuves += n; toast('Podium final du Quartier : la tenue du quartier en or est dans ta garde-robe !'); } } // le podium final de l'événement « Le Quartier », à vie
-    const xh = HTE ? r[HTE.cle] || (r.evenements && r.evenements[HTE.cle]) : null, rh = typeof xh === 'number' ? xh : xh && xh.rang; // classement v5 : evenements.hantee = { rang, podium }
-    if ([1, 2, 3].includes(rh)) { const n = G.donnerCollection(st, `${HTE.cle}-or`).length; if (n) { neuves += n; toast('Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !'); } } // le podium final de la Maison hantée, à vie
+    for (const E of EVM()) { // le podium final de chaque événement (la Maison hantée, le Marché d'automne) : sa tenue en or, à vie
+      const xh = r[E.cle] || (r.evenements && r.evenements[E.cle]), rh = typeof xh === 'number' ? xh : xh && xh.rang; // classement v5 : evenements.<cle> = { rang, podium }
+      if ([1, 2, 3].includes(rh)) { const n = G.donnerCollection(st, `${E.cle}-or`).length; if (n) { neuves += n; const tx = E.R.FICHE && E.R.FICHE.textes; toast((tx && tx.podiumFinal) || `Podium final de ${NOM_EVT_LONG[E.cle] || E.F.nom} : la tenue en or est dans ta garde-robe !`); } }
+    }
     if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
     if (visite && visite.scene) return; // la scène montre la boutique du copain : les siennes reviennent au retour
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}|${r.badge ? 'e' : ''}`;
@@ -1894,15 +1912,16 @@ const UI = (() => {
     if (lundiOuvert || !feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
     sheetEvt();
   }
-  const NOM_EVT_LONG = { hantee: 'la Maison hantée' };
+  const NOM_EVT_LONG = { hantee: 'la Maison hantée', marche: 'le Marché d’automne' };
+  const TENUE_EVT = { hantee: 'la tenue d’Halloween', marche: 'la tenue d’automne' }; // (la tenue en or du podium final de chaque événement)
   function sheetEvt() {
     const r = recVue(), l = r && r.evtAPayer ? r.evtAPayer : []; if (!l.length) return;
     const p = l[0], x = p.recompense, tenue = p.rang <= 3;
     evtOuvert = true; evtMontre = p.id;
-    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI.hantee || ICONS.UI.podium}</span></div>
+    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI[p.id] || ICONS.UI.hantee || ICONS.UI.podium}</span></div>
       <h2>${esc(CLM.phraseEvt(p))}</h2>
-      <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? ', et la tenue d’Halloween en or' : ''}</p>
-      <p class="sous">${tenue ? 'Sur le podium final : les quatre pièces de la tenue d’Halloween en or sont dans ta garde-robe, à vie. ' : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
+      <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? `, et ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or` : ''}</p>
+      <p class="sous">${tenue ? `Sur le podium final : les quatre pièces de ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or sont dans ta garde-robe, à vie. ` : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
       <button type="button" class="btn large beurre" data-a="ev-recuperer"><b>Récupérer</b></button></div>`);
     vueCl = 'evt-place';
     let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
@@ -1942,7 +1961,7 @@ const UI = (() => {
     const etatPlace = (p) => (p.payee ? 'Récupérée' : aPayer.some((x) => x.semaine === p.semaine) ? 'À récupérer' : p.rang <= 3 ? 'Tenue et coupe' : 'Avant les récompenses');
     const lignesPlaces = places.slice().reverse().slice(0, 30).map((p) => `<li class="rec-carte${p.rang <= 3 ? ' ' + CLM.metal(p.rang) : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>Semaine du ${insec(CLM.dateCourte(p.semaine))}</small>${p.recompense && (p.payee || aPayer.some((x) => x.semaine === p.semaine)) ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}</small>` : ''}<small><i>${etatPlace(p)}</i></small></li>`).join('');
     // version 6.6 : ses places au classement final des événements (la Maison hantée), leur récompense : versée ou à récupérer
-    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^la /, 'La '))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
+    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}" data-evt="${esc(p.id)}">${ICONS.UI[p.id] ? `<span class="rec-evt-ico" aria-hidden="true">${ICONS.UI[p.id]}</span>` : ''}<b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^la /, 'La '))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
     const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
     openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.${evp.length ? ' À la fin d’un événement, ses quinze premiers aussi.' : ''}</p></div></div>
       ${vide}${aPayer.length || evtAP.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${evp.length ? `<h3 class="titre-section">Mes événements</h3><ul class="rec-coupes" aria-label="Mes places au classement final des événements">${lignesEvt}</ul>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
@@ -2072,9 +2091,14 @@ const UI = (() => {
   // les décos que la scène montre : celles de la boutique de la chaîne où l'on est, sinon celles de la boulangerie (st.decos ; absent : le
   // plan d'origine, SCENE.decos(null)). Une boutique de la chaîne ne montre jamais les décos des événements de la boulangerie à leur place d'office.
   function decosScene() {
-    if (chaineVue) { SCENE.decosQuartier([]); SCENE.decosHantee([]); }
-    else { SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []); }
+    if (chaineVue) { SCENE.decosQuartier([]); SCENE.decosHantee([]); if (SCENE.decosMarche) SCENE.decosMarche([]); }
+    else decosEvenements();
     if (SCENE.decos && CE) { try { SCENE.decos(chaineVue ? CH.posesDe(chaineVue.v.b) : CE.posesDe(0)); } catch (e) { /* rien */ } }
+  }
+  // les décos gagnées aux événements, posées dans la boulangerie : le Quartier, la Maison hantée, le Marché d'automne (SCENE.decosMarche : src/scene.js, constructeur C)
+  function decosEvenements() {
+    SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
+    if (SCENE.decosMarche) SCENE.decosMarche(MCE && st[MCE.cle] ? st[MCE.cle].decos : []);
   }
   // l'icône ronde de la planète, en tête du coin de la boutique (en haut à droite), toujours là ; sa pastille, les jetons à prendre
   let cleCoinChaine = '';
@@ -2100,7 +2124,7 @@ const UI = (() => {
   let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
   //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
   const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
-  const evDe = (id) => (id === 'quartier' && EVT && QA ? EVT : HTE && id === HTE.cle ? HTE : null); // l'écran d'un événement d'après l'onglet du classement
+  const evDe = (id) => (id === 'quartier' && EVT && QA ? EVT : EVM().find((E) => E.cle === id) || null); // l'écran d'un événement d'après l'onglet du classement
   function lieuDe(E) { // « La Planque » → { le: 'la Planque', sa: 'sa Planque' } ; « Le Manoir » → { le: 'le Manoir', sa: 'son Manoir' }
     const L = E && E.F && E.F.lieu ? E.F.lieu : 'La Planque', m = /^(La|Le|L’|L')\s*(.*)$/.exec(L), nom = m ? m[2] : L, fem = !m || m[1] !== 'Le';
     return { Le: L, le: L[0].toLowerCase() + L.slice(1), sa: `${fem ? 'sa' : 'son'} ${nom}`, Sa: `${fem ? 'Sa' : 'Son'} ${nom}` };
@@ -2138,7 +2162,7 @@ const UI = (() => {
     v.scene = !!v.b && !!(SCENE.stats && SCENE.stats.webgl);
     if (v.scene) { // sa boutique à lui, à la place de la sienne : ses coupes, son badge, ses décos, son chat ; le tiroir replié, la scène entière
       amenager(false); tiroir.aller('ferme', false);
-      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); const idv = v.b.compagnon || (v.b.st && v.b.st.compagnon); // son compagnon (l'id, si la photo le porte), sinon son chat, roux ou noir
+      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); if (SCENE.decosMarche) SCENE.decosMarche(v.b.decosMarche || []); const idv = v.b.compagnon || (v.b.st && v.b.st.compagnon); // son compagnon (l'id, si la photo le porte), sinon son chat, roux ou noir
       if (SCENE.compagnon) SCENE.compagnon(G.compagnon(idv) ? idv : G.modeleCompagnon(v.b.st, false)); else if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
     }
     peindreVisite();
@@ -2159,7 +2183,7 @@ const UI = (() => {
     libererEv3(v); v.qe = null; // sa Planque : la scène détruite (géométries, matériaux, contexte WebGL rendu), son état jeté
     $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = ''; $('#vi-vue').classList.remove('vi-ev');
     if (v.scene) { // tout ce que la scène montrait de lui revient à soi
-      derniereRecScene = ''; majRecompenses(); SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
+      derniereRecScene = ''; majRecompenses(); decosEvenements();
       dernierModele = ''; majChat(); tiroir.aller(v.tiroir, false);
     }
     lastFrame = performance.now();
@@ -2220,7 +2244,7 @@ const UI = (() => {
     return [`Palier ${q.paliers.length}/${nb}`, `${E.F.fmt(q.total)}${E.cle === 'quartier' ? ' de billets' : ''} gagnés`, n ? `Équipe : ${pluriel(n, 'apprenti')}` : 'Pas encore d’équipe', ...(d ? [`${pluriel(d, 'déco')} gagnée${d > 1 ? 's' : ''}`] : [])];
   }
   function carteEv(v) { // le milieu de l'écran sans la scène de l'événement
-    const E = v.E, L = lieuDe(E), pic = (E.cle === 'quartier' ? ICONS.QUARTIER.porte : ICONS.HANTEE && ICONS.HANTEE.manoir) || E.F.ico.devise;
+    const E = v.E, L = lieuDe(E), pic = (E.cle === 'quartier' ? ICONS.QUARTIER.porte : E.F.ico.lieu) || E.F.ico.devise;
     const carte = (titre, txt, plus) => `<div class="vi-carte ${E.F.classe || 'pq'}-carte"><span class="pic">${pic}</span><b>${titre}</b>${txt ? `<span>${txt}</span>` : ''}${plus || ''}</div>`;
     if (v.charge) return carte('On frappe à la porte…', `${esc(L.Le)} de ${esc(v.pseudo)} va s’ouvrir.`);
     if (!v.data) return carteVisite(v); // pas installé, plus au classement, ou le réseau : les mêmes cartes que la visite de la boutique
@@ -2834,7 +2858,7 @@ const UI = (() => {
     // les boosts aussi (le coup de feu d'une critique, celui de la réserve) : lancés pendant l'avance, ils gardent à partir de maintenant le temps qui leur restait
     // (un boost d'avant cette version, sans debut, reste tel quel)
     const ref = st.now; if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev, ref); dec(st.boost, ref); dec(st.boosts && st.boosts.actif, ref);
-    for (const k of ['quartier', HTE && HTE.cle]) if (k && st[k]) etat(st[k], rendu);
+    for (const k of ['quartier'].concat(EVM().map((E) => E.cle))) if (k && st[k]) etat(st[k], rendu);
     noterJournal({ t, r: 'recul', o: Math.round(ms / 1000), s: Math.round(rendu / 1000), g: 0, n: 'recul', ...horlogeVue() });
   }
   // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
@@ -2908,7 +2932,7 @@ const UI = (() => {
     } else { const b = $('#b-decos'); if (b) b.hidden = true; }
     $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
-    $('#b-hantee').addEventListener('click', () => { audio(); son.tap(); if (HTE) HTE.ouvrir(); });
+    for (const E of EVM()) { const b = $(`#b-${E.cle}`); if (b) b.addEventListener('click', () => { audio(); son.tap(); E.ouvrir(); }); } // l'icône de chaque événement (la Maison hantée, le Marché d'automne)
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
     // les événements (src/evenement.js) : « Le Quartier » (la Planque) et « La Maison hantée » (le Manoir) ; leurs paliers et récompenses, l'annonce, le bilan
@@ -2917,7 +2941,7 @@ const UI = (() => {
       ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); majCoin(); majChat(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     if (EVT) EVT.init(depsEv('quartier'));
-    if (HTE) HTE.init(depsEv(HTE.cle));
+    for (const E of EVM()) E.init(depsEv(E.cle));
     majChat();
     buildCards();
     decosScene(); // « Mes décos » : la disposition de la boulangerie (st.decos), sinon le plan d'origine
@@ -2989,17 +3013,17 @@ const UI = (() => {
     if (EVS && ouvertA('evenements')) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // (accueil : seulement une fois les événements débloqués) // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
-    if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
+    setTimeout(() => { for (const E of EVM()) { try { if (E.visible() && st[E.cle] && st[E.cle].ouvertLe && SCENE.precharger) SCENE.precharger(E.F.lot); } catch (e) { /* rien */ } } }, 5000); // la HD de la boutique de l'événement ouvert (le lot de sa fiche : 'hantee', 'marche')
     setInterval(majMinuteurs, 15e3); // le minuteur des événements du coin : sa minute change sans attendre le reste
     if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (ouvertA('evenements') && !EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
     // + ses statistiques (x) et l'événement EN COURS (e) : seulement pendant sa fenêtre, s'il y est entré (la porte passée, ouvertLe) et ne l'a pas masqué
-    const evPhoto = () => { for (const E of [QA ? EVT : null, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; }; // (le Quartier écarté : jamais sa Planque dans la photo)
-    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); const ch = CH ? CH.resume(st, HORLOGE.maintenant()) : null; return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto(), dc: st.decos && typeof st.decos.d === 'string' ? st.decos.d : '', ch: ch ? [ch.boutiques, ch.or] : null }); };
+    const evPhoto = () => { for (const E of [QA ? EVT : null].concat(EVM())) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; }; // (le Quartier écarté : jamais sa Planque dans la photo)
+    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); const ch = CH ? CH.resume(st, HORLOGE.maintenant()) : null; return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], dm: MCE && st[MCE.cle] ? st[MCE.cle].decos : [], ev: evPhoto(), dc: st.decos && typeof st.decos.d === 'string' ? st.decos.d : '', ch: ch ? [ch.boutiques, ch.or] : null }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QA && QA.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QA && QA.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiEvenement(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
     // le chat des boulangers : un onglet de la feuille du classement (ses non-lus sur l'onglet et sur le bouton du classement, en haut)
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); ongletsDuChat(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), pastille: majPastilleChat });
@@ -3030,7 +3054,8 @@ const UI = (() => {
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), parcours: sheetParcours, etoiles: sheetEtoiles, monteeGamme: sheetMonteeGamme, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, cadence, atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; },
       quartier: () => (EVT ? EVT.ouvrir() : false), evenement: EVT, Q: QT,
-      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, boosts: () => st.boosts, lancerBoost, renderBoosts,
+      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT,
+      marche: () => (MCE ? MCE.ouvrir() : false), fermerMarche: () => { if (MCE) MCE.fermer(); }, evMarche: MCE, MC, envoiEvenement, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, boosts: () => st.boosts, lancerBoost, renderBoosts,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null),
       tchat: TC,
