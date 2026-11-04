@@ -297,6 +297,29 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_HANTEE_ACTIVITES: '8881'
+  # L'accueil des nouveaux joueurs (docs/accueil-contrat.md) : les premiers pas guidés, la carte « Ton premier jour » et sa récompense, les
+  # déblocages et leurs annonces, une vieille sauvegarde qui garde tout, l'interrupteur, le 360 × 640 (seul : fournil4 est près de sa limite)
+  fournil12:
+    name: Le Fournil, l'accueil des nouveaux joueurs (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: L'accueil des nouveaux joueurs
+        run: |
+          node build.js
+          node test/fournil-accueil.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_ACCUEIL: '8897'
   # Le boulanger et les apprentis en personnages 3D (src/equipe3d.js) : leur lot après celui des clients, la préparation à petits pas, la vie
   # image par image, les 42 tenues (traversées, budgets, cache, mémoire), la vue « Mon boulanger », la HD coupée, la Maison hantée, l'éco, un
   # fichier manquant, le processeur ralenti ×4 : une dizaine de minutes à lui seul ; fournil5 (les clients 3D, une douzaine) n'avait plus la place.
@@ -379,7 +402,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/pglite" --no-save --no-package-lock --no-audit --no-fund @electric-sql/pglite@0.5.8
           node test/zombies-defi-sql.cjs "$RUNNER_TEMP/pglite"
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, zombies]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, fournil12, zombies]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -395,7 +418,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js && node test/fournil-progression.test.js && node test/fournil-garderobe.test.js && node test/fournil-chaine.test.js && node test/fournil-chaine-sim.js --court --test && node test/fournil-vignettes.test.js && node test/zombies.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js && node test/fournil-progression.test.js && node test/fournil-accueil.test.js && node test/fournil-garderobe.test.js && node test/fournil-chaine.test.js && node test/fournil-chaine-sim.js --court --test && node test/fournil-vignettes.test.js && node test/zombies.test.js
         env:
           TZ: Europe/Paris
       # La version d'essai : la branche du lot, construite à part (node build.js --essai n'écrit que fournil-essai/), testée, puis posée à
@@ -409,7 +432,7 @@ jobs:
         run: |
           trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
           git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD
-          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-progression.test.js && node test/fournil-chaine.test.js)
+          (cd _essai && node build.js --essai && node test/econ.test.js && node test/longevite.js --test && node test/fournil-progression.test.js && node test/fournil-accueil.test.js && node test/fournil-chaine.test.js)
           rm -rf fournil-essai && mv _essai/fournil-essai fournil-essai
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -6,7 +6,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const G = require('../src/game.js');
-const root = path.join(__dirname, '..'), PORT = +process.env.PORT_ACCUEIL || 8891;
+const root = path.join(__dirname, '..'), PORT = +process.env.PORT_ACCUEIL || 8897;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
