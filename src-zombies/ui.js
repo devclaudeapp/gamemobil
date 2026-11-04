@@ -61,6 +61,7 @@
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
+    portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112 }), // (les emplacements d'arme : la vraie arme, dans sa finition)
   });
   // toutes les actions passent par ici : en solo sur la partie, en coop envoyées à l'hôte (qui les exécute pour ce joueur)
   function faire(quoi, arg) {
@@ -159,7 +160,10 @@
     demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
     const p = demo.joueurs[0]; p.x -= 2.2; p.z += 0.6; // (un pas de côté : la tourelle ne le cache plus dans le plan rapproché du titre)
+    armeVitrine();
   }
+  // l'arme de la vitrine : la dernière que tu as habillée dans la Collection (sinon le fusil d'assaut), dans sa finition
+  function armeVitrine() { if (!demo) return; const p = demo.joueurs[0], a = D.ARMES[save.collection.vitrine] ? save.collection.vitrine : 'fusil'; p.armes[1] = { id: a, mun: 9999 }; p.main = 1; }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null; mode = null;
     jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
@@ -427,7 +431,7 @@
     for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
     if (neufs.length) ecrire(); return neufs;
   }
-  let ongletCol = 'survivants', armeCol = 'revolver';
+  let ongletCol = 'survivants', armeCol = 'revolver', vueArmes = 'grille'; // (l'onglet Armes : la grille des 24 armes, ou les finitions d'une arme)
   function ouvrirCollection() {
     verifierExploits();
     for (const k in ecrans) ecrans[k].hidden = true;
@@ -453,16 +457,27 @@
         else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
         ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
       }));
+    } else if (ongletCol === 'finitions' && vueArmes === 'grille') {
+      // toutes les armes en portraits (dans la finition qu'elles portent), leur rareté ; toucher une arme ouvre ses finitions
+      $('.col-armes').hidden = true;
+      box.innerHTML = Object.keys(D.ARMES).map((a) => {
+        const A = D.ARMES[a], f = C.parArme[a], rar = D.RARETE(A);
+        return `<button type="button" class="col-carte rar-${rar}" data-arme-col="${a}"><img class="col-portrait arme" alt="" data-portrait="arme|${a}|${f || ''}"><i class="rar">${RARETES[rar]}</i><span class="nom">${echap(A.nom)}</span><small>${f ? `<span class="pastille" style="background:${D.FINITIONS[f].couleur}"></span>${echap(D.FINITIONS[f].nom)}` : 'D’origine'}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-arme-col]').forEach((b) => b.addEventListener('click', () => { armeCol = b.dataset.armeCol; vueArmes = 'finitions'; PSONS.ui('tap'); remplirCollection(); box.scrollTop = 0; $('.collection').scrollTop = 0; }));
+      apercuArme();
     } else if (ongletCol === 'finitions') {
       const fins = finitionsEues();
+      $('.col-armes').hidden = true;
       $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
-      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+      box.innerHTML = `<div class="col-arme-tete"><button type="button" class="col-retour-armes" data-retour-armes>‹ Toutes les armes</button><b>${echap(D.ARMES[armeCol].nom)}</b></div><button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
         const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
         return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou secret'}" data-fin="${f}"><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|${f}"><span class="nom"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span>${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
       }).join('');
+      box.querySelector('[data-retour-armes]').addEventListener('click', () => { vueArmes = 'grille'; PSONS.ui('tap'); remplirCollection(); $('.collection').scrollTop = 0; });
       box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
         const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
-        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; C.vitrine = armeCol; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
       }));
       apercuArme();
     } else {
@@ -702,8 +717,8 @@
   clic('.hi-pause', () => pause());
   clic('#b-prog-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletProg = b.dataset.onglet; PSONS.ui('tap'); remplirProgression(); }));
-  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
-  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; armeVitrine(); montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; vueArmes = 'grille'; PSONS.ui('tap'); remplirCollection(); }));
   $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });

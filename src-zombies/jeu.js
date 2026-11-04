@@ -876,7 +876,7 @@
     const A = D.ARMES[id], slot = j.armes[1];
     if (slot && slot.id === id) slot.mun += A.munitions; else j.armes[1] = { id, mun: A.munitions };
     j.main = 1; j.attente = Math.min(j.attente, 0.15);
-    ev(jeu, { t: 'arme', id: j.id, arme: id });
+    ev(jeu, { t: 'arme', id: j.id, arme: id, trouvee: true }); // (trouvée dans une caisse : le HUD montre sa carte)
     return id;
   }
 

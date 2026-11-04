@@ -680,6 +680,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .ecran:not([hidden]) > *, .h-ferraille.pulse { animation: none; } }
 /* le sous-titre d'une carte de mode : sur deux lignes s'il le faut, jamais coupé en plein mot */
 .carte-mode small { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.12; }
+/* l'emplacement d'arme : le portrait 3D de la vraie arme (dans sa finition), grand et penché */
+.h-slot .h-slot-img { width: 84px; height: 44px; object-fit: cover; object-position: 50% 52%; margin: -6px 0 -4px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+@media (orientation: landscape) and (max-height: 430px) { .h-slot .h-slot-img { width: 74px; height: 36px; } }
+/* l'onglet Armes : la grille des armes, puis les finitions d'une arme (avec le retour à la grille) */
+.col-arme-tete { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+.col-arme-tete b { font: 700 16px/1.1 var(--titre); }
+.col-retour-armes { padding: 5px 10px; border-radius: 999px; border: 2px solid var(--encre); background: #fff; font: 700 12.5px/1 var(--texte); color: var(--encre); }
+[data-arme-col] small { display: inline-flex; align-items: center; gap: 3px; }
+.h-slot .h-slot-img { filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, .95)) drop-shadow(0 0 1px rgba(255, 255, 255, .7)) drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+/* la carte de l'arme trouvée dans une caisse */
+.h-trouve { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 6px; border-radius: 16px; background: rgba(31, 37, 51, .88); border: 2.5px solid #9AA0A8; color: #fff; pointer-events: none; }
+.h-trouve img { width: 76px; height: 44px; object-fit: cover; filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, .9)); }
+.h-trouve span { display: grid; gap: 1px; }
+.h-trouve small { font: 700 10.5px/1 var(--texte); letter-spacing: .06em; color: #C8CCD2; }
+.h-trouve b { font: 700 18px/1.1 var(--titre); }
+.h-trouve.rar-rare { border-color: #3A7BD5; } .h-trouve.rar-rare small { color: #8DB7F0; }
+.h-trouve.rar-epique { border-color: #8E5BE8; } .h-trouve.rar-epique small { color: #C9AEFF; }
+.h-trouve.rar-legendaire { border-color: #F2A21B; box-shadow: 0 0 18px rgba(242, 162, 27, .45); } .h-trouve.rar-legendaire small { color: #FFD27A; }
+.h-trouve.vu { animation: trouve 1.9s ease forwards; }
+@keyframes trouve { 0% { opacity: 0; transform: translateY(16px) scale(.9); } 10% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .h-trouve.vu { animation: none; } }
+.h-trouve { position: absolute; left: 50%; bottom: calc(116px + var(--hb)); transform: translateX(-50%); z-index: 2; }
+@keyframes trouve { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.9); } 10% { opacity: 1; transform: translateX(-50%); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%); } }
+@media (orientation: landscape) and (max-height: 400px) { .h-trouve { bottom: calc(100px + var(--hb)); } .h-trouve img { width: 64px; height: 36px; } .h-trouve b { font-size: 16px; } }
 </style>
 </head>
 <body>
@@ -816,7 +840,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   <section class="ecran collection-ecran" id="ecran-collection" hidden>
     <div class="carte-ecran collection">
       <div class="col-tete"><h2>Collection</h2><div class="medailles" id="col-medailles"></div></div>
-      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Finitions</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
+      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Armes</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
       <div class="pied"><button type="button" class="moyen" id="b-col-retour">Retour</button></div>
@@ -3537,7 +3561,7 @@ const PRESEAU = (() => {
     const A = D.ARMES[id], slot = j.armes[1];
     if (slot && slot.id === id) slot.mun += A.munitions; else j.armes[1] = { id, mun: A.munitions };
     j.main = 1; j.attente = Math.min(j.attente, 0.15);
-    ev(jeu, { t: 'arme', id: j.id, arme: id });
+    ev(jeu, { t: 'arme', id: j.id, arme: id, trouvee: true }); // (trouvée dans une caisse : le HUD montre sa carte)
     return id;
   }
 
@@ -4661,7 +4685,7 @@ const ZRENDU = (() => {
     let decal = 0, decalVoulu = 0;
     // la vitrine (l'écran titre, la Collection) : la caméra descend en plan rapproché sur le survivant, posé là où l'écran le demande
     // (x, y : sa place, en fraction de l'écran, par un décalage de la vue) ; le passage vers le jeu et retour est un travelling continu
-    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1;
+    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1, vitAz = Math.atan2(9.4, 3.2); // (vitAz : d'où la vitrine filme)
     const _cn = T ? new T.Vector3() : null, _cv = T ? new T.Vector3() : null, _vn = T ? new T.Vector3() : null, _vv = T ? new T.Vector3() : null;
     function vitrine(on, x, y, dist) { vitVoulu = on ? 1 : 0; if (x != null) vitX = x; if (y != null) vitY = y; if (dist != null) vitDist = dist; }
     const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
@@ -4685,7 +4709,9 @@ const ZRENDU = (() => {
       if (vit > 0) {
         const e = vit * vit * (3 - 2 * vit), d = vitDist; // (en douceur)
         _cn.copy(camera.position); _vn.set(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
-        _cv.set(cam.x + 3.2 * d, 4.6 * d + 0.6, cam.z + 9.4 * d); _vv.set(cam.x, 1.0, cam.z);
+        // la caméra tourne lentement pour filmer le survivant de face (un peu de trois quarts), plutôt que son dos quand il tire au loin
+        if (j.angle != null) { let v = j.angle + 0.42 - vitAz; v = Math.atan2(Math.sin(v), Math.cos(v)); vitAz += v * (1 - Math.exp(-0.9 * dt)); }
+        const R = 9.93 * d; _cv.set(cam.x + Math.cos(vitAz) * R, 4.6 * d + 0.6, cam.z + Math.sin(vitAz) * R); _vv.set(cam.x, 1.0, cam.z);
         camera.position.lerpVectors(_cn, _cv, e); _vn.lerp(_vv, e); camera.lookAt(_vn);
         camera.setViewOffset(W, H, (0.5 - vitX) * W * e, (0.5 - vitY) * H * e, W, H);
       } else if (camera.view && camera.view.enabled) camera.clearViewOffset();
@@ -5160,6 +5186,7 @@ const ZHUD = (() => {
         <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       </div>
+      <div class="h-trouve" hidden></div>
       <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
@@ -5281,10 +5308,11 @@ const ZHUD = (() => {
     if (infoT > 0) { infoT -= dt; if (infoT <= 0) el.info.hidden = true; }
     // les armes
     for (let i = 0; i < 2; i++) {
-      const s = j.armes[i], b = el.slots[i], cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}` : 'vide';
+      const s = j.armes[i], b = el.slots[i], fin = s && j.finitions ? j.finitions[s.id] : null, img = s && A.portraitArme ? A.portraitArme(s.id, fin) : null;
+      const cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}|${img ? 1 : 0}` : 'vide';
       if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
       b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
-      b.innerHTML = s ? `${iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
+      b.innerHTML = s ? `${img ? `<img class="h-slot-img" alt="" src="${img}">` : iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');
     }
     const a = j.armes[j.main]; ecrire('armeNom', el.armeNom, (a ? D.ARMES[a.id].nom : 'Pistolet').toUpperCase());
@@ -5302,7 +5330,7 @@ const ZHUD = (() => {
       if (e.t === 'blesse' && e.id === idMoi) rougeur = Math.min(1, rougeur + 0.35 + e.degats / 60);
       else if (e.t === 'vague') annonce(`VAGUE ${e.n}`, e.boss ? `${D.ZOMBIES[e.boss] ? D.ZOMBIES[e.boss].nom : 'Un boss'} arrive !` : `${e.total} zombies`, 2.4);
       else if (e.t === 'vagueFinie') annonce('VAGUE TERMINÉE', `+${e.prime} points · construis, améliore`, 2.4);
-      else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet') toast(`${D.ARMES[e.arme].nom} !`);
+      else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet' && !e.trouvee) toast(`${D.ARMES[e.arme].nom} !`); // (trouvée : sa carte le dit déjà)
       else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');
       else if (e.t === 'serie' && e.mult >= 3) el.serie.classList.remove('pulse'), void el.serie.offsetWidth, el.serie.classList.add('pulse');
       else if (e.t === 'casse') toast(`${D.DEFENSES[e.type].nom} détruite`);
@@ -5364,6 +5392,7 @@ const ZHUD = (() => {
         else if (e.t === 'blesse' && e.id === idMoi) chiffre(j.x, 2.4, j.z, `−${e.degats}`, 'moi');
         else if (e.t === 'niveau' && e.id === idMoi) chiffre(j.x, 2.8, j.z, 'NIVEAU +1', 'niveau');
         else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'ferraille' && e.x != null) voler(e.x, e.z);
+        else if (e.t === 'ramasse' && e.id === idMoi && e.quoi === 'caisse' && e.arme) carteArme(e.arme, j.finitions ? j.finitions[e.arme] : null);
       }
       for (const [, q] of parCible) chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(q.d), q.crit ? 'crit' : '');
       for (const [k, q] of cumul) { q.t -= dt; if (q.t <= 0) { cumul.delete(k); chiffre(q.x, q.boss ? 4.6 : 2.5, q.z, String(Math.round(q.d)), 'petit'); } }
@@ -5387,13 +5416,22 @@ const ZHUD = (() => {
     d.anim = d.animate([{ transform: `translate(${de[0]}px, ${de[1]}px) scale(.6)`, opacity: 1 }, { transform: `translate(${(de[0] + ax) / 2}px, ${Math.min(de[1], ay) - 40}px) scale(1.15)`, opacity: 1, offset: 0.45 }, { transform: `translate(${ax}px, ${ay}px) scale(.7)`, opacity: .9 }], { duration: 560, easing: 'cubic-bezier(.4,0,.7,1)' });
     d.anim.onfinish = () => { d.hidden = true; const f = el.fer.parentElement; f.classList.remove('pulse'); void f.offsetWidth; f.classList.add('pulse'); };
   }
+  // une caisse ouverte : la carte de l'arme trouvée (son portrait, son nom, sa rareté), un instant au milieu de l'écran
+  const RARS = { commune: 'Commune', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
+  function carteArme(id, fin) {
+    const Ar = D.ARMES[id], c = R.querySelector('.h-trouve'); if (!Ar || !c) return;
+    if (annonceT > 0 && !el.annonce.hidden) { setTimeout(() => carteArme(id, fin), annonceT * 1000 + 80); return; } // (une annonce au milieu : la carte attend qu'elle finisse)
+    const rar = D.RARETE(Ar), img = A.portraitArme ? A.portraitArme(id, fin) : null;
+    c.className = `h-trouve rar-${rar}`; c.innerHTML = `${img ? `<img alt="" src="${img}">` : iconeArme(id)}<span><small>ARME TROUVÉE · ${RARS[rar].toUpperCase()}</small><b>${Ar.nom}</b></span>`;
+    c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 1900);
+  }
   function chiffre(x, y, z, texte, classe) {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
     c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;
     c.d.textContent = texte; c.d.className = 'num' + (classe ? ' ' + classe : ''); c.d.hidden = false;
     nbChiffres++; derniers.push(texte); if (derniers.length > 8) derniers.shift();
   }
-  function reinit() { for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
+  function reinit() { const tr = R && R.querySelector('.h-trouve'); if (tr) tr.hidden = true; for (const c of chiffres) { c.t = 0; c.d.hidden = true; } vu = {}; rougeur = 0; toastT = 0; annonceT = 0; if (el.toast) { el.toast.hidden = true; el.annonce.hidden = true; el.info.hidden = true; } carteJeu = null; }
   return { init, maj, annonce, toast, flash, reinit, chiffre, get chiffres() { return { n: nbChiffres, derniers: derniers.slice() }; }, ICO, ARME_ICO, iconeArme, get atelierOuvert() { return ouvert; } };
 })();
 
@@ -6008,6 +6046,7 @@ const ZENLIGNE = (() => {
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
+    portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112 }), // (les emplacements d'arme : la vraie arme, dans sa finition)
   });
   // toutes les actions passent par ici : en solo sur la partie, en coop envoyées à l'hôte (qui les exécute pour ce joueur)
   function faire(quoi, arg) {
@@ -6106,7 +6145,10 @@ const ZENLIGNE = (() => {
     demo = ZJEU.creer({ arene, graine: (Math.random() * 1e9) | 0, attente: 1, ferraille: 15, joueurs: [Object.assign(moiJoueur(), { id: 'moi' })] });
     ZJEU.construire(demo, 'moi', 'tourelle');
     const p = demo.joueurs[0]; p.x -= 2.2; p.z += 0.6; // (un pas de côté : la tourelle ne le cache plus dans le plan rapproché du titre)
+    armeVitrine();
   }
+  // l'arme de la vitrine : la dernière que tu as habillée dans la Collection (sinon le fusil d'assaut), dans sa finition
+  function armeVitrine() { if (!demo) return; const p = demo.joueurs[0], a = D.ARMES[save.collection.vitrine] ? save.collection.vitrine : 'fusil'; p.armes[1] = { id: a, mun: 9999 }; p.main = 1; }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null; mode = null;
     jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
@@ -6374,7 +6416,7 @@ const ZENLIGNE = (() => {
     for (const k in D.SURVIVANTS) { const S = D.SURVIVANTS[k]; if (!S.exploit || C.skins.includes(k)) continue; const p = progres(S.exploit); if (p.fait >= p.but) { C.skins.push(k); neufs.push(k); } }
     if (neufs.length) ecrire(); return neufs;
   }
-  let ongletCol = 'survivants', armeCol = 'revolver';
+  let ongletCol = 'survivants', armeCol = 'revolver', vueArmes = 'grille'; // (l'onglet Armes : la grille des 24 armes, ou les finitions d'une arme)
   function ouvrirCollection() {
     verifierExploits();
     for (const k in ecrans) ecrans[k].hidden = true;
@@ -6400,16 +6442,27 @@ const ZENLIGNE = (() => {
         else { ZHUD.toast(S.secret ? 'Un survivant secret : continue de jouer…' : S.texte); return; }
         ecrire(); if (demo) demo.joueurs[0].skin = C.skin; remplirCollection();
       }));
+    } else if (ongletCol === 'finitions' && vueArmes === 'grille') {
+      // toutes les armes en portraits (dans la finition qu'elles portent), leur rareté ; toucher une arme ouvre ses finitions
+      $('.col-armes').hidden = true;
+      box.innerHTML = Object.keys(D.ARMES).map((a) => {
+        const A = D.ARMES[a], f = C.parArme[a], rar = D.RARETE(A);
+        return `<button type="button" class="col-carte rar-${rar}" data-arme-col="${a}"><img class="col-portrait arme" alt="" data-portrait="arme|${a}|${f || ''}"><i class="rar">${RARETES[rar]}</i><span class="nom">${echap(A.nom)}</span><small>${f ? `<span class="pastille" style="background:${D.FINITIONS[f].couleur}"></span>${echap(D.FINITIONS[f].nom)}` : 'D’origine'}</small></button>`;
+      }).join('');
+      box.querySelectorAll('[data-arme-col]').forEach((b) => b.addEventListener('click', () => { armeCol = b.dataset.armeCol; vueArmes = 'finitions'; PSONS.ui('tap'); remplirCollection(); box.scrollTop = 0; $('.collection').scrollTop = 0; }));
+      apercuArme();
     } else if (ongletCol === 'finitions') {
       const fins = finitionsEues();
+      $('.col-armes').hidden = true;
       $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
-      box.innerHTML = `<button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+      box.innerHTML = `<div class="col-arme-tete"><button type="button" class="col-retour-armes" data-retour-armes>‹ Toutes les armes</button><b>${echap(D.ARMES[armeCol].nom)}</b></div><button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
         const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
         return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou secret'}" data-fin="${f}"><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|${f}"><span class="nom"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span>${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
       }).join('');
+      box.querySelector('[data-retour-armes]').addEventListener('click', () => { vueArmes = 'grille'; PSONS.ui('tap'); remplirCollection(); $('.collection').scrollTop = 0; });
       box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
         const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
-        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
+        if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; C.vitrine = armeCol; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
       }));
       apercuArme();
     } else {
@@ -6649,8 +6702,8 @@ const ZENLIGNE = (() => {
   clic('.hi-pause', () => pause());
   clic('#b-prog-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   document.querySelectorAll('.prog-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletProg = b.dataset.onglet; PSONS.ui('tap'); remplirProgression(); }));
-  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; if (demo) { demo.joueurs[0].armes[1] = null; demo.joueurs[0].main = 0; } montrer('titre'); });
-  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; PSONS.ui('tap'); remplirCollection(); }));
+  clic('#b-col-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; armeVitrine(); montrer('titre'); });
+  document.querySelectorAll('.col-onglets [data-onglet]').forEach((b) => b.addEventListener('click', () => { ongletCol = b.dataset.onglet; vueArmes = 'grille'; PSONS.ui('tap'); remplirCollection(); }));
   $('.col-armes select').addEventListener('change', (e) => { armeCol = D.ARMES[e.target.value] ? e.target.value : 'revolver'; remplirCollection(); });
   clic('#b-asc-jouer', () => { verrouiller(); demarrerAscension(save.ascension.echelon); });
   clic('#b-asc-retour', () => { for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });

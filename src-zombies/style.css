@@ -657,3 +657,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .ecran:not([hidden]) > *, .h-ferraille.pulse { animation: none; } }
 /* le sous-titre d'une carte de mode : sur deux lignes s'il le faut, jamais coupé en plein mot */
 .carte-mode small { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.12; }
+/* l'emplacement d'arme : le portrait 3D de la vraie arme (dans sa finition), grand et penché */
+.h-slot .h-slot-img { width: 84px; height: 44px; object-fit: cover; object-position: 50% 52%; margin: -6px 0 -4px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+@media (orientation: landscape) and (max-height: 430px) { .h-slot .h-slot-img { width: 74px; height: 36px; } }
+/* l'onglet Armes : la grille des armes, puis les finitions d'une arme (avec le retour à la grille) */
+.col-arme-tete { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+.col-arme-tete b { font: 700 16px/1.1 var(--titre); }
+.col-retour-armes { padding: 5px 10px; border-radius: 999px; border: 2px solid var(--encre); background: #fff; font: 700 12.5px/1 var(--texte); color: var(--encre); }
+[data-arme-col] small { display: inline-flex; align-items: center; gap: 3px; }
+.h-slot .h-slot-img { filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, .95)) drop-shadow(0 0 1px rgba(255, 255, 255, .7)) drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+/* la carte de l'arme trouvée dans une caisse */
+.h-trouve { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 6px; border-radius: 16px; background: rgba(31, 37, 51, .88); border: 2.5px solid #9AA0A8; color: #fff; pointer-events: none; }
+.h-trouve img { width: 76px; height: 44px; object-fit: cover; filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, .9)); }
+.h-trouve span { display: grid; gap: 1px; }
+.h-trouve small { font: 700 10.5px/1 var(--texte); letter-spacing: .06em; color: #C8CCD2; }
+.h-trouve b { font: 700 18px/1.1 var(--titre); }
+.h-trouve.rar-rare { border-color: #3A7BD5; } .h-trouve.rar-rare small { color: #8DB7F0; }
+.h-trouve.rar-epique { border-color: #8E5BE8; } .h-trouve.rar-epique small { color: #C9AEFF; }
+.h-trouve.rar-legendaire { border-color: #F2A21B; box-shadow: 0 0 18px rgba(242, 162, 27, .45); } .h-trouve.rar-legendaire small { color: #FFD27A; }
+.h-trouve.vu { animation: trouve 1.9s ease forwards; }
+@keyframes trouve { 0% { opacity: 0; transform: translateY(16px) scale(.9); } 10% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .h-trouve.vu { animation: none; } }
+.h-trouve { position: absolute; left: 50%; bottom: calc(116px + var(--hb)); transform: translateX(-50%); z-index: 2; }
+@keyframes trouve { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.9); } 10% { opacity: 1; transform: translateX(-50%); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%); } }
+@media (orientation: landscape) and (max-height: 400px) { .h-trouve { bottom: calc(100px + var(--hb)); } .h-trouve img { width: 64px; height: 36px; } .h-trouve b { font-size: 16px; } }

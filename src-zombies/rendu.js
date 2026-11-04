@@ -880,7 +880,7 @@ const ZRENDU = (() => {
     let decal = 0, decalVoulu = 0;
     // la vitrine (l'écran titre, la Collection) : la caméra descend en plan rapproché sur le survivant, posé là où l'écran le demande
     // (x, y : sa place, en fraction de l'écran, par un décalage de la vue) ; le passage vers le jeu et retour est un travelling continu
-    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1;
+    let vit = 0, vitVoulu = 0, vitX = 0.5, vitY = 0.55, vitDist = 1, vitAz = Math.atan2(9.4, 3.2); // (vitAz : d'où la vitrine filme)
     const _cn = T ? new T.Vector3() : null, _cv = T ? new T.Vector3() : null, _vn = T ? new T.Vector3() : null, _vv = T ? new T.Vector3() : null;
     function vitrine(on, x, y, dist) { vitVoulu = on ? 1 : 0; if (x != null) vitX = x; if (y != null) vitY = y; if (dist != null) vitDist = dist; }
     const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
@@ -904,7 +904,9 @@ const ZRENDU = (() => {
       if (vit > 0) {
         const e = vit * vit * (3 - 2 * vit), d = vitDist; // (en douceur)
         _cn.copy(camera.position); _vn.set(fx + sx, 0, fz + sz - (portrait ? 0 : 0.5));
-        _cv.set(cam.x + 3.2 * d, 4.6 * d + 0.6, cam.z + 9.4 * d); _vv.set(cam.x, 1.0, cam.z);
+        // la caméra tourne lentement pour filmer le survivant de face (un peu de trois quarts), plutôt que son dos quand il tire au loin
+        if (j.angle != null) { let v = j.angle + 0.42 - vitAz; v = Math.atan2(Math.sin(v), Math.cos(v)); vitAz += v * (1 - Math.exp(-0.9 * dt)); }
+        const R = 9.93 * d; _cv.set(cam.x + Math.cos(vitAz) * R, 4.6 * d + 0.6, cam.z + Math.sin(vitAz) * R); _vv.set(cam.x, 1.0, cam.z);
         camera.position.lerpVectors(_cn, _cv, e); _vn.lerp(_vv, e); camera.lookAt(_vn);
         camera.setViewOffset(W, H, (0.5 - vitX) * W * e, (0.5 - vitY) * H * e, W, H);
       } else if (camera.view && camera.view.enabled) camera.clearViewOffset();
