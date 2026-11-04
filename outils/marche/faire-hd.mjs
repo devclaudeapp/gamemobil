@@ -24,7 +24,7 @@ const KK = (pack, nom) => path.join(SRC, pack, 'addons', pack === 'kk-restaurant
 const KN = (pack, nom) => path.join(SRC, 'kenney', 'fournil', 'modeles-kenney', pack, nom + '.glb');
 // la liste : [chemin, nom dans le lot]
 const MODELES = [
-  ...['wall', 'wall_window_open', 'wall_orderwindow', 'door_A', 'pillar_A', 'floor_kitchen', 'kitchencounter_straight_A', 'kitchencounter_straight_B', 'oven', 'table_round_A_small', 'chair_A', 'chair_stool',
+  ...['wall', 'wall_window_open', 'wall_orderwindow', 'door_A', 'pillar_A', 'kitchencounter_straight_A', 'kitchencounter_straight_B', 'oven', 'table_round_A_small', 'chair_A', 'chair_stool',
     'crate', 'crate_carrots', 'crate_potatoes', 'crate_onions', 'crate_tomatoes', 'crate_lettuce', 'jar_A_large', 'jar_B_medium', 'menu'].map((n) => [KK('kk-restaurant', n), n]),
   ...['couch_pillows', 'armchair_pillows', 'rug_rectangle_stripes_A', 'table_low', 'lamp_standing', 'shelf_B_large_decorated', 'pictureframe_large_A'].map((n) => [KK('kk-furniture', n), n]),
   ...['pumpkin_orange', 'pumpkin_yellow', 'pumpkin_orange_small', 'pumpkin_yellow_small', 'tree_pine_orange_large', 'tree_pine_orange_medium', 'tree_pine_yellow_medium', 'lantern_standing', 'post_lantern', 'bench',

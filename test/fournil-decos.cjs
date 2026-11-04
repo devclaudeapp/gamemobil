@@ -27,6 +27,15 @@ const server = http.createServer((req, res) => {
 const attendre = async (f, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { if (await f()) return true; } catch (e) { /* rien */ } await sleep(250); } return false; };
 const LOURDES = [['chaudron', 's1'], ['legende', 's3'], ['citrouilles', 's2'], ['neon', 'm2'], ['bestiaire', 'm1'], ['toiles', 'r1']];
 const TOUTES_Q = ['graffiti', 'neon', 'scooter', 'chien', 'toque-or'], TOUTES_H = ['citrouilles', 'toiles', 'chaudron', 'toque-citrouille', 'bestiaire', 'legende'];
+// le Marché d'automne (src/marche.js : st.marche.decos, leurs places d'origine) et sa saison (src/saison-automne.js : posées seulement) : les
+// douze, en quatre dispositions (chacune à une place de son type ; une seule sur le comptoir de la capitale, comme les neuves)
+const TOUTES_M = ['cagettes', 'lampions', 'feuilles', 'tonneau', 'album', 'arbre-or', 'toque-feuille'];
+const AUTOMNE = [
+  [['couronne-feuilles', 'm3'], ['guirlande-feuilles', 'r1'], ['lanterne-automne', 'c2'], ['epouvantail', 's1']],
+  [['trophee-automne-2026', 'c2'], ['couronne-feuilles', 'm1'], ['guirlande-feuilles', 'r2'], ['epouvantail', 's3']],
+  [['cagettes', 's1'], ['lampions', 'r1'], ['feuilles', 's3'], ['album', 'm4'], ['toque-feuille', 'm3'], ['arbre-or', 's2']],
+  [['tonneau', 's2'], ['lampions', 'r2'], ['album', 'm1'], ['lanterne-automne', 'c2'], ['couronne-feuilles', 'm2']],
+];
 // les 15 décos neuves, en cinq dispositions (chacune à une place de son type ; une seule sur le comptoir : la capitale y a ses fleurs, en c1)
 const NEUVES = [
   [['souvenir-village', 'c2'], ['souvenir-paris', 's1'], ['souvenir-mer', 'r1'], ['souvenir-montagne', 'm1'], ['souvenir-ville', 'r2'], ['souvenir-gare', 'm4']],
@@ -112,6 +121,18 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     { const diff = () => ev((av) => { const a = JSON.parse(av), b = window.__fournil.SCENE.decosBoites; return [...new Set(Object.keys(a).concat(Object.keys(b)))].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])); }, boitesAvant);
       await attendre(async () => !(await diff()).length, 6000); const d = await diff();
       check(!d.length, `« Plan d’origine » (SCENE.decos(null)) : après une disposition, tout revient à l’identique, au pixel ${d.join(' ')}`); }
+    // le Marché d'automne en plus (src/marche.js : st.marche.decos ; l'album d'argent teinte son étagère) : chacune à sa place de toujours, le
+    // pire cas tient toujours
+    if (await ev(() => !!window.__fournil.SCENE.decosMarche)) {
+      await ev((m) => window.__fournil.SCENE.decosMarche(m), TOUTES_M.concat(['album-argent']));
+      await attendre(() => ev((n) => window.__fournil.SCENE.decosMarcheVues.length === n, TOUTES_M.length), 10000); await sleep(1000);
+      const vm = await ev(() => { const S = window.__fournil.SCENE; return { m: S.decosMarcheVues, f: S.fusionVue, t: S.teinteAlbum, b: S.decosBoites, W: VIE.LAY.W, H: VIE.LAY.H }; }), am = await appels(ev);
+      const horsM = TOUTES_M.filter((id) => { const r = vm.b[id]; return !r || r.x < -2 || r.y < -2 || r.x + r.w > vm.W + 2 || r.y + r.h > vm.H + 2; });
+      check(vm.m.join() === TOUTES_M.join() && vm.t === 'argent' && vm.f.liste.every((x) => typeof x[1] === 'string' && !/^[mscrx]\d$/.test(x[1])) && vm.f.parts <= vm.f.maxParts && !horsM.length, `les sept décos du Marché d’automne en plus, à leurs places de toujours (${vm.m.join(', ')} ; l’étagère aux peluches ${vm.t} ; ${vm.f.parts} parties vives sur ${vm.f.maxParts})${horsM.length ? ' — hors de l’écran : ' + horsM.join(', ') : ''}`);
+      check(am.decor <= 72 && am.decos <= 3, `le pire cas avec TOUTES les décos d’événement, le Marché compris : ${am.decor} appels pour le décor (≤ 72), dont ${am.decos} pour les décos fusionnées`);
+      await capture(page, 'origine-toutes-marche-eco.png');
+      await ev(() => window.__fournil.SCENE.decosMarche([]));
+    }
 
     console.log('── poser, ranger, déplacer ──');
     await ev(() => { const S = window.__fournil.SCENE; S.decosQuartier([]); S.decosHantee([]); S.recompenses({}); });
@@ -178,6 +199,16 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     }
     await ev(() => window.__fournil.scene({ heure: 21.5, saison: [] })); await poser(ev, NEUVES[0]); await sleep(800); await capture(page, 'neuves-1-eco-390-soir.png'); await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
 
+    console.log('── les douze décos du Marché d’automne et de sa saison, posées ──');
+    const triM = await ev((ids) => ids.map((id) => { const x = MEUBLES.DECOS[id], d = x.faire({ LAY: VIE.LAY, K: VIE.K, W: VIE.LAY.W, wz: (y) => y, wy: (y) => y, wd: (y) => y }, VIE.LAY.decos.find((p) => p.type === x.type), {}), n = (p) => (p ? (p.geo.index ? p.geo.index.count : p.geo.attributes.position.count) / 3 : 0); let t = 0; for (const p of d.fixe) t += n(p); for (const v of d.vifs) for (const p of v.pr) t += n(p); return [id, Math.round(t), d.vifs.length]; }), [...new Set(AUTOMNE.flat().map((x) => x[0]))]);
+    check(triM.length === 12 && triM.every(([, t, v]) => t > 0 && t <= 3000 && v <= 3), `12 décos procédurales, posées comme gagnées : ${triM.map(([id, t, v]) => `${id} ${t}${v ? ` (${v} vive${v > 1 ? 's' : ''})` : ''}`).join(', ')} triangles`);
+    for (let k = 0; k < AUTOMNE.length; k++) {
+      await poser(ev, AUTOMNE[k]); const ko = await enPlace(ev), p = await ev(() => window.__fournil.SCENE.decosPosees), a = await appels(ev);
+      check(p.length === AUTOMNE[k].length && AUTOMNE[k].every((x) => p.some((y) => y[0] === x[0] && y[1] === x[1])) && !ko.length && a.decos <= 3 && a.decor <= 72, `automne ${k + 1} : ${p.map((x) => x.join('@')).join(' ')} — chacune dans sa place, sur son appui, dans l’écran ${ko.join(' | ')} ; ${a.decos} appels pour les décos, ${a.decor} pour le décor (≤ 72)`);
+      await capture(page, `automne-${k + 1}-eco-390.png`);
+    }
+    await ev(() => window.__fournil.scene({ heure: 18.5, saison: [] })); await poser(ev, AUTOMNE[0]); await sleep(800); await capture(page, 'automne-1-eco-390-soir.png'); await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
+
     console.log('── la photo d’un copain (champ dc) ; la mémoire ; la chaîne ; les règles ──');
     if (chaine) {
       const dc = await ev(() => { const l = [['souvenir-gare', 'm2'], ['chaudron', 's3'], ['souvenir-ile', 'c2'], ['toiles', 'r2']], code = CHAINE.codeDecos(l), r = CHAINE.decosDepuisCode(code); window.__fournil.SCENE.decos(r); return { code, r }; });
@@ -229,7 +260,7 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     console.log('── éco, 360 × 640 ──');
     const { ctx, page, erreurs, ev } = await ouvrir('eco', { width: 360, height: 640 });
     await palier(ev, 1, false); await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
-    for (const [nom, l] of [['lourdes', LOURDES], ...NEUVES.map((l, k) => [`neuves-${k + 1}`, l])]) {
+    for (const [nom, l] of [['lourdes', LOURDES], ...NEUVES.map((l, k) => [`neuves-${k + 1}`, l]), ...AUTOMNE.map((l, k) => [`automne-${k + 1}`, l])]) {
       await poser(ev, l); const ko = await enPlace(ev), a = await appels(ev);
       check(!ko.length && a.decor <= 72, `360 × 640, ${nom} : chacune dans sa place, sur son appui, dans l’écran ${ko.join(' | ')} ; ${a.decor} appels (≤ 72)`);
       await capture(page, `${nom}-eco-360.png`);
