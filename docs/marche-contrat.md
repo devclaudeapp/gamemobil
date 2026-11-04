@@ -617,6 +617,62 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     de la Halle (C) : avant elle, seul `QUALITES=` (le repli en DOM) est vert. `fournil-marche-boutique.cjs` (C) n'existe pas encore : sa
     ligne est à ajouter à côté de celle de `fournil-hantee-boutique.cjs` (qui n'est dans aucune tâche de `pages.yml` aujourd'hui).
 
+- 4 nov., constructeur C (scène, décos, vignettes) :
+  · **La Halle** (`src/boutiquemarche.js`) : la même API que `BOUTIQUE_HANTEE` (plus `HD.EQUIPE3`, `DEFS`, `DEG`, `eclairer`, `ambianceHD`).
+    En éco : le thème `VIE.DECORS.marche` (colombages, tomettes, la place du village), `MEUBLES.marche` (l'étal et son auvent rayé, les
+    cagettes, le brasero, la guirlande de feuilles et de lampions : 2 appels), les enfants à capuche d'animal (`PERSOS.DEGUISEMENTS`, les
+    neuf sortes, écharpe, queue), les amis de la forêt (`ami-*`, capuche plus grande, tablier crème au liseré rouille), l'écureuil sur le
+    comptoir. En haute : le lot `marche` de `src/hd.js` = `fournil/hd/marche/decor-marche.glb` (55 modèles CC0 cuits en couleurs de
+    sommets, 299 Ko, `outils/marche/faire-hd.mjs`, `LISEZMOI.txt` et licences à côté) **et les personnages du lot de la Maison hantée**
+    (`hantee3` : Rogue, Rogue_Hooded, anims-hante) : 4 fichiers, 0,76 Mo (≤ 2,4).
+  · **Écarts aux modèles** : pas de Kenney Nature Kit (ni souches ni arbres Kenney) : les arbres d'automne sont les pins orange et jaunes de
+    KayKit Halloween Bits, les feuilles sont faites main ; Kenney Food Kit, Mini Market et Furniture Kit viennent de la branche
+    `rendu-assets` du dépôt (le dépôt jam-ready-assets est en Git LFS, refusé par le proxy du conteneur). Aucun nouveau paquet de
+    personnages : les enfants sont des Rogue_Hooded reteints, oreilles, museau et yeux-boutons cousus sur l'os de la tête ; les amis, les
+    mêmes en plus grand ; la marchande, un Rogue au bonnet tricoté. En haute la marchande porte **toujours** la tenue d'automne (le style
+    KayKit) ; en éco, c'est le boulanger, dans la tenue qu'il porte.
+  · **La lumière** : la Halle suit les phases du ciel de la boutique (`VIE.ciel` : jour jusqu'à 18 h, soir 18-20 h, crépuscule 20-21 h) :
+    les lampions s'allument **à 18 h** (et non 17 h) ; les captures du soir sont prises à 18 h 30 et 20 h 30.
+  · **Les budgets mesurés** (`test/fournil-marche-boutique.cjs`, 390 × 844, SwiftShader) : éco, la Halle au complet, au pire 51 appels pour
+    le décor (≤ 72) ; haute, 47 maillages et 49 appels mesurés au pire (≤ 120), processeur ×4 : 24,5 ms par image en médiane (< 40) ;
+    trois allers-retours sans que la mémoire monte (éco 78 → 79 → 81 géométries, 9 textures ; haute 101 → 102 → 102, 47 textures).
+    Dans la boutique (`test/fournil-decos.cjs`, capitale palier 1, tout au max) : toutes les décos d'événement, le Marché compris, 61 appels
+    (≤ 72) ; les douze décos d'automne posées, 59 à 60 (≤ 72), 2 pour les décos fusionnées ; chacune ≤ 2 844 triangles (les cagettes ;
+    la lanterne de la légende en a 2 646).
+  · **Les décos** : les sept du Marché ont leur **place d'origine** (comme celles du Manoir) ; `album-argent`, `album-or` (dans
+    `st.marche.decos`) ne se posent pas : elles teignent l'étagère `album` (`SCENE.teinteAlbum`). Les cinq de la saison n'existent que
+    posées : `MEUBLES.DECOS_SAISON`, à part de `NEUVES` (le test des « 15 décos neuves » de Ma chaîne ne bouge pas). Dans `src/chaine.js`,
+    `mesure` = les appels d'une déco posée seule, fusionnée (1, ou 2 avec une part vive) ; la famille `piste-automne` lit `SAISONS.possede`
+    à l'appel (`src/chaine.js` est chargé avant `src/saison.js` ; dans Node, il demande `./saison.js` et `./saison-automne.js`).
+  · **La garde-robe** : `PERSOS.TENUES[c].formes` (src/garderobe.js) : la palette d'une forme quand elle n'a pas celle de sa collection (le
+    bonnet moutarde au pompon roux, les bottes de pluie moutarde, le panier d'osier ; le pull jacquard crème, les bottines fauves aux lacets
+    rouges, l'écharpe rouille), lue par `src/persos.js` (`metalDe`), `src/equipe3d.js` (`palette`) et `src/icons.js` (`TENUES_F`) ;
+    `pluie: true` (les bottes de pluie), `lacet`. **`src/equipe3d.js`** (pas dans la liste du § 9 : côté scène, il fallait le boulanger 3D et
+    les vignettes des treize pièces) : les kits du bonnet, de la couronne, du panier en main (l'os de la lanterne), des bottes de pluie, des
+    bottines ; le gilet de laine (boutons de bois) et le pull jacquard (sa bande tricotée) sur le sweat ; la casquette de tweed sans étoile ;
+    l'écharpe rayée ; l'aura des feuilles d'or, dorée et piquée de feuilles.
+  · **Les vignettes** : 27 nouvelles (7 + 5 décos, 13 pièces, l'aura, l'écureuil), cuites à la qualité 55, alpha 72
+    (`outils/vignettes/cuire.cjs`, `MARCHE_AUTOMNE`) pour tenir le budget : 1 503 Ko en tout (≤ 1 536), 7,4 Ko en moyenne ; les vignettes
+    d'avant n'ont pas bougé (mêmes empreintes) ; celle des lampions est la guirlande posée sur ses piquets. `test/fournil-vignettes.test.js`
+    est vert.
+  · **Les icônes** : `ICONS.MARCHE` (la noisette — elle passe devant le dessin de `FICHE.devise.svg`, au trait de la maison —, les huit
+    douceurs par id de recette et `produits`, la Halle, le palier, l'album, la feuille, la pie, la cantine, l'heure dorée, la brouette,
+    le soleil du ×6, `H1`, `monstres` : les neuf enfants déguisés), `ICONS.UI.marche`, `ICONS.UI.piste`, `ICONS.CARNET.marche` et
+    `piste-automne`, l'écureuil, les pièces dessinées (bonnet, panier, couronne ; le gilet, les bottes de pluie, le pull, la casquette de
+    tweed, les bottines, l'écharpe), le portrait du boulanger au bonnet ou à la couronne, l'aura dorée.
+  · **Les sons** : `JEUX.marche` reprend quatre sons neutres du jeu de la Maison hantée (sonnette, vente, cloche, louche ; CC0), sans
+    musique ni bruit de fond ; `SONS.veiller` lit les clients de la boutique de l'événement actif (`JEUX[…].boutique`).
+  · **Poncin** : `src/persos.js` est partagé ; `node build.js` refait donc `poncin/index.html` (des ajouts seulement : capuches, écharpe,
+    queue, bonnet, couronne, panier, l'écureuil, l'aura des feuilles). Il n'est **pas commité** (jamais toucher à `poncin`) : la CI et le
+    déploiement le refont ; `test/poncin.test.js` est vert.
+  · **La vidéo** : `outils/annonce-marche/video.cjs` (trois plans, une dizaine de secondes : la Halle de jour, un enfant servi, le
+    crépuscule) ; elle n'est pas dans `fournil/media/` (`--publier` l'y copie) : `HABILLAGE_MARCHE.video` reste à `null` tant que B ne la
+    branche pas.
+  · **Les tests** : `test/fournil-marche-boutique.cjs` (port 8963, `PORT_MARCHE_BOUTIQUE`, captures `SHOTS_MARCHE_BOUTIQUE`), dans aucune
+    tâche de `pages.yml` (comme `fournil-hantee-boutique.cjs`) ; la visite d'un copain qui a les décos du Marché y est vérifiée côté scène
+    (sa photo `dm`, `CLASSEMENT.boutiqueDepuisPhoto`, `SCENE.decosMarche`), pas par l'appel `fournil_boutique` (l'écran, B). Les douze
+    décos d'automne sont dans `test/fournil-decos.cjs` (quatre dispositions, en 390 × 844 et 360 × 640).
+
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
    ainsi (recommandé : jouer chaque jour paie, la moitié reste à portée de qui ne vient qu'en fin de semaine), ou passer à 24 crans ?
