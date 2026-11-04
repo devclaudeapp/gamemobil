@@ -539,7 +539,19 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       scene.add(g);
-      return { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
+      const s = { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
+      s.mains = mesurerMains(s); return s;
+    }
+    // où sont les mains dans la pose « tenir à deux mains » (le bout de chaque bras, dans le repère du torse) : l'arme s'y pose, quel que
+    // soit le modèle (le fossoyeur a son torse à la taille, les Blocky aux hanches ; une valeur fixe mettait l'arme au ventre)
+    function mesurerMains(s) {
+      const torse = s.arme.parent, bd = s.o.getObjectByName('arm-right'), bg = s.o.getObjectByName('arm-left');
+      if (!torse || !bd || !bg || !s.act.tenir) return null;
+      s.act.tenir.reset().play(); s.mixer.update(0.05); s.g.updateMatrixWorld(true);
+      const v = new T.Vector3(), ep = new T.Vector3();
+      const bout = (bras) => { let best = null, d = -1; bras.getWorldPosition(ep); bras.traverse((m) => { if (!m.isMesh) return; const pos = m.geometry.attributes.position; for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld); const dd = v.distanceTo(ep); if (dd > d) { d = dd; best = v.clone(); } } }); return best ? torse.worldToLocal(best) : null; };
+      const a = bout(bd), b = bout(bg); s.act.tenir.stop(); s.mixer.update(0);
+      return a && b ? { y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 } : null;
     }
     const JAMBES = /^(leg-left|leg-right|root)$/, HAUT = /^(torso|arm-left|arm-right|head)$/;
     const changer = (s, cote, nom) => { if (s[cote] === nom) return; const a = s.act[nom], p = s.act[s[cote]]; if (a) { a.reset(); a.play(); if (p) a.crossFadeFrom(p, 0.15, false); } s[cote] = nom; };
@@ -554,8 +566,10 @@ const ZRENDU = (() => {
         s.armeId = id; s.fin = fin; s.armesVues = MOD.armesPretes; const L = longueur(id) * 1.2;
         if (s.blaster) { s.blaster.parent.remove(s.blaster); s.blaster = null; }
         const b = MOD.arme(id, L / s.k, fin);
-        if (b) { b.position.set(0, 0.06 / s.k, (0.22 + L / 2) / s.k); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
-        else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, 0.05 / s.k, (0.3 + L / 2) / s.k); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
+        // dans les mains : la poignée (le tiers arrière de l'arme) entre les deux mains, l'arme posée juste au-dessus
+        const m = s.mains, my = m ? m.y + 0.03 / s.k : 0.06 / s.k, mz = m ? m.z + (L * 0.2 - 0.04) / s.k : (0.22 + L / 2) / s.k;
+        if (b) { b.position.set(0, my, mz); s.arme.parent.add(b); s.blaster = b; s.arme.visible = false; }
+        else { s.arme.visible = true; s.arme.scale.set(0.11 / s.k, 0.13 / s.k, L / s.k); s.arme.position.set(0, my, mz); s.arme.material.color.set(D.ARMES[id] ? D.ARMES[id].couleur : '#333').multiplyScalar(0.55); }
       }
       s.mixer.update(dt);
       s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
