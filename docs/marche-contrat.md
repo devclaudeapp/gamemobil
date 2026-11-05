@@ -709,6 +709,17 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     Halle tiroir fermé (le tiroir du Manoir, `src/tiroir.js`, passe par-dessus la scène : `evMarche.tiroir('ferme')`), les polices du jeu
     dans `$ANNONCE_TRAVAIL/polices/`. **Reste à l'écran (B, `src/evenement.js`)** de la nommer : `HABILLAGE_MARCHE.video = { fichier:
     'marche.mp4', affiche: 'marche-affiche.jpg', label: '…' }` (le service worker sert déjà toute vidéo de `media/` par morceaux).
+  · **Le boulanger 3D et la garde-robe** (`test/fournil-equipe3d.cjs`, `test/fournil-garderobe.cjs`, dans la CI : ils échouaient depuis
+    l'arrivée des treize pièces) : les tests attendent 59 pièces et dix ensembles (douze ensembles essayés pour les traversées, dont
+    `marche`, `marche-or`, `automne`), connaissent les formes `bonnet`, `couronne`, `panier` ; le panier d'osier est tenu, comme la
+    lanterne (les mains ne comptent pas contre lui). La bande tricotée du pull jacquard descend au ventre : sur la poitrine, les pans d'une
+    écharpe (la tenue de saison complète) ou du foulard rouge du 5e titre la traversaient ; sa vignette est recuite. La rangée « Tenue
+    d'automne » de la garde-robe porte la classe `gr-marche` (et non `marche` : `.marche` est déjà la pastille du marché, `src/style.css`,
+    en ligne et sans retour à la ligne ; à 360 px elle débordait de 44 px).
+  · **Pour l'écran (B)** : `test/fournil-marche.cjs` échoue sur une ligne depuis que la Halle existe : « le fond crème » de `#marche` est
+    transparent en mode boutique (`#marche.mc-boutique { background: transparent }`, comme `#hantee.ht-boutique` : la scène 3D est
+    derrière) ; le test l'attendait crème (écrit quand la Halle n'était qu'une amorce) : à vérifier hors mode boutique (`?boutique=0`) ou sur
+    `.pq-scene ~ *`. Et la vidéo à nommer (ci-dessus).
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
