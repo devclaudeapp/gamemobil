@@ -666,8 +666,8 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     queue, bonnet, couronne, panier, l'écureuil, l'aura des feuilles). Il n'est **pas commité** (jamais toucher à `poncin`) : la CI et le
     déploiement le refont ; `test/poncin.test.js` est vert.
   · **La vidéo** : `outils/annonce-marche/video.cjs` (trois plans, une dizaine de secondes : la Halle de jour, un enfant servi, le
-    crépuscule) ; elle n'est pas dans `fournil/media/` (`--publier` l'y copie) : `HABILLAGE_MARCHE.video` reste à `null` tant que B ne la
-    branche pas.
+    crépuscule) ; elle n'était pas dans `fournil/media/` (`--publier` l'y copie : fait le 5 nov.) : `HABILLAGE_MARCHE.video` reste à `null`
+    tant que B ne la branche pas.
   · **Les tests** : `test/fournil-marche-boutique.cjs` (port 8963, `PORT_MARCHE_BOUTIQUE`, captures `SHOTS_MARCHE_BOUTIQUE`), dans aucune
     tâche de `pages.yml` (comme `fournil-hantee-boutique.cjs`) ; la visite d'un copain qui a les décos du Marché y est vérifiée côté scène
     (sa photo `dm`, `CLASSEMENT.boutiqueDepuisPhoto`, `SCENE.decosMarche`), pas par l'appel `fournil_boutique` (l'écran, B). Les douze
@@ -703,6 +703,12 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     capitale palier 1, tout au max) : toutes les décos d'événement, le Marché compris, 61 appels (≤ 72) ; les douze décos d'automne posées,
     59 à 60 (≤ 72), 2 pour les décos fusionnées, en 390 × 844 et 360 × 640 ; haute, au pire 66 appels (≤ 80) ; douze changements de
     disposition sans que la mémoire monte (2 maillages fusionnés vivants).
+  · **La vidéo de présentation** est faite et publiée : `fournil/media/marche.mp4` (9,8 s, 1 004 Ko, H.264 main, 540 × 1168, muette : la Halle
+    de jour et son titre, un enfant déguisé servi — « Merci ! », l'album de la forêt qui avance —, le crépuscule et ses lampions) et son
+    affiche `marche-affiche.jpg` (77 Ko ; les bornes de la Maison hantée : ≤ 1,5 Mo, ≤ 80 Ko). `outils/annonce-marche/video.cjs` filme la
+    Halle tiroir fermé (le tiroir du Manoir, `src/tiroir.js`, passe par-dessus la scène : `evMarche.tiroir('ferme')`), les polices du jeu
+    dans `$ANNONCE_TRAVAIL/polices/`. **Reste à l'écran (B, `src/evenement.js`)** de la nommer : `HABILLAGE_MARCHE.video = { fichier:
+    'marche.mp4', affiche: 'marche-affiche.jpg', label: '…' }` (le service worker sert déjà toute vidéo de `media/` par morceaux).
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
