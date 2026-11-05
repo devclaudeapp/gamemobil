@@ -63,7 +63,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -124,6 +124,15 @@ const ZSONS = (() => {
         case 'saute': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('arc', 0.5 * k, p); break; }
         case 'crochet': { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.05) jouer('scie', 0.5 * k, p); break; }
         case 'accroche': if (e.id === idMoi) { P.jouer('impactMetal', 0.9); P.vibrer(40); } break;
+        // le Lot 4 : un bonus ramassé, la bombe, le leurre, le largage (la fusée, puis la caisse qui touche le sol), le piège électrique
+        case 'bonus': if (e.id === idMoi) { P.jouer(e.bonus === 'bombe' ? 'mancheFin' : 'soin', 0.9); jouer('serie', 0.8, 0, e.bonus === 'rage' ? 0.8 : e.bonus === 'ralenti' ? 0.6 : 1.4); P.vibrer(e.bonus === 'bombe' ? [40, 30, 90] : 25); } if (e.bonus === 'bombe') jouer('boum', 1, 0, 0.7); break;
+        case 'finBonus': if (e.id === idMoi || !e.id) P.jouer('vide', 0.35, 0, 1.3); break;
+        case 'largage': jouer('roquette', 0.6, 0, 0.7); P.jouer('manche', 0.5); break;
+        case 'largue': { const [k, p] = ecoute(e.x, e.z, 40); jouer('casse', 0.4 + 0.6 * k, p); P.vibrer(15); break; }
+        case 'piege': jouer('tesla', 1); P.vibrer(30); break;
+        case 'zap': { const t = performance.now(); if (t - zapT > 220) { zapT = t; const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('tesla', 0.45 * k, p, 1.2); } break; }
+        case 'piegeCher': if (e.id === idMoi) P.jouer('refus', 0.6); break;
+        case 'piegePret': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.1) P.jouer('ding', 0.4 * k, p); break; }
         case 'invoque': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('grogne', 0.9 * k + 0.1, p, 0.6); jouer('vague', 0.25 * k, p); } break; }
       }
     }

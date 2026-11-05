@@ -61,6 +61,7 @@
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
+    iconeBonus: (k) => rendu.iconeBonus(k),
     portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112 }), // (les emplacements d'arme : la vraie arme, dans sa finition)
   });
   // toutes les actions passent par ici : en solo sur la partie, en coop envoyées à l'hôte (qui les exécute pour ce joueur)

@@ -19,7 +19,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const PREFIXE = 'rempart', ETAT_MS = 66, EVTS_MS = 100, ENTREE_MS = 50, PAS = 1 / 60, MAX_JOUEURS = 4, MAX_EVTS = 90;
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
-  const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse'];
+  const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse', 'bonus'];
   const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
   // le skin, dans la présence (« am », 8 caractères au plus) : son rang dans ZDONNEES.SURVIVANTS
   const SKINS = D ? Object.keys(D.SURVIVANTS) : [];
@@ -32,16 +32,20 @@ const ZENLIGNE = (() => {
   const aleaId = () => 'j' + Math.random().toString(36).slice(2, 10);
 
   // ─── l'instantané de l'hôte ───
+  const effetsCourts = (E) => { const o = {}; for (const k in E || {}) o[k] = Math.round(E[k] * 10) / 10; return o; };
   function instantane(jeu) {
     return {
       t: r2(jeu.t), g: jeu.gagnant || '', ph: jeu.phase, c: r1(jeu.chrono), v: jeu.vague, as: jeu.aSortir, tv: jeu.totalVague, f: jeu.fini ? 1 : 0,
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '']),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '', effetsCourts(p.effets)]),
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0]),
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
-      o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age)]),
+      o: jeu.objets.map((o) => [o.id, TO.indexOf(o.type), r2(o.x), r2(o.z), o.valeur, o.vole ? 1 : 0, r1(o.age), o.bonus || (o.rare ? '*' : '')]),
+      // le Lot 4 : le ralenti, les leurres, le largage en cours, l'état des pièges (leur place se déduit de la graine, la même des deux côtés)
+      ra: r1(jeu.ralenti || 0), le: (jeu.leurres || []).map((l) => [l.id, r2(l.x), r2(l.z), r1(l.t)]), la: jeu.largage && jeu.largage.pose ? [r2(jeu.largage.x), r2(jeu.largage.z), r2(jeu.largage.t)] : null,
+      pi: (jeu.pieges || []).map((p) => [p.etat === 'actif' ? 1 : p.etat === 'recharge' ? 2 : 0, r1(p.t)]),
       cr: jeu.crachats.map((c) => [r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
       ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0, o.droit ? 1 : 0]),
       ch: jeu.crochets.map((c) => [c.id, c.de, r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
@@ -62,7 +66,7 @@ const ZENLIGNE = (() => {
       if (p.id === idMoi && Math.hypot(p.x - a[1], p.z - a[2]) > 2.2) { p.x = a[1]; p.z = a[2]; } // trop loin : recalé
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
-      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null;
+      p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null; p.effets = a[26] || {};
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -73,7 +77,10 @@ const ZENLIGNE = (() => {
       z.type = TZ[l[1]]; z.tx = l[2]; z.tz = l[3]; z.angle = l[4]; z.vie = l[5]; z.vieMax = l[6]; z.flash = l[7] ? 0.1 : 0; z.attaque = l[8]; z.bouge = l[9]; z.naissance = l[10]; z.vitesse = l[11]; z.rayon = D.ZOMBIES[z.type].rayon; z.feu = l[12] ? 1 : 0; z.gel = l[13] ? 1 : 0; z.saut = l[14] || 0;
     });
     garder(jeu.defenses, e.d, (l) => ({ id: l[0] }), (d, l) => { d.type = TD[l[1]]; d.x = l[2]; d.z = l[3]; d.angle = l[4]; d.vie = l[5]; d.vieMax = l[6]; d.flash = l[7] ? 0.1 : 0; });
-    garder(jeu.objets, e.o, (l) => ({ id: l[0], x: l[2], z: l[3] }), (o, l) => { o.type = TO[l[1]]; o.tx = l[2]; o.tz = l[3]; o.valeur = l[4]; o.vole = !!l[5]; o.age = l[6]; if (!o.vole) { o.x = l[2]; o.z = l[3]; } });
+    garder(jeu.objets, e.o, (l) => ({ id: l[0], x: l[2], z: l[3] }), (o, l) => { o.type = TO[l[1]]; o.tx = l[2]; o.tz = l[3]; o.valeur = l[4]; o.vole = !!l[5]; o.age = l[6]; o.bonus = l[7] && l[7] !== '*' ? l[7] : undefined; o.rare = l[7] === '*'; if (!o.vole) { o.x = l[2]; o.z = l[3]; } });
+    jeu.ralenti = e.ra || 0; jeu.leurres = (e.le || []).map((l) => ({ id: l[0], type: 'leurre', x: l[1], z: l[2], t: l[3] }));
+    jeu.largage = e.la ? { pose: true, x: e.la[0], z: e.la[1], t: e.la[2] } : null;
+    if (e.pi && jeu.pieges) e.pi.forEach((q, i) => { const p = jeu.pieges[i]; if (p) { p.etat = q[0] === 1 ? 'actif' : q[0] === 2 ? 'recharge' : 'pret'; p.t = q[1]; } });
     jeu.crachats.length = 0; for (const c of e.cr) jeu.crachats.push({ x: c[0], z: c[1], vx: c[2], vz: c[3] });
     jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6], droit: !!o[7] });
     garder(jeu.crochets, e.ch || [], (l) => ({ id: l[0] }), (c, l) => { c.de = l[1]; c.x = l[2]; c.z = l[3]; c.vx = l[4]; c.vz = l[5]; });
