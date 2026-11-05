@@ -311,9 +311,9 @@ function faux(d) {
       if (out3 && qual === 'haute') { await ev(() => { document.querySelector('#feuille [data-a="mh-best-ok"]').click(); }); await sleep(500); await ev(() => document.querySelector('#mc-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte.png`), path.join(out3, 'bestiaire-carte.png')); }
       else await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); });
       await sleep(400);
-      if (qual === 'eco') { // la 9e : la chauve-souris, choisie depuis la fête
+      if (qual === 'eco') { // la 9e : l’écureuil, choisi depuis la fête
         const r9 = await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.bestiaireFaits = F.MC.SORTES.filter((k) => k !== 'ourson'); for (const k of q.bestiaireFaits) q.bestiaire[k] = 10; q.bestiaire.ourson = 9;
-          const id = 880001; q.manoir.file.push({ id, sorte: 'ourson', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); const e0 = F.st.etoiles, r = F.evMarche.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, cs: q.chauvesouris }; });
+          const id = 880001; q.manoir.file.push({ id, sorte: 'ourson', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); const e0 = F.st.etoiles, r = F.evMarche.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, cs: q.ecureuil }; });
         const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="ourson"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
         check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Pirouette/.test(f9 || ''), `la 9e sorte : +2 étoiles, l’écureuil ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
         if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
