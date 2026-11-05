@@ -63,6 +63,8 @@
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
     iconeBonus: (k) => rendu.iconeBonus(k),
     portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112 }), // (les emplacements d'arme : la vraie arme, dans sa finition)
+    // un ennemi rencontré pour la première fois (sur cette sauvegarde) : vrai une seule fois, et c'est noté
+    nouvelEnnemi(type) { const b = save.bestiaire || (save.bestiaire = {}); if (b[type]) return false; b[type] = 1; ecrire(); return true; },
   });
   // toutes les actions passent par ici : en solo sur la partie, en coop envoyées à l'hôte (qui les exécute pour ce joueur)
   function faire(quoi, arg) {
@@ -765,6 +767,7 @@
   function effetsTemps(l) {
     for (const e of l) {
       if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
+      else if (e.t === 'phase') { ralentiJusque = Math.max(ralentiJusque, performance.now() + 700); PSONS.vibrer([40, 30, 80]); } // (un boss change de phase : un instant au ralenti)
       else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
     }
   }
