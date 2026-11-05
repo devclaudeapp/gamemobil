@@ -6,7 +6,7 @@
 // · l'XP par constat : trois objectifs réclamés et la journée (25 XP), trois paliers du Marché (60 XP) : le cran 1, « Recevoir » sur la carte ;
 // · la feuille : la piste horizontale (22 crans, le cran en cours au milieu), « D'où vient l'XP » (six sources), « encore 17 j » ; recevoir le
 //   cran 1 (le boost ×2 dans la réserve), puis « Tout recevoir » jusqu'au 7e (étoiles, la casquette de tweed, les décos) ; le 22e et le titre
-//   « Feuille d'or 2026 » à 1 350 XP ;
+//   « Feuille d'or 2026 » à 1 240 XP ;
 // · une vieille sauvegarde sans st.piste : la piste créée au premier pas, la carte tout de suite ;
 // · un nouveau joueur (window.__accueil = true) : l'XP compte, la carte cachée jusqu'au déblocage « piste », annoncée, ses crans à recevoir ;
 // · après le 30 novembre : la feuille de fin (« voici ce qui t'attendait »), les crans dus donnés d'office, la saison archivée ;
@@ -82,7 +82,7 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   await T.clic('#feuille [data-a="close"]'); await sleep(600);
   await T.ev(() => window.__fournil.tiroir && window.__fournil.tiroir('mi')); await sleep(300);
   let c = await T.carte();
-  check(c && c.vu && c.sous && /Saison d’automne · cran 0\/22/.test(c.txt) && /0\/50 XP/.test(c.txt) && c.h >= 44, `la carte #piste sous les objectifs du jour : « ${c && c.txt} »`);
+  check(c && c.vu && c.sous && /Saison d’automne · cran 0\/22/.test(c.txt) && /0\/45 XP/.test(c.txt) && c.h >= 44, `la carte #piste sous les objectifs du jour : « ${c && c.txt} »`);
   await T.ev(() => document.querySelector('#piste').scrollIntoView({ block: 'center' })); await sleep(300); await T.shot('02-carte-cran-0');
 
   console.log('── l’XP par constat ──');
@@ -113,10 +113,10 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   check(await T.ev(() => window.__fournil.piste.recevoir(1)) === null, 'un cran se reçoit une seule fois');
   await T.fermer();
   // jusqu'au 7e : « Tout recevoir »
-  await T.ev(() => { window.__fournil.st.piste.xp = 360; window.__fournil.save(); }); await T.pas();
+  await T.ev(() => { window.__fournil.st.piste.xp = 330; window.__fournil.save(); }); await T.pas();
   await T.clic('#piste'); await sleep(800);
   fe = await lireFeuille();
-  check(fe && fe.tout && fe.etats.slice(1, 7).every((x) => x === 'attend') && fe.etats[7] === 'encours' && fe.centre < 120, `à 360 XP : les crans 2 à 7 à recevoir, « Tout recevoir », le cran en cours au milieu de la piste (à ${fe && Math.round(fe.centre)} px)`);
+  check(fe && fe.tout && fe.etats.slice(1, 7).every((x) => x === 'attend') && fe.etats[7] === 'encours' && fe.centre < 120, `à 330 XP : les crans 2 à 7 à recevoir, « Tout recevoir », le cran en cours au milieu de la piste (à ${fe && Math.round(fe.centre)} px)`);
   await T.shot('04-feuille-cran-7');
   const e0 = await T.ev(() => window.__fournil.st.etoiles);
   await T.clic('#feuille [data-a="pi-tout"]'); await sleep(900);
@@ -126,14 +126,14 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
     if (v === null) passe('la casquette de tweed dans la garde-robe attend la tenue de saison (src/game.js, constructeur A)'); else check(v, 'le cran 5 : la casquette de tweed dans la garde-robe'); }
   await T.fermer();
   // le 22e et le titre
-  await T.ev(() => { window.__fournil.st.piste.xp = 1100; window.__fournil.save(); }); await T.pas();
+  await T.ev(() => { window.__fournil.st.piste.xp = 990; window.__fournil.save(); }); await T.pas();
   await T.clic('#piste'); await sleep(800); await T.clic('#feuille [data-a="pi-tout"]'); await sleep(900);
   fe = await lireFeuille(); p = await T.piste();
-  check(fe && fe.etats.every((x) => x === 'recu') && p.recus === (1 << 22) - 1 && /1 100\/1 350 XP|1 100\/1 350/.test(fe.titre.replace(/ | /g, ' ')), `le 22e reçu (le trophée) ; la jauge du titre : « ${fe && fe.titre.slice(0, 80)} »`);
+  check(fe && fe.etats.every((x) => x === 'recu') && p.recus === (1 << 22) - 1 && /990\/1 240 XP|990\/1 240/.test(fe.titre.replace(/ | /g, ' ')), `le 22e reçu (le trophée) ; la jauge du titre : « ${fe && fe.titre.slice(0, 80)} »`);
   await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('05-feuille-cran-22');
   await T.fermer();
-  await T.ev(() => { window.__fournil.st.piste.xp = 1350; window.__fournil.save(); }); await T.pas(); await sleep(400);
-  c = await T.carte(); check(c.pret && /Recevoir/.test(c.txt), `à 1 350 XP : le titre attend, « Recevoir » sur la carte (« ${c.txt} »)`);
+  await T.ev(() => { window.__fournil.st.piste.xp = 1240; window.__fournil.save(); }); await T.pas(); await sleep(400);
+  c = await T.carte(); check(c.pret && /Recevoir/.test(c.txt), `à 1 240 XP : le titre attend, « Recevoir » sur la carte (« ${c.txt} »)`);
   await T.clic('#piste'); await sleep(800);
   check(await T.ev(() => !!document.querySelector('#feuille .pi-titre.attend [data-a="pi-recevoir"]')), 'la feuille : « Recevoir le titre »');
   await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('06a-feuille-titre-a-recevoir');
@@ -159,7 +159,7 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   c = await attendre(async () => { const x = await T.carte(); return x && x.vu ? x : null; }, 5000); check(!!c, `la carte, tout de suite : « ${c && c.txt} »`);
 
   console.log('── après le 30 novembre : la feuille de fin ──');
-  await T.ev(() => { const F = window.__fournil; F.st.piste.xp = 420; F.st.piste.recus = 1; F.save(); }); // (huit crans atteints, un seul reçu)
+  await T.ev(() => { const F = window.__fournil; F.st.piste.xp = 380; F.st.piste.recus = 1; F.save(); }); // (huit crans atteints, un seul reçu)
   const avantFin = await T.ev(() => ({ et: window.__fournil.st.etoiles, b: window.__fournil.st.boosts.reserve.length }));
   decal = DECEMBRE - Date.now(); await T.ev((d) => localStorage.setItem('test.tel', String(d)), decal); await T.ev(() => window.__fournil.save());
   await T.charger();

@@ -866,7 +866,7 @@
   // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
   const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' },
     'legende-marche': { id: 'legende-marche', nom: 'Légende du Marché', desc: 'Le 20e palier du Marché d’automne.' }, // (src/marche.js)
-    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 350 XP).' } }; // (src/saison-automne.js)
+    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 240 XP).' } }; // (src/saison-automne.js)
   DISTINCTIONS['main-de-velours'] = { id: 'main-de-velours', nom: 'Main de velours', desc: 'Dix victoires de suite dans l’arrière-salle.' }; // lot 7 : le trophée « Main de velours » du casino (src/casino.js)
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
   const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };

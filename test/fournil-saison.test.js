@@ -3,9 +3,9 @@
 // la saison active à ses bornes (13 nov. 2026 à midi → 30 nov. 23 h 59 59), l'XP par constat (chaque source et son plafond, le défi une
 // fois par semaine, la série d'aujourd'hui et d'hier, ou celle du classement, les paliers du Marché, l'arrière-salle ; deux pas : rien de
 // plus), st.piste créée seulement pendant une saison, remise d'aplomb (null, [], { xp: 'x', recus: -1, j: 3 }…) sans rien compter deux
-// fois, recevoir une fois par cran et le lot exact (§ 7.3), le titre à 1 350 XP, verser dans la boulangerie (étoiles, boosts, vêtements
+// fois, recevoir une fois par cran et le lot exact (§ 7.3), le titre à 1 240 XP, verser dans la boulangerie (étoiles, boosts, vêtements
 // sans bonus, le titre), possede (le carnet), la fin (les crans dus donnés d'office, l'archive) ; le déblocage « piste » de l'accueil ;
-// puis la piste simulée sur ce moteur (test/fournil-saison-sim.js : quotidien finie du 27 au 29 nov., occasionnel quatre jours sur sept
+// puis la piste simulée sur ce moteur (test/fournil-saison-sim.js : quotidien finie du 25 au 27 nov. (45 XP le cran, choix du joueur du 5 nov.), occasionnel quatre jours sur sept
 // de 40 à 65 %, très actif avant le 26) et la longévité (aucun effet notable sur le rythme des boutiques ; les garde-fous de test/longevite.js).
 // Lancer : TZ=Europe/Paris node test/fournil-saison.test.js
 'use strict';
@@ -22,7 +22,7 @@ function partie(now, o) {
 }
 
 console.log('── la fiche et la saison active ──');
-check(AU.id === 'automne-2026' && SA.fiche('automne-2026') === AU && AU.debut === P(13, 12) && AU.fin === P(101, 0) && AU.crans.length === 22 && AU.xpCran === 50 && AU.titre.xp === 250 && AU.xpTitre === 1350 && AU.titre.distinction === 'feuille-or-2026', 'la saison d’automne : du 13 nov. midi au 1er déc. 0 h, 22 crans de 50 XP, le titre « Feuille d’or 2026 » à 1 350 XP');
+check(AU.id === 'automne-2026' && SA.fiche('automne-2026') === AU && AU.debut === P(13, 12) && AU.fin === P(101, 0) && AU.crans.length === 22 && AU.xpCran === 45 && AU.titre.xp === 250 && AU.xpTitre === 1240 && AU.titre.distinction === 'feuille-or-2026', 'la saison d’automne : du 13 nov. midi au 1er déc. 0 h, 22 crans de 45 XP, le titre « Feuille d’or 2026 » à 1 240 XP');
 check(!SA.active(P(13, 11, 59, 59)) && SA.active(P(13, 12)) === AU && SA.active(P(30, 23, 59, 59)) === AU && !SA.active(P(101, 0)), 'active : rien le 13 à 11:59:59, l’automne à 12:00 et jusqu’au 30 à 23:59:59, rien le 1er décembre à 0 h (l’hiver n’existe pas encore)');
 check(MC.DEBUT === AU.debut && JSON.stringify(AU.evenements) === '["marche"]', 'elle s’ouvre avec le Marché d’automne, dont les paliers comptent (st.marche)');
 check(JSON.stringify(Object.fromEntries(Object.entries(SA.SOURCES).map(([k, v]) => [k, [v.xp, v.parJour || v.parSemaine || null]]))) === JSON.stringify({ objectif: [5, 3], journee: [10, 1], defi: [75, 1], serie: [10, 1], palier: [20, null], casino: [5, 3] }), 'les sources du contrat (§ 7.2) : objectif 5 (3/j), journée 10, défi 75 (1/semaine), série 10, palier 20 (sans plafond), arrière-salle 5 (3/j)');
@@ -79,16 +79,16 @@ const LOTS = { 1: { boost: [2, 1800] }, 2: { etoiles: 1 }, 3: { deco: 'couronne-
   19: { deco: 'epouvantail' }, 20: { boost: [3, 1800] }, 21: { etoiles: 2 }, 22: { deco: 'trophee-automne-2026', trophee: 'trophee-automne-2026', etoiles: 2 } };
 check(AU.crans.every((c, k) => { const a = LOTS[k + 1]; return c.n === k + 1 && (c.etoiles || undefined) === a.etoiles && JSON.stringify(c.boost ? [c.boost.mult, c.boost.secs] : undefined) === JSON.stringify(a.boost) && c.deco === a.deco && c.vetement === a.vetement && c.trophee === a.trophee && !c.prime; }), 'les 22 crans du contrat (§ 7.3), aucune heure de gains');
 check(AU.crans.reduce((s, c) => s + (c.etoiles || 0), 0) === 16 && AU.crans.filter((c) => c.boost).length === 3 && AU.crans.filter((c) => c.deco).length === 5 && AU.crans.filter((c) => c.trophee).length === 1 && AU.crans.filter((c) => c.vetement).length === 4, '16 étoiles, 3 boosts, 5 décos (dont le trophée de fin de saison, au 22e), la tenue de saison en 4 pièces');
-{ const t = P(20, 10), st = partie(t); SA.pas(st, t); st.piste.xp = 349;
-  check(SA.crans(st) === 6 && SA.aRecevoir(st).join() === '1,2,3,4,5,6' && SA.recevoir(st, 7) === null, '349 XP : six crans atteints, à recevoir ; le 7e pas encore');
+{ const t = P(20, 10), st = partie(t); SA.pas(st, t); st.piste.xp = 314;
+  check(SA.crans(st) === 6 && SA.aRecevoir(st).join() === '1,2,3,4,5,6' && SA.recevoir(st, 7) === null, '314 XP : six crans atteints, à recevoir ; le 7e pas encore');
   const l1 = SA.recevoir(st, 1), l1b = SA.recevoir(st, 1);
   check(l1 && l1.n === 1 && l1.boost.mult === 2 && l1.boost.secs === 1800 && l1b === null && SA.aRecevoir(st).join() === '2,3,4,5,6' && st.piste.recus === 1, 'recevoir le cran 1 : son lot (boost ×2 30 min), une fois ; il n’est plus à recevoir');
   const s = G.newState(t); s.now = t; const e0 = s.etoiles;
   const lots = SA.toutRecevoir(st); for (const l of lots) SA.verser(s, l, G);
   check(lots.map((l) => l.n).join() === '2,3,4,5,6' && s.etoiles === e0 + 3 && G.garderobe(s).objets['automne-gavroche'] && SA.possede(st, 'couronne-feuilles') && !SA.possede(st, 'guirlande-feuilles') && SA.aRecevoir(st).length === 0, '« Tout recevoir » : 2 à 6 versés (3 étoiles, la casquette de tweed dans la garde-robe, la couronne de feuilles possédée)');
   const b = SA.verser(s, AU.crans[19], G); check(b.boost && s.boosts.reserve.some((x) => x.mult === 3 && x.secs === 1800), 'un boost de la piste va dans la réserve (lancé quand on veut)');
-  st.piste.xp = 1349; const r = SA.aRecevoir(st); check(SA.crans(st) === 22 && !r.includes(23) && !SA.titre(st).atteint && SA.titre(st).reste === 1, '1 349 XP : les 22 crans, pas encore le titre (encore 1 XP)');
-  st.piste.xp = 1350; check(SA.aRecevoir(st).includes(23) && SA.titre(st).atteint && !SA.titre(st).recu, '1 350 XP : le titre est à recevoir (n = 23)');
+  st.piste.xp = 1239; const r = SA.aRecevoir(st); check(SA.crans(st) === 22 && !r.includes(23) && !SA.titre(st).atteint && SA.titre(st).reste === 1, '1 239 XP : les 22 crans, pas encore le titre (encore 1 XP)');
+  st.piste.xp = 1240; check(SA.aRecevoir(st).includes(23) && SA.titre(st).atteint && !SA.titre(st).recu, '1 240 XP : le titre est à recevoir (n = 23)');
   const lt = SA.recevoir(st, 23); SA.verser(s, lt, G);
   check(lt && lt.titre && lt.distinction === 'feuille-or-2026' && SA.recevoir(st, 23) === null && st.piste.titre === 1 && G.distinctions(s).includes('feuille-or-2026') && SA.possede(st, 'feuille-or-2026'), 'reçu : la distinction « Feuille d’or 2026 » (au classement, à côté du pseudo), une fois');
   const v = SA.vue(st, t); check(v && v.cran === 22 && v.crans === 22 && v.piste.length === 22 && v.piste[0].etat === 'recu' && v.piste[6].etat === 'aRecevoir' && v.titre.recu && v.resteMs === AU.fin - t, 'la vue de l’écran : cran 22/22, chaque cran son état (reçu, à recevoir), le titre, ce qu’il reste de temps'); }
@@ -96,9 +96,9 @@ check(AU.crans.reduce((s, c) => s + (c.etoiles || 0), 0) === 16 && AU.crans.filt
   check(r.length === 6 && r.find((x) => x.id === 'objectif').reste === 2 && r.find((x) => x.id === 'palier').max === null && r.find((x) => x.id === 'defi').parSemaine, '« D’où vient l’XP » : les six sources, ce qu’il reste à prendre aujourd’hui'); }
 
 console.log('── la fin de la saison ──');
-{ const t = P(25, 10), st = partie(t); SA.pas(st, t); st.piste.xp = 620; SA.recevoir(st, 1); SA.recevoir(st, 2);
+{ const t = P(25, 10), st = partie(t); SA.pas(st, t); st.piste.xp = 560; SA.recevoir(st, 1); SA.recevoir(st, 2);
   const o = SA.pas(st, P(101, 0, 0, 1)), d = SA.finDue(st);
-  check(st.piste.id === '' && st.piste.passees['automne-2026'] && st.piste.passees['automne-2026'].crans === 12 && st.piste.passees['automne-2026'].xp === 620 && st.piste.passees['automne-2026'].titre === 0, 'le 1er décembre à 0 h : la saison archivée ({ xp 620, crans 12, titre 0 }), la piste repart sans saison (id « »)');
+  check(st.piste.id === '' && st.piste.passees['automne-2026'] && st.piste.passees['automne-2026'].crans === 12 && st.piste.passees['automne-2026'].xp === 560 && st.piste.passees['automne-2026'].titre === 0, 'le 1er décembre à 0 h : la saison archivée ({ xp 560, crans 12, titre 0 }), la piste repart sans saison (id « »)');
   check(o.fin && d && d.id === 'automne-2026' && d.lots.map((l) => l.n).join() === '3,4,5,6,7,8,9,10,11,12', 'les crans atteints et pas reçus (3 à 12) sont donnés d’office : leur lot attend l’écran (finDue), qui les distribue et montre la feuille');
   check(SA.recevoirFin(st) === d && SA.finDue(st) === null && SA.pas(st, P(101, 1)).fin === null, 'recevoirFin : la feuille montrée une fois');
   check(SA.possede(st, 'automne-bottines') === false && SA.possede(st, 'automne-gavroche') && SA.possede(st, 'couronne-feuilles'), 'le carnet lit l’archive : la casquette (cran 5) et la couronne (cran 3) à vie ; pas les bottines (cran 17, jamais atteint)'); }
@@ -127,7 +127,7 @@ const SIM = require('./fournil-saison-sim.js');
   const [q, o, ta, as] = R.pistes;
   console.log(`── la piste simulée (le joueur de test/longevite.js, déjà là depuis le 5 oct. ; les récompenses versées ; ${((Date.now() - t0) / 1000).toFixed(0)} s avec la longévité) ──`);
   for (const r of R.pistes) console.log(`  ${r.profil.padEnd(11)} ${r.xp} XP · ${r.crans}/22 · finie ${r.fini || '—'} · titre ${r.titre ? 'oui' : 'non'} · +${r.etoiles} ★, ${r.boosts} boosts · ${Object.entries(r.sources).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-  check(q.fini && q.fini >= '2026-11-27' && q.fini <= '2026-11-29', `le quotidien (1 h) finit la piste du 27 au 29 novembre (${q.fini})`);
+  check(q.fini && q.fini >= '2026-11-25' && q.fini <= '2026-11-27', `le quotidien (1 h) finit la piste du 25 au 27 novembre (${q.fini})`);
   check(o.crans / 22 >= 0.4 && o.crans / 22 <= 0.65 && !o.fini, `l’occasionnel (17 min, quatre jours sur sept) : de 40 à 65 % de la piste (${o.crans}/22, ${Math.round(o.crans / 22 * 100)} %)`);
   check(ta.fini && ta.fini < '2026-11-26' && ta.titre, `le très actif (8 h) la finit avant le 26 (${ta.fini}), et le titre`);
   check(as.fini && as.fini <= '2026-11-28', `l’assidu (2 h) la finit (${as.fini})`);
@@ -135,7 +135,7 @@ const SIM = require('./fournil-saison-sim.js');
   console.log('── la longévité (outils/marche/longevite-saison.js sur ce moteur : sans → avec la piste, le bruit d’une étoile) ──');
   for (const l of R.longevite.lignes) console.log('  ' + l);
   const L = R.longevite;
-  check(L.ok, `aucun effet notable sur le rythme des boutiques, une fois ôté le bruit d’une seule étoile : étoiles ${(L.pire.etoiles * 100).toFixed(1)} % (5 % au plus), boutiques ${L.pire.boutiques} (1), première boutique ${L.pire.premiere} j (1), franchise ${L.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${L.horsCibles ? L.horsCibles + ' cas hors' : 'tous tenus'}`);
+  check(L.ok, `aucun effet notable sur le rythme des boutiques, une fois ôté le bruit d’une seule étoile : étoiles ${(L.pire.etoiles * 100).toFixed(1)} % (6 % au plus), boutiques ${L.pire.boutiques} (1), première boutique ${L.pire.premiere} j (1), franchise ${L.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${L.horsCibles ? L.horsCibles + ' cas hors' : 'tous tenus'}`);
   console.log(fails ? `\n${fails} échec(s) sur ${n}` : `\nTout passe (${n} vérifications).`);
   process.exitCode = fails ? 1 : 0;
 })().catch((e) => { console.error(e); process.exit(1); });

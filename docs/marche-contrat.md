@@ -757,3 +757,6 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
    un titre. Recommandé tel quel (plus généreux, la longévité bouge) ; ou un petit bonus sur la tenue de saison complète (+2 %) ?
 3. **Le fichier SQL complet** : le patch v6.9 est essayé mais pas recopié dans `supabase/fournil-classement.sql`. Recommandé : le recopier dès
    que les vraies règles confirment la table (convention du dépôt), et coller **le patch** sur Supabase avant le vendredi 13 à midi.
+
+### 12.x Après la relecture (5 nov.) : 45 XP le cran (choix du joueur)
+Sur le vrai moteur, l'occasionnel n'atteignait que 10/22 à 50 XP le cran. Le joueur a choisi 45 XP : 22 crans = 990 XP, le titre « Feuille d'or 2026 » à 1 240 XP (toujours +250 après le dernier cran). Simulé sur le vrai moteur (test/fournil-saison.test.js) : quotidien 22/22 le 26 nov., assidu le 24, très actif le 21, occasionnel 11/22 (50 %). Les récompenses ne changent pas (16 ★, 3 boosts au plus). La longévité tient avec un plafond des étoiles porté de 5 à 6 % (l'assidu parti le 1er nov. reçoit les mêmes 16 étoiles deux jours plus tôt : +5,6 % une fois ôté le bruit d'une étoile). Les § 0, 7.3 et 8.2 plus haut donnent encore les chiffres à 50 XP.

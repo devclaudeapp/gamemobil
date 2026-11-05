@@ -21,7 +21,7 @@ const SOURCES = {
   palier: { xp: 20 },                // un palier d'événement franchi (le Marché d'automne ; plus tard l'Avent) ; sans plafond de plus : ils s'ouvrent déjà 2 ou 3 par jour
   casino: { xp: 5, parJour: 3 },     // un mini-objectif de l'arrière-salle réussi
 };
-const CRANS = 22, XP_CRAN = 50, XP_TITRE = 250; // 22 crans de 50 XP (1 100 XP), puis le titre de la saison à +250 (1 350 XP)
+const CRANS = 22, XP_CRAN = 45, XP_TITRE = 250; // 22 crans de 45 XP (990 XP), puis le titre de la saison à +250 (1 240 XP) (choix du joueur, 5 nov. : 45 au lieu de 50)
 const DEBUT = M.parisMs(2026, 11, 13, 12), FIN = M.parisMs(2026, 12, 1, 0); // (la fin : le 30 à 23 h 59 59, la saison d'hiver part le 1er décembre à 0 h)
 const PROFILS = { // les mêmes sessions que outils/marche/proto.js (le Marché) ; casino : mini-objectifs de l'arrière-salle réussis par jour, une fois ouverte
   occasionnel: { sessions: [[8, 5], [20.5, 12]], casino: 0, marche: 'occasionnel', jours: [3, 5, 6, 0] }, // 17 min, quatre jours sur sept (mercredi, vendredi, samedi, dimanche)

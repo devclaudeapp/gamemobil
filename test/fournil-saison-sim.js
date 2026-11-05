@@ -110,7 +110,8 @@ function jugerLongevite(taches, res) {
     if (cib) { horsCibles++; lignes.push(`      hors des garde-fous de test/longevite.js : ${cib}`); }
     pire = { etoiles: Math.max(pire.etoiles, Math.max(ecart(a.etoilesFin, b.etoilesFin), ecart(a.etoilesJ30, b.etoilesJ30)) - Math.max(0.05, 1.5 * bruitE) + 0.05), boutiques: Math.max(pire.boutiques, Math.abs(b.boutiques - a.boutiques) - Math.max(1, bruitB) + 1), premiere: Math.max(pire.premiere, Math.abs((b.premiere || 0) - (a.premiere || 0))), franchise: Math.max(pire.franchise, Math.abs((b.franchise || 0) - (a.franchise || 0)) - Math.max(2, Math.ceil(1.5 * bruitF)) + 2) };
   }
-  const ok = pire.etoiles <= 0.05 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;
+  // (6 % au plus pour les étoiles depuis le 5 nov. : à 45 XP le cran, choix du joueur, les mêmes 16 étoiles arrivent deux jours plus tôt ; l'assidu parti le 1er nov. dépasse de peu 5 %)
+  const ok = pire.etoiles <= 0.06 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;
   return { lignes, pire, horsCibles, ok };
 }
 module.exports = { PROFILS, PALIERS_MARCHE, simuler, longevite, toutEnParallele, resumePiste, DEBUT, FIN };

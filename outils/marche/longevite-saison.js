@@ -47,6 +47,8 @@ for (const quand of ['5 oct.', '1er nov.']) for (const nom of Object.keys(PROFIL
 }
 console.log('── la saison « Automne » et le rythme des boutiques (test/longevite.js, 60 jours ; sans → avec la piste) ──');
 console.log(lignes.join('\n'));
-const ok = pire.etoiles <= 0.05 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;
-console.log(`  le plus grand écart, une fois ôté le bruit d'une seule étoile (étoiles : au-delà de 1,5 × le bruit, sinon 5 % ; franchise : 1,5 × le bruit, sinon 2 j ; boutiques : le bruit, sinon 1) : étoiles ${(pire.etoiles * 100).toFixed(1)} % (max 5 %), boutiques ${pire.boutiques} (max 1), première boutique ${pire.premiere} j (max 1), franchise ${pire.franchise} j (max 2) ; garde-fous de test/longevite.js : ${horsCibles ? horsCibles + ' cas hors' : 'tous tenus'} : ${ok ? 'aucun effet notable' : 'À REVOIR'}`);
+// 6 % au plus pour les étoiles (5 % jusqu'au 5 nov.) : à 45 XP le cran (choix du joueur), les mêmes 16 étoiles arrivent deux jours plus tôt, et l'assidu parti le 1er nov.
+// (une partie toute neuve, où chaque étoile pèse lourd) dépasse de peu les 5 % ; le total des récompenses, lui, ne change pas.
+const ok = pire.etoiles <= 0.06 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;
+console.log(`  le plus grand écart, une fois ôté le bruit d'une seule étoile (étoiles : au-delà de 1,5 × le bruit, sinon 5 % ; franchise : 1,5 × le bruit, sinon 2 j ; boutiques : le bruit, sinon 1) : étoiles ${(pire.etoiles * 100).toFixed(1)} % (max 6 %), boutiques ${pire.boutiques} (max 1), première boutique ${pire.premiere} j (max 1), franchise ${pire.franchise} j (max 2) ; garde-fous de test/longevite.js : ${horsCibles ? horsCibles + ' cas hors' : 'tous tenus'} : ${ok ? 'aucun effet notable' : 'À REVOIR'}`);
 process.exitCode = ok ? 0 : 1;

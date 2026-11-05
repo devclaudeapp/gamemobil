@@ -1,7 +1,7 @@
 /* LE FOURNIL — la première saison gratuite, « Automne » (docs/marche-contrat.md § 7) : la fiche, posée dans le moteur (src/saison.js,
    SAISONS.ajouter). Du vendredi 13 novembre 2026 à midi au lundi 30 novembre 2026 à 23 h 59 59 (heure de Paris) ; la saison d'hiver (l'Avent,
-   src/saison-hiver.js) partira le 1er décembre à 0 h sur le même moteur. 22 crans de 50 XP (1 100 XP), puis le titre « Feuille d'or 2026 »
-   à 1 350 XP. Les récompenses (à vie) : 16 étoiles, 3 petits boosts (×2, ×2, ×3, 30 min), AUCUNE heure de gains, la tenue de saison (4 pièces
+   src/saison-hiver.js) partira le 1er décembre à 0 h sur le même moteur. 22 crans de 45 XP (990 XP), puis le titre « Feuille d'or 2026 »
+   à 1 240 XP. Les récompenses (à vie) : 16 étoiles, 3 petits boosts (×2, ×2, ×3, 30 min), AUCUNE heure de gains, la tenue de saison (4 pièces
    cosmétiques SANS bonus : collection 'automne', src/game.js), 5 décos, le trophée de fin de saison, le titre. Réglée par la simulation
    (outils/marche/saison.js, refaite sur ce moteur par test/fournil-saison.test.js) : quotidien 1 h → finie le 28 nov. ; occasionnel 17 min
    quatre jours sur sept → 13/22 ; et sans effet notable sur le rythme des boutiques (outils/marche/longevite-saison.js). */
@@ -44,7 +44,7 @@
   return SAISONS.ajouter({
     id: 'automne-2026', nom: 'La saison d’automne', court: 'Saison d’automne', annee: 2026,
     debut: SAISONS.parisMs(2026, 11, 13, 12), fin: SAISONS.parisMs(2026, 12, 1, 0),
-    sources: SAISONS.SOURCES, crans: CRANS, xpCran: 50,
+    sources: SAISONS.SOURCES, crans: CRANS, xpCran: 45,
     titre: { xp: 250, distinction: 'feuille-or-2026', nom: 'Feuille d’or 2026' },
     evenements: ['marche'], // les paliers d'événement qui comptent (st.marche.paliers) ; l'Avent ajoutera sa clé dans sa propre fiche
     famille: 'piste-automne', tenue: 'automne', // le carnet (src/chaine.js) et la garde-robe (src/game.js)
