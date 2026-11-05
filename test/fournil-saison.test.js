@@ -102,6 +102,16 @@ console.log('── la fin de la saison ──');
   check(o.fin && d && d.id === 'automne-2026' && d.lots.map((l) => l.n).join() === '3,4,5,6,7,8,9,10,11,12', 'les crans atteints et pas reçus (3 à 12) sont donnés d’office : leur lot attend l’écran (finDue), qui les distribue et montre la feuille');
   check(SA.recevoirFin(st) === d && SA.finDue(st) === null && SA.pas(st, P(101, 1)).fin === null, 'recevoirFin : la feuille montrée une fois');
   check(SA.possede(st, 'automne-bottines') === false && SA.possede(st, 'automne-gavroche') && SA.possede(st, 'couronne-feuilles'), 'le carnet lit l’archive : la casquette (cran 5) et la couronne (cran 3) à vie ; pas les bottines (cran 17, jamais atteint)'); }
+{ // une horloge reculée après la fin (src/horloge.js, le recul : 1er déc. 0:00:30 → 30 nov. 23:54) : la saison finie ne se rouvre pas, l'archive reste
+  const t = P(30, 20), st = partie(t, { obj: 3, etoile: true, defi: true, paliers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] }); SA.pas(st, t); st.piste.xp = 1400; SA.toutRecevoir(st);
+  const ids = ['couronne-feuilles', 'guirlande-feuilles', 'lanterne-automne', 'epouvantail', 'trophee-automne-2026', 'automne-bottines', 'feuille-or-2026'];
+  const avant = ids.every((i) => SA.possede(st, i)); SA.pas(st, P(101, 0, 0, 30)); SA.recevoirFin(st);
+  const o = SA.pas(st, P(30, 23, 54));
+  check(avant && st.piste.id === '' && o.xp === 0 && SA.aRecevoir(st).length === 0 && st.piste.xp === 0, 'un recul de 6 min après la fin (30 nov. 23:54) : la saison d’automne ne se rouvre pas (aucune XP recomptée, rien à recevoir de nouveau)');
+  SA.pas(st, P(101, 0, 0, 10));
+  check(JSON.stringify(st.piste.passees['automne-2026']) === JSON.stringify({ xp: 1400, crans: 22, titre: 1 }) && SA.finDue(st) === null && ids.every((i) => SA.possede(st, i)), 'minuit de nouveau : l’archive intacte ({ xp 1400, crans 22, titre 1 }), aucune feuille de fin de plus, les décos, le trophée, la tenue et le titre toujours au carnet');
+  const st2 = partie(P(30, 20)); st2.piste = { v: 1, id: 'automne-2026', xp: 120, recus: 0, titre: 0, j: { d: '', o: 0, c: 0, k: 0, s: 0, p: 0 }, sem: '', veille: '', ev: { marche: 0 }, passees: { 'automne-2026': { xp: 1400, crans: 22, titre: 1 } } };
+  SA.etat(st2, P(101, 0, 0, 5)); check(JSON.stringify(st2.piste.passees['automne-2026']) === JSON.stringify({ xp: 1400, crans: 22, titre: 1 }) && SA.possede(st2, 'trophee-automne-2026'), 'une seconde fin de la même saison : l’archive fusionnée au plus haut, jamais écrasée'); }
 { const t = P(102, 10), st = partie(t); st.piste = { v: 1, id: 'printemps-2031', xp: 77, recus: 0, titre: 0, j: { d: '', o: 0, c: 0, k: 0, s: 0, p: 0 }, sem: '', veille: '', ev: {}, passees: {} };
   SA.etat(st, t); check(st.piste.id === '' && st.piste.passees['printemps-2031'] && st.piste.passees['printemps-2031'].xp === 77, 'une saison inconnue (une version future) : archivée telle quelle, sans exception'); }
 

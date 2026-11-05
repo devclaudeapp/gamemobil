@@ -134,7 +134,7 @@
     const p = reparer(st, now); if (!p) return null;
     const F = active(now);
     if (p.id && (!F || p.id !== F.id)) fin(st, now); // la saison de la piste est finie (ou inconnue) : archivée, ses dus rangés
-    else if (!p.id && F) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre
+    else if (!p.id && F && !p.passees[F.id]) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre (jamais une saison déjà finie : une horloge reculée après la fin ne la rouvre pas)
     return st.piste;
   }
 
@@ -243,8 +243,9 @@
     if (F && Number.isFinite(now) && now < F.debut) return null; // (une horloge reculée avant le début : on attend)
     const lots = F ? toutRecevoir(st) : [];
     const res = { id: p.id, nom: F ? F.nom : p.id, lots, xp: p.xp, crans: F ? crans(st) : 0, titre: F && F.titre ? p.titre : 0 };
-    const passees = Object.assign({}, p.passees); passees[p.id] = { xp: res.xp, crans: res.crans, titre: res.titre };
-    const n = Fa ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!Fa) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
+    const passees = Object.assign({}, p.passees), av = objet(passees[p.id]) ? passees[p.id] : null; // (une archive déjà là : fusionnée au plus haut, jamais écrasée)
+    passees[p.id] = av ? { xp: Math.max(av.xp, res.xp), crans: Math.max(av.crans, res.crans), titre: av.titre || res.titre ? 1 : 0 } : { xp: res.xp, crans: res.crans, titre: res.titre };
+    const n = Fa && !passees[Fa.id] ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!n.id) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
     n.dus = lots.length ? res : (p.dus || null); // (des dus d'avant pas encore montrés : gardés)
     if (lots.length && p.dus && Array.isArray(p.dus.lots)) res.lots = p.dus.lots.concat(lots);
     st.piste = n;
