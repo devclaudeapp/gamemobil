@@ -691,3 +691,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #hud.ralenti .h-lent { opacity: 1; }
 @media (orientation: portrait) { .h-effets { left: calc(12px + var(--hg)); top: calc(110px + var(--ht)); } }
 @media (prefers-reduced-motion: reduce) { .h-effet.fin { animation: none; } }
+
+/* ─── Lot 5 : les phases du boss, la carte d'un nouvel ennemi ─── */
+.h-boss .h-barre { position: relative; }
+.h-boss .cran { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, .75); display: none; }
+.h-boss .cran.c2 { left: 66.6%; } .h-boss .cran.c1 { left: 33.3%; }
+.h-boss.phases .cran { display: block; }
+.h-boss.rage .h-barre { box-shadow: 0 0 12px rgba(255, 60, 40, .75); animation: rage-boss .7s ease-in-out infinite alternate; }
+@keyframes rage-boss { from { filter: brightness(1); } to { filter: brightness(1.35); } }
+.h-trouve.ennemi { border-color: var(--teinte, #9AA0A8); max-width: min(86vw, 430px); }
+.h-trouve.ennemi small { color: #FF9A8A; }
+.h-trouve.ennemi em { font: 600 12px/1.25 var(--texte); font-style: normal; color: #E4E7EC; }
+.h-trouve.ennemi.vu { animation-duration: 3.6s; }
+.ennemi-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 50% 38%, var(--teinte, #9AA0A8) 0 46%, rgba(0, 0, 0, .35) 47%); position: relative; }
+.ennemi-ico::before, .ennemi-ico::after { content: ''; position: absolute; top: 13px; width: 7px; height: 7px; border-radius: 50%; background: #1F2533; box-shadow: 0 0 0 2px #FF4A3A; }
+.ennemi-ico::before { left: 11px; } .ennemi-ico::after { right: 11px; }
+@media (orientation: landscape) and (max-height: 400px) { .h-trouve.ennemi em { font-size: 11px; } .ennemi-ico { width: 32px; height: 32px; } .ennemi-ico::before, .ennemi-ico::after { top: 10px; } .ennemi-ico::before { left: 8px; } .ennemi-ico::after { right: 8px; } }
+@media (prefers-reduced-motion: reduce) { .h-boss.rage .h-barre { animation: none; } }

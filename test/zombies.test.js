@@ -426,6 +426,58 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     check(g.joueurs[0].effets.rage > 0 && g.leurres.length === 1 && g.ralenti > 0 && g.largage && g.largage.x === 4 && g.pieges[0].etat === 'actif' && g.pieges.every((p, i) => p.x === h.pieges[i].x)
       && g.objets.some((x) => x.type === 'bonus' && x.bonus === 'bombe') && g.objets.some((x) => x.type === 'caisse' && x.rare), 'à plusieurs : bonus, effets, leurre, ralenti, largage et pièges arrivent chez les copains'); }
 }
+// ─── le Lot 5 : blindé, fouisseur, pondeuse (et ses larves), hurleur ; les boss à trois phases ───
+{
+  const mk = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; const zb = { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: Z.vitesse, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 0, coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; if (Z.bouclier) zb.bouclier = Z.bouclier.vie; if (Z.boss) zb.phase = 1; return zb; };
+  const nouvelle = (o) => { const jeu = J.creer(Object.assign({ arene: 'jardin', graine: 31, attente: 99 }, o || {})); const j = jeu.joueurs[0]; j.xp = -1e9; j.vie = j.vieMax = 1e6; return jeu; };
+  const nv = ['blinde', 'fouisseur', 'pondeuse', 'hurleur'];
+  check(nv.every((k) => D.ZOMBIES[k] && D.ZOMBIES[k].astuce && D.ZOMBIES[k].poids > 0 && D.ZOMBIES[k].depuis >= 9) && D.ZOMBIES.larve && D.ZOMBIES.larve.poids === 0, 'quatre nouveaux zombies (blindé, fouisseur, pondeuse, hurleur), chacun son astuce ; les larves ne sortent que des pondeuses');
+  check(new Set(D.BOSS.map((k) => D.ZOMBIES[k].attaque && D.ZOMBIES[k].attaque.genre)).size === 4 && D.PHASES.seuils.length === 2, 'chaque boss a son attaque spéciale (onde, bond, nova, éclipse), deux seuils de phase');
+  // le blindé : de face, son bouclier prend presque tout ; de dos, rien ne l'arrête ; le bouclier cassé, la face aussi passe
+  { const coup = (dos) => { const jeu = nouvelle(), j = jeu.joueurs[0], zb = mk(9500, 'blinde', j.x + 3, j.z, 5000); zb.angle = Math.PI + (dos ? Math.PI : 0); jeu.zombies.push(zb); j.angle = 0; const v0 = zb.vie, b0 = zb.bouclier; for (let k = 0; k < 5; k++) J.tirer(jeu, j, D.ARMES.pistolet, zb, 'pistolet'); return [v0 - zb.vie, b0 - zb.bouclier, jeu]; };
+    const [face, use] = coup(false), [dos, use2] = coup(true);
+    check(face > 0 && face < dos * 0.3 && use > 0 && use2 === 0, `le blindé : 5 balles de face lui ôtent ${face.toFixed(0)} (le bouclier en prend ${use.toFixed(0)}), de dos ${dos.toFixed(0)}`);
+    const jeu = nouvelle(), j = jeu.joueurs[0], zb = mk(9501, 'blinde', j.x + 3, j.z, 1e5); zb.angle = Math.PI; jeu.zombies.push(zb); j.angle = 0; let brise = false;
+    for (let k = 0; k < 80 && zb.bouclier > 0; k++) { J.tirer(jeu, j, D.ARMES.fusil, zb, 'fusil'); if (jeu.evs.some((e) => e.t === 'brise')) brise = true; }
+    const v1 = zb.vie; J.tirer(jeu, j, D.ARMES.pistolet, zb, 'pistolet'); check(brise && zb.bouclier === 0 && v1 - zb.vie >= D.ARMES.pistolet.degats * 0.9, `le bouclier finit par casser (« brise ») : ensuite la face prend tout (${(v1 - zb.vie).toFixed(0)})`); }
+  // le fouisseur : il plonge, file sous terre (intouchable, ni visé ni touché), puis surgit tout près et blesse
+  { const jeu = nouvelle({ attente: 99 }), j = jeu.joueurs[0], zb = mk(9600, 'fouisseur', j.x + 12, j.z, 500); zb.dehors = 0; jeu.zombies.push(zb);
+    let evs = avancer(jeu, 2); const dessous = zb.terre === true && evs.some((e) => e.t === 'terre');
+    j.viseId = 0; J.tirer(jeu, j, D.ARMES.pistolet, zb, 'pistolet'); const intact = zb.vie === 500; avancer(jeu, 30); const pasVise = j.viseId !== zb.id;
+    const v0 = j.vie; evs = avancer(jeu, 60 * 4); const s = evs.find((e) => e.t === 'surgit');
+    check(dessous && intact && pasVise && s && !zb.terre && Math.hypot(zb.x - j.x, zb.z - j.z) < 3 && j.vie < v0, `le fouisseur : sous terre il est intouchable et pas visé, puis il surgit à ${s ? Math.hypot(s.x - j.x, s.z - j.z).toFixed(1) : '—'} m et blesse`); }
+  // la pondeuse : des larves de temps en temps, une couvée à sa mort
+  { const jeu = nouvelle({ attente: 99 }), j = jeu.joueurs[0], zb = mk(9700, 'pondeuse', j.x + 9, j.z, 500); zb.ponteT = 0.5; jeu.zombies.push(zb);
+    let evs = avancer(jeu, 60); const n1 = jeu.zombies.filter((z) => z.type === 'larve').length;
+    zb.vie = 1; zb.feu = 2; zb.feuDps = 300; zb.feuT = 0; evs = avancer(jeu, 3); const n2 = jeu.zombies.filter((z) => z.type === 'larve').length;
+    check(n1 === D.ZOMBIES.pondeuse.ponte.nombre && !jeu.zombies.includes(zb) && n2 === n1 + D.ZOMBIES.pondeuse.ponte.mort && evs.some((e) => e.t === 'ponte'), `la pondeuse : ${n1} larves pondues, puis ${n2 - n1} de plus à sa mort`); }
+  // le hurleur : les zombies autour vont plus vite (et frapperont plus fort) le temps du cri
+  { const marche = (avec) => { const jeu = nouvelle(), j = jeu.joueurs[0], t = mk(9800, 'trainard', j.x + 14, j.z); jeu.zombies.push(t); if (avec) { const h = mk(9801, 'hurleur', j.x + 16, j.z + 2); h.hurleT = 0.01; jeu.zombies.push(h); } avancer(jeu, 3); const x0 = t.x; avancer(jeu, 60); return [x0 - t.x, t.excite > 0]; };
+    const [a] = marche(false), [b, ex] = marche(true); check(ex && b > a * 1.25, `le hurleur : le traînard d'à côté s'excite et avance ${b.toFixed(2)} m au lieu de ${a.toFixed(2)} m`); }
+  // les boss : la phase 2 à deux tiers de sa vie (un cri qui repousse, puis l'attaque spéciale annoncée, puis portée), la 3 à un tiers (il enrage)
+  { const jeu = nouvelle(), j = jeu.joueurs[0], b = mk(9900, 'golem', j.x + 2.2, j.z, 1e5); jeu.zombies.push(b); b.vie = 6e4;
+    let evs = avancer(jeu, 2); const ph = evs.find((e) => e.t === 'phase'), loin = Math.hypot(j.x - b.x, j.z - b.z);
+    evs = avancer(jeu, 60 * 6); const pr = evs.find((e) => e.t === 'prepare'), fr = evs.find((e) => e.t === 'frappe');
+    check(ph && ph.n === 2 && b.phase === 2 && loin > 3 && pr && fr && fr.genre === 'onde' && j.vie < j.vieMax, `le golem : à 60 % de sa vie, phase 2 (le cri le repousse à ${loin.toFixed(1)} m), puis l'onde de choc s'annonce et frappe`);
+    const v0 = b.vitesse; b.vie = 3e4; evs = avancer(jeu, 2); check(b.phase === 3 && evs.some((e) => e.t === 'phase' && e.n === 3) && b.vitesse > v0 * 1.2, 'à un tiers : phase 3, il enrage (plus vite)'); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0], b = mk(9901, 'loupgarou', j.x + 9, j.z, 1e5); jeu.zombies.push(b); b.vie = 6e4; const evs = avancer(jeu, 60 * 5), ph = evs.find((e) => e.t === 'phase');
+    check(ph && ph.pts.length === D.PHASES.meute[0] && evs.filter((e) => e.t === 'mort' && e.type === 'coureur').length + jeu.zombies.filter((z) => z.type === 'coureur').length === D.PHASES.meute[0] && evs.some((e) => e.t === 'prepare' && e.genre === 'bond') && evs.some((e) => e.t === 'frappe' && e.genre === 'bond'), 'le loup-garou : sa meute de coureurs à la phase 2, puis il bondit sur sa proie'); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0], b = mk(9902, 'golemglace', j.x + 2.5, j.z, 1e5); jeu.zombies.push(b); b.vie = 6e4; const evs = avancer(jeu, 60 * 4);
+    const gele = j.gele > 0, x0 = j.x; avancer(jeu, 30, { mx: -1, mz: 0 }); const lent = x0 - j.x;
+    check(evs.some((e) => e.t === 'frappe' && e.genre === 'nova') && gele && lent < D.JOUEUR.vitesse * 0.5 * 0.75, `le golem de glace : sa nova gèle le survivant (${lent.toFixed(2)} m en 0,5 s)`); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0], b = mk(9903, 'vampire', j.x + 8, j.z, 1e5); jeu.zombies.push(b); b.vie = 6e4; j.angle = 0; const v0 = j.vie;
+    const evs = avancer(jeu, 60 * 4, { mx: 0, mz: 0 }); const e = evs.find((x) => x.t === 'eclipse');
+    check(e && Math.hypot(e.x - j.x, e.z - j.z) < 3.5 && j.vie < v0, `le vampire : il disparaît et reparaît dans le dos du survivant (${e ? Math.hypot(e.x - j.x, e.z - j.z).toFixed(1) : '—'} m), et frappe`); }
+  // dès la vague 16, les nouveaux sortent avec les autres, et rien ne casse (pas de position invalide)
+  { const jeu = J.creer({ arene: 'jardin', graine: 77, vagueDepart: 16, attente: 0.1 }), j = jeu.joueurs[0]; j.vie = j.vieMax = 1e7; j.xp = -1e9; avancer(jeu, 60 * 50, () => ({ mx: 0, mz: 0 }));
+    const vus = nv.filter((k) => jeu.vus[k]); check(vus.length === 4 && jeu.zombies.every((z) => Number.isFinite(z.x) && Number.isFinite(z.z)), `à la vague 16, les quatre nouveaux sont dans la horde (${vus.join(', ')})`); }
+  // à plusieurs : sous terre, excité, le bouclier, la phase, le gel arrivent chez les copains
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'jardin', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h = J.creer(o), g = J.creer(o);
+    const f = mk(1, 'fouisseur', 3, 3); f.terre = true; const bl = mk(2, 'blinde', 4, 4); bl.excite = 2; const bo = mk(3, 'vampire', 5, 5); bo.phase = 3; h.zombies.push(f, bl, bo); h.joueurs[0].gele = 2;
+    ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b'); const G = (id) => g.zombies.find((z) => z.id === id);
+    check(G(1).terre && !G(2).terre && G(2).excite > 0 && G(2).bouclier > 0 && G(3).phase === 3 && g.joueurs[0].gele > 0, 'à plusieurs : le fouisseur sous terre, le blindé excité et son bouclier, la phase du boss, le gel du survivant arrivent chez les copains'); }
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;

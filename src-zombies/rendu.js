@@ -289,7 +289,7 @@ const ZRENDU = (() => {
       for (let i = alertes.length - 1; i >= 0; i--) { const a = alertes[i]; a.t += dt; if (a.t >= a.delai) alertes.splice(i, 1); }
       anneaux.forEach((o, i) => {
         const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && a.meteo === 'meteores'; if (!a) return;
-        const k = a.t / a.delai; o.m.position.set(a.x, 0.04, a.z); o.m.scale.setScalar(a.r * (1.25 - k * 0.25)); o.m.material.opacity = 0.45 + 0.45 * Math.abs(Math.sin(a.t * 14));
+        const k = a.t / a.delai; o.m.material.color.set(a.couleur || '#FF3B2F'); o.m.position.set(a.x, 0.04, a.z); o.m.scale.setScalar(a.r * (1.25 - k * 0.25)); o.m.material.opacity = 0.45 + 0.45 * Math.abs(Math.sin(a.t * 14));
         if (o.r.visible) { o.r.position.set(a.x + (1 - k) * 4, 0.3 + (1 - k) * 14, a.z - (1 - k) * 2); o.r.rotation.set(a.t * 5, a.t * 3, 0); if (Math.random() < 0.6) particule(o.r.position.x, o.r.position.y, o.r.position.z, 0, 0.5, 0, 0.5, 0.2, Math.random() < 0.5 ? '#FF8A3A' : '#8A8A8A', 0); }
       });
     }
@@ -342,13 +342,14 @@ const ZRENDU = (() => {
         // sortir de terre : les 0,7 premières secondes
         const age = jeu.t - zb.naissance, y = (age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0) + (zb.saut > 0 && Zd.saut ? Math.sin((1 - zb.saut / Zd.saut.duree) * Math.PI) * 1.8 : 0);
         const clignote = Zd.kamikaze && Math.floor(temps * (zb.bouge ? 7 : 3) + zb.id) % 2 === 0;
+        if (zb.terre) { if (ACC.fouisseur) accessoire('fouisseur', zb.x, 0, zb.z, zb.angle, temps + zb.id, Zd); if (Math.random() < dt * 12) particule(zb.x + (Math.random() - 0.5) * 0.7, 0.1, zb.z + (Math.random() - 0.5) * 0.7, (Math.random() - 0.5) * 1.5, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 1.5, 0.5, 0.09, Math.random() < 0.5 ? '#7A5A3A' : '#A88A5A', 0); continue; } // (sous terre : la motte qui avance)
         if (KZ && !Zd.boss) {
           // le zombie Kenney : marche (sprint pour le Coureur), le geste d'attraper quand il frappe, l'immobilité sinon
           const course = zb.type === 'coureur' && zb.bouge, clip = zb.attaque > 0 ? 'pick-up' : !zb.bouge ? 'idle' : course ? 'sprint' : 'walk';
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
-          if (ACC[zb.type]) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : 0);
+          if (ACC[zb.type] && zb.type !== 'fouisseur' && (zb.type !== 'blinde' || zb.bouclier > 0)) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.excite > 0 ? 4 : 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
@@ -373,7 +374,7 @@ const ZRENDU = (() => {
       const Mz = MOD.M.zombie;
       KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
-    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A'), OR = new T.Color('#FFD24A');
+    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A'), OR = new T.Color('#FFD24A'), EXCITE = new T.Color('#FF6A5A');
     // les accessoires qui font reconnaître un type d'un coup d'œil : le sabre du sabreur, la bombe du kamikaze, le boulet du geôlier, l'aura
     // de l'invocateur (des maillages instanciés, posés à côté du zombie, dans son repère)
     const mkAcc = (geo, couleur, base) => { const m = new T.InstancedMesh(geo, base || new T.MeshLambertMaterial({ color: couleur }), 32); m.frustumCulled = false; m.count = 0; m.castShadow = !base; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
@@ -382,6 +383,12 @@ const ZRENDU = (() => {
       kamikaze: mkAcc(new T.SphereGeometry(0.27, 8, 6), '#E04030'),
       geolier: mkAcc(new T.IcosahedronGeometry(0.24, 0), '#3A3540'),
       invocateur: mkAcc(new T.RingGeometry(0.75, 0.95, 20).rotateX(-Math.PI / 2), null, new T.MeshBasicMaterial({ color: '#B57CFF', transparent: true, opacity: 0.55, depthWrite: false })),
+      // le Lot 5 : le bouclier du blindé (une plaque rivetée devant lui), la motte du fouisseur sous terre, la poche d'œufs de la pondeuse,
+      // le cercle rouge du hurleur
+      blinde: mkAcc(new T.BoxGeometry(0.12, 0.9, 0.8), '#A7B1BE'),
+      fouisseur: mkAcc(new T.SphereGeometry(0.55, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1), '#7A5A3A'),
+      pondeuse: mkAcc(new T.IcosahedronGeometry(0.34, 1), '#E8B8D8'),
+      hurleur: mkAcc(new T.RingGeometry(0.7, 0.86, 20).rotateX(-Math.PI / 2), null, new T.MeshBasicMaterial({ color: '#FF5A4A', transparent: true, opacity: 0.6, depthWrite: false })),
     };
     const nAcc = {}; const _ao = new T.Vector3();
     function accessoire(type, x, y, z, a, temps, Zd) {
@@ -389,6 +396,10 @@ const ZRENDU = (() => {
       const k = Zd.taille, ca = Math.cos(a), sa = Math.sin(a);
       if (type === 'sabreur') { _ao.set(x + ca * 0.25 * k - sa * 0.38 * k, y + 0.95 * k, z + sa * 0.25 * k + ca * 0.38 * k); _q.setFromEuler(_e.set(-0.35, Math.PI / 2 - a, 0)); }
       else if (type === 'kamikaze') { _ao.set(x - ca * 0.42 * k, y + 1.25 * k + Math.sin(temps * 9) * 0.04, z - sa * 0.42 * k); _q.identity(); }
+      else if (type === 'blinde') { const e = k * ECHELLE; _ao.set(x + ca * 0.72 * e, y + 0.62 * e, z + sa * 0.72 * e); _q.setFromEuler(_e.set(0, -a, 0.42)); _s.set(e, e, e); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base); return; } // (devant lui, penché en arrière : on le voit d'en haut)
+      else if (type === 'fouisseur') { _ao.set(x, 0.02, z); _q.setFromEuler(_e.set(0, temps * 0.5, 0)); _s.set(1 + Math.sin(temps * 13) * 0.08, 1 + Math.sin(temps * 17) * 0.2, 1 + Math.cos(temps * 11) * 0.08); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base); return; }
+      else if (type === 'pondeuse') { const g = 1 + Math.sin(temps * 4) * 0.07; _ao.set(x - ca * 0.5 * k, y + 0.95 * k, z - sa * 0.5 * k); _q.identity(); _s.set(g * k, g * 0.85 * k, g * k); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base); return; }
+      else if (type === 'hurleur') { const g = 1 + (temps * 0.8 % 1) * 0.5; _ao.set(x, 0.05, z); _q.identity(); _s.set(g, 1, g); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base); return; }
       else if (type === 'geolier') { _ao.set(x - sa * -0.5 * k + ca * 0.1, y + 0.35, z + ca * -0.5 * k + sa * 0.1); _q.setFromEuler(_e.set(temps, temps * 0.7, 0)); }
       else { _ao.set(x, 0.04, z); _q.setFromEuler(_e.set(0, temps * 1.5, 0)); }
       _s.set(1, 1, 1); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base);
@@ -398,7 +409,7 @@ const ZRENDU = (() => {
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
       const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
       let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
-      const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : teintes[type];
+      const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : etat === 4 ? EXCITE : teintes[type];
       for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
     }
 
@@ -485,12 +496,15 @@ const ZRENDU = (() => {
       for (const zb of jeu.zombies) {
         const Zd = D.ZOMBIES[zb.type]; if (!Zd.boss || !bossPret(zb.type)) continue;
         const b = bossVus.get(zb.id) || nouveauBoss(zb); b.vu = true;
-        const age = jeu.t - zb.naissance, y = age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0;
+        const age = jeu.t - zb.naissance, A5 = Zd.attaque, bond = zb.saut > 0 && A5 && A5.duree ? Math.sin((1 - zb.saut / A5.duree) * Math.PI) * 2.6 : 0;
+        const y = (age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0) + bond;
         b.o.position.set(zb.x, y - b.sol, zb.z); b.o.rotation.set(0, Math.PI / 2 - zb.angle, 0);
         b.coup = Math.max(0, b.coup - dt);
         if (zb.attaque > 0.22 && b.coup <= 0 && b.actions.coup) { b.act = ''; jouerBoss(b, 'coup', 0.1); b.coup = b.actions.coup.getClip().duration * 0.8; }
         else if (b.coup <= 0) { const v = zb.bouge ? (zb.vitesse > 1.8 ? 'course' : 'marche') : 'repos'; jouerBoss(b, v); if (b.actions[v]) b.actions[v].timeScale = v === 'marche' ? Math.max(0.6, zb.vitesse / 1.1) : 1; }
-        const rouge = zb.flash > 0 ? 0.35 : 0; for (const m of b.mats) if (m.emissive) m.emissive.setRGB(rouge, rouge * 0.15, rouge * 0.1);
+        const rage = (zb.phase || 1) >= 3 ? 0.16 + Math.sin(performance.now() / 160) * 0.08 : 0; // (la phase 3 : il rougeoie)
+        const rouge = zb.flash > 0 ? 0.35 : rage; for (const m of b.mats) if (m.emissive) m.emissive.setRGB(rouge, rouge * 0.15, rouge * 0.1);
+        if (rage && Math.random() < dt * 6) particule(zb.x + (Math.random() - 0.5) * 1.2, 1 + Math.random() * 2, zb.z + (Math.random() - 0.5) * 1.2, 0, 1.5, 0, 0.6, 0.12, '#FF5A3A', 0);
         b.mixer.update(dt);
       }
       for (const [id, b] of bossVus) {
@@ -682,8 +696,9 @@ const ZRENDU = (() => {
       if (!s.bulle) { s.bulle = new T.Mesh(geoBulle, new T.MeshBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.2, depthWrite: false, blending: T.AdditiveBlending })); s.bulle.position.y = 1.05; s.g.add(s.bulle);
         s.aura = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#E5533D', transparent: true, opacity: 0.85, depthWrite: false })); s.aura.position.y = 0.05; s.g.add(s.aura); } // (accrochées au survivant : elles partent avec lui)
       const b = E.bouclier || 0; s.bulle.visible = b > 0 && j.vivant && !(b < 1.5 && Math.floor(b * 8) % 2 === 0); if (s.bulle.visible) { s.bulle.scale.setScalar(1.15 + Math.sin(t * 6) * 0.04); s.bulle.material.opacity = 0.16 + Math.sin(t * 9) * 0.05; }
-      const k = ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
-      if (k) { s.aura.material.color.set(D.BONUS[k].couleur); s.aura.rotation.y = t * 2; s.aura.scale.setScalar((k === 'aimant' ? 1.6 : 1.1) + Math.sin(t * 7) * 0.07); if (k === 'rage' && Math.random() < dt * 14) particule(j.x + (Math.random() - 0.5) * 0.8, 0.3, j.z + (Math.random() - 0.5) * 0.8, 0, 2.5 + Math.random() * 2, 0, 0.45, 0.08, Math.random() < 0.5 ? '#FF5A3A' : '#FFB347', 0); }
+      const k = j.gele > 0 ? 'gele' : ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
+      if (k === 'gele') { s.aura.material.color.set('#A8E4FF'); s.aura.rotation.y = t * 0.6; s.aura.scale.setScalar(1.25); if (Math.random() < dt * 10) particule(j.x + (Math.random() - 0.5) * 0.9, 0.3 + Math.random(), j.z + (Math.random() - 0.5) * 0.9, 0, 0.6, 0, 0.6, 0.06, '#E8F8FF', 0); }
+      else if (k) { s.aura.material.color.set(D.BONUS[k].couleur); s.aura.rotation.y = t * 2; s.aura.scale.setScalar((k === 'aimant' ? 1.6 : 1.1) + Math.sin(t * 7) * 0.07); if (k === 'rage' && Math.random() < dt * 14) particule(j.x + (Math.random() - 0.5) * 0.8, 0.3, j.z + (Math.random() - 0.5) * 0.8, 0, 2.5 + Math.random() * 2, 0, 0.45, 0.08, Math.random() < 0.5 ? '#FF5A3A' : '#FFB347', 0); }
     }
     // le leurre : un mannequin de bois et sa cible, un cercle rose qui pulse à ses pieds
     const reserveLeurres = [];
@@ -1128,6 +1143,27 @@ const ZRENDU = (() => {
           case 'largue': { secousse = Math.max(secousse, 0.15); for (let k = 0; k < 4; k++) fumee(e.x + (Math.random() - 0.5) * 1.5, 0.3, e.z + (Math.random() - 0.5) * 1.5, 0.9, 1.4, '#B8A88A'); for (let k = 0; k < 12; k++) { const a = Math.random() * 6.28; particule(e.x, 0.2, e.z, Math.cos(a) * 3, 1.5 + Math.random() * 2, Math.sin(a) * 3, 0.6, 0.1, '#C8B48A', 0.2); } break; }
           case 'piege': onde(e.x, e.z, D.PIEGE.rayon * 1.3, '#7FDBFF'); break;
           case 'zap': zap(e); break;
+          // le Lot 5 : le bouclier qui sonne et qui casse, le fouisseur, la ponte, le hurlement ; les boss (la phase, l'attaque annoncée puis portée)
+          case 'ricoche': { const a = e.a || 0; for (let k = 0; k < 4; k++) particule(e.x + Math.cos(a) * 0.55, 0.9, e.z + Math.sin(a) * 0.55, Math.cos(a) * 2 + (Math.random() - 0.5) * 4, 1 + Math.random() * 2.5, Math.sin(a) * 2 + (Math.random() - 0.5) * 4, 0.25, 0.06, k % 2 ? '#FFFFFF' : '#FFE07A', 0); break; }
+          case 'brise': { const a = e.a || 0; for (let k = 0; k < 16; k++) particule(e.x + Math.cos(a) * 0.5, 0.9, e.z + Math.sin(a) * 0.5, Math.cos(a) * 3 + (Math.random() - 0.5) * 6, 2 + Math.random() * 4, Math.sin(a) * 3 + (Math.random() - 0.5) * 6, 0.9, 0.1, k % 3 ? '#8A929E' : '#D8DEE6', 0.5); lumiere(e.x, 1, e.z, '#FFF2C0', 8, 6, 0.08); break; }
+          case 'terre': case 'surgit': {
+            const n = e.t === 'surgit' ? 22 : 10; for (let k = 0; k < n; k++) { const a = Math.random() * 6.28, v = 1 + Math.random() * (e.t === 'surgit' ? 4 : 2); particule(e.x, 0.15, e.z, Math.cos(a) * v, 2 + Math.random() * 4, Math.sin(a) * v, 0.7, 0.12, k % 2 ? '#7A5A3A' : '#A88A5A', 0.5); }
+            flaque(e.x, e.z, e.t === 'surgit' ? 1.3 : 0.8, '#4A3A28'); if (e.t === 'surgit') { onde(e.x, e.z, e.r || 1.5, '#C8A070'); secousse = Math.max(secousse, 0.15); } break;
+          }
+          case 'ponte': flaque(e.x, e.z, 0.7, '#C8A0B8'); for (const p of e.pts || []) for (let k = 0; k < 6; k++) particule(p[0], 0.3, p[1], (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.45, 0.08, k % 2 ? '#F0E0B0' : '#E8B8D8', 0); break;
+          case 'hurle': onde(e.x, e.z, e.r || 7, '#FF5A4A'); onde(e.x, e.z, (e.r || 7) * 0.55, '#FF9A8A'); break;
+          case 'phase': {
+            cinema(e.x, e.z, 1.2); secousse = Math.max(secousse, 0.5); onde(e.x, e.z, D.PHASES.repousse + 1, '#FFFFFF'); onde(e.x, e.z, 7, e.n >= 3 ? '#FF3B2F' : '#FFB03A'); lumiere(e.x, 2.5, e.z, e.n >= 3 ? '#FF5A3A' : '#FFC870', 40, 18, 0.4);
+            for (let k = 0; k < 30; k++) { const a = Math.random() * 6.28, v = 3 + Math.random() * 5; particule(e.x, 1.2, e.z, Math.cos(a) * v, 2 + Math.random() * 4, Math.sin(a) * v, 0.9, 0.12, k % 2 ? '#FFD84A' : '#FF6A3A', 0.4); }
+            for (const p of e.pts || []) for (let k = 0; k < 8; k++) particule(p[0], 0.2, p[1], (Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2, 0.7, 0.1, '#5A4A3A', 0);
+            break;
+          }
+          case 'prepare': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, couleur: e.genre === 'nova' ? '#5AC8FF' : e.genre === 'eclipse' ? '#B05AFF' : '#FF3B2F' }); break;
+          case 'frappe':
+            if (e.genre === 'nova') { onde(e.x, e.z, e.r, '#A8E4FF'); onde(e.x, e.z, e.r * 0.6, '#FFFFFF'); lumiere(e.x, 2, e.z, '#BFEFFF', 50, 20, 0.35); for (let k = 0; k < 40; k++) { const a = Math.random() * 6.28, v = 4 + Math.random() * 6; particule(e.x, 0.6, e.z, Math.cos(a) * v, 1 + Math.random() * 3, Math.sin(a) * v, 0.8, 0.1, k % 2 ? '#E8F8FF' : '#7FD0FF', 0.3); } flaque(e.x, e.z, e.r * 0.7, '#CFEFFF'); }
+            else { boum(e.x, e.z, e.genre === 'bond' ? 1.6 : 2.4); onde(e.x, e.z, e.r, '#E0C090'); flaque(e.x, e.z, e.r * 0.5, '#3A3428'); for (let k = 0; k < 24; k++) { const a = Math.random() * 6.28, v = 3 + Math.random() * 5; particule(e.x + Math.cos(a) * 0.8, 0.2, e.z + Math.sin(a) * 0.8, Math.cos(a) * v, 1 + Math.random() * 3, Math.sin(a) * v, 0.7, 0.14, k % 2 ? '#8A7A60' : '#C8B48A', 0.5); } }
+            secousse = Math.max(secousse, e.genre === 'bond' ? 0.4 : 0.6); break;
+          case 'eclipse': for (const [x, z] of [[e.x0, e.z0], [e.x, e.z]]) { for (let k = 0; k < 18; k++) { const a = Math.random() * 6.28, v = 1.5 + Math.random() * 3; particule(x, 1.4, z, Math.cos(a) * v, 1 + Math.random() * 3, Math.sin(a) * v, 0.7, 0.13, k % 3 ? '#2A1A30' : '#8C1C2C', 0); } fumee(x, 0.8, z, 0.8, 1.2, '#3A2A40'); } break;
         }
       }
       majSurvivants(jeu, idMoi, dt);

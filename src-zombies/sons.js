@@ -63,7 +63,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -133,6 +133,18 @@ const ZSONS = (() => {
         case 'zap': { const t = performance.now(); if (t - zapT > 220) { zapT = t; const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('tesla', 0.45 * k, p, 1.2); } break; }
         case 'piegeCher': if (e.id === idMoi) P.jouer('refus', 0.6); break;
         case 'piegePret': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.1) P.jouer('ding', 0.4 * k, p); break; }
+        // le Lot 5 : le bouclier du blindé (il sonne, il casse), le fouisseur (il plonge, il surgit), la ponte, le hurlement ; les boss
+        // (le rugissement d'une nouvelle phase, l'attaque qui s'annonce, puis qui frappe ; le vampire qui reparaît)
+        case 'ricoche': { const t = performance.now(); if (t - ricT > 90) { ricT = t; const [k, p] = ecoute(e.x, e.z, 22); if (k > 0.05) P.jouer('impactMetal', 0.5 * k, p, 1.2); } break; }
+        case 'brise': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('casse', 0.8 * k + 0.1, p); P.jouer('impactMetal', 0.7 * k, p, 0.7); } break; }
+        case 'terre': { const [k, p] = ecoute(e.x, e.z, 22); if (k > 0.05) jouer('marteau', 0.4 * k, p, 0.5); break; }
+        case 'surgit': { const [k, p] = ecoute(e.x, e.z, 24); if (k > 0.03) { jouer('boum', 0.45 * k, p, 1.4); jouer('grogne', 0.8 * k, p, 1.2); } if (k > 0.6) P.vibrer(25); break; }
+        case 'ponte': { const [k, p] = ecoute(e.x, e.z, 22); if (k > 0.05) jouer('splat', 0.6 * k, p, 1.3); break; }
+        case 'hurle': { const [k, p] = ecoute(e.x, e.z, 30); if (k > 0.03) { jouer('grogne', 1, p, 1.6); jouer('vague', 0.35 * k, p, 1.3); } break; }
+        case 'phase': jouer('grogne', 1, 0, 0.45); jouer('boum', 0.7, 0, 0.6); P.jouer('manche', 0.6); break;
+        case 'prepare': { const [k, p] = ecoute(e.x, e.z, 34); if (k > 0.03) P.jouer('ding', 0.5 * k + 0.2, p, 0.6); break; }
+        case 'frappe': { const [k, p] = ecoute(e.x, e.z, 36); jouer(e.genre === 'nova' ? 'cryo' : 'boum', 0.4 + 0.6 * k, p, e.genre === 'nova' ? 0.7 : 0.8); if (k > 0.4) P.vibrer(e.genre === 'nova' ? 30 : 45); break; }
+        case 'eclipse': { const [k, p] = ecoute(e.x, e.z, 30); jouer('arc', 0.6 * k + 0.2, p, 0.6); break; }
         case 'invoque': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('grogne', 0.9 * k + 0.1, p, 0.6); jouer('vague', 0.25 * k, p); } break; }
       }
     }

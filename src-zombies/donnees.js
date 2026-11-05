@@ -60,17 +60,25 @@
     // les talents : kamikaze (explose au contact ou à sa mort : souffle, degats), saut (bondit par-dessus les obstacles vers sa proie),
     // flamme (souffle du feu de près), pare (chance de parer une balle qui arrive de face), crochet (lance une chaîne qui tire le survivant
     // vers lui), invoque (relève les morts récents en traînards)
-    kamikaze:   { nom: 'Kamikaze',   vie: 30,   vitesse: 2.7,  degats: 6,  cadence: 1.0, rayon: 0.4,  ferraille: 2,  points: 20,  taille: 0.95, peau: '#C9D86A', haut: '#C0392B', bas: '#3B3B3B', depuis: 6, poids: 2.5, teinte: '#FF8A6A', kamikaze: { souffle: 2.3, degats: 32 } },
-    sauteur:    { nom: 'Sauteur',    vie: 40,   vitesse: 2.2,  degats: 8,  cadence: 1.4, rayon: 0.38, ferraille: 2,  points: 22,  taille: 0.9,  peau: '#9BCB5A', haut: '#5B7F3A', bas: '#3F3F4A', depuis: 7, poids: 2.5, teinte: '#B8F58A', saut: { portee: 9, duree: 0.6, recharge: 3.5, degats: 12 } },
-    flammeur:   { nom: 'Cracheur de feu', vie: 70, vitesse: 1.4, degats: 8,  cadence: 1.0, rayon: 0.45, ferraille: 3,  points: 30,  taille: 1.05, peau: '#C9B26A', haut: '#8C3A1C', bas: '#4A3A2A', depuis: 8, poids: 1.8, teinte: '#FFB060', flamme: { portee: 4.2, cone: 0.42, dps: 18 } },
-    sabreur:    { nom: 'Sabreur',    vie: 90,   vitesse: 1.9,  degats: 16, cadence: 1.2, rayon: 0.45, ferraille: 3,  points: 35,  taille: 1.05, peau: '#A9C08A', haut: '#4A5A78', bas: '#2B2F3A', depuis: 9, poids: 1.6, teinte: '#9DB8E8', pare: 0.6 },
-    geolier:    { nom: 'Geôlier',    vie: 150,  vitesse: 1.25, degats: 14, cadence: 0.9, rayon: 0.55, ferraille: 4,  points: 45,  taille: 1.2,  peau: '#8FA878', haut: '#4A3A5A', bas: '#2B2230', depuis: 11, poids: 1.1, teinte: '#B49AD8', crochet: { portee: 9, vitesse: 15, recharge: 5.5, degats: 8 } },
-    invocateur: { nom: 'Invocateur', vie: 110,  vitesse: 1.15, degats: 8,  cadence: 0.8, rayon: 0.45, ferraille: 5,  points: 55,  taille: 1.12, peau: '#D8E0C8', haut: '#5A2A6A', bas: '#2B2230', depuis: 12, poids: 0.9, teinte: '#E8D8FF', invoque: { portee: 11, recharge: 6, nombre: 3, distance: 6.5 } },
+    kamikaze:   { nom: 'Kamikaze',   vie: 30,   vitesse: 2.7,  degats: 6,  cadence: 1.0, rayon: 0.4,  ferraille: 2,  points: 20,  taille: 0.95, peau: '#C9D86A', haut: '#C0392B', bas: '#3B3B3B', depuis: 6, poids: 2.5, teinte: '#FF8A6A', kamikaze: { souffle: 2.3, degats: 32 } , astuce: 'Il explose au contact : abats-le de loin.' },
+    sauteur:    { nom: 'Sauteur',    vie: 40,   vitesse: 2.2,  degats: 8,  cadence: 1.4, rayon: 0.38, ferraille: 2,  points: 22,  taille: 0.9,  peau: '#9BCB5A', haut: '#5B7F3A', bas: '#3F3F4A', depuis: 7, poids: 2.5, teinte: '#B8F58A', saut: { portee: 9, duree: 0.6, recharge: 3.5, degats: 12 } , astuce: 'Il bondit par-dessus les murs : ne reste pas planté.' },
+    flammeur:   { nom: 'Cracheur de feu', vie: 70, vitesse: 1.4, degats: 8,  cadence: 1.0, rayon: 0.45, ferraille: 3,  points: 30,  taille: 1.05, peau: '#C9B26A', haut: '#8C3A1C', bas: '#4A3A2A', depuis: 8, poids: 1.8, teinte: '#FFB060', flamme: { portee: 4.2, cone: 0.42, dps: 18 } , astuce: 'Il crache du feu de près : garde tes distances.' },
+    sabreur:    { nom: 'Sabreur',    vie: 90,   vitesse: 1.9,  degats: 16, cadence: 1.2, rayon: 0.45, ferraille: 3,  points: 35,  taille: 1.05, peau: '#A9C08A', haut: '#4A5A78', bas: '#2B2F3A', depuis: 9, poids: 1.6, teinte: '#9DB8E8', pare: 0.6 , astuce: 'Il pare les balles de face : vise-le de côté.' },
+    geolier:    { nom: 'Geôlier',    vie: 150,  vitesse: 1.25, degats: 14, cadence: 0.9, rayon: 0.55, ferraille: 4,  points: 45,  taille: 1.2,  peau: '#8FA878', haut: '#4A3A5A', bas: '#2B2230', depuis: 11, poids: 1.1, teinte: '#B49AD8', crochet: { portee: 9, vitesse: 15, recharge: 5.5, degats: 8 } , astuce: 'Sa chaîne t’attire à lui : casse la ligne de vue.' },
+    invocateur: { nom: 'Invocateur', vie: 110,  vitesse: 1.15, degats: 8,  cadence: 0.8, rayon: 0.45, ferraille: 5,  points: 55,  taille: 1.12, peau: '#D8E0C8', haut: '#5A2A6A', bas: '#2B2230', depuis: 12, poids: 0.9, teinte: '#E8D8FF', invoque: { portee: 11, recharge: 6, nombre: 3, distance: 6.5 } , astuce: 'Il relève les morts : abats-le en premier.' },
+    // le Lot 5 : blindé (un bouclier de face : il prend les balles à sa place jusqu'à casser ; les explosions, le feu et les tirs de côté
+    // ou de dos passent), fouisseur (file sous terre, invisible et intouchable, et surgit sous les pieds), pondeuse (pond des larves, et
+    // en lâche une couvée à sa mort), hurleur (reste en retrait et hurle : les zombies autour vont plus vite et frappent plus fort)
+    blinde:     { nom: 'Blindé',     vie: 120,  vitesse: 1.25, degats: 16, cadence: 0.8, rayon: 0.55, ferraille: 4,  points: 45,  taille: 1.15, peau: '#9FB08A', haut: '#4A5058', bas: '#2B2F3A', depuis: 9, poids: 1.2, teinte: '#C9CED8', bouclier: { vie: 160, cone: 1.15, passe: 0.12 } , astuce: 'Son bouclier arrête les balles de face : contourne-le, ou fais-le sauter.' },
+    fouisseur:  { nom: 'Fouisseur',  vie: 55,   vitesse: 2.0,  degats: 11, cadence: 1.3, rayon: 0.4,  ferraille: 3,  points: 35,  taille: 0.95, peau: '#B49A6A', haut: '#6A5038', bas: '#3F3428', depuis: 10, poids: 1.3, teinte: '#D8B07A', terre: { vitesse: 4.4, surface: 1.6, duree: 5, dehors: 3.5, degats: 14, souffle: 1.5 } , astuce: 'Sous terre, il est intouchable : bouge quand le sol tremble.' },
+    pondeuse:   { nom: 'Pondeuse',   vie: 140,  vitesse: 1.0,  degats: 10, cadence: 0.8, rayon: 0.62, ferraille: 5,  points: 55,  taille: 1.32, peau: '#C8B0C0', haut: '#6A3A5A', bas: '#3A2A34', depuis: 13, poids: 0.9, teinte: '#F0B8E0', ponte: { recharge: 6, nombre: 2, mort: 5 } , astuce: 'Elle pond des larves, et en lâche une couvée en mourant.' },
+    hurleur:    { nom: 'Hurleur',    vie: 80,   vitesse: 1.3,  degats: 8,  cadence: 0.9, rayon: 0.45, ferraille: 4,  points: 50,  taille: 1.05, peau: '#D8C8A8', haut: '#9A2A2A', bas: '#2B2230', depuis: 14, poids: 0.8, teinte: '#FF8A7A', hurle: { recharge: 7, rayon: 7.5, duree: 4.5, vitesse: 1.4, degats: 1.4, distance: 6 } , astuce: 'Son cri rend les zombies plus rapides et plus forts : vise-le en premier.' },
+    larve:      { nom: 'Larve',      vie: 9,    vitesse: 3.1,  degats: 4,  cadence: 2.0, rayon: 0.28, ferraille: 1,  points: 4,   taille: 0.5,  peau: '#E8E0B0', haut: '#C8B880', bas: '#A89860', depuis: 99, poids: 0, teinte: '#FFF0A0', petit: true },
     // les boss : un toutes les cinq vagues, à tour de rôle (VAGUES.boss) ; modèles KayKit (src-zombies/modeles.js), squelette « large » ou « medium »
-    golem:      { nom: 'Golem squelette', vie: 1400, vitesse: 1.0,  degats: 35, cadence: 0.6, rayon: 1.05, ferraille: 25, points: 400, taille: 2.2,  peau: '#C9C2B0', haut: '#5A6070', bas: '#3B3B44', depuis: 5, poids: 0, boss: true, modele: 'golem', rig: 'large' },
-    loupgarou:  { nom: 'Loup-garou',      vie: 1000, vitesse: 2.3,  degats: 24, cadence: 1.1, rayon: 0.9,  ferraille: 25, points: 450, taille: 1.9,  peau: '#8A7560', haut: '#C0392B', bas: '#3B4A6B', depuis: 10, poids: 0, boss: true, modele: 'loup-garou', rig: 'medium' },
-    golemglace: { nom: 'Golem de glace',  vie: 2300, vitesse: 0.85, degats: 45, cadence: 0.5, rayon: 1.15, ferraille: 30, points: 550, taille: 2.4,  peau: '#CFE6F5', haut: '#7FB3D9', bas: '#5A87B0', depuis: 15, poids: 0, boss: true, modele: 'golem-glace', rig: 'large' },
-    vampire:    { nom: 'Vampire',         vie: 1700, vitesse: 1.7,  degats: 30, cadence: 0.9, rayon: 0.9,  ferraille: 30, points: 600, taille: 2.0,  peau: '#E8D9C8', haut: '#8C1C2C', bas: '#2B2230', depuis: 20, poids: 0, boss: true, modele: 'vampire', rig: 'medium' },
+    golem:      { nom: 'Golem squelette', vie: 1400, vitesse: 1.0,  degats: 35, cadence: 0.6, rayon: 1.05, ferraille: 25, points: 400, taille: 2.2,  peau: '#C9C2B0', haut: '#5A6070', bas: '#3B3B44', depuis: 5, poids: 0, boss: true, modele: 'golem', rig: 'large', attaque: { genre: 'onde', recharge: 7, prepare: 1.0, rayon: 5.5, degats: 28, recul: 9 } },
+    loupgarou:  { nom: 'Loup-garou',      vie: 1000, vitesse: 2.3,  degats: 24, cadence: 1.1, rayon: 0.9,  ferraille: 25, points: 450, taille: 1.9,  peau: '#8A7560', haut: '#C0392B', bas: '#3B4A6B', depuis: 10, poids: 0, boss: true, modele: 'loup-garou', rig: 'medium', attaque: { genre: 'bond', recharge: 6, prepare: 0.7, rayon: 2.6, degats: 26, portee: 14, duree: 0.55, meute: 'coureur' } },
+    golemglace: { nom: 'Golem de glace',  vie: 2300, vitesse: 0.85, degats: 45, cadence: 0.5, rayon: 1.15, ferraille: 30, points: 550, taille: 2.4,  peau: '#CFE6F5', haut: '#7FB3D9', bas: '#5A87B0', depuis: 15, poids: 0, boss: true, modele: 'golem-glace', rig: 'large', attaque: { genre: 'nova', recharge: 8, prepare: 1.2, rayon: 7, degats: 18, gel: 3, ralenti: 0.5 } },
+    vampire:    { nom: 'Vampire',         vie: 1700, vitesse: 1.7,  degats: 30, cadence: 0.9, rayon: 0.9,  ferraille: 30, points: 600, taille: 2.0,  peau: '#E8D9C8', haut: '#8C1C2C', bas: '#2B2230', depuis: 20, poids: 0, boss: true, modele: 'vampire', rig: 'medium', attaque: { genre: 'eclipse', recharge: 5.5, prepare: 0.6, derriere: 2.2, degats: 22, draine: 0.04 } },
   };
 
   // ─── les défenses (achetées avec la ferraille, posées aux pieds du survivant) ───
@@ -132,6 +140,10 @@
     grenade:   { nom: 'Poudre sèche',     desc: '−10 % de recharge des grenades',    crans: 3, prix: [8, 18, 32], par: 0.1 },
     arme:      { nom: 'Planque d’armes',  desc: 'Commence avec une arme trouvée',    crans: 1, prix: [40], par: 1 },
   };
+
+  // les phases des boss (Lot 5) : à 2/3 puis à 1/3 de sa vie, il rugit (un temps arrêté, il repousse ceux qui sont trop près) et passe à la
+  // phase suivante : dès la 2, son attaque spéciale (attaque ci-dessus) ; à la 3, il enrage (plus vite, l'attaque revient plus tôt)
+  const PHASES = { seuils: [2 / 3, 1 / 3], cri: 1.3, repousse: 3.2, rage: { vitesse: 1.25, recharge: 0.6 }, meute: [2, 3] };
 
   // ─── les vagues ───
   const BOSS = ['golem', 'loupgarou', 'golemglace', 'vampire'];
@@ -447,5 +459,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

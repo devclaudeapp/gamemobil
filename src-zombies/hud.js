@@ -96,7 +96,7 @@ const ZHUD = (() => {
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       </div>
       <div class="h-trouve" hidden></div>
-      <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
+      <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i><u class="cran c2"></u><u class="cran c1"></u></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
       <div class="h-flash"></div>
@@ -240,7 +240,12 @@ const ZHUD = (() => {
     // le boss (ou l'élite d'un contrat)
     const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss) || jeu.zombies.find((z) => z.elite && z.vie > 0);
     if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
-    if (boss && vu.bossNom !== boss.type + (boss.elite ? 'e' : '')) { vu.bossNom = boss.type + (boss.elite ? 'e' : ''); el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '')).toUpperCase(); }
+    const cleBoss = boss ? boss.type + (boss.elite ? 'e' : '') + (boss.phase || 1) : '';
+    if (boss && vu.bossNom !== cleBoss) { // (le nom, la phase ; les crans des phases sur la barre, pour un vrai boss)
+      vu.bossNom = cleBoss; const ph = D.ZOMBIES[boss.type].boss ? boss.phase || 1 : 0;
+      el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '') + (ph > 1 ? ` · phase ${ph}` : '')).toUpperCase();
+      el.boss.classList.toggle('phases', ph > 0); el.boss.classList.toggle('rage', ph >= 3);
+    }
     if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
     // les événements : rougeur, annonces, messages
     if (evs) for (const e of evs) {
@@ -250,6 +255,8 @@ const ZHUD = (() => {
       else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet' && !e.trouvee) toast(`${D.ARMES[e.arme].nom} !`); // (trouvée : sa carte le dit déjà)
       else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');
       else if (e.t === 'bonus' && e.id === idMoi && D.BONUS[e.bonus]) toast(`${D.BONUS[e.bonus].nom} ! ${D.BONUS[e.bonus].desc}`);
+      else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
+      else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
       else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);
       else if (e.t === 'piegeCher' && e.id === idMoi) toast(`Il faut ${e.cout} de ferraille pour allumer le piège`);
       else if (e.t === 'piege' && e.de === idMoi) toast('Piège électrique allumé !');
@@ -345,6 +352,14 @@ const ZHUD = (() => {
     const rar = D.RARETE(Ar), img = A.portraitArme ? A.portraitArme(id, fin) : null;
     c.className = `h-trouve rar-${rar}`; c.innerHTML = `${img ? `<img alt="" src="${img}">` : iconeArme(id)}<span><small>ARME TROUVÉE · ${RARS[rar].toUpperCase()}</small><b>${Ar.nom}</b></span>`;
     c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 1900);
+  }
+  // un ennemi encore jamais vu : sa carte (son nom, comment s'en sortir), un peu plus longtemps que celle d'une arme
+  function carteEnnemi(type) {
+    const Z = D.ZOMBIES[type], c = R.querySelector('.h-trouve'); if (!Z || !c) return;
+    if ((annonceT > 0 && !el.annonce.hidden) || (!c.hidden && !c.classList.contains('ennemi'))) { setTimeout(() => carteEnnemi(type), Math.max(annonceT * 1000, 600) + 80); return; }
+    c.className = 'h-trouve ennemi'; c.style.setProperty('--teinte', Z.teinte || '#9AA0A8');
+    c.innerHTML = `<i class="ennemi-ico" aria-hidden="true"></i><span><small>NOUVEL ENNEMI</small><b>${Z.nom}</b><em>${Z.astuce || ''}</em></span>`;
+    c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 3600);
   }
   const iconesB = {}; const iconeDe = (k) => iconesB[k] || (iconesB[k] = A.iconeBonus(k));
   function chiffre(x, y, z, texte, classe) {
