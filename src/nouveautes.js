@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-11-04-b', date: '2026-11-04', titre: 'Le Marché d’automne et la saison d’automne',
+      points: [
+        'Du vendredi 13 novembre à midi au vendredi 20 novembre à 20 h, ta boutique devient la Halle : châtaignes, tartes aux pommes, paniers, et des enfants déguisés en animaux de la forêt.',
+        'Vingt paliers au fil des jours, l’album de la forêt, un écureuil à gagner, et le classement : les quinze premiers sont récompensés.',
+        'Nouveau : la saison d’automne, une piste de récompenses gratuite, du 13 au 30 novembre. Les objectifs du jour, le défi de la semaine, ta série et les paliers du Marché la font avancer.',
+        'Tout ce que tu gagnes reste à vie.',
+      ],
+    },
+    {
       id: '2026-11-04-a', date: '2026-11-04', titre: 'Un meilleur accueil pour les nouveaux boulangers',
       points: [
         'Les nouveaux boulangers sont guidés pas à pas : cuire, vendre, améliorer, embaucher. Un doigt montre où toucher, et « Passer » saute le guidage.',

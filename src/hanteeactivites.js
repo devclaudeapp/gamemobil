@@ -19,25 +19,31 @@
    (réconciliés sur l'état des règles : une file vidée par une absence, une apparition perdue, une sauvegarde rechargée). Sans la scène de la
    boutique hantée (?boutique=0, le Manoir d'avant ; ou pas de WebGL), le repli est en DOM : la file en bas de la scène (un monstre, sa
    bulle) et les apparitions qui traversent en images. Rien n'est sauvé ici, sauf le record de série (q.manoir.record). */
+// Le même module sert tout événement bâti sur le moteur du Manoir (le Marché d'automne : src/marche.js) : la scène (la boutique de
+// l'événement : F.scene3, BOUTIQUE_HANTEE par défaut), les icônes (F.ico.jeu : ICONS.HANTEE par défaut), le compagnon de la collection
+// (F.compagnon) et les ids de l'écran (#${F.p}-eveil, -serie, -commande, -bestiaire, -billets) se lisent sur la fiche (src/evenement.js).
 const HANTEE_ACTIVITES = (() => {
   'use strict';
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const B = () => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.ouverte ? BOUTIQUE_HANTEE : null); // la scène de la boutique hantée, si c'est elle qui est à l'écran
   const S = () => (typeof SONS !== 'undefined' && SONS.jeuSon ? SONS : null);
-  const icoHt = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE[k]) || '';
   // le repli en DOM : l'image d'un monstre (les icônes du Manoir) et celle d'une apparition
-  const ICO_SORTE = { fantome: 'cookies', citrouille: 'citrouille', vampire: 'livrer', sorciere: 'taper', momie: 'cookies', squelette: 'livrer', 'squelette-sorcier': 'taper', zombie: 'livrer', loup: 'attraper' };
-  const ICO_APP = { fantome: 'cookies', citrouille: 'citrouille', 'chauve-souris': 'attraper' };
+  const ICO_SORTE_HT = { fantome: 'cookies', citrouille: 'citrouille', vampire: 'livrer', sorciere: 'taper', momie: 'cookies', squelette: 'livrer', 'squelette-sorcier': 'taper', zombie: 'livrer', loup: 'attraper' };
+  const ICO_APP_HT = { fantome: 'cookies', citrouille: 'citrouille', 'chauve-souris': 'attraper' };
   const presTxt = (m) => { const r = Math.round(m * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ','); }; // ×6, ×3,5, ×1
 
   function creer(X) { // X : { el, Q, F, d, q(), now(), scene(), carte(i) → { el } (la carte du produit i ; -1 : la recette du jour), fmt, prix, hud(), save() }
     const { el, Q, F, d } = X, M0 = (Q.FICHE && Q.FICHE.manoir) || {}, T = M0.textes || {}, NOMS = M0.sortes || {};
+    const BQ = () => F.scene3 || (typeof BOUTIQUE_HANTEE !== 'undefined' ? BOUTIQUE_HANTEE : null), B = () => { const b = BQ(); return b && b.ouverte ? b : null; }; // la scène de la boutique de l'événement, si c'est elle qui est à l'écran
+    const JEU = () => (F.ico && F.ico.jeu) || (typeof ICONS !== 'undefined' && ICONS.HANTEE) || {}, icoHt = (k) => JEU()[k] || '';
+    const ICO_SORTE = F.icoSorte || ICO_SORTE_HT, ICO_APP = F.icoApp || ICO_APP_HT;
+    const CO = F.compagnon || { espece: 'chauve-souris', cle: 'chauvesouris' }, icoCo = () => (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon(CO.espece) : '');
+    const idEl = (k) => el.querySelector(`#${F.p || 'ht'}-${k}`);
     const G = typeof GAME !== 'undefined' ? GAME : null, chrono = (s) => (G && G.fmtChrono ? G.fmtChrono(s) : `${Math.ceil(s)} s`);
     const PATIENCE = ((Q.CLIENTS && Q.CLIENTS.patience) || 40) * 1000;
     let ouvert = false, recus = {}, mode = '', scene3 = null, astuce = false, voulu = new Set(), flash = { i: null, jusqua: 0 }, couche = null, fileDom = null, choisi = null, tMaj = 0, lastEveil = '', lastAmb = -1, lastCmd = '', lastSerie = '', dernierEveil = 1;
     const clients = new Map(); // id des règles → { id, sid (l'id de la scène, 'c12' ; null : pas encore entré), sorte, bulle, monstre (repli), cle }
     const apps = new Map(); // id des règles → { id, sid (scène) ou img (repli), type, debut, fin, sens, y0 }
-    const eveilEl = () => el.querySelector('#ht-eveil'), serieEl = () => el.querySelector('#ht-serie'), cmdEl = () => el.querySelector('#ht-commande'), bestEl = () => el.querySelector('#ht-bestiaire'), sceneEl = () => el.querySelector('.pq-scene');
+    const eveilEl = () => idEl('eveil'), serieEl = () => idEl('serie'), cmdEl = () => idEl('commande'), bestEl = () => idEl('bestiaire'), sceneEl = () => el.querySelector('.pq-scene');
     let lastBest = '', fetes = [], btEl = null, btT = 0; // le bestiaire : la carte du tiroir (sa clé), les feuilles de fête en attente, le petit mot sur la scène
     const qq = () => X.q(), maint = () => X.now();
     const manoir = () => { const q = qq(); return q.manoir || (Q.reparerManoir ? Q.reparerManoir(q, maint()) : null); };
@@ -322,17 +328,17 @@ const HANTEE_ACTIVITES = (() => {
     }
 
     // ─── 6. le bestiaire : sa carte en tête du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée ───
-    const icoMonstre = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.monstres && ICONS.HANTEE.monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
+    const icoMonstre = (k) => (JEU().monstres && JEU().monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
     const court = (k) => (M0.courts && M0.courts[k]) || nomSorte(k);
     const etatSorte = (s) => (s.fait ? 'fait' : s.n > 0 ? 'encours' : 'vide'); // sombre (aucun servi), en cours, coloré (complété)
     const partSorte = (x) => (x.prochain == null ? 1 : Math.max(0, Math.min(1, ((x.servis != null ? x.servis : x.n) - (x.depuis || 0)) / (x.prochain - (x.depuis || 0))))); // vers le palier suivant
     const seuilDe = (m) => (m === 'argent' || m === 'or' ? Q.BESTIAIRE[m].par : Q.BESTIAIRE.par);
     function donneesBestiaire() { // l'état des règles, prêt pour les gabarits (src/evenement.js, F.gabarits.bestiaire*)
       const b = Q.bestiaire(qq()), B0 = Q.BESTIAIRE, et = B0.etoiles.reduce((a, x) => a + x, 0), gagnees = B0.etoiles.slice(0, b.faits).reduce((a, x) => a + x, 0);
-      return { faits: b.faits, argent: b.argent || 0, or: b.or || 0, total: b.total, deco: b.deco, decoArgent: !!b.decoArgent, decoOr: !!b.decoOr, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
+      return { faits: b.faits, argent: b.argent || 0, or: b.or || 0, total: b.total, deco: b.deco, decoArgent: !!b.decoArgent, decoOr: !!b.decoOr, chauvesouris: b[CO.cle] != null ? b[CO.cle] : b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
         seuils: B0.argent ? { argent: B0.argent.par, or: B0.or.par } : null, etoilesArgent: B0.argent ? B0.argent.etoiles : 0, etoilesOr: B0.or ? B0.or.etoiles : 0,
         sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), servis: x.servis, medaille: x.medaille, depuis: x.depuis, prochain: x.prochain, part: partSorte(x), ico: icoMonstre(x.sorte) })),
-        ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), textes: T };
+        ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: icoCo(), textes: T };
     }
     function majBestiaire(force) { // la carte du tiroir : redessinée quand un compte change
       const e = bestEl(); if (!e || !Q.bestiaire || !F.gabarits || !F.gabarits.bestiaire) return;
@@ -392,10 +398,10 @@ const HANTEE_ACTIVITES = (() => {
       if (x.compagnon) dons.push(T.bestiaireCompagnon || 'la chauve-souris, un compagnon pour ta boutique');
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(0.8);
       const s3 = X.scene(); if (s3 && s3.fete) s3.fete();
-      d.openSheet(F.gabarits.bestiaireFete({ sorte: x.sorte, nom: nomSorte(x.sorte), court: court(x.sorte), titre: T.bestiaireFait ? T.bestiaireFait(nomSorte(x.sorte)) : `${nomSorte(x.sorte)} rejoint le bestiaire !`, rang: x.rang, total: b.total, dons, deco: !!x.deco, compagnon: !!x.compagnon, ico: icoMonstre(x.sorte), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), reste: b.total - b.faits, rangDeco: Q.BESTIAIRE.deco }));
+      d.openSheet(F.gabarits.bestiaireFete({ sorte: x.sorte, nom: nomSorte(x.sorte), court: court(x.sorte), titre: T.bestiaireFait ? T.bestiaireFait(nomSorte(x.sorte)) : `${nomSorte(x.sorte)} rejoint le bestiaire !`, rang: x.rang, total: b.total, dons, deco: !!x.deco, compagnon: !!x.compagnon, ico: icoMonstre(x.sorte), icoCompagnon: icoCo(), reste: b.total - b.faits, rangDeco: Q.BESTIAIRE.deco }));
       d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
       d.on('[data-a="mh-best-voir"]', () => { d.son.tap(); feuilleBestiaire(); });
-      d.on('[data-a="mh-best-choisir"]', (bt) => { const s = d.st(), r = G && G.choisirCompagnon ? G.choisirCompagnon(s, 'chauve-souris') : { ok: false }; if (r.ok) { X.save(); d.son.achat(); bt.disabled = true; bt.innerHTML = '<b>Elle t’attend dans la boutique ✓</b>'; } else d.son.non(); });
+      d.on('[data-a="mh-best-choisir"]', (bt) => { const s = d.st(), r = G && G.choisirCompagnon ? G.choisirCompagnon(s, CO.espece) : { ok: false }; if (r.ok) { X.save(); d.son.achat(); bt.disabled = true; bt.innerHTML = `<b>${esc(CO.attend || 'Elle t’attend dans la boutique ✓')}</b>`; } else d.son.non(); });
     }
     function feuilleBestiaire() { // la feuille : les neuf monstres (« 3/10 »), les récompenses à venir
       if (!F.gabarits || !F.gabarits.bestiaireFeuille) return;
@@ -477,7 +483,7 @@ const HANTEE_ACTIVITES = (() => {
     // ─── ce qui vole et ce qui flotte : le pourboire jusqu'au solde, un mot au-dessus de la scène ───
     function voler(de, html) {
       const v = document.createElement('div'); v.className = 'mh-vole'; v.innerHTML = html; v.setAttribute('aria-hidden', 'true'); document.body.appendChild(v);
-      const cible = el.querySelector('#ht-billets'), cr = cible ? cible.getBoundingClientRect() : { left: 60, top: 60, width: 80, height: 30 };
+      const cible = idEl('billets'), cr = cible ? cible.getBoundingClientRect() : { left: 60, top: 60, width: 80, height: 30 };
       const dx = cr.left + cr.width / 2 - de.x, dy = cr.top + cr.height / 2 - de.y;
       v.style.left = de.x + 'px'; v.style.top = de.y + 'px';
       const fin = () => { v.remove(); if (cible) { cible.classList.remove('mh-gonfle'); void cible.offsetWidth; cible.classList.add('mh-gonfle'); } };
@@ -502,3 +508,4 @@ const HANTEE_ACTIVITES = (() => {
   }
   return { creer };
 })();
+const EVT_ACTIVITES = HANTEE_ACTIVITES; // (le même module pour tout événement sur le moteur du Manoir : la Maison hantée, le Marché d'automne)

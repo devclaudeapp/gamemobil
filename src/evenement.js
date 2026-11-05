@@ -73,7 +73,7 @@ const EVENEMENTS = (() => {
       evEl.addEventListener('click', (e) => { if (e.target.closest('button')) return; evEl.classList.toggle('etendu'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouvert() && $('#feuille').hidden) { if (miniOuvert()) fermerMini(); else fermer(); } });
       window.addEventListener('resize', () => { if (scene3) scene3.redim(); tiroir.redim(); placerAct(); });
-      if (F.cle === 'hantee' || F.p === 'ht') st0 = () => d.st();
+      if (F.activites) F.st0 = () => d.st(); // (les textes de la fiche et la scène de la boutique de l'événement lisent l'état du jeu)
       synchroniserRecompenses();
       return true;
     }
@@ -925,6 +925,12 @@ const EVENEMENTS = (() => {
         } else if (D.motif === 'hantee') { // un couloir violet, des portraits, un tapis
           c.fillStyle = '#2A2140'; c.fillRect(0, 0, W, g.y - 10); for (let k = 0; k < 4; k++) { const px = 30 + k * (W - 60) / 3.2; c.fillStyle = '#C8A24A'; rr(c, px - 18, H * 0.16, 36, 46, 6); c.fill(); c.fillStyle = '#3E3456'; rr(c, px - 13, H * 0.16 + 5, 26, 36, 4); c.fill(); c.fillStyle = 'rgba(255,255,255,.75)'; c.beginPath(); c.arc(px, H * 0.16 + 22, 7, 0, Math.PI * 2); c.fill(); }
           c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10); c.fillStyle = '#6B2E4F'; c.fillRect(0, g.y + 8, W, 26);
+        } else if (D.motif === 'marche') { // la Halle au crépuscule : ses poutres, un auvent rayé, des cagettes de pommes et de courges devant
+          c.fillStyle = '#4A3526'; c.fillRect(0, 0, W, g.y - 10); c.strokeStyle = '#2E2016'; c.lineWidth = 6; for (let k = 0; k < 5; k++) { const px = 20 + k * (W - 40) / 4; c.beginPath(); c.moveTo(px, 0); c.lineTo(px, g.y - 10); c.stroke(); }
+          for (let k = 0; k < 10; k++) { c.fillStyle = k % 2 ? '#FFF4E4' : D.accent; c.beginPath(); c.moveTo(k * W / 10, H * 0.1); c.lineTo((k + 1) * W / 10, H * 0.1); c.lineTo((k + 0.5) * W / 10, H * 0.1 + 18); c.closePath(); c.fill(); }
+          c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10);
+          for (let k = 0; k < 5; k++) { const bx = 10 + k * (W - 20) / 5, by = g.y - 40; c.fillStyle = '#A8743E'; rr(c, bx, by, (W - 20) / 5 - 8, 30, 4); c.fill(); c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 2; c.beginPath(); c.moveTo(bx, by + 15); c.lineTo(bx + (W - 20) / 5 - 8, by + 15); c.stroke();
+            for (let f = 0; f < 3; f++) { c.fillStyle = k % 2 ? '#E86B3A' : '#C8342B'; c.beginPath(); c.arc(bx + 10 + f * ((W - 20) / 5 - 28) / 2, by - 4, 7, 0, Math.PI * 2); c.fill(); } }
         } else { c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10); }
       }
       function passant(c, x, y) {
@@ -936,6 +942,12 @@ const EVENEMENTS = (() => {
           c.save(); c.translate(x, fy); c.scale(1.25, 1.25); c.fillStyle = 'rgba(246,238,221,.95)'; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.arc(0, -8, 18, Math.PI, 0); c.lineTo(18, 16);
           for (let k = 0; k < 4; k++) c.quadraticCurveTo(18 - k * 9 - 4.5, 22 + (k % 2 ? -4 : 4), 18 - (k + 1) * 9, 16); c.closePath(); c.fill(); c.stroke();
           c.fillStyle = '#1E1824'; c.beginPath(); c.arc(-6, -8, 2.6, 0, Math.PI * 2); c.arc(6, -8, 2.6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FF9FB2'; c.beginPath(); c.arc(-10, -2, 2.4, 0, Math.PI * 2); c.arc(10, -2, 2.4, 0, Math.PI * 2); c.fill(); c.restore(); return; }
+        if (D.motif === 'marche') { const sy = y - 30 + Math.abs(Math.sin(temps * 9)) * -6; // l'écureuil qui bondit : sa queue en panache, une noisette
+          c.save(); c.translate(x, sy); c.scale(1.25, 1.25); c.fillStyle = '#C8642A'; c.strokeStyle = '#3A1E0E'; c.lineWidth = 2;
+          c.beginPath(); c.moveTo(-8, 6); c.bezierCurveTo(-30, 4, -30, -30, -12, -26); c.bezierCurveTo(-6, -20, -14, -6, -6, 0); c.closePath(); c.fill(); c.stroke(); // la queue
+          c.beginPath(); c.ellipse(4, 2, 11, 9, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.beginPath(); c.arc(12, -9, 7, 0, Math.PI * 2); c.fill(); c.stroke();
+          c.beginPath(); c.moveTo(9, -15); c.lineTo(11, -21); c.lineTo(14, -15); c.fill(); c.fillStyle = '#1E1208'; c.beginPath(); c.arc(14, -10, 1.8, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#8A5A30'; c.beginPath(); c.arc(18, -2, 4, 0, Math.PI * 2); c.fill(); c.restore(); return; }
         c.fillStyle = D.accent2; c.beginPath(); c.arc(x, y - 18, 16, 0, Math.PI * 2); c.fill();
       }
       function dessiner() {
@@ -945,7 +957,7 @@ const EVENEMENTS = (() => {
         const hx = cx, hy = g.y - 120;
         c.fillStyle = D.accent + (actif ? '40' : '22'); c.beginPath(); c.moveTo(hx - 8, hy + 10); c.lineTo(hx + 8, hy + 10); c.lineTo(cx + large, g.y); c.lineTo(cx - large, g.y); c.closePath(); c.fill(); // le cône de lumière
         const hl = c.createRadialGradient(hx, g.y - 20, 4, hx, g.y - 20, Math.max(40, large * 1.6)); hl.addColorStop(0, D.accent + (actif ? 'AA' : '66')); hl.addColorStop(1, D.accent + '00'); c.fillStyle = hl; c.fillRect(hx - large * 2 - 40, hy - 40, large * 4 + 80, 200);
-        c.strokeStyle = D.motif === 'hantee' ? '#8E5CF7' : '#6E6A80'; c.lineWidth = 4; c.beginPath(); c.moveTo(hx, g.y - 10); c.lineTo(hx, hy); c.lineTo(hx + (D.motif === 'hantee' ? 0 : 14), hy); c.stroke();
+        c.strokeStyle = D.motif === 'hantee' ? '#8E5CF7' : D.motif === 'marche' ? '#2E2016' : '#6E6A80'; c.lineWidth = 4; c.beginPath(); c.moveTo(hx, g.y - 10); c.lineTo(hx, hy); c.lineTo(hx + (D.motif === 'hantee' ? 0 : 14), hy); c.stroke();
         c.fillStyle = D.accent; c.beginPath(); if (D.motif === 'hantee') { c.arc(hx, hy + 12, 9, 0, Math.PI * 2); } else { c.arc(hx + 14, hy + 6, 7, 0, Math.PI * 2); } c.fill();
         c.globalAlpha = actif ? 0.55 : 0.25; c.fillStyle = D.accent; rr(c, cx - large, g.y - 6, large * 2, 12, 6); c.fill(); c.globalAlpha = actif ? 0.95 : 0.4; c.fillStyle = D.accent2; rr(c, cx - coeur, g.y - 6, coeur * 2, 12, 6); c.fill(); c.globalAlpha = 1;
         if (actif || e.phase === 'pause') passant(c, g.X(e.phase === 'passe' ? e.x : e.cible + e.tol), g.y);
@@ -973,14 +985,15 @@ const EVENEMENTS = (() => {
         c.save(); c.translate(px, py); c.rotate(a); c.scale(k, k);
         if (D.motif === 'quartier') { c.fillStyle = ['#5FD3A4', '#8FE3C2', '#4DBB8D'][v]; c.strokeStyle = '#1E3B2E'; c.lineWidth = 2; rr(c, -24, -13, 48, 26, 5); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.arc(0, 0, 7, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#1E3B2E'; c.font = '700 11px Fredoka, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('€', 0, 1); }
         else if (D.motif === 'hantee') { const col = ['#FF8A1F', '#8E5CF7', '#7CD992'][v]; c.fillStyle = col; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.moveTo(-14, 0); c.lineTo(-24, -9); c.lineTo(-24, 9); c.closePath(); c.moveTo(14, 0); c.lineTo(24, -9); c.lineTo(24, 9); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.ellipse(0, 0, 15, 11, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.moveTo(-6, -6); c.quadraticCurveTo(0, 0, -6, 6); c.moveTo(4, -7); c.quadraticCurveTo(10, 0, 4, 7); c.stroke(); }
+        else if (D.motif === 'marche') { const col = ['#7B4A2A', '#8E5632', '#6A3C20'][v]; c.fillStyle = col; c.strokeStyle = '#2E1A0C'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -15); c.quadraticCurveTo(17, -12, 15, 6); c.quadraticCurveTo(10, 15, 0, 14); c.quadraticCurveTo(-10, 15, -15, 6); c.quadraticCurveTo(-17, -12, 0, -15); c.fill(); c.stroke(); c.fillStyle = '#E9D5BC'; c.beginPath(); c.ellipse(0, 9, 9, 4, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(-5, -5, 3, 6, 0.5, 0, Math.PI * 2); c.fill(); } // une châtaigne : brune, brillante, son fond clair
         else { c.fillStyle = [D.accent, D.accent2, D.clair][v]; c.beginPath(); c.arc(0, 0, 14, 0, Math.PI * 2); c.fill(); }
         c.restore();
       }
       function dessiner() {
         const c = T.ctx, W = T.W, H = T.H, S = Math.min(W - 20, H - 20), ox = (W - S) / 2, oy = (H - S) / 2; c.clearRect(0, 0, W, H);
-        c.fillStyle = D.fond; c.fillRect(0, 0, W, H); c.fillStyle = D.motif === 'hantee' ? '#3B2A1E' : '#5A4535'; rr(c, ox, oy, S, S, 22); c.fill(); // la table (le Quartier), la marmite renversée (la Maison hantée)
+        c.fillStyle = D.fond; c.fillRect(0, 0, W, H); c.fillStyle = D.motif === 'hantee' ? '#3B2A1E' : D.motif === 'marche' ? '#A8743E' : '#5A4535'; rr(c, ox, oy, S, S, 22); c.fill(); // la table (le Quartier, le Marché : la cagette) (le Quartier), la marmite renversée (la Maison hantée)
         c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 2; for (let k = 1; k < 6; k++) { c.beginPath(); c.moveTo(ox + 10, oy + k * S / 6); c.lineTo(ox + S - 10, oy + k * S / 6); c.stroke(); }
-        if (e.phase === 'choix') { c.fillStyle = D.motif === 'hantee' ? '#4B2F7A' : '#C9CED6'; rr(c, ox + 10, oy + 10, S - 20, S - 20, 18); c.fill(); c.fillStyle = D.motif === 'hantee' ? D.accent : '#4A4458'; c.font = `700 ${Math.round(S * 0.3)}px Fredoka, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', W / 2, H / 2 + 4); c.textBaseline = 'alphabetic'; }
+        if (e.phase === 'choix') { c.fillStyle = D.motif === 'hantee' ? '#4B2F7A' : D.motif === 'marche' ? '#E9D5BC' : '#C9CED6'; rr(c, ox + 10, oy + 10, S - 20, S - 20, 18); c.fill(); c.fillStyle = D.motif === 'hantee' || D.motif === 'marche' ? D.accent : '#4A4458'; c.font = `700 ${Math.round(S * 0.3)}px Fredoka, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', W / 2, H / 2 + 4); c.textBaseline = 'alphabetic'; }
         else for (const o of e.manche.objets) objet(c, o, S, ox, oy);
         if (e.phase === 'montre') { c.fillStyle = D.accent; c.fillRect(ox, oy + S - 6, S * Math.max(0, e.reste) / Math.max(0.01, Math.max(R.montreMin, R.montre - 0.07 * e.k)), 6); }
         if (e.phase === 'choix') { c.fillStyle = D.accent2; c.fillRect(ox, oy + S - 6, S * Math.max(0, e.reste) / R.choix, 6); }
@@ -1011,6 +1024,8 @@ const EVENEMENTS = (() => {
         if (etat === 'suivant') { c.strokeStyle = D.accent; c.lineWidth = 3; c.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(temps * 5)); c.beginPath(); c.arc(x, y, r + 7, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
         if (D.motif === 'quartier') { c.fillStyle = etat === 'fait' ? D.accent2 : '#8A5A3C'; c.strokeStyle = '#1E1B26'; c.lineWidth = 2; rr(c, x - r * 0.75, y - r, r * 1.5, r * 2, 5); c.fill(); c.stroke(); c.fillStyle = '#FFC84A'; c.beginPath(); c.arc(x + r * 0.4, y + 2, 2.2, 0, Math.PI * 2); c.fill(); }
         else if (D.motif === 'hantee') { c.fillStyle = etat === 'fait' ? D.accent2 : D.accent; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r, r * 0.85, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.strokeStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.moveTo(x, y - r * 0.85); c.lineTo(x, y + r * 0.85); c.stroke(); c.fillStyle = '#5B8C3A'; c.fillRect(x - 2, y - r * 0.85 - 6, 4, 7); }
+        else if (D.motif === 'marche') { c.fillStyle = etat === 'fait' ? D.accent2 : '#B9824A'; c.strokeStyle = '#3A2414'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - r, y - r * 0.35); c.lineTo(x + r, y - r * 0.35); c.lineTo(x + r * 0.75, y + r * 0.8); c.lineTo(x - r * 0.75, y + r * 0.8); c.closePath(); c.fill(); c.stroke(); // un panier d'osier, son anse
+          c.beginPath(); c.arc(x, y - r * 0.35, r * 0.7, Math.PI, 0); c.stroke(); c.strokeStyle = 'rgba(58,36,20,.35)'; c.beginPath(); c.moveTo(x - r * 0.85, y + r * 0.2); c.lineTo(x + r * 0.85, y + r * 0.2); c.stroke(); }
         else { c.fillStyle = etat === 'fait' ? D.accent2 : D.accent; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
         c.fillStyle = etat === 'fait' ? '#1E1B26' : '#FFF'; c.font = `700 ${Math.round(r * 0.95)}px Fredoka, Nunito, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.45)'; c.strokeText(String(n), x, y + 1); c.fillText(String(n), x, y + 1); c.textBaseline = 'alphabetic';
       }
@@ -1018,6 +1033,7 @@ const EVENEMENTS = (() => {
         const c = T.ctx, g = geo(), { S, ox, oy } = g; c.clearRect(0, 0, T.W, T.H); c.fillStyle = D.fond; c.fillRect(0, 0, T.W, T.H);
         if (D.motif === 'quartier') { c.fillStyle = '#433D5C'; rr(c, ox, oy, S, S, 18); c.fill(); c.strokeStyle = D.sol; c.lineWidth = 14; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(ox + k * S / 4, oy + 6); c.lineTo(ox + k * S / 4, oy + S - 6); c.moveTo(ox + 6, oy + k * S / 4); c.lineTo(ox + S - 6, oy + k * S / 4); c.stroke(); } }
         else if (D.motif === 'hantee') { c.fillStyle = '#24302A'; rr(c, ox, oy, S, S, 18); c.fill(); c.fillStyle = 'rgba(124,217,146,.12)'; for (let k = 0; k < 30; k++) { c.beginPath(); c.arc(ox + ((k * 37) % 100) / 100 * S, oy + ((k * 61) % 100) / 100 * S, 3, 0, Math.PI * 2); c.fill(); } c.fillStyle = '#FFE7A3'; c.beginPath(); c.arc(ox + S - 34, oy + 34, 16, 0, Math.PI * 2); c.fill(); }
+        else if (D.motif === 'marche') { c.fillStyle = '#6E8A3A'; rr(c, ox, oy, S, S, 18); c.fill(); c.fillStyle = 'rgba(232,179,58,.5)'; for (let k = 0; k < 26; k++) { const fx = ox + ((k * 37) % 100) / 100 * S, fy = oy + ((k * 61) % 100) / 100 * S; c.save(); c.translate(fx, fy); c.rotate(k); c.beginPath(); c.ellipse(0, 0, 6, 3, 0, 0, Math.PI * 2); c.fill(); c.restore(); } c.strokeStyle = '#C9A46A'; c.lineWidth = 16; c.lineCap = 'round'; c.beginPath(); c.moveTo(ox + 14, oy + S * 0.8); c.quadraticCurveTo(ox + S * 0.5, oy + S * 0.4, ox + S - 14, oy + S * 0.6); c.stroke(); } // le pré du village, ses feuilles d'or, le chemin
         else { c.fillStyle = D.sol; rr(c, ox, oy, S, S, 18); c.fill(); }
         // le chemin prévu (pointillés entre les arrêts), puis le trait du doigt
         c.save(); c.setLineDash([2, 10]); c.lineCap = 'round'; c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 4; c.beginPath(); e.arrets.forEach((p, k) => { const x = ox + p[0] * S, y = oy + p[1] * S; if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); c.restore();
@@ -1610,178 +1626,292 @@ const EVENEMENTS = (() => {
         <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button></div>`,
     },
   });
-  // la Maison hantée : HANTEE (src/hantee.js, groupe H1) et sa fiche ; ici, les valeurs par défaut de l'écran (textes, icônes, couleurs)
+  // ─── les événements sur le moteur du Manoir : la Maison hantée (HANTEE, src/hantee.js) et le Marché d'automne (MARCHE, src/marche.js),
+  //     bâtis par une même fabrique, ficheBoutique(R, T) : R, les règles (même API mot pour mot) ; T, l'habillage de l'écran (préfixe des
+  //     ids, racine, icônes, scène, décos, sons, textes, vidéo, compagnon de la collection, touches de saison). Ce qui ne dépend que de
+  //     l'habillage est dans HABILLAGE_HANTEE et HABILLAGE_MARCHE ; ce qui se lit sur la fiche des règles (R.FICHE : nom, lieu, devise,
+  //     couleurs, textes, coups de pouce) passe par-dessus. ───
   const HR = typeof HANTEE !== 'undefined' ? HANTEE : typeof MAISON_HANTEE !== 'undefined' ? MAISON_HANTEE : null; // eslint-disable-line no-undef
-  let st0 = () => null; // l'état du jeu, pour les textes de la fiche (posé par init)
-  // les gabarits des activités de la Maison hantée (HTML seul, sans logique ; les classes dans src/style.css, .mh-* ; remplis par src/hanteeactivites.js) :
-  // · eveil(part, texte) : l'intérieur de #ht-eveil, la jauge sous le ×6 (part : 1 réveillé → 0 endormi ; data-niveau sur #ht-eveil : 'bas' sous 0,35) ;
-  // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
-  // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
+  const MR = typeof MARCHE !== 'undefined' && MARCHE && MARCHE.FICHE ? MARCHE : null; // eslint-disable-line no-undef
+  // les gabarits des activités (HTML seul, sans logique ; les classes dans src/style.css, .mh-* ; remplis par src/hanteeactivites.js) :
+  // · eveil(part, texte) : l'intérieur de #<p>-eveil, la jauge sous le ×6 (part : 1 réveillé → 0 endormi ; data-niveau sur #<p>-eveil : 'bas' sous 0,35) ;
+  // · serie(n, record) : l'intérieur de #<p>-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #<p>-serie à partir de 5) ;
+  // · commande(o) : la carte « Commande de la nuit » (« du marché »), à poser dans #<p>-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
   //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete, bouton (le mot du bouton prêt : « Livrer ! ») } ; son bouton porte data-a="mh-commande".
-  // le bestiaire, ses médailles (le bronze, l'argent, l'or de chaque sorte) : « Bronze 9/9 · Argent 2/9 · Or 0/9 », et la fête d'un palier
+  // le bestiaire (l'album de la forêt au Marché), ses médailles (le bronze, l'argent, l'or de chaque sorte) : « Bronze 9/9 · Argent 2/9 · Or 0/9 », et la fête d'un palier
   // d'argent ou d'or (o : { palier, sorte, sortes (plusieurs passées d'un coup : une vieille sauvegarde), titre, rang, total, seuil, dons, deco,
-  // decoNom, reste, ico })
+  // decoNom, reste, ico }). Les mots propres à chaque événement : T.g (l'habillage).
   const NOM_MED = { bronze: 'de bronze', argent: 'd’argent', or: 'd’or' };
   const medaillesTxt = (o) => `<span class="m-bronze">Bronze ${o.faits}/${o.total}</span> · <span class="m-argent">Argent ${o.argent || 0}/${o.total}</span> · <span class="m-or">Or ${o.or || 0}/${o.total}</span>`;
-  const feteMedaille = (o) => `<div class="pq-sheet ht mh-best-fete m-${o.palier}" data-bestiaire-fete="${esc(o.sorte)}" data-palier="${o.palier}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
-      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres en ${o.palier === 'or' ? 'or' : 'argent'} · ${o.seuil} servis${(o.sortes || []).length > 1 ? ` · ${o.sortes.length} d’un coup` : ''}</p>
+  function gabaritsDe(T) {
+    const g = T.g, cl = T.classe, I = (k) => { const j = T.icones(); return (j && j[k]) || ''; };
+    const feteMedaille = (o) => `<div class="pq-sheet ${cl} mh-best-fete m-${o.palier}" data-bestiaire-fete="${esc(o.sorte)}" data-palier="${o.palier}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} ${g.monstres} en ${o.palier === 'or' ? 'or' : 'argent'} · ${o.seuil} servis${(o.sortes || []).length > 1 ? ` · ${o.sortes.length} d’un coup` : ''}</p>
       <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-      <p class="encadre">${o.deco ? `${esc(o.decoNom || 'L’étagère')} : elle est dans ta boutique. ` : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} : aux ${o.total} en ${o.palier === 'or' ? 'or, l’étagère dorée' : 'argent, l’étagère aux bocaux d’argent'}.` : o.palier === 'argent' ? 'Prochaine étape : l’or, et l’étagère dorée.' : 'Le bestiaire est en or : bravo !'}</p>
-      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`;
-  const gabarits = {
-    eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
-    serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
-    commande: (o) => `<article class="mh-commande${o.prete ? ' prete' : ''}"><span class="mh-commande-pic">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.taper) || ''}</span>
-      <div class="mh-commande-corps"><small class="mh-commande-tag">Commande de la nuit</small><b>${esc(o.client || 'Un client du Manoir')}</b>
+      <p class="encadre">${o.deco ? `${esc(o.decoNom || 'L’étagère')} : elle est dans ta boutique. ` : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} : aux ${o.total} en ${o.palier === 'or' ? 'or, l’étagère dorée' : `argent, ${g.etagereArgent}`}.` : o.palier === 'argent' ? 'Prochaine étape : l’or, et l’étagère dorée.' : g.enOr}</p>
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>${esc(g.bestiaire)}</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`;
+    return {
+      eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || g.eveil)}</span>`,
+      serie: (n, record) => `<span class="mh-serie-ico">${I(g.icoSerie)}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
+      commande: (o) => `<article class="mh-commande${o.prete ? ' prete' : ''}"><span class="mh-commande-pic">${I(g.icoCommande)}</span>
+      <div class="mh-commande-corps"><small class="mh-commande-tag">${esc(g.commandeTag)}</small><b>${esc(o.client || g.clientDefaut)}</b>
         <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
         <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
       <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? esc(o.bouton || 'Servir') : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
-    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, argent, or (combien de sortes à chaque métal), total, par, etoiles, gagnees, deco,
-    // decoArgent, decoOr, chauvesouris, rangDeco, rangCompagnon, rangs, seuils: { argent, or }, etoilesArgent, etoilesOr,
-    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), servis, medaille (null | 'bronze' | 'argent' | 'or'), depuis,
-    // prochain (null : l'or), part (vers le palier suivant, 0..1), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du tiroir (les neuf
-    // en miniature, sombres tant qu'aucun n'est servi, cerclés de leur médaille), sa feuille, le petit mot sur la scène, la feuille de fête
-    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : bronze ${o.faits} sur ${o.total}, argent ${o.argent || 0}, or ${o.or || 0}`)}">
+      // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, argent, or (combien de sortes à chaque métal), total, par, etoiles, gagnees, deco,
+      // decoArgent, decoOr, chauvesouris (le compagnon gagné), rangDeco, rangCompagnon, rangs, seuils: { argent, or }, etoilesArgent, etoilesOr,
+      // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), servis, medaille (null | 'bronze' | 'argent' | 'or'), depuis,
+      // prochain (null : l'or), part (vers le palier suivant, 0..1), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du tiroir (les neuf
+      // en miniature, sombres tant qu'aucun n'est servi, cerclés de leur médaille), sa feuille, le petit mot sur la scène, la feuille de fête
+      bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || g.bestiaire} : bronze ${o.faits} sur ${o.total}, argent ${o.argent || 0}, or ${o.or || 0}`)}">
       <span class="mh-best-pic" aria-hidden="true">${o.ico}</span>
-      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small class="mh-best-meds">${medaillesTxt(o)}</small></span>
+      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || g.bestiaire)}</b><small class="mh-best-meds">${medaillesTxt(o)}</small></span>
         <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}" style="--p:${(s.part != null ? s.part : s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
       <span class="mh-best-fleche" aria-hidden="true">›</span></button>`,
-    bestiaireFeuille: (o) => {
-      const prochaine = o.faits < o.total ? o.rangs[o.faits] : 0, li = (fait, ico, titre, sous, fin) => `<li class="${fait ? 'fait' : ''}"><span class="mh-best-r-ico">${ico}</span><div><b>${esc(titre)}</b><small>${esc(sous)}</small></div><em>${esc(fin)}</em></li>`;
-      const S0 = o.seuils || {}, avance = (s) => (s.medaille === 'or' ? `${s.servis} servis` : `${s.servis != null ? s.servis : s.n}/${s.prochain || s.par}`), part = (s) => (s.part != null ? s.part : s.n / s.par);
-      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${medaillesTxt(o)}.</p></div></div>
+      bestiaireFeuille: (o) => {
+        const prochaine = o.faits < o.total ? o.rangs[o.faits] : 0, li = (fait, ico, titre, sous, fin) => `<li class="${fait ? 'fait' : ''}"><span class="mh-best-r-ico">${ico}</span><div><b>${esc(titre)}</b><small>${esc(sous)}</small></div><em>${esc(fin)}</em></li>`;
+        const S0 = o.seuils || {}, avance = (s) => (s.medaille === 'or' ? `${s.servis} servis` : `${s.servis != null ? s.servis : s.n}/${s.prochain || s.par}`), part = (s) => (s.part != null ? s.part : s.n / s.par);
+        return `<div class="pq-sheet ${cl} mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || g.bestiaire)}${esc(g.duLieu)}</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || g.bestiaireSous)} ${medaillesTxt(o)}.</p></div></div>
         <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}${s.medaille ? ` m-${s.medaille}` : ''}" data-sorte="${esc(s.sorte)}"${s.medaille ? ` data-medaille="${s.medaille}"` : ''}><span class="mh-best-por">${s.ico}${s.medaille ? `<b class="mh-best-et" role="img" aria-label="${esc(`médaille ${NOM_MED[s.medaille]}`)}">★</b>` : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${esc(avance(s))}</small><i class="mh-best-barre"><b style="width:${Math.round(Math.min(1, part(s)) * 100)}%"></b></i></div>`).join('')}</div>
         <h3 class="titre-section">Les récompenses</h3>
         <ul class="mh-best-recomp">
           ${li(o.faits >= o.total, '<b class="mh-best-r-et">★</b>', 'Chaque sorte complétée : des étoiles', `+1 ★ pour ta boulangerie, +2 à la ${o.rangDeco}e et à la ${o.rangCompagnon}e (${o.etoiles} ★ en tout)${prochaine ? ` · la prochaine : +${prochaine} ★` : ''}`, `${o.gagnees}/${o.etoiles} ★`)}
-          ${li(o.deco, o.icoDeco, `${o.rangDeco} sortes : l’étagère aux bocaux de monstres`, 'Un décor pour ta boutique, à vie', o.deco ? 'gagnée ✓' : `${Math.min(o.faits, o.rangDeco)}/${o.rangDeco}`)}
-          ${li(o.chauvesouris, o.icoCompagnon, `Les ${o.total} : Myrtille la chauve-souris`, 'Un compagnon pour ta boutique, à vie : elle tourne sous le plafond (+1 h d’absence)', o.chauvesouris ? 'gagnée ✓' : `${o.faits}/${o.total}`)}
+          ${li(o.deco, o.icoDeco, `${o.rangDeco} sortes : ${g.etagere}`, 'Un décor pour ta boutique, à vie', o.deco ? 'gagnée ✓' : `${Math.min(o.faits, o.rangDeco)}/${o.rangDeco}`)}
+          ${li(o.chauvesouris, o.icoCompagnon, `Les ${o.total} : ${g.compagnonNom}`, g.compagnonSous, o.chauvesouris ? g.gagne : `${o.faits}/${o.total}`)}
         </ul>
         ${S0.argent ? `<h3 class="titre-section">L’argent et l’or</h3>
         <ul class="mh-best-paliers">
           ${li(o.argent >= o.total, '<b class="mh-best-r-et m-argent">★</b>', `${S0.argent} servis d’une sorte : sa médaille d’argent`, `+${o.etoilesArgent} ★ pour ta boulangerie, par sorte`, `${o.argent}/${o.total}`)}
           ${li(o.or >= o.total, '<b class="mh-best-r-et m-or">★</b>', `${S0.or} servis d’une sorte : sa médaille d’or`, `+${o.etoilesOr} ★ pour ta boulangerie, par sorte`, `${o.or}/${o.total}`)}
-          ${li(o.decoArgent, `<span class="mh-best-r-deco m-argent">${o.icoDeco}</span>`, `Les ${o.total} en argent : l’étagère aux bocaux d’argent`, 'Un décor pour ta boutique, à vie', o.decoArgent ? 'gagnée ✓' : `${o.argent}/${o.total}`)}
+          ${li(o.decoArgent, `<span class="mh-best-r-deco m-argent">${o.icoDeco}</span>`, `Les ${o.total} en argent : ${g.etagereArgent}`, 'Un décor pour ta boutique, à vie', o.decoArgent ? 'gagnée ✓' : `${o.argent}/${o.total}`)}
           ${li(o.decoOr, `<span class="mh-best-r-deco m-or">${o.icoDeco}</span>`, `Les ${o.total} en or : l’étagère dorée`, 'Elle remplace l’autre dans ta boutique, à vie', o.decoOr ? 'gagnée ✓' : `${o.or}/${o.total}`)}
         </ul>` : ''}
-        <p class="note centre">Pas de bonbons ici : tout va à ta boulangerie, et le bestiaire reste après Halloween.</p>
-        <button type="button" class="btn large ht-btn" data-a="mh-best-ok" style="margin-top:12px"><b>Retour au Manoir</b></button></div>`;
-    },
-    bestiaireMot: (o) => `<span class="mh-bt-ico" aria-hidden="true">${o.ico}</span><span class="mh-bt-corps"><b>${esc(o.texte)}</b><i class="mh-bt-barre"><b style="width:${Math.round(Math.max(0, Math.min(1, o.part)) * 100)}%"></b></i></span>${o.fait ? '<span class="mh-bt-et" aria-hidden="true">★</span>' : ''}`,
-    bestiaireFete: (o) => (o.palier === 'argent' || o.palier === 'or' ? feteMedaille(o) : `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}" data-palier="bronze"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
-      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres au bestiaire · dix servis</p>
+        <p class="note centre">${esc(g.note)}</p>
+        <button type="button" class="btn large ht-btn" data-a="mh-best-ok" style="margin-top:12px"><b>${esc(g.retour)}</b></button></div>`;
+      },
+      bestiaireMot: (o) => `<span class="mh-bt-ico" aria-hidden="true">${o.ico}</span><span class="mh-bt-corps"><b>${esc(o.texte)}</b><i class="mh-bt-barre"><b style="width:${Math.round(Math.max(0, Math.min(1, o.part)) * 100)}%"></b></i></span>${o.fait ? '<span class="mh-bt-et" aria-hidden="true">★</span>' : ''}`,
+      bestiaireFete: (o) => (o.palier === 'argent' || o.palier === 'or' ? feteMedaille(o) : `<div class="pq-sheet ${cl} mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}" data-palier="bronze"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} ${g.monstres} ${g.auBestiaire} · dix servis</p>
       <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-      ${o.compagnon ? `<div class="mh-best-cs"><span>${o.icoCompagnon}</span><p>Le bestiaire est complet ! Myrtille t’attend dans « Les compagnons » (la garde-robe ou les Réglages).</p></div><button type="button" class="btn large menthe" data-a="mh-best-choisir" style="margin-top:10px"><b>Choisir Myrtille tout de suite</b></button>`
-        : `<p class="encadre">${o.deco ? 'L’étagère aux bocaux de monstres est accrochée dans ta boutique. ' : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} de monstre${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, une chauve-souris de compagnie.` : ''}</p>`}
-      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`),
-  };
-  function ficheHantee() {
-    const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
-    const nombre = (n) => (HR ? HR.fmt(n) : String(Math.floor(n)));
+      ${o.compagnon ? `<div class="mh-best-cs"><span>${o.icoCompagnon}</span><p>${esc(g.complet)}</p></div><button type="button" class="btn large menthe" data-a="mh-best-choisir" style="margin-top:10px"><b>${esc(g.choisir)}</b></button>`
+        : `<p class="encadre">${o.deco ? g.accrochee : ''}${o.reste > 0 ? g.encore(o) : ''}</p>`}
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>${esc(g.bestiaire)}</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`),
+    };
+  }
+
+  // la fabrique : la fiche de l'écran d'un événement du moteur du Manoir
+  function ficheBoutique(R, T) {
+    const HF = (R && R.FICHE) || {}, TX = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || T.devise.nom, un = dv.un || T.devise.un;
+    const nombre = (n) => (R ? R.fmt(n) : String(Math.floor(n)));
     const bonbons = (n) => `${nombre(n)} ${n >= 2 || n === 0 || !Number.isFinite(n) ? nomDevise : un}`;
-    const ico = (k, i) => (ICONS.HANTEE && (ICONS.HANTEE[k] || (ICONS.HANTEE.produits || [])[i])) || ICONS.HANTEE.citrouille;
-    const txt = (k, defaut) => (typeof T[k] === 'string' || typeof T[k] === 'function' ? T[k] : defaut);
-    const nom = HF.nom || 'La Maison hantée', lieu = HF.Lieu || (HF.lieu ? HF.lieu[0].toUpperCase() + HF.lieu.slice(1) : 'Le Manoir'), cle = HF.cle || HF.id || 'hantee';
-    const C = HF.couleurs || {}, couleurs = { fond: C.fond || C.nuit, carte: C.carte || C.nuit2, accent: C.accent || C.citrouille, clair: C.clair || C.doux, vert: C.vert || C.slime }; // les couleurs de H1 (nuit, citrouille…) → les variables de l'écran
-    // l'habillage des coups de pouce donné par H1 (FICHE.evenements : nom, annonce, bouton, detail, fin) → les champs de la bannière
+    const J = () => T.icones() || {}, I = (k) => J()[k] || '';
+    const ico = (k, i) => J()[k] || (J().produits || [])[i] || I(T.icoDefaut);
+    const txt = (k, defaut) => (typeof TX[k] === 'string' || typeof TX[k] === 'function' ? TX[k] : defaut);
+    const nom = HF.nom || T.nom, lieu = HF.Lieu || (HF.lieu ? HF.lieu[0].toUpperCase() + HF.lieu.slice(1) : T.lieu), cle = HF.cle || HF.id || T.cle;
+    const C = HF.couleurs || {}, couleurs = { fond: C.fond || C.nuit, carte: C.carte || C.nuit2, accent: C.accent || C.citrouille, clair: C.clair || C.doux, vert: C.vert || C.slime }; // les couleurs de la fiche (nuit, citrouille… ; fond, accent…) → les variables de l'écran
+    // l'habillage des coups de pouce donné par la fiche (FICHE.evenements : nom, annonce, bouton, detail, fin) → les champs de la bannière
     const HE = HF.evenements || null, coupsType = {};
     if (HE) for (const [type, e] of Object.entries(HE)) { if (!e) continue; const x = {}; if (e.nom) x.titre = e.nom; if (e.annonce) x.debut = e.annonce; if (e.bouton) x.bouton = e.bouton; if (e.fin) { x.fin = e.fin; x.perte = (m) => `${e.fin} (−${m})`; } if (typeof e.detail === 'function') x.detail = (ev) => esc(e.detail(ev)); coupsType[type] = x; }
+    const icoRegle = (k) => (k === 'classement' ? (ICONS.coupe ? ICONS.coupe('or') : '') : k === 'date' ? I(T.icoDefaut) : k === 'bestiaire' ? (I(T.icoBestiaire) || I(T.icoLieu)) : I(k) || I(T.icoDefaut));
+    // la vidéo : seulement dans la page du jeu (fournil/index.html pose FOURNIL_ACCUEIL) et si l'événement en a une ; l'artefact Claude n'a pas ses fichiers
+    const MEDIA = typeof window !== 'undefined' && window.FOURNIL_ACCUEIL && T.video ? 'media/' : '';
+    const mediaAnnonce = () => (MEDIA ? `<div class="ht-annonce-media"><video class="ht-annonce-video" muted playsinline autoplay loop preload="auto" poster="${MEDIA}${T.video.affiche}" aria-label="${esc(T.video.label)}"><source src="${MEDIA}${T.video.fichier}" type="video/mp4"></video></div>` : T.sceneAnnonce(I));
+    const st0 = () => (F.st0 ? F.st0() : null); // l'état du jeu, pour les textes de la fiche et la scène (posé par init)
+    const F = {
+      cle, p: T.p, racine: T.racine, ecran: T.ecran, classe: T.classe, R, nom, lieu, porte: false, lot: T.lot, couleurs, st0: () => null,
+      fmt: bonbons, fmtPhrase: bonbons, prix: (n) => `${nombre(n)}<i class="bb" aria-hidden="true"></i>`, solde: (n) => `${nombre(n)}<small class="bb-mot">${nomDevise}</small>`,
+      ico: { devise: I(T.icoDevise), palier: I('palier'), bilan: I(T.icoDefaut), lieu: I(T.icoLieu), jeu: null, produit: (p, i) => ico(p.id, i), coup: (type, g) => ((HE && J().H1 ? J().H1[type] : J()[type]) || J()[g] || I(T.icoDefaut)) },
+      decos: (l) => T.decos(l),
+      rangFinal: (rec) => { const x = rec[cle] || (rec.evenements && rec.evenements[cle]); return typeof x === 'number' ? x : x && x.rang ? x.rang : null; }, // classement v5 : recompenses().evenements.<cle> = { rang, podium }
+      recompenseFinale: (rang) => (typeof CLASSEMENT !== 'undefined' && CLASSEMENT.recompenseEvt ? CLASSEMENT.recompenseEvt(rang) : null), // v6.6 : du 1er au 15e, des étoiles et un boost (src/classement.js, RECOMPENSES_EVT)
+      genres: Object.assign({ descente: 'taper', grosclient: 'livrer', soiree: 'mult', scooter: 'attraper' }, HF.genres || {}), actions: Object.assign({ taper: 'taper', livrer: 'livrer', attraper: 'attraper' }, HF.actions || {}),
+      coupsType: HE ? coupsType : HF.coups || null, // { [type]: { titre, debut, fin, bouton, detail… } } : l'habillage de la fiche
+      coups: T.coups(),
+      stats: HE ? T.stats : T.statsSansFiche || T.stats,
+      scene3: T.boutique(), // la boutique de l'événement (BOUTIQUE_HANTEE, BOUTIQUE_MARCHE) : src/hanteeactivites.js y relie les clients et les apparitions
+      scene: (cv, X) => { const B = T.boutique(); return B && B.actif(cv) ? B.scene(cv, Object.assign({ st: st0 }, X)) : T.repli(cv, X); }, // la vraie boutique, transformée ; ?boutique=0 (ou sans elle) : le repli
+      sons: T.sons, // le jeu de sons de l'écran (src/sons.js, JEUX.<sons>)
+      activites: typeof HANTEE_ACTIVITES !== 'undefined' ? HANTEE_ACTIVITES : null, // les choses à FAIRE (src/hanteeactivites.js) : le ×6 qui s'endort, les clients, les fournées parfaites, les apparitions, la commande
+      compagnon: T.compagnon, icoSorte: T.icoSorte || null, icoApp: T.icoApp || null,
+      prechargerAnnonce: true, revoir: true, // « Comment ça marche ? » dans la feuille des paliers : l'annonce, relue
+      // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) aux couleurs de
+      // l'événement (src/style.css, :is(#hantee, #marche) et classes .mh-*) ; ici, ses touches de saison (T.touches) et les places, cachées, de ses
+      // activités : la jauge sous le ×6 (#<p>-eveil), la série d'apparitions sur la scène (#<p>-serie), la commande en bandeau au-dessus du
+      // tiroir (#<p>-commande), la carte de la collection en tête de la liste (#<p>-bestiaire). F.gabarits donne leur HTML ; src/hanteeactivites.js (F.activites) les remplit
+      habiller: (el) => {
+        if (el.querySelector('.mh-deco')) return;
+        T.touches(el);
+        const p = T.p, solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="${p}-eveil" class="mh-eveil" role="meter" aria-label="${esc(T.g.eveil.replace(/…$/, ''))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
+        const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="${p}-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
+        // la commande : un bandeau sur la scène, juste au-dessus du tiroir (avec le coup de pouce), qui suit le tiroir monté (.pq-suit) ;
+        // la collection : la carte de tête de la liste (.pq-tete), qui défile avec les autres
+        const bx = el.querySelector('.pq-bandeaux'); if (bx) bx.insertAdjacentHTML('beforeend', `<div id="${p}-commande" class="mh-commande-place pq-suit" hidden></div>`);
+        const ca = el.querySelector(`#${p}-cartes`); if (ca) ca.insertAdjacentHTML('afterbegin', `<div id="${p}-bestiaire" class="mh-bestiaire-place pq-tete" hidden></div>`);
+      },
+      gabarits: null,
+      bilanPlus: (qq) => T.bilanPlus(qq, st0()),
+      apresPalier: T.apresPalier || null,
+      synchro: T.synchro ? (s, qq) => T.synchro(s, qq, R) : null,
+      t: Object.assign({
+        lieu, premier: txt('premier', `Touche les ${R && R.PRODUITS[0] ? R.PRODUITS[0].nom.toLowerCase() : T.premierDefaut} pour vendre ta première friandise !`), ferme: txt('ferme', `${nom} ferme ses portes.${T.fermeCri}`), reste: 'Ferme dans',
+        absence: typeof TX.absence === 'function' ? TX.absence : (duree, m) => `Pendant ton absence (${duree}) : +${m}, au ralenti sans toi.`,
+        // (le ×6 de présence en court, sans « avec toi » : la ligne tient à côté de « Ferme dans » ; la jauge juste dessous le dit, et il retombe à ×1 sans toucher)
+        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
+        nouveau: (n) => `${n} : ${T.nouveau}`, embauche: (n) => `${n} ${T.embauche}`,
+        decoDon: Object.assign({}, HF.decos || {}, T.decoDon, TX.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
+        vetementNom: (v) => v, tenueComplete: ` : ${T.tenue} est complète !`,
+        palierSous: (m) => `${m} ${T.gagnes} ${T.auLieuMin}. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', T.palierFinal)), palierOk: 'Trop chouette',
+        amTitre: typeof TX.ameliorations === 'string' ? `Les ${TX.ameliorations.toLowerCase()}` : txt('amTitre', T.amTitre), amSous: txt('amSous', T.amSous),
+        apresBoss: txt('apresBoss', T.apresBoss), apresBossSous: txt('apresBossSous', T.apresBossSous),
+        amBonus: txt('amBonus', T.amBonus), amBientot: (n, k) => `${n} ${T.combineMot}${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
+        palierBonus: txt('palierBonus', T.palierBonus), combineMot: T.combineMot,
+        recetteApres: (n) => `Après le palier ${n}`,
+        revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} ${T.auLieu} : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les ${T.combineMot}s d’après le maître donnent déjà les nouvelles.`, palierBonusFinal: txt('palierBonusFinal', T.palierBonusFinal),
+        paliersSous: (m, nb, n) => `${m} ${T.gagnes} · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
+        paliersNote: txt('paliersNote', T.paliersNote),
+        bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', T.bilanH2), bilanSous: txt('bilanSous', `${nomDevise} ${T.gagnes} en ${T.duree}`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} ${T.decosDe} dans la boutique`, bilanTenue: `de ${T.tenue}`, bilanOr: `${T.tenue} en or`,
+        bilanVide: txt('bilan', T.bilanVide),
+        // l'annonce (une fois, à l'ouverture) et sa relecture (« Comment ça marche ? », dans la feuille des paliers : o.revoir) : la vidéo de
+        // présentation en tête (fournil/media/ ; muette, en boucle, son affiche en attendant ; sans fichier : la scène dessinée), puis
+        // « Comment jouer » en six points, et le bouton pour entrer
+        annonce: (f, o) => `<div class="pq-sheet ${T.classe} ht-annonce${o && o.revoir ? ' ht-revoir' : ''}">${mediaAnnonce()}
+          <h2>${esc(o && o.revoir ? `Comment ça marche ?` : txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
+          <p class="sous">${esc(o && o.revoir ? `${lieu} : une boutique à part, où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.` : `${T.annonceDebut}« ${lieu} », une boutique à part où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.`)}</p>
+          <h3 class="titre-section ht-regles-titre">Comment jouer</h3>
+          <ul class="ht-regles">${T.commentJouer.map(([k, b, t]) => `<li><span class="ht-regle-ico" aria-hidden="true">${icoRegle(k)}</span><p><b>${esc(b)}</b> ${esc(t)}</p></li>`).join('')}</ul>
+          ${o && o.revoir ? `<button type="button" class="btn large ht-btn" data-a="pq-compris" style="margin-top:14px"><b>C’est compris !</b></button>`
+            : `<p class="encadre">${esc(txt('annonceEncadre', T.annonceEncadre))}</p>
+          <button type="button" class="btn large ht-btn" data-a="pq-entrer" style="margin-top:12px"><b>${esc(txt('ouvrir', T.ouvrir))}</b></button>
+          <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button>`}</div>`,
+      }, T.t || {}),
+    };
+    Object.defineProperty(F.ico, 'jeu', { get: () => J(), enumerable: true });
+    const gabarits = F.gabarits = gabaritsDe(T);
+    if (HE) { F.coups.taper = Object.assign({}, F.coups.taper, { reussite: (m) => `Bien joué, tout est sauf : +${m}` }); F.coups.livrer = Object.assign({}, F.coups.livrer, { badge: 'On attend ta commande', attend: 'prêt à servir', reussite: (m) => `Commande servie : +${m}` }); F.coups.attraper = Object.assign({}, F.coups.attraper, { reussite: (m) => `Attrapé : +${m}` }); }
+    return F;
+  }
+
+  // ─── l'habillage de la Maison hantée (le Manoir : orange citrouille, violet ; une toile et deux chauves-souris) ───
+  const HABILLAGE_HANTEE = {
+    p: 'ht', racine: '#hantee', ecran: 'manoir', classe: 'ht', lot: 'hantee', sons: 'hantee', cle: 'hantee', nom: 'La Maison hantée', lieu: 'Le Manoir', devise: { nom: 'bonbons', un: 'bonbon' },
+    icones: () => (typeof ICONS !== 'undefined' && ICONS.HANTEE) || {}, icoDefaut: 'citrouille', icoDevise: 'bonbon', icoLieu: 'manoir', icoBestiaire: 'bestiaire',
+    decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosHantee) SCENE.decosHantee(l); },
+    boutique: () => (typeof BOUTIQUE_HANTEE !== 'undefined' ? BOUTIQUE_HANTEE : null), repli: (cv, X) => sceneManoir(cv, X), // la vraie boutique, hantée (src/boutiquehantee.js) ; ?boutique=0 : le Manoir d'avant
+    compagnon: { espece: 'chauve-souris', cle: 'chauvesouris', attend: 'Elle t’attend dans la boutique ✓' },
+    video: { fichier: 'maison-hantee.mp4', affiche: 'maison-hantee-affiche.jpg', label: 'La Maison hantée en vidéo : la boutique hantée, ses monstres, les fournées parfaites, les apparitions, les commandes de la nuit, le bestiaire, les paliers et la Légende du Manoir' },
+    sceneAnnonce: (I) => `<div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${I('manoir')}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>`,
+    coups: () => ({
+      taper: { cls: 'descente', titre: 'Toc, toc, toc !', bouton: 'Sers !', detail: (ev, f) => `Des bonbons ou un sort ! ${ev.n} touches pour servir les petits monstres · prime <b>${f(ev.prime)}</b> · sinon ils filent avec ${f(ev.enjeu || 0)}`, reussite: (m) => `Tous les petits monstres sont servis, ils repartent ravis : +${m}`, debut: 'Toc toc ! Des bonbons ou un sort ? Sers vite les petits monstres !', perte: (m) => `Les petits monstres filent avec ${m}…` },
+      livrer: { cls: 'grosclient', titre: 'Le bal commande', bouton: 'Livrer !', badge: 'La commande du bal attend', attend: 'le bal attend', reussite: (m) => `Commande livrée au bal des vampires : +${m}`, debut: 'Le bal des vampires passe une grosse commande !', fin: 'Le bal est reparti dans la nuit sans sa commande.' },
+      mult: { cls: 'soiree', titre: 'Pleine lune', debut: 'Pleine lune : tout se vend ×2 !', fin: 'La lune se cache derrière les nuages.' },
+      attraper: { cls: 'scooter', titre: 'Chauve-souris !', bouton: 'Attraper', detail: (ev, f) => `Attrape-la avant qu’elle s’envole : <b>${f(ev.prime)}</b>`, reussite: (m) => `La chauve-souris lâche ${m}`, debut: 'Une chauve-souris passe avec un sac de bonbons : attrape-la !', fin: 'La chauve-souris s’est envolée.' },
+    }),
+    stats: [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']],
+    statsSansFiche: [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
+    // ses touches d'Halloween : une toile dans l'en-tête, deux chauves-souris près de la poignée du tiroir
+    touches: (el) => {
+      el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
+      const tiroir = el.querySelector('.pq-tiroir'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
+    },
+    bilanPlus: (qq, s) => (s && (s.chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []).concat(qq.chauvesouris ? ['Myrtille la chauve-souris, gagnée au bestiaire : un compagnon de la boutique, à vie'] : []),
+    // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
+    apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },
+    synchro: (s, qq, R) => { if (typeof G.donnerChatNoir === 'function' && R.PALIERS.some((p) => p.chat === 'noir' && qq.paliers.includes(p.n))) G.donnerChatNoir(s); },
+    g: { eveil: 'Le boss s’endort…', icoSerie: 'attraper', icoCommande: 'taper', commandeTag: 'Commande de la nuit', clientDefaut: 'Un client du Manoir', bestiaire: 'Le bestiaire', duLieu: ' du Manoir',
+      bestiaireSous: 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.', etagere: 'l’étagère aux bocaux de monstres', etagereArgent: 'l’étagère aux bocaux d’argent',
+      compagnonNom: 'Myrtille la chauve-souris', compagnonSous: 'Un compagnon pour ta boutique, à vie : elle tourne sous le plafond (+1 h d’absence)', gagne: 'gagnée ✓',
+      note: 'Pas de bonbons ici : tout va à ta boulangerie, et le bestiaire reste après Halloween.', retour: 'Retour au Manoir', monstres: 'monstres', auBestiaire: 'au bestiaire', enOr: 'Le bestiaire est en or : bravo !',
+      complet: 'Le bestiaire est complet ! Myrtille t’attend dans « Les compagnons » (la garde-robe ou les Réglages).', choisir: 'Choisir Myrtille tout de suite', accrochee: 'L’étagère aux bocaux de monstres est accrochée dans ta boutique. ',
+      encore: (o) => `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} de monstre${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, une chauve-souris de compagnie.` },
     // « Comment jouer » (l'annonce et sa relecture) : six points courts, chacun son icône
-    const COMMENT_JOUER = [
+    commentJouer: [
       ['taper', 'Sers les monstres.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les apparitions et livre les commandes de la nuit.'],
       ['mult', 'Le ×6 s’endort.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
       ['bestiaire', 'Le bestiaire.', 'Dix monstres de chaque sorte : des étoiles, une étagère et Myrtille la chauve-souris. Puis l’argent et l’or : des étoiles et deux étagères.'],
       ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’Halloween, la tenue de sorcière, le chat noir ; au 20e, le titre « Légende du Manoir ».'],
       ['classement', 'Le classement.', 'Les 15 premiers de l’événement sont récompensés.'],
-      ['date', 'Jusqu’au lundi 2\u00a0novembre, 20\u00a0h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
-    ];
-    const icoRegle = (k) => (k === 'classement' ? (ICONS.coupe ? ICONS.coupe('or') : '') : k === 'date' ? ICONS.HANTEE.citrouille : k === 'bestiaire' ? (ICONS.HANTEE.bestiaire || ICONS.HANTEE.manoir) : ICONS.HANTEE[k] || ICONS.HANTEE.citrouille);
-    // la vidéo : seulement dans la page du jeu (fournil/index.html pose FOURNIL_ACCUEIL) ; l'artefact Claude n'a pas ses fichiers
-    const MEDIA = typeof window !== 'undefined' && window.FOURNIL_ACCUEIL ? 'media/' : '';
-    const mediaAnnonce = () => (MEDIA ? `<div class="ht-annonce-media"><video class="ht-annonce-video" muted playsinline autoplay loop preload="auto" poster="${MEDIA}maison-hantee-affiche.jpg" aria-label="La Maison hantée en vidéo : la boutique hantée, ses monstres, les fournées parfaites, les apparitions, les commandes de la nuit, le bestiaire, les paliers et la Légende du Manoir"><source src="${MEDIA}maison-hantee.mp4" type="video/mp4"></video></div>`
-      : `<div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${ICONS.HANTEE.manoir}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>`);
-    const F = {
-      cle, p: 'ht', racine: '#hantee', ecran: 'manoir', classe: 'ht', R: HR, nom, lieu, porte: false, lot: 'hantee', couleurs,
-      fmt: bonbons, fmtPhrase: bonbons, prix: (n) => `${nombre(n)}<i class="bb" aria-hidden="true"></i>`, solde: (n) => `${nombre(n)}<small class="bb-mot">${nomDevise}</small>`,
-      ico: { devise: ICONS.HANTEE.bonbon, palier: ICONS.HANTEE.palier, bilan: ICONS.HANTEE.citrouille, produit: (p, i) => ico(p.id, i), coup: (type, g) => ((HE ? ICONS.HANTEE.H1[type] : ICONS.HANTEE[type]) || ICONS.HANTEE[g] || ICONS.HANTEE.citrouille) },
-      decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosHantee) SCENE.decosHantee(l); },
-      rangFinal: (rec) => { const x = rec[cle] || (rec.evenements && rec.evenements[cle]); return typeof x === 'number' ? x : x && x.rang ? x.rang : null; }, // classement v5 : recompenses().evenements.hantee = { rang, podium }
-      recompenseFinale: (rang) => (typeof CLASSEMENT !== 'undefined' && CLASSEMENT.recompenseEvt ? CLASSEMENT.recompenseEvt(rang) : null), // v6.6 : du 1er au 15e, des étoiles et un boost (src/classement.js, RECOMPENSES_EVT)
-      genres: Object.assign({ descente: 'taper', grosclient: 'livrer', soiree: 'mult', scooter: 'attraper' }, HF.genres || {}), actions: Object.assign({ taper: 'taper', livrer: 'livrer', attraper: 'attraper' }, HF.actions || {}),
-      coupsType: HE ? coupsType : HF.coups || null, // { [type]: { titre, debut, fin, bouton, detail… } } : l'habillage de H1
-      coups: {
-        taper: { cls: 'descente', titre: 'Toc, toc, toc !', bouton: 'Sers !', detail: (ev, f) => `Des bonbons ou un sort ! ${ev.n} touches pour servir les petits monstres · prime <b>${f(ev.prime)}</b> · sinon ils filent avec ${f(ev.enjeu || 0)}`, reussite: (m) => `Tous les petits monstres sont servis, ils repartent ravis : +${m}`, debut: 'Toc toc ! Des bonbons ou un sort ? Sers vite les petits monstres !', perte: (m) => `Les petits monstres filent avec ${m}…` },
-        livrer: { cls: 'grosclient', titre: 'Le bal commande', bouton: 'Livrer !', badge: 'La commande du bal attend', attend: 'le bal attend', reussite: (m) => `Commande livrée au bal des vampires : +${m}`, debut: 'Le bal des vampires passe une grosse commande !', fin: 'Le bal est reparti dans la nuit sans sa commande.' },
-        mult: { cls: 'soiree', titre: 'Pleine lune', debut: 'Pleine lune : tout se vend ×2 !', fin: 'La lune se cache derrière les nuages.' },
-        attraper: { cls: 'scooter', titre: 'Chauve-souris !', bouton: 'Attraper', detail: (ev, f) => `Attrape-la avant qu’elle s’envole : <b>${f(ev.prime)}</b>`, reussite: (m) => `La chauve-souris lâche ${m}`, debut: 'Une chauve-souris passe avec un sac de bonbons : attrape-la !', fin: 'La chauve-souris s’est envolée.' },
-      },
-      stats: HE ? [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']] : [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
-      scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // la vraie boutique, hantée (src/boutiquehantee.js) ; ?boutique=0 : le Manoir d'avant
-      sons: 'hantee', // le jeu de sons de l'écran (src/sons.js, JEUX.hantee : fournil/sons/hantee/)
-      activites: typeof HANTEE_ACTIVITES !== 'undefined' ? HANTEE_ACTIVITES : null, // les choses à FAIRE du Manoir (src/hanteeactivites.js) : le ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, la commande de la nuit
-      prechargerAnnonce: true, revoir: true, // « Comment ça marche ? » dans la feuille des paliers : l'annonce, relue
-      // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
-      // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
-      // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
-      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en bandeau au-dessus du tiroir (#ht-commande), la carte du bestiaire en tête de la liste
-      // (#ht-bestiaire). F.gabarits donne leur HTML ;
-      // src/hanteeactivites.js (F.activites) les remplit
-      habiller: (el) => {
-        if (el.querySelector('.mh-deco')) return;
-        el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
-        const tiroir = el.querySelector('.pq-tiroir'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
-        const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
-        const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
-        // la commande de la nuit : un bandeau sur la scène, juste au-dessus du tiroir (avec le coup de pouce), qui suit le tiroir monté (.pq-suit) ;
-        // le bestiaire : la carte de tête de la liste (.pq-tete), qui défile avec les autres
-        const bx = el.querySelector('.pq-bandeaux'); if (bx) bx.insertAdjacentHTML('beforeend', '<div id="ht-commande" class="mh-commande-place pq-suit" hidden></div>');
-        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('afterbegin', '<div id="ht-bestiaire" class="mh-bestiaire-place pq-tete" hidden></div>');
-      },
-      gabarits,
-      bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []).concat(qq.chauvesouris ? ['Myrtille la chauve-souris, gagnée au bestiaire : un compagnon de la boutique, à vie'] : []),
-      // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
-      apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },
-      synchro: (s, qq) => { if (typeof G.donnerChatNoir === 'function' && HR.PALIERS.some((p) => p.chat === 'noir' && qq.paliers.includes(p.n))) G.donnerChatNoir(s); },
-      t: {
-        lieu, premier: txt('premier', `Touche les ${HR && HR.PRODUITS[0] ? HR.PRODUITS[0].nom.toLowerCase() : 'bonbons acidulés'} pour vendre ta première friandise !`), ferme: txt('ferme', `${nom} ferme ses portes. Bouh !`), reste: 'Ferme dans',
-        absence: typeof T.absence === 'function' ? T.absence : (duree, m) => `Pendant ton absence (${duree}) : +${m}, au ralenti sans toi.`,
-        // (le ×6 de présence en court, sans « avec toi » : la ligne tient à côté de « Ferme dans » ; la jauge juste dessous le dit, « Réveillé :
-        // ×6 avec toi », « Le boss s'endort… », et il retombe à ×1 sans toucher)
-        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
-        nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
-        decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir', legende: 'la lanterne de la légende, sa flamme verte au pied du fournil' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
-        vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
-        palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
-        amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
-        apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e le chapeau phosphorescent.'),
-        amBonus: txt('amBonus', 'Le Marché des sorcières (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des sorts de confort qui rendent la nuit plus douce. Chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
-        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
-        recetteApres: (n) => `Après le palier ${n}`,
-        revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Manoir : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les sortilèges d’après le maître donnent déjà les nouvelles.`, palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
-        paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
-        paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
-        bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
-        bilanVide: txt('bilan', 'Le manoir a fermé ses volets. À l’année prochaine !'),
-        // l'annonce (une fois, à l'ouverture) et sa relecture (« Comment ça marche ? », dans la feuille des paliers : o.revoir) : la vidéo de
-        // présentation en tête (fournil/media/, capturée dans le jeu : outils/annonce-hantee/video.cjs ; muette, en boucle, son affiche en
-        // attendant ; sans fichier, l'artefact Claude : pas de média), puis « Comment jouer » en six points, et le bouton pour entrer
-        annonce: (f, o) => `<div class="pq-sheet ht ht-annonce${o && o.revoir ? ' ht-revoir' : ''}">${mediaAnnonce()}
-          <h2>${esc(o && o.revoir ? `Comment ça marche ?` : txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
-          <p class="sous">${esc(o && o.revoir ? `${lieu} : une boutique à part, où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.` : `Ta boutique, hantée pour Halloween : «\u00a0${lieu}\u00a0», une boutique à part où tout le monde part de zéro. Ses ${nomDevise} paient ta boulangerie, à vie.`)}</p>
-          <h3 class="titre-section ht-regles-titre">Comment jouer</h3>
-          <ul class="ht-regles">${COMMENT_JOUER.map(([k, b, t]) => `<li><span class="ht-regle-ico" aria-hidden="true">${icoRegle(k)}</span><p><b>${esc(b)}</b> ${esc(t)}</p></li>`).join('')}</ul>
-          ${o && o.revoir ? `<button type="button" class="btn large ht-btn" data-a="pq-compris" style="margin-top:14px"><b>C’est compris !</b></button>`
-            : `<p class="encadre">${esc(txt('annonceEncadre', 'Un peu effrayant, surtout mignon : pour tous les âges. Fantômes, momie et citrouilles t’attendent.'))}</p>
-          <button type="button" class="btn large ht-btn" data-a="pq-entrer" style="margin-top:12px"><b>${esc(txt('ouvrir', 'Entrer dans le manoir'))}</b></button>
-          <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button>`}</div>`,
-      },
-    };
-    if (HE) { F.coups.taper = Object.assign({}, F.coups.taper, { reussite: (m) => `Bien joué, tout est sauf : +${m}` }); F.coups.livrer = Object.assign({}, F.coups.livrer, { badge: 'On attend ta commande', attend: 'prêt à servir', reussite: (m) => `Commande servie : +${m}` }); F.coups.attraper = Object.assign({}, F.coups.attraper, { reussite: (m) => `Attrapé : +${m}` }); }
-    return F;
-  }
+      ['date', 'Jusqu’au lundi 2 novembre, 20 h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
+    ],
+    annonceDebut: 'Ta boutique, hantée pour Halloween : ', annonceEncadre: 'Un peu effrayant, surtout mignon : pour tous les âges. Fantômes, momie et citrouilles t’attendent.', ouvrir: 'Entrer dans le manoir',
+    premierDefaut: 'bonbons acidulés', fermeCri: ' Bouh !', gagnes: 'gagnés', duree: 'une semaine', auLieuMin: 'au manoir', nouveau: 'nouvelle friandise au manoir !', embauche: 'rejoint l’équipe du manoir !', auLieu: 'au Manoir',
+    decoDon: { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir', legende: 'la lanterne de la légende, sa flamme verte au pied du fournil' },
+    tenue: 'la tenue d’Halloween', decosDe: 'd’Halloween',
+    palierFinal: 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.',
+    amTitre: 'Les sortilèges', amSous: 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.',
+    apresBoss: 'Après le maître du Manoir', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e le chapeau phosphorescent.',
+    amBonus: 'Le Marché des sorcières (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des sorts de confort qui rendent la nuit plus douce. Chacun paie la boulangerie (des heures de gains, des étoiles).',
+    palierBonus: 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept sortilèges qui paient la boulangerie t’attendent au Manoir.', combineMot: 'sortilège',
+    palierBonusFinal: 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.',
+    paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.',
+    bilanH2: 'Bilan de la nuit', bilanVide: 'Le manoir a fermé ses volets. À l’année prochaine !',
+  };
 
-  const quartier = fabriquer(QR ? ficheQuartier() : { R: null }), hantee = fabriquer(HR ? ficheHantee() : { R: null });
-  const liste = [quartier, hantee].filter((e) => e.R); // sans ses règles (un fichier absent), un événement n'existe pas
+  // ─── l'habillage du Marché d'automne (la Halle : rouille-citrouille, feuille d'or, mousse ; une guirlande de feuilles, deux feuilles qui tombent) ───
+  // Ses icônes : ICONS.MARCHE (src/icons.js, constructeur C) ; en attendant (ou s'il en manque une), un petit jeu de repli dessiné ici.
+  const SVG_M = (b) => `<svg viewBox="0 0 48 48" aria-hidden="true">${b}</svg>`;
+  const FEUILLE_M = SVG_M('<path d="M24 4l4 9 7-4-1 9 9-1-5 7 6 4-9 3 3 8-9-3-4 9-4-9-9 3 3-8-9-3 6-4-5-7 9 1-1-9 7 4z" fill="#D9622B" stroke="#7B4A2A" stroke-width="1.6" stroke-linejoin="round"/><path d="M24 44V20" stroke="#7B4A2A" stroke-width="2" stroke-linecap="round"/>');
+  const REPLI_MARCHE = {
+    feuille: FEUILLE_M, halle: SVG_M('<path d="M6 20 24 8l18 12v4H6z" fill="#D9622B"/><path d="M9 24h30v16H9z" fill="#FFF4E4" stroke="#7B4A2A" stroke-width="2"/><path d="M9 24h30" stroke="#E8B33A" stroke-width="4"/><circle cx="17" cy="34" r="3" fill="#C8342B"/><circle cx="24" cy="34" r="3" fill="#E8B33A"/><circle cx="31" cy="34" r="3" fill="#7A9A3A"/>'),
+    panier: SVG_M('<path d="M8 20h32l-4 20H12z" fill="#B9824A" stroke="#5B3A1E" stroke-width="2"/><path d="M14 20c0-9 20-9 20 0" fill="none" stroke="#5B3A1E" stroke-width="3"/><circle cx="19" cy="19" r="4" fill="#C8342B"/><circle cx="28" cy="18" r="4" fill="#E8B33A"/>'),
+    chataigne: SVG_M('<path d="M24 9c10 0 15 9 13 18-2 8-7 12-13 12s-11-4-13-12C9 18 14 9 24 9z" fill="#7B4A2A"/><ellipse cx="24" cy="34" rx="9" ry="4" fill="#E9D5BC"/><ellipse cx="18" cy="18" rx="3" ry="6" fill="#fff" opacity=".3"/>'),
+    champignon: SVG_M('<path d="M8 24c0-10 32-10 32 0z" fill="#B5733C"/><path d="M19 24h10l2 16H17z" fill="#FFF4E4" stroke="#9C7B5E" stroke-width="1.5"/>'),
+  };
+  const iconesMarche = () => { const M = typeof ICONS !== 'undefined' && ICONS.MARCHE ? ICONS.MARCHE : {}; const d = MR && MR.FICHE.devise && MR.FICHE.devise.svg; const o = Object.assign({ noisette: d || REPLI_MARCHE.chataigne, noisettes: d || REPLI_MARCHE.chataigne, palier: FEUILLE_M, album: REPLI_MARCHE.panier, halle: REPLI_MARCHE.halle, H1: {} }, REPLI_MARCHE, M); if (!o.bestiaire) o.bestiaire = o.album; return o; }; // (le moteur des activités lit « bestiaire » : l'album de la forêt)
+  const HABILLAGE_MARCHE = {
+    p: 'mc', racine: '#marche', ecran: 'halle', classe: 'ht mch', lot: 'marche', sons: 'marche', cle: 'marche', nom: 'Le Marché d’automne', lieu: 'La Halle', devise: { nom: 'noisettes', un: 'noisette' },
+    icones: iconesMarche, icoDefaut: 'feuille', icoDevise: 'noisette', icoLieu: 'halle', icoBestiaire: 'album',
+    decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosMarche) SCENE.decosMarche(l); },
+    boutique: () => (typeof BOUTIQUE_MARCHE !== 'undefined' ? BOUTIQUE_MARCHE : null), repli: () => null, // la Halle (src/boutiquemarche.js, constructeur C) ; sans elle (?boutique=0, pas de WebGL) : pas de 3D, le fond de la scène et le repli en DOM des activités (jamais le Manoir d'Halloween)
+    icoSorte: { ecureuil: 'chataigne', herisson: 'champignon', lapin: 'panier', renard: 'feuille', blaireau: 'panier', chouette: 'feuille', faon: 'champignon', marcassin: 'chataigne', ourson: 'panier' },
+    icoApp: { feuille: 'feuille', chataigne: 'chataigne', champignon: 'champignon' },
+    compagnon: { espece: 'ecureuil', cle: 'ecureuil', attend: 'Il t’attend dans la boutique ✓' },
+    video: null, // (fournil/media/marche.mp4 si le constructeur C la fournit : { fichier: 'marche.mp4', affiche: 'marche-affiche.jpg', label })
+    sceneAnnonce: (I) => `<div class="ht-annonce-scene mc-annonce-scene" aria-hidden="true"><i class="mc-soleil"></i><span class="ht-pic">${I('halle')}</span><i class="mc-tombe a">${FEUILLE_M}</i><i class="mc-tombe b">${FEUILLE_M}</i><i class="mc-tombe c">${FEUILLE_M}</i></div>`,
+    coups: () => ({
+      taper: { cls: 'descente', titre: 'Les pies voleuses !', bouton: 'Ouste !', detail: (ev, f) => `${ev.n} touches pour chasser les pies · prime <b>${f(ev.prime)}</b> · sinon elles emportent ${f(ev.enjeu || 0)}`, reussite: (m) => `Les pies sont chassées : +${m}`, debut: 'Des pies chipent les noisettes : chasse-les, vite !', perte: (m) => `Les pies s’envolent avec ${m}…` },
+      livrer: { cls: 'grosclient', titre: 'La cantine de l’école', bouton: 'Livrer !', badge: 'La cantine attend', attend: 'la cantine attend', reussite: (m) => `Goûter livré à la cantine : +${m}`, debut: 'La cantine commande pour le goûter !', fin: 'La cantine a trouvé son goûter ailleurs.' },
+      mult: { cls: 'soiree', titre: 'L’heure dorée', debut: 'Le soleil d’automne dore la Halle : tout se vend ×2 !', fin: 'Le soleil passe derrière les toits.' },
+      attraper: { cls: 'scooter', titre: 'La brouette du fermier', bouton: 'Attraper', detail: (ev, f) => `Attrape le panier avant qu’il reparte : <b>${f(ev.prime)}</b>`, reussite: (m) => `Le fermier te laisse ${m}`, debut: 'La brouette du fermier passe : attrape le panier !', fin: 'La brouette est repartie vers la ferme.' },
+    }),
+    stats: [['Ventes', 'ventes'], ['Pies chassées', 'descentes'], ['Cantines servies', 'grosClients'], ['Paniers attrapés', 'scooters']],
+    // ses touches d'automne : une guirlande de feuilles dans l'en-tête, deux feuilles qui tombent près de la poignée du tiroir
+    touches: (el) => {
+      el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', `<span class="mh-deco mc-deco" aria-hidden="true"><i class="mc-guirlande">${[0, 1, 2, 3, 4, 5, 6].map((k) => `<b style="--k:${k}">${FEUILLE_M}</b>`).join('')}</i></span>`);
+      const tiroir = el.querySelector('.pq-tiroir'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', `<span class="mh-vol mc-vol" aria-hidden="true"><i class="mc-f a">${FEUILLE_M}</i><i class="mc-f b">${FEUILLE_M}</i></span>`);
+    },
+    bilanPlus: (qq) => (qq.ecureuil ? ['Pirouette l’écureuil, gagné à l’album de la forêt : un compagnon de la boutique, à vie'] : []),
+    g: { eveil: 'Le marché s’assoupit…', icoSerie: 'feuille', icoCommande: 'panier', commandeTag: 'Commande du marché', clientDefaut: 'Un client de la Halle', bestiaire: 'L’album de la forêt', duLieu: '',
+      bestiaireSous: 'Sers dix enfants de chaque déguisement pour les ajouter à l’album.', etagere: 'l’étagère aux peluches de la forêt', etagereArgent: 'l’étagère d’argent',
+      compagnonNom: 'Pirouette l’écureuil', compagnonSous: 'Un compagnon pour ta boutique, à vie : il grimpe aux étagères (+1 h d’absence)', gagne: 'gagné ✓',
+      note: 'Pas de noisettes ici : tout va à ta boulangerie, et l’album reste après le marché.', retour: 'Retour à la Halle', monstres: 'déguisements', auBestiaire: 'dans l’album', enOr: 'L’album est en or : bravo !',
+      complet: 'L’album est complet ! Pirouette t’attend dans « Les compagnons » (la garde-robe ou les Réglages).', choisir: 'Choisir Pirouette tout de suite', accrochee: 'L’étagère aux peluches de la forêt est accrochée dans ta boutique. ',
+      encore: (o) => `Encore ${o.reste} déguisement${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, un écureuil de compagnie.` },
+    commentJouer: [
+      ['taper', 'Sers les enfants déguisés.', 'Touche leur bulle, réussis tes fournées parfaites (quand la carte brille : ×2), attrape les feuilles d’or et livre les commandes du marché.'],
+      ['mult', 'Le ×6 s’assoupit.', 'Tant que tu touches l’écran, tout se vend ×6 ; sans toi, il retombe peu à peu. Un toucher le réveille.'],
+      ['bestiaire', 'L’album de la forêt.', 'Dix enfants de chaque déguisement : des étoiles, une étagère et Pirouette l’écureuil. Puis l’argent et l’or : des étoiles et deux étagères.'],
+      ['palier', '20 paliers, au fil des jours.', 'Étoiles, boosts, décos d’automne, la tenue d’automne ; au 20e, le titre « Légende du Marché ».'],
+      ['classement', 'Le classement.', 'Les 15 premiers du marché sont récompensés.'],
+      ['date', 'Jusqu’au vendredi 20 novembre, 20 h.', 'Tout ce que tu gagnes pour ta boulangerie reste à vie.'],
+    ],
+    annonceDebut: 'Ta boutique devient un marché d’automne : ', annonceEncadre: 'Châtaignes, pommes, champignons et feuilles mortes : pour tous les âges. Les amis de la forêt t’attendent.', ouvrir: 'Entrer dans la Halle',
+    premierDefaut: 'châtaignes grillées', fermeCri: '', gagnes: 'gagnées', duree: 'huit jours', auLieuMin: 'à la Halle', nouveau: 'nouvelle douceur à la Halle !', embauche: 'rejoint l’équipe de la Halle !', auLieu: 'à la Halle',
+    decoDon: { cagettes: 'des cagettes de pommes et de courges sur le perron', lampions: 'des lampions sur le rebord de la vitrine', feuilles: 'un tas de feuilles mortes dans un coin', tonneau: 'le tonneau du pressoir près de la porte', 'arbre-or': 'l’arbre aux feuilles d’or, au pied du fournil', album: 'l’étagère aux peluches de la forêt' },
+    tenue: 'la tenue d’automne', decosDe: 'd’automne',
+    palierFinal: 'Le maître de la Halle, c’est toi. Tout ça reste à vie, même après le marché.',
+    amTitre: 'Les astuces', amSous: 'Des astuces qui multiplient les ventes de la Halle, jusqu’à la fin du marché.',
+    apresBoss: 'Après le maître de la Halle', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e la couronne de feuilles d’or.',
+    amBonus: 'La criée (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des astuces de confort qui rendent le marché plus doux. Chacune paie la boulangerie (des heures de gains, des étoiles).',
+    palierBonus: 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept astuces qui paient la boulangerie t’attendent à la Halle.', combineMot: 'astuce',
+    palierBonusFinal: 'Une légende dorée : la couronne de feuilles d’or est dans ta garde-robe, à vie.',
+    paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’automne se porte depuis la garde-robe du boulanger, et l’écureuil se choisit dans Les compagnons.',
+    bilanH2: 'Bilan du Marché d’automne', bilanVide: 'La Halle a rangé ses étals. À l’année prochaine !',
+  };
+  const ficheHantee = () => ficheBoutique(HR, HABILLAGE_HANTEE);
+  const ficheMarche = () => ficheBoutique(MR, HABILLAGE_MARCHE);
+
+  const quartier = fabriquer(QR ? ficheQuartier() : { R: null }), hantee = fabriquer(HR ? ficheHantee() : { R: null }), marche = fabriquer(MR ? ficheMarche() : { R: null });
+  const liste = [quartier, hantee, marche].filter((e) => e.R); // sans ses règles (un fichier absent), un événement n'existe pas ; l'ordre : celui des fenêtres (le bilan d'avant passe d'abord)
   // les annonces, dans l'ordre : le bilan d'un événement fini passe d'abord ; une seule à la fois ; et un temps de calme après un écran fermé
   function annoncer(force) {
     if (!force && performance.now() < calmeJusqua) return false;
@@ -1789,6 +1919,6 @@ const EVENEMENTS = (() => {
     for (const e of liste) { if (e.annoncer()) return true; if (e.bilanEnAttente()) return false; }
     return false;
   }
-  return { quartier, hantee, liste, annoncer, get ouvert() { return liste.find((e) => e.ouvert) || null; } };
+  return { quartier, hantee, marche, liste, annoncer, get ouvert() { return liste.find((e) => e.ouvert) || null; } };
 })();
 const EVENEMENT = EVENEMENTS.quartier; // l'API d'avant (Le Quartier), inchangée
