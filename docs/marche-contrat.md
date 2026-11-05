@@ -698,11 +698,14 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     est tourné dans sa géométrie ; ses feuilles sont sur les côtés du socle ; sa vignette est recuite (5 Ko ; 1 504 Ko en tout, ≤ 1 536).
   · **Les budgets mesurés** (`test/fournil-marche-boutique.cjs`, 390 × 844, SwiftShader, tout au max, des enfants partout) : éco, au pire
     51 appels pour le décor (≤ 72) ; haute, 45 maillages visibles et 46 appels mesurés au pire (≤ 120), 4 lumières (≤ 8), 23 halos en un
-    appel, ~165 000 triangles ; processeur ×4 : **17,4 ms** par image en médiane (27,8 ms à 90 % ; < 40) ; trois allers-retours, la mémoire
+    appel ; processeur ×4 : **17,4 ms** par image en médiane (27,8 ms à 90 % ; < 40) ; trois allers-retours, la mémoire
     ne monte pas (éco 72 → 78 → 78 géométries, 9 textures ; haute 102 → 102 → 102, 47 textures). Dans la boutique (`test/fournil-decos.cjs`,
     capitale palier 1, tout au max) : toutes les décos d'événement, le Marché compris, 61 appels (≤ 72) ; les douze décos d'automne posées,
     59 à 60 (≤ 72), 2 pour les décos fusionnées, en 390 × 844 et 360 × 640 ; haute, au pire 66 appels (≤ 80) ; douze changements de
-    disposition sans que la mémoire monte (2 maillages fusionnés vivants).
+    disposition sans que la mémoire monte (2 maillages fusionnés vivants). Une foule pleine (25 clients, `outils` de travail, 390 × 844) :
+    en éco, la Halle 270 appels et 176 000 triangles pour la boutique 263 et 125 000 (les chibis à capuche, écharpe et queue : pas un appel
+    de plus, des triangles en plus) ; en haute, la Halle 44 appels (un maillage skinné par personnage, 34 personnages) et 255 000 triangles,
+    la boutique 258 appels et 126 000. Le boulanger 3D : un maillage par tenue, 6 616 à 9 400 triangles (≤ 10 500).
   · **La vidéo de présentation** est faite et publiée : `fournil/media/marche.mp4` (9,8 s, 1 004 Ko, H.264 main, 540 × 1168, muette : la Halle
     de jour et son titre, un enfant déguisé servi — « Merci ! », l'album de la forêt qui avance —, le crépuscule et ses lampions) et son
     affiche `marche-affiche.jpg` (77 Ko ; les bornes de la Maison hantée : ≤ 1,5 Mo, ≤ 80 Ko). `outils/annonce-marche/video.cjs` filme la
@@ -720,6 +723,16 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     transparent en mode boutique (`#marche.mc-boutique { background: transparent }`, comme `#hantee.ht-boutique` : la scène 3D est
     derrière) ; le test l'attendait crème (écrit quand la Halle n'était qu'une amorce) : à vérifier hors mode boutique (`?boutique=0`) ou sur
     `.pq-scene ~ *`. Et la vidéo à nommer (ci-dessus).
+  · **`test/fournil-marche-activites.cjs` (B) en haute et en éco, avec la Halle** (5 nov., 889 s) : 15 échecs. Dix sont des attentes restées
+    celles du Manoir : « Il en a eu assez d'attendre » (×2 ; la Halle dit « Il est reparti jouer dans les feuilles »), « commande de la nuit » (×2),
+    « rejoint le bestiaire » (×2 : « rejoint l'album »), les étagères aux bocaux (×2), le loup-garou et la chauve-souris, « Choisir
+    Myrtille » : à B. Quatre sont des attentes sous la charge du rendu logiciel, **reproduites sur `/home/user/master-ref`** par
+    `test/fournil-hantee-activites.cjs` (le Manoir seul, 12 min 37 : « la fenêtre réussie passe au vert », « la pastille de Sortilèges »,
+    « 360 × 640 : les bandeaux ») ; sur `marche-s`, ce test du Manoir n'en a que deux (la pastille, les bandeaux) : la Maison hantée ne
+    régresse pas. La dernière, « un deuxième, servi en touchant sa bulle » (haute seulement), ne se reproduit pas à part (deux enfants servis
+    d'affilée en touchant leur bulle). Sous SwiftShader, la Halle en haute tourne à 1,5-2 images/s (le Manoir 2,5-4 ; la Halle sans
+    l'environnement PMREM 2-4) : sur un téléphone, elle coûte ce que coûte la boutique en haute (le même rendu riche) ; le Manoir n'a pas
+    d'environnement.
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
