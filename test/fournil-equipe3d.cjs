@@ -12,7 +12,7 @@
 //   la page, avec et sans l'équipe 3D : les mêmes que src/game.js seul, dans Node, sur le même état) ;
 // · la préparation à petits pas, le processeur ralenti ×4 : de l'arrivée du lot au boulanger et aux apprentis en 3D (la cuisson, la tenue du
 //   boulanger préparée avec le reste, puis le boulanger, puis un apprenti par image), aucune image ne passe plus de 30 ms dans l'équipe ;
-// · les tenues : chacune des 46 pièces (la tenue d’apprenti de l’accueil comprise) a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
+// · les tenues : chacune des 59 pièces (la tenue d’apprenti de l’accueil comprise ; les treize du Marché d’automne et de sa saison) a son kit, de sa forme, et change le maillage (sa géométrie ou ses couleurs) ; la tenue de la chaîne (la
 //   palette TENUES.chaine, la veste de patron, le trousseau) ; aucune traversée entre deux pièces, ni des mains dans une pièce (toutes les
 //   pièces seules, les ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses : le repos, plus tard, la main au front et les
 //   mains frottées de la boutique, la joie) ; un maillage par tenue et ≤ 10 500 triangles ; le cache (20 changements sans rien cuire, ≤ 25 ms
@@ -52,7 +52,7 @@ const G0 = require('../src/game.js'); // les règles seules (sans page) : les re
 // (évaluée dans la page) les traversées entre les pièces d'un acteur, à sa pose : pour chaque paire de kits (les pièces et les marques du titre),
 // les triangles de l'un dont un côté perce un triangle de l'autre (Möller–Trumbore, strictement dans le segment) ; une grille des boîtes pour
 // aller vite ; les triangles nuls (les pièces rangées à l'échelle nulle) ignorés. o.mains : les mains aussi (les triangles du corps dont les
-// trois sommets suivent surtout un os du poing, Fist) contre chaque kit, la lanterne exceptée (elle est tenue) ; la paire { a: 'mains', b: kit }.
+// trois sommets suivent surtout un os du poing, Fist) contre chaque kit, la lanterne et le panier d’osier exceptés (ils sont tenus) ; la paire { a: 'mains', b: kit }.
 // Rend { paires: [{ a, b, n, ou }], tris, ms }
 function traversees(a, o) {
   const t0 = performance.now(), S = a.S, g = S.geometry, idx = g.index.array, n = g.attributes.position.count, P = new Float32Array(n * 3);
@@ -86,7 +86,7 @@ function traversees(a, o) {
     const Gm = new Map(); let nm = 0;
     for (let t = 0; t < a.habit.trisCorps; t++) { if (!poing(idx[t * 3]) || !poing(idx[t * 3 + 1]) || !poing(idx[t * 3 + 2])) continue; tri(t, A9); if (aire(A9) < minA) continue; nm++; cases(boite(A9), (q) => { let L = Gm.get(q); if (!L) Gm.set(q, (L = [])); L.push(t); }); }
     for (const k of kits) {
-      if (/lanterne/.test(k.cle)) continue; const ou = []; let nb = 0;
+      if (/lanterne|panier/.test(k.cle)) continue; const ou = []; let nb = 0;
       for (let t = k.t0; t < k.t1; t++) {
         tri(t, A9); if (aire(A9) < minA) continue; const b = boite(A9), cand = new Set(); cases(b, (q) => { const L = Gm.get(q); if (L) for (const u of L) cand.add(u); });
         for (const u of cand) { tri(u, B9); const bb = boite(B9); if (bb[0] > b[3] || bb[3] < b[0] || bb[1] > b[4] || bb[4] < b[1] || bb[2] > b[5] || bb[5] < b[2]) continue; if (coupe(A9, B9)) { nb++; if (ou.length < 2) ou.push([(A9[0] + A9[3] + A9[6]) / 3 / H, (A9[1] + A9[4] + A9[7]) / 3 / H, (A9[2] + A9[5] + A9[8]) / 3 / H].map((v) => v.toFixed(3)).join(',')); break; } }
@@ -336,13 +336,13 @@ function mesurerAura() {
     const P = await ev(() => {
       const G = window.__fournil.G, O = G.GARDEROBE.objets, P4 = ['tete', 'haut', 'pieds', 'accessoire'], EMP = { tete: 'T|', haut: 'H|', pieds: 'P|', accessoire: 'A|' };
       const sig = (ids) => { const a = EQUIPE3D.boulanger(2, { cle: ids.join('|') }, 'Au Fournil du Village'), g = a.S.geometry, c = g.attributes.color.array, pp = g.attributes.position.array; let hc = 2166136261, hp = 2166136261; for (let i = 0; i < c.length; i++) hc = Math.imul(hc ^ c[i], 16777619) >>> 0; for (let i = 0; i < pp.length; i += 3) hp = Math.imul(hp ^ Math.round(pp[i] * 1e4), 16777619) >>> 0; return { kits: a.habit.kits.map((k) => k.cle), tris: a.habit.tris, sig: `${hp}/${hc}/${pp.length}`, mailles: (() => { let n = 0; a.g.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; })() }; };
-      const forme = (v) => ({ tete: { toque: 'T|toque|', casquette: 'T|casquette|', chapeau: 'T|chapeau|' }[v.forme], haut: v.id === 'chaine-veste' ? 'H|veste' : { tablier: 'H|tablier|', sweat: 'H|sweat|', cape: 'H|cape' }[v.forme], pieds: v.id === 'chaine-souliers' ? 'P|pieds|souliers' : v.id === 'sabots' ? 'P|pieds|sabots' : { chaussures: 'P|pieds|', baskets: 'P|pieds|baskets', bottes: 'P|pieds|bottes' }[v.forme], accessoire: v.id === 'chaine-cles' ? 'A|cles' : { lunettes: 'A|lunettes', foulard: 'A|foulard|', chaine: 'A|chaine|', lanterne: 'A|lanterne' }[v.forme] })[v.piece];
+      const forme = (v) => ({ tete: { toque: 'T|toque|', casquette: 'T|casquette|', chapeau: 'T|chapeau|', bonnet: 'T|bonnet', couronne: 'T|couronne' }[v.forme], haut: v.id === 'chaine-veste' ? 'H|veste' : { tablier: 'H|tablier|', sweat: 'H|sweat|', cape: 'H|cape' }[v.forme], pieds: v.id === 'chaine-souliers' ? 'P|pieds|souliers' : v.id === 'sabots' ? 'P|pieds|sabots' : { chaussures: 'P|pieds|', baskets: 'P|pieds|baskets', bottes: 'P|pieds|bottes' }[v.forme], accessoire: v.id === 'chaine-cles' ? 'A|cles' : { lunettes: 'A|lunettes', foulard: 'A|foulard|', chaine: 'A|chaine|', lanterne: 'A|lanterne', panier: 'A|panier' }[v.forme] })[v.piece];
       const base = sig(['toque-blanche', 'tablier-blanc', 'sabots', '']), out = [];
       for (const v of Object.values(O)) { const ids = ['toque-blanche', 'tablier-blanc', 'sabots', '']; ids[P4.indexOf(v.piece)] = v.id; const s = sig(ids), k = s.kits.filter((x) => x.startsWith(EMP[v.piece])); out.push({ id: v.id, base: v.collection === 'base' && v.piece !== 'accessoire', kit: k.join(','), forme: !!forme(v) && k.some((x) => x.startsWith(forme(v))), sig: s.sig, tris: s.tris, mailles: s.mailles }); }
       return { base, out, n: Object.keys(O).length };
     });
     const nonBase = P.out.filter((x) => !x.base), sigs = new Set(nonBase.map((x) => x.sig));
-    check(P.n === 46 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
+    check(P.n === 59 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
     check(nonBase.every((x) => x.sig !== P.base.sig) && sigs.size === nonBase.length && P.out.filter((x) => x.base).every((x) => x.sig === P.base.sig), `chaque pièce portée change le maillage : ${nonBase.length} maillages tous différents, et de la tenue de base (les trois pièces de base la redonnent)`);
     console.log(`        les kits : ${P.out.map((x) => `${x.id} ${x.kit} (${x.tris})`).join(' · ')}`);
     // la tenue de la chaîne : la palette TENUES.chaine (celle des chibis aussi), la veste de patron (pas un tablier), le trousseau à la ceinture
@@ -354,7 +354,8 @@ function mesurerAura() {
     const ids = await ev(() => Object.values(window.__fournil.G.GARDEROBE.objets).map((v) => [v.id, v.piece, v.collection]));
     const parPiece = (p) => ids.filter((x) => x[1] === p).map((x) => x[0]), BASE = ['toque-blanche', 'tablier-blanc', 'sabots', ''], liste = [];
     for (const [id, p] of ids) { const t = BASE.slice(); t[['tete', 'haut', 'pieds', 'accessoire'].indexOf(p)] = id; liste.push([...t, 5]); }
-    for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine']) liste.push([...['tete', 'haut', 'pieds', 'accessoire'].map((p) => (ids.find((x) => x[2] === c && x[1] === p) || [''])[0]), 5]);
+    const ENSEMBLES = ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine', 'marche', 'marche-or', 'automne'];
+    for (const c of ENSEMBLES) liste.push([...['tete', 'haut', 'pieds', 'accessoire'].map((p) => (ids.find((x) => x[2] === c && x[1] === p) || [''])[0]), 5]);
     let graine = 20261027; const hasard = (n) => { graine = (Math.imul(graine, 1664525) + 1013904223) >>> 0; return Math.floor(graine / 4294967296 * n); };
     for (let k = 0; k < 30; k++) { const t = ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const l = parPiece(p).concat(p === 'accessoire' ? [''] : []); return l[hasard(l.length)]; }); liste.push([...t, hasard(6)]); }
     for (const t of [['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'or-foulard'], ['hantee-chapeau', 'quartier-or-sweat', 'sabots', 'quartier-or-chaine'], ['chaine-toque', 'chaine-veste', 'chaine-souliers', 'parcours-foulard'], ['parcours-toque', 'chaine-veste', 'hantee-bottes', 'quartier-chaine'], ['quartier-neon-casquette', 'hantee-cape', 'quartier-or-baskets', 'argent-foulard'], ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'chaine-cles'], ['bronze-toque', 'hantee-cape', 'chaine-souliers', 'quartier-chaine'], ['or-toque', 'quartier-sweat', 'or-chaussures', 'chaine-cles'], ['toque-blanche', 'parcours-tablier', 'hantee-bottes', 'chaine-cles'], ['hantee-lueur-chapeau', 'or-tablier', 'quartier-baskets', 'lunettes-rondes'], ['etoile-toque', 'etoile-tablier', 'chaine-souliers', 'parcours-foulard'], ['etoile-toque', 'hantee-cape', 'hantee-bottes', 'quartier-chaine']]) liste.push([...t, 5]); // (les deux dernières : la tenue étoilée des paliers, lot « progression »)
@@ -375,7 +376,7 @@ function mesurerAura() {
       return { out, ms: Math.round(performance.now() - t0) };
     }, liste);
     const touches = T.out.filter((x) => x.paires.length), trisMax = Math.max(...T.out.map((x) => x.tris)), trisMin = Math.min(...T.out.map((x) => x.tris)), mains = T.out.filter((x) => x.paires.some((p) => p.startsWith('mains×')));
-    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, 9 ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses (le repos, plus tard, la main au front et les mains frottées de la boutique, la joie) : ni d'une pièce dans une autre, ni des mains dans une pièce (${mains.length} tenues où une main traverse ; ${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
+    check(T.out.length === liste.length && touches.length === 0, `aucune traversée : ${ids.length} pièces seules, ${ENSEMBLES.length} ensembles, 30 mélanges tirés au sort et 12 qui se frôlent, à cinq poses (le repos, plus tard, la main au front et les mains frottées de la boutique, la joie) : ni d'une pièce dans une autre, ni des mains dans une pièce (${mains.length} tenues où une main traverse ; ${T.out.length} tenues, ${T.ms} ms)${touches.length ? ' — ' + touches.slice(0, 4).map((x) => `${x.t} : ${x.paires.join(' ')}`).join(' ; ') : ''}`);
     check(T.out.every((x) => x.mailles === 1) && trisMax <= 10500, `le budget : un seul maillage par tenue (un appel de dessin), ${trisMin} à ${trisMax} triangles (≤ 10 500) ; le corps seul : ${await ev(() => window.__fournil.SCENE.equipe3d.info.corps.map((c) => c.tris).join(' / '))}`);
     // le cache : toutes les pièces déjà cuites, 20 changements de tenue ne font que recoller (pas d'à-coup) ; la mémoire ne monte pas
     const M = await ev((liste) => {

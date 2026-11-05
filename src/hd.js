@@ -4,7 +4,9 @@
    boutique reçoit quelques décors, ses meubles de salle, ses clients animés (le lot « clients », lu par src/clients3d.js : l'Ultimate Animated
    Character Pack de Quaternius, CC0) et son boulanger et ses apprentis animés (le lot « equipe », lu par src/equipe3d.js : les Chefs du même pack,
    des clips des KayKit Character Animations, CC0) ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
-   pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
+   pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés ; la Halle du
+   Marché d'automne (src/boutiquemarche.js), son lot « marche » : son décor cuit (KayKit Restaurant, Furniture et Halloween Bits, Kenney Food
+   Kit, Mini Market et Furniture Kit), ses enfants déguisés et ses amis de la forêt sur trois personnages du lot du Manoir. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
   // actif : le paquet d'outils est là et on ne l'a pas coupé (?hd=0) ; permis(renderer) : WebGL2 et pas en qualité éco (le rendu actuel reste tel quel)
@@ -27,6 +29,10 @@ const HDM = (() => {
     // la boutique hantée (src/boutiquehantee.js : l'écran de la Maison hantée ; fournil/hd/hantee3/, ≈ 1,8 Mo) : le pack décor (67 modèles,
     // une scène par modèle), un GLB par personnage (sans clips : le rig KayKit à 41 os), les clips partagés, la peau du loup-garou, les ardoises
     hantee3: { hantee3: ['decor-hante', 'anims-hante', 'Skeleton_Minion', 'Skeleton_Mage', 'Rogue', 'Rogue_Hooded', 'Mage', 'Knight', 'Werewolf_Wolf'], images: ['hantee3/werewolf_B.png', 'hantee3/ardoises.jpg', 'hantee3/ardoises-normale.jpg'] },
+    // la Halle du Marché d'automne (src/boutiquemarche.js ; fournil/hd/marche/decor-marche.glb, ≈ 290 Ko : 53 modèles KayKit et Kenney cuits
+    // d'avance en couleurs de sommets par outils/marche/faire-hd.mjs, une scène par modèle) ; ses enfants déguisés et ses amis de la forêt sont
+    // des personnages du lot de la Maison hantée (le rig KayKit, ses clips partagés : trois fichiers de fournil/hd/hantee3/, pas son décor)
+    marche: { marche: ['decor-marche'], hantee3: ['anims-hante', 'Rogue_Hooded', 'Rogue'] },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
     // les clients de la boutique (src/clients3d.js ; fournil/hd/clients/, ≈ 385 Ko) : six personnages de l'Ultimate Animated Character Pack de
     // Quaternius, un fichier chacun, et leurs clips partagés (anims) ; demandés après le lot de la boutique. Un personnage manquant est omis ;
@@ -42,6 +48,7 @@ const HDM = (() => {
     planete: { planete: ['planete'] },
   };
   const MOD = {}, PER = {}, CLI = {}, EQ = {}, etat = {}, H3 = { decor: {}, persos: {}, clips: [], images: {} };
+  const MC = { decor: {}, get persos() { return H3.persos; }, get clips() { return H3.clips; }, get images() { return H3.images; } }; // la Halle : son décor ; ses personnages, ceux du Manoir
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   const image = (u) => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = ko; im.src = BASE + u; });
   function lireH3(n) { // le lot de la boutique hantée : le pack (ses scènes par nom), les clips, ou un personnage (le gltf entier : son squelette)
@@ -55,6 +62,7 @@ const HDM = (() => {
       else if (dossier === 'clients') { if (!CLI[n]) t.push(lire(`clients/${n}.glb`).then((g) => { CLI[n] = g; }, () => console.warn('HD : client manquant', n))); } // (le gltf entier : sa scène, son squelette, ses clips)
       else if (dossier === 'equipe') { if (!EQ[n]) t.push(lire(`equipe/${n}.glb`).then((g) => { EQ[n] = g; }, () => console.warn('HD : équipe, fichier manquant', n))); } // (le gltf entier)
       else if (dossier === 'hantee3') { const p = lireH3(n); if (p) t.push(p); } // (tout ou rien : un fichier manquant fait échouer le lot, la boutique hantée reste en procédural)
+      else if (dossier === 'marche') { if (!Object.keys(MC.decor).length) t.push(lire(`marche/${n}.glb`).then((g) => { for (const s of g.scenes) MC.decor[s.name] = s; })); } // (tout ou rien, la Halle aussi)
       else if (dossier === 'images') { if (!H3.images[n]) t.push(image(n).then((im) => { H3.images[n] = im; })); }
       else { const cle = dossier === 'meubles2' || dossier === 'luxe' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
@@ -142,6 +150,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, equipe: (n) => EQ[n] || null, scene: (n) => MOD[n] || null });
+  return Object.assign(API, { pret, permis, charger, etat, H3, MC, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, LOTS, clients: (n) => CLI[n] || null, equipe: (n) => EQ[n] || null, scene: (n) => MOD[n] || null });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

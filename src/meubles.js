@@ -46,10 +46,22 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       else if (Q.solStyle === 'chevrons') solChevrons(c, w, h, Q);
       else if (Q.solStyle === 'marbre2') solMarbre(c, w, h, Q);
       else if (Q.solStyle === 'nacre') { solMarbre(c, w, h, Q); solNacre(c, w, h, Q); } // (la 6e finition : le marbre et ses incrustations de nacre)
+      else if (Q.solStyle === 'tomettes') solTomettes(c, w, h, Q); // (la Halle du Marché d'automne)
       else { c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1.6; for (let k = 0; k < 4; k++) { const x0 = k * w / 4 + 30; c.beginPath(); c.moveTo(x0, 0); c.bezierCurveTo(x0 + 45, h * 0.35, x0 - 45, h * 0.65, x0, h); c.stroke(); } }
       if (Q.standing >= 3 && Q.solStyle === 'marbre') { c.fillStyle = Q.or; c.globalAlpha = 0.55; for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 64) { c.beginPath(); c.moveTo(x, y - 3.5); c.lineTo(x + 3.5, y); c.lineTo(x, y + 3.5); c.lineTo(x - 3.5, y); c.fill(); } c.globalAlpha = 1; } // le marbre d'origine (la ville, la capitale) : des cabochons dorés
     }, 256, 256, { repete: [1, 1] });
     tx.userData.partagee = true; TEX.set('sol' + Q.id, tx); return tx;
+  }
+  // les tomettes de la Halle (le Marché d'automne) : des hexagones de terre cuite, trois tons à peine différents (une suite fixe : la tuile
+  // est la même à chaque fois), leurs joints de mortier clair ; 16 colonnes × 14 rangs : la tuile de 256 se raccorde de tous les côtés
+  function solTomettes(c, w, h, Q) {
+    const nc = 26, nr = 22, px = w / nc, hr = h / nr, r = px / 1.5, tons = [Q.sol, Q.sol2, M.eclaircir(Q.sol, 0.06), M.assombrir(Q.sol, 0.04)];
+    c.lineWidth = 1.1; c.strokeStyle = 'rgba(240,214,180,.85)'; c.lineJoin = 'round';
+    for (let i = -1; i <= nc; i++) for (let j = -1; j <= nr; j++) {
+      const x = i * px, y = j * hr + ((i % 2 + 2) % 2) * hr / 2, k = (((i + nc) % nc) * 7 + ((j + nr) % nr) * 13 + (((i + nc) % nc) * ((j + nr) % nr)) % 5) % 4;
+      c.fillStyle = tons[k]; c.beginPath(); c.moveTo(x - r, y); c.lineTo(x - r / 2, y - hr / 2); c.lineTo(x + r / 2, y - hr / 2); c.lineTo(x + r, y); c.lineTo(x + r / 2, y + hr / 2); c.lineTo(x - r / 2, y + hr / 2); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = 'rgba(255,236,210,.10)'; c.beginPath(); c.ellipse(x - r * 0.2, y - hr * 0.12, r * 0.35, hr * 0.18, 0, 0, TAU); c.fill(); // un reflet de cire
+    }
   }
   // ─── le standing (Q.standing, src/vie.js decor) : le parquet en chevrons (point de Hongrie), le marbre veiné aux joints d'or ───
   const clair = (hex) => { const k = new THREE.Color(hex); return 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b > 0.35; };
@@ -121,6 +133,17 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
         c.fillStyle = '#5C4232'; c.fillRect(0, y0 - 1.6, 390, 2.6); c.fillStyle = 'rgba(255,138,61,.55)'; c.fillRect(0, y0 - 2.2, 390, 0.7);
       }
       if (Q.murStyle === 'marbre') { c.strokeStyle = 'rgba(120,100,90,.12)'; c.lineWidth = 1.5; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(k * 78 - 20, 0); c.quadraticCurveTo(k * 78 + 30, 40, k * 78 + 10, 81); c.stroke(); } }
+      if (Q.murStyle === 'halle') { // la halle à colombages : la sablière en haut, les poteaux de chêne, des croix de Saint-André un panneau sur deux, le lambris de
+        // châtaignier en bas (sa cimaise rouille), le torchis crème entre deux, un peu nuancé
+        const bois = Q.cadre || Q.bois, yl = 81 * 0.7, pas = 48.75;
+        c.fillStyle = 'rgba(255,255,255,.18)'; for (let k = 0; k < 24; k++) { c.beginPath(); c.ellipse((k * 67) % 390, 8 + (k * 29) % 50, 9, 3.5, 0, 0, TAU); c.fill(); } // le torchis, inégal
+        c.strokeStyle = bois; c.lineCap = 'butt';
+        for (let i = 0, x = 0; x < 390; i++, x += pas) if (i % 2) { c.lineWidth = 3.2; c.beginPath(); c.moveTo(x + 3, 6); c.lineTo(x + pas - 3, yl - 2); c.moveTo(x + pas - 3, 6); c.lineTo(x + 3, yl - 2); c.stroke(); } // les croix
+        c.fillStyle = bois; for (let x = 0; x <= 390; x += pas) c.fillRect(x - 2.6, 0, 5.2, yl); // les poteaux
+        c.fillRect(0, 0, 390, 5.5); c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(0, 4.4, 390, 1.1); // la sablière
+        c.fillStyle = M.assombrir(Q.bois, 0.05); c.fillRect(0, yl, 390, 81 - yl); c.fillStyle = 'rgba(0,0,0,.12)'; for (let x = 3; x < 390; x += 13) c.fillRect(x, yl + 2, 1.2, 81 - yl - 2); // le lambris
+        c.fillStyle = Q.accent; c.fillRect(0, yl - 1.4, 390, 2.6); c.fillStyle = bois; c.fillRect(0, yl + 1.2, 390, 1.4); // la cimaise
+      }
       if (Q.standing) murStanding(c, Q);
     }, 512, 256, { repete: [1, 1] });
     tx.userData.partagee = true; TEX.set('mur' + Q.id, tx); return tx;
@@ -850,16 +873,20 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // l'arrière-boutique (au-dessus, l'enseigne de la boutique la cacherait), sa toque devant ; 'or' (la Planque) : la toque dorée sur fond
   // nuit ; 'citrouille' (le Manoir) : une citrouille qui porte la toque. bas : la seconde place, plus bas sur la porte (les deux gagnées).
   // Dessinée en pixels d'écran, étirée de 1/CY (ronde à l'écran)
+  // 'feuille' (la Halle) : la toque brodée de feuilles d'or, sur fond de noyer dans son cadre rouille, une feuille d'érable devant. bas : la
+  // seconde place (true), ou le rang de la place (0, 1, 2 : la toque de la Halle prend la troisième quand les deux autres sont là)
   function decoToque(c, sorte, bas) {
-    const a = c.LAY.arriere, cit = sorte === 'citrouille', hpx = a ? c.LAY.murH - a.y : 60, x = a ? a.x + a.w / 2 : c.W * 0.32, ys = (a ? a.y : c.LAY.T * 0.2) + hpx * (bas ? 0.47 : 0.21);
-    const D = nouvelle(sorte === 'citrouille' ? 'toque-citrouille' : 'toque-or', { x, y: murY(c, ys), z: 4.2, sy: 1 / c.CY }), pr = D.fixe;
-    pr.push(P(bo(19, 17, 2.2, 0.8), cit ? '#7B4FD0' : '#FFC84A'), P(bo(15.5, 13.5, 1.2, 0.4), cit ? '#2A2047' : '#2E2B3A', { z: 1.4 })); // le cadre, le fond
-    const yt = cit ? 2.6 : -1; // le bas de la toque (le tout un peu haut : vu de haut, ce qui avance du mur descend à l'écran)
+    const a = c.LAY.arriere, cit = sorte === 'citrouille', fe = sorte === 'feuille', rang = bas === true ? 1 : +bas || 0, hpx = a ? c.LAY.murH - a.y : 60, x = a ? a.x + a.w / 2 : c.W * 0.32, ys = (a ? a.y : c.LAY.T * 0.2) + hpx * [0.21, 0.47, 0.73][Math.min(2, rang)];
+    const D = nouvelle(cit ? 'toque-citrouille' : fe ? 'toque-feuille' : 'toque-or', { x, y: murY(c, ys), z: 4.2, sy: 1 / c.CY }), pr = D.fixe;
+    pr.push(P(bo(19, 17, 2.2, 0.8), cit ? '#7B4FD0' : fe ? MC.rouille : '#FFC84A'), P(bo(15.5, 13.5, 1.2, 0.4), cit ? '#2A2047' : fe ? '#4A2E1C' : '#2E2B3A', { z: 1.4 })); // le cadre, le fond
+    const yt = cit ? 2.6 : fe ? 0.4 : -1; // le bas de la toque (le tout un peu haut : vu de haut, ce qui avance du mur descend à l'écran)
     if (cit) { pr.push(P(M.sphere(4.4, 12), '#FF8A3D', { y: -0.6, z: 2.6, sx: 1.25, sz: 0.5 }), P(bo(1.4, 1.6, 0.6, 0.2), '#3FB889', { y: 3.6, z: 2.8 })); for (const sx of [-1, 1]) pr.push(P(M.sphere(0.8, 6), '#FFE27A', { x: sx * 1.9, y: 0, z: 4.6 })); }
-    const blanc = cit ? '#FFFFFF' : '#FFE07A';
+    if (fe) pr.push(feuille(-3.6, -4.6, 3.4, 2.6, MC.or, { rz: 0.5 }), feuille(3.8, -4.4, 3.4, 2.2, MC.rouille, { rz: -0.4 }));
+    const blanc = cit || fe ? '#FFFFFF' : '#FFE07A';
     pr.push(P(M.cylindre(2.9, 2.9, 3.2, 12), blanc, { y: yt + 1.6, z: 2.6, sz: 0.5 })); // le bandeau de la toque
     for (const dx of [-2.2, 0, 2.2]) pr.push(P(M.sphere(2.3, 10), blanc, { x: dx, y: yt + 4.6 + (dx ? 0 : 0.8), z: 2.6, sz: 0.5 })); // le bouffant
-    pr.push(P(bo(6.4, 0.9, 0.5, 0.2), cit ? '#FF8A3D' : '#5FD3A4', { y: yt + 1.4, z: 4.2 })); // le ruban
+    pr.push(P(bo(6.4, 0.9, 0.5, 0.2), cit ? '#FF8A3D' : fe ? MC.or : '#5FD3A4', { y: yt + 1.4, z: 4.2 })); // le ruban
+    if (fe) for (const dx of [-1.6, 1.6]) pr.push(feuille(dx, yt + 1.9, 4.6, 0.75, MC.or, { rz: dx * 0.3 })); // les deux feuilles d'or brodées sur le ruban
     return D;
   }
   // ─── la boutique hantée (src/boutiquehantee.js, le thème « hantee » de src/vie.js) : les bougies (un chandelier sur le comptoir, une
@@ -893,6 +920,208 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const flammes = M.maille(fl, { ombre: false }); flammes.material = propre({ vertexColors: true, emissive: '#FFB347', emissiveIntensity: 0.9 }); g.add(flammes);
     g.userData.anime = (E) => { const m = flammes.material; m.emissiveIntensity = 0.75 + 0.35 * E.lampes + 0.12 * Math.sin(E.t * 11) + 0.06 * Math.sin(E.t * 23); flammes.scale.y = 1 + 0.02 * Math.sin(E.t * 13); };
     g.userData.bougies = fl.length; return g;
+  }
+  // ─── le Marché d'automne (src/boutiquemarche.js, le thème « marche » de src/vie.js) : les accessoires de la Halle, faits main au même
+  //     trait (pommes, courges, cagettes, bottes de paille, feuilles d'érable, lampions, le brasero aux châtaignes), le décor de la Halle en
+  //     éco (marche) et ses décos (les paliers du Marché, la saison d'automne) ───
+  const MC = { rouille: '#C8552A', creme: '#F6E7C8', or: '#E8B33A', mousse: '#7A9A3A', chataigne: '#7B4A2A', pomme: '#C8342B', pommeV: '#8DB33A', pommeJ: '#E8B33A', courge: '#E07B2A', courgeJ: '#E8A93A', paille: '#E2C26A', bois: '#A8743F', boisF: '#6B4026', fer: '#3A302C', feuilles: ['#D9622B', '#E8B33A', '#B8372A', '#C98A2B', '#8E3B2E'] };
+  // la feuille d'érable : une forme plate (cinq lobes et sa queue), d'une unité d'épaisseur, environ 1,7 de haut
+  // la feuille d'érable : treize points, ses trois grands lobes et ses deux petits (48 triangles extrudée)
+  const erable = () => forme('erable', () => { const s = new THREE.Shape(), p = [[0, 1], [0.2, 0.52], [0.6, 0.68], [0.46, 0.26], [0.86, 0.14], [0.3, -0.2], [0.05, -0.72], [-0.05, -0.72], [-0.3, -0.2], [-0.86, 0.14], [-0.46, 0.26], [-0.6, 0.68], [-0.2, 0.52]]; s.moveTo(p[0][0], p[0][1]); for (const [x, y] of p.slice(1)) s.lineTo(x, y); s.closePath(); return s; });
+  const feuille = (x, y, z, s, col, o) => P(erable(), col, Object.assign({ x, y, z, sx: s, sy: s, sz: Math.max(0.4, s * 0.12) }, o || {}));
+  const partsPomme = (x, y, z, r, col) => [P(M.sphere(r, 7), col, { x, y: y + r * 0.92, z, sy: 0.92 }), P(M.cylindre(r * 0.1, r * 0.12, r * 0.55, 4), MC.boisF, { x, y: y + r * 1.62, z, rz: 0.3 })];
+  function partsCourge(x, y, z, r, col, o) { // une courge (ou un potiron) : cinq côtes, son pédoncule ; o.plat : un potiron plus large que haut
+    const pr = [], sy = o && o.plat ? 0.78 : 1.05; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; pr.push(P(M.sphere(r * 0.62, 6), k % 2 ? col : M.eclaircir(col, 0.12), { x: x + Math.cos(a) * r * 0.42, y: y + r * 0.66 * sy, z: z + Math.sin(a) * r * 0.32, sy })); }
+    pr.push(P(M.cylindre(r * 0.1, r * 0.15, r * 0.45, 5), '#5A7A2E', { x, y: y + r * 1.2 * sy, z, rz: 0.25 })); return pr;
+  }
+  // une cagette de bois (le fond, quatre côtés en lattes avec leur jour, les coins) remplie : pommes, courges, châtaignes, champignons ou raisin
+  function partsCagette(x, y, z, w, d, h, contenu, ry) {
+    const pr = [], e = Math.max(0.6, w * 0.05), bois = MC.bois, m = M.matrice({ x, y, z, ry: ry || 0 }), L2 = [];
+    L2.push(P(M.boiteSimple(w, e, d), M.assombrir(bois, 0.08)));
+    for (const [sx, sz, lw, ld] of [[0, d / 2 - e / 2, w, e], [0, -d / 2 + e / 2, w, e], [w / 2 - e / 2, 0, e, d], [-w / 2 + e / 2, 0, e, d]]) for (const yy of [e, h * 0.58]) L2.push(P(M.boiteSimple(lw, h * 0.32, ld), bois, { x: sx, y: yy, z: sz }));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) L2.push(P(M.boiteSimple(e * 1.4, h, e * 1.4), M.assombrir(bois, 0.12), { x: sx * (w / 2 - e * 0.7), z: sz * (d / 2 - e * 0.7) }));
+    const tc = contenu === 'courges' ? 1.25 : 0.9, nx = Math.max(2, Math.round(w / (h * tc))), nz = Math.max(1, Math.round(d / (h * tc))), rx = w / nx / 2, rz = d / nz / 2, rr = Math.min(rx, rz) * 0.95; // (les courges : moins nombreuses, plus grosses)
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const px = -w / 2 + rx * (2 * i + 1), pz = -d / 2 + rz * (2 * j + 1), yy = h * 0.55, k = i * 3 + j * 7;
+      if (contenu === 'courges') L2.push(...partsCourge(px, yy - rr * 0.2, pz, rr * 1.05, k % 3 === 1 ? MC.courgeJ : MC.courge, { plat: true }));
+      else if (contenu === 'chataignes') { for (const [dx, dz] of [[-0.35, -0.3], [0.35, 0.2], [-0.1, 0.4]]) L2.push(P(M.sphere(rr * 0.5, 5), k % 2 ? MC.chataigne : '#8E5A33', { x: px + dx * rr, y: yy + rr * 0.3, z: pz + dz * rr, sy: 0.8 })); }
+      else if (contenu === 'champignons') { L2.push(P(M.cylindre(rr * 0.22, rr * 0.28, rr * 0.7, 6), '#F4E3C3', { x: px, y: yy, z: pz }), P(M.sphere(rr * 0.6, 8), k % 2 ? '#B5733C' : '#C98A3A', { x: px, y: yy + rr * 0.7, z: pz, sy: 0.55 })); }
+      else if (contenu === 'raisin') { for (let g2 = 0; g2 < 5; g2++) L2.push(P(M.sphere(rr * 0.32, 6), k % 2 ? '#6B3A7A' : '#8E4E8E', { x: px + (g2 % 2 - 0.5) * rr * 0.5, y: yy + rr * (0.55 - g2 * 0.08), z: pz + (g2 - 2) * rr * 0.22 })); }
+      else L2.push(...partsPomme(px, yy - rr * 0.35, pz, rr * 0.92, [MC.pomme, MC.pommeV, MC.pomme, MC.pommeJ][k % 4]));
+    }
+    for (const p of L2) pr.push(PARTIE(p, m)); return pr;
+  }
+  const partsBotte = (x, y, z, w, h, d, ry) => { const m = M.matrice({ x, y, z, ry: ry || 0 }); return [P(bo(w, h, d, Math.min(h, d) * 0.22), MC.paille), P(bo(w * 0.98, h * 0.12, d * 1.02, 0.2), '#C9A24E', { y: h * 0.86 }), P(M.boiteSimple(w * 0.06, h * 1.02, d * 1.03), '#8E6B3A', { x: -w * 0.25 }), P(M.boiteSimple(w * 0.06, h * 1.02, d * 1.03), '#8E6B3A', { x: w * 0.25 })].map((p) => PARTIE(p, m)); };
+  // un lampion de papier (la boule, ses deux collerettes sombres) ; la boule est sa part lumineuse (lp), le reste fixe (pr)
+  function lampion(pr, lp, x, y, z, r, col) { pr.push(P(M.cylindre(r * 0.45, r * 0.5, r * 0.22, 8), MC.fer, { x, y: y + r * 0.92, z }), P(M.cylindre(r * 0.5, r * 0.4, r * 0.2, 8), MC.fer, { x, y: y - r * 1.1, z }), P(M.cylindre(0.18, 0.18, r * 0.8, 3), MC.fer, { x, y: y + r * 1.1, z })); lp.push(P(M.sphere(r, 10), col, { x, y: y - r * 0.08, z, sy: 1.12 })); }
+  // le brasero du marchand de marrons : trois pieds, la vasque de fonte, la grille, les braises (lumineuses) et les châtaignes qui grillent
+  function brasero(pr, lp, x, y, z, s) {
+    for (let k = 0; k < 3; k++) { const a = k * TAU / 3 + 0.4; pr.push(P(M.cylindre(0.6 * s, 0.5 * s, 7 * s, 5), MC.fer, { x: x + Math.cos(a) * 4.6 * s, y, z: z + Math.sin(a) * 4.6 * s, rz: Math.cos(a) * 0.18, rx: -Math.sin(a) * 0.18 })); }
+    pr.push(P(M.cylindre(7 * s, 4.4 * s, 3.4 * s, 12), MC.fer, { x, y: y + 6.2 * s, z }), P(M.tore(6.9 * s, 0.5 * s, TAU, 4, 14), '#5A4A42', { x, y: y + 9.6 * s, z, rx: HP }));
+    for (const [dx, dz] of [[-2.6, -1], [0, 1.6], [2.6, -0.4], [-0.8, -2.4], [1.4, 2.8], [-3, 1.8]]) pr.push(P(M.sphere(1.05 * s, 6), dx > 0 ? MC.chataigne : '#5E3720', { x: x + dx * s, y: y + 10.2 * s, z: z + dz * s, sy: 0.78 }));
+    for (const [dx, dz] of [[-1.6, 0], [1.4, -1.4], [0.6, 2], [-2.8, -2.2], [3, 1.2]]) lp.push(P(M.sphere(1.3 * s, 5), '#FF7A2A', { x: x + dx * s, y: y + 9.1 * s, z: z + dz * s, sy: 0.6 }));
+  }
+  // l'auvent rayé de l'étal, rouille et crème, accroché en haut du mur derrière le comptoir (au-dessus de la tête du boulanger : il ne la cache
+  // pas en plongée), et son lambrequin festonné
+  function auvent(pr, x0, x1, Y, D, a) {
+    const n = Math.max(4, Math.round((x1 - x0) / 9)), sw = (x1 - x0) / n, L2 = D / Math.cos(a), yf = Y - D * Math.tan(a);
+    for (let i = 0; i < n; i++) { const x = x0 + sw * (i + 0.5), col = i % 2 ? MC.creme : MC.rouille; pr.push(P(M.boiteSimple(sw + 0.05, 1.1, L2), col, { x, y: Y - D * Math.tan(a) / 2, z: D / 2, rx: a }), P(M.cylindre(sw / 2, sw / 2, 0.8, 10), col, { x, y: yf - 0.4, z: D + 0.3, rx: HP })); }
+    pr.push(P(M.cylindre(0.7, 0.7, x1 - x0 + 4, 6), MC.boisF, { x: x0 - 2, y: Y + 0.6, z: 0.8, rz: -HP })); // la tringle
+  }
+  // ─── la Halle en éco (le thème « marche » : la boutique pendant le Marché d'automne ; en haute, la HD a son décor entier) : l'auvent rayé
+  //     de l'étal, un panier de pommes sur le comptoir, une courge et un lampion sur chaque table, deux sur le bar, le brasero aux châtaignes
+  //     sur le plan de travail, les cagettes et une botte de paille de part et d'autre de la porte du fond, la guirlande de feuilles et de
+  //     lampions sous la sablière. Deux appels de dessin (src/meubles.js fusion : le décor ; les lampions, les braises qui rougeoient, plus
+  //     fort le soir, et qui se balancent doucement) ───
+  function marche(c) {
+    const { LAY, W, K } = c, D = nouvelle('marche'), pr = D.fixe, lp = [], Hm = c.wy(LAY.murH), C = LAY.comptoir;
+    auvent(pr, C.x - 4 * K, C.x + C.w + 4 * K, Hm - 3, 15 * K, 0.42);
+    const o = surDessus(c, LAY.fleurs); // le panier de pommes du comptoir (la place des fleurs, qui n'y sont pas)
+    pr.push(P(M.cylindre(5.6 * K, 4.4 * K, 3.6 * K, 10), '#C9934E', o), P(M.tore(5.4 * K, 0.5 * K, Math.PI, 4, 10), '#A8743F', { x: o.x, y: o.y + 3.6 * K, z: o.z, rz: 0 }));
+    for (const [dx, dz, col] of [[-2.2, -1, MC.pomme], [2.1, -0.6, MC.pommeV], [0, 1.6, MC.pomme], [-0.6, -2.4, MC.pommeJ]]) pr.push(...partsPomme(o.x + dx * K, o.y + 2.2 * K, o.z + dz * K, 2.1 * K, col));
+    const surTable = (x, y, z, i) => { pr.push(...partsCourge(x - 5 * K, y, z + 2 * K, 3.2 * K, i % 2 ? MC.courgeJ : MC.courge, { plat: true })); lampion(pr, lp, x + 4 * K, y + 5.4 * K, z - 1 * K, 2.6 * K, [MC.or, MC.rouille, '#F2D3A0'][i % 3]); pr.push(P(M.cylindre(1.6 * K, 2 * K, 1.2 * K, 8), MC.boisF, { x: x + 4 * K, y, z: z - 1 * K }), P(M.cylindre(0.25, 0.25, 2.2 * K, 3), MC.fer, { x: x + 4 * K, y: y + 1.2 * K, z: z - 1 * K })); };
+    for (let i = 0; i < Math.min(c.crans.tables || 0, LAY.tables.length); i++) { const t = LAY.tables[i]; surTable(t.x, HAUT.table, c.wz(t.y), i); }
+    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; [0.2, 0.8].forEach((u, i) => surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar, c.wz(b.y - 4 * K), i + 1)); }
+    const pl = LAY.plan; brasero(pr, lp, pl.x + pl.w * 0.72, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 0.85 * K);
+    // de part et d'autre de la porte du fond, dans la salle (jamais dans le passage) : deux cagettes empilées, une botte de paille et sa citrouille
+    const p = LAY.porte, zl = c.wz(LAY.murH + 9 * K), xg = p.x - 15 * K, xd = Math.min(W - 9 * K, p.x + p.w + 6 * K);
+    pr.push(...partsCagette(xg, 0, zl, 16 * K, 10 * K, 6 * K, 'pommes'), ...partsCagette(xg, 6 * K, zl - 0.5, 15 * K, 9.5 * K, 6 * K, 'courges', 0.12));
+    pr.push(...partsBotte(xd, 0, zl + 2 * K, 11 * K, 7 * K, 9 * K, 0.1), ...partsCourge(xd, 7 * K, zl + 2 * K, 3.6 * K, MC.courge));
+    // la guirlande sous la sablière : des feuilles d'érable sur une ficelle, un lampion toutes les quatre feuilles (on évite le haut de la fenêtre
+    // et de la porte, où pendent les lampions de la déco et les feuilles de la couronne)
+    const yh = Hm - 6, fx1 = LAY.fenetre.x + LAY.fenetre.w + 6, n = 22;
+    for (let i = 0; i <= n; i++) {
+      const u = i / n, x = fx1 + (p.x - 8 - fx1) * u, creux = Math.sin(((u * 3) % 1) * Math.PI) * 5 * K, y = yh - creux;
+      if (x > C.x - 6 * K && x < C.x + C.w + 6 * K) continue; // (l'auvent de l'étal passe là)
+      if (i % 4 === 2) lampion(pr, lp, x, y - 4 * K, 3.5, 2.4 * K, [MC.rouille, MC.or, '#F2D3A0'][(i / 4 | 0) % 3]);
+      else pr.push(feuille(x, y - 1.6 * K, 2.6, 2.8 * K, MC.feuilles[i % MC.feuilles.length], { rz: (i % 3 - 1) * 0.5 }));
+    }
+    D.vifs.push({ pr: lp, emi: '#FFB45A', k: (E) => 0.22 + 0.78 * E.lampes + 0.05 * Math.sin(E.t * 7), m: null }); // les lampions et les braises : ils s'allument le soir
+    const f = fusion([{ d: D, place: null }]), g = grp('marche'); if (f.petits) g.add(f.petits); if (f.lueurs) { g.add(f.lueurs); g.userData.anime = f.anime; }
+    g.userData.lampions = lp.length; return g;
+  }
+  // ─── les décos du Marché d'automne (src/marche.js : les paliers 2, 4, 6, 8, l'album de la forêt au 5e, l'arbre aux feuilles d'or au 20e, la
+  //     toque brodée de feuilles à la 500e fournée de la recette du jour ; st.marche.decos, gardées à vie) et de la saison d'automne (src/saison-automne.js,
+  //     les crans 3, 7, 15, 19 et 22). Celles du Marché ont leur place d'origine (comme celles du Manoir) ; celles de la saison n'existent que posées.
+  //     Bâties comme les autres : en parties typées (fixe, vifs), fusionnées avec les petits décors (aucun appel de dessin de plus) ───
+  function decoCagettes(c, place) { // les cagettes du perron : deux cagettes côte à côte (pommes, courges), une troisième dessus (châtaignes), un potiron devant
+    const { LAY, K } = c, pl = place ? null : LAY.decos.find((x) => x.id === 's1'), D = place ? nouvelle('cagettes') : nouvelle('cagettes', { x: pl.x - 2 * K, z: c.wz(pl.y) - 4 * K }), pr = D.fixe;
+    pr.push(...partsCagette(-8.5 * K, 0, 0, 16 * K, 10 * K, 6.5 * K, 'pommes', 0.08), ...partsCagette(8.5 * K, 0, 0.6, 16 * K, 10 * K, 6.5 * K, 'courges', -0.06), ...partsCagette(0.5 * K, 6.5 * K, -0.5, 15 * K, 9.5 * K, 6 * K, 'chataignes', 0.18));
+    pr.push(...partsCourge(-12 * K, 0, 8.5 * K, 3.8 * K, MC.courge, { plat: true }));
+    return D;
+  }
+  function decoLampions(c, place) { // les lampions de la Halle : une ficelle et cinq lampions qui s'allument le soir ; d'origine, tendue en haut de la fenêtre ;
+    // posée (un rebord), sur deux piquets de châtaignier
+    const { LAY, K } = c, f = LAY.fenetre, w = place ? 34 : f.w - 10, D = place ? nouvelle('lampions') : nouvelle('lampions', { x: f.x + f.w / 2, y: murY(c, f.y) - 2, z: 3.5 }), pr = D.fixe, lp = [], h = place ? 22 : 0, n = 5;
+    if (place) for (const sx of [-1, 1]) pr.push(P(M.cylindre(0.7, 0.8, h + 1, 5), MC.boisF, { x: sx * w / 2 }), P(M.sphere(1, 6), MC.boisF, { x: sx * w / 2, y: h + 1 }));
+    for (let k = 0; k <= 12; k++) { const u = k / 12, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.5 * (place ? 1 : K); pr.push(P(M.sphere(0.35, 4), MC.fer, { x, y })); }
+    for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.5 * (place ? 1 : K) - 4.2; lampion(pr, lp, x, y, 0, place ? 2.9 : 3.1 * K, [MC.rouille, MC.or, '#F2D3A0', MC.rouille, MC.or][i]); }
+    D.vifs.push({ pr: lp, emi: '#FFB45A', k: (E) => 0.2 + 0.85 * E.lampes, m: (E, m4) => { m4.makeRotationZ(Math.sin(E.t * 1.3) * 0.02); } });
+    return D;
+  }
+  function decoFeuilles(c, place) { // le tas de feuilles mortes : un tas roux, des feuilles d'érable dessus et autour, trois petits champignons, un râteau couché
+    const { LAY, W, K } = c, D = place ? nouvelle('feuilles') : nouvelle('feuilles', { x: W * 0.27, z: c.wz(LAY.devanture.y + 24 * K) }), pr = D.fixe, s = place ? 1 : K;
+    pr.push(P(M.sphere(11 * s, 10), '#B8572A', { y: 0, sy: 0.42, sx: 1.15 }), P(M.sphere(7 * s, 9), '#D9822B', { x: -3 * s, y: 1.5 * s, z: 1 * s, sy: 0.5 }), P(M.sphere(6 * s, 9), '#C9612E', { x: 5 * s, y: 1 * s, z: -1 * s, sy: 0.45 }));
+    for (let k = 0; k < 14; k++) { const a = k * 2.4, r = (k < 7 ? 5 : 11.5) * s, y = k < 7 ? 4.2 * s : 0.4; pr.push(feuille(Math.cos(a) * r, y, Math.sin(a) * r * 0.8, 2.3 * s, MC.feuilles[k % MC.feuilles.length], { rx: -HP + 0.3 * Math.sin(a * 3), rz: a })); }
+    for (const [x, z, h] of [[-9, 6, 3], [-7, 8, 2.2], [10, 5, 2.6]]) pr.push(P(M.cylindre(0.7 * s, 0.9 * s, h * s, 6), '#F4E3C3', { x: x * s, z: z * s }), P(M.sphere(1.7 * s, 8), '#C8342B', { x: x * s, y: h * s, z: z * s, sy: 0.6 }), P(M.sphere(0.4 * s, 4), '#FFFFFF', { x: (x + 0.6) * s, y: (h + 0.8) * s, z: (z + 1) * s }));
+    pr.push(P(M.cylindre(0.45 * s, 0.45 * s, 22 * s, 5), MC.bois, { x: 6 * s, y: 0.6 * s, z: 9 * s, rz: HP - 0.05, ry: 0.5 }), P(M.boiteSimple(7 * s, 0.6 * s, 1 * s), MC.fer, { x: -4 * s, y: 0.2 * s, z: 14.3 * s, ry: 0.5 }));
+    return D;
+  }
+  function decoTonneau(c, place) { // le tonneau du pressoir : les douelles bombées, trois cercles de fer, le robinet et son gobelet, un panier de pommes dessus
+    const { LAY, K } = c, pl = place ? null : LAY.decos.find((x) => x.id === 's2'), D = place ? nouvelle('tonneau') : nouvelle('tonneau', { x: pl.x, z: c.wz(pl.y) - 5 * K }), pr = D.fixe, s = place ? 1 : K, r = 7 * s, h = 17 * s;
+    pr.push(P(M.cylindre(r * 0.86, r * 0.9, h * 0.25, 14), '#9C6B42'), P(M.cylindre(r, r * 0.9, h * 0.25, 14), '#A8743F', { y: h * 0.25 }), P(M.cylindre(r * 0.9, r, h * 0.25, 14), '#A8743F', { y: h * 0.5 }), P(M.cylindre(r * 0.86, r * 0.9, h * 0.25, 14), '#9C6B42', { y: h * 0.75 }));
+    for (const [y, rr] of [[0.12, 0.9], [0.5, 1.01], [0.88, 0.9]]) pr.push(P(M.tore(r * rr, 0.55 * s, TAU, 4, 16), MC.fer, { y: h * y, rx: HP }));
+    for (let k = 0; k < 8; k++) pr.push(P(M.boiteSimple(0.35 * s, h * 0.96, 0.4 * s), '#7B4A2A', { x: Math.sin(k * TAU / 8) * r * 0.98, y: h * 0.02, z: Math.cos(k * TAU / 8) * r * 0.98, ry: k * TAU / 8 })); // les joints des douelles
+    pr.push(P(M.cylindre(r * 0.84, r * 0.84, 0.6 * s, 14), '#8E5A33', { y: h }), P(M.cylindre(0.7 * s, 0.7 * s, 3 * s, 6), '#C9A24E', { y: h * 0.35, z: r + 1 * s, rx: HP }), P(M.boiteSimple(1.2 * s, 2 * s, 1 * s), '#C9A24E', { y: h * 0.35 - 1.6 * s, z: r + 2.4 * s }));
+    pr.push(P(M.cylindre(1.5 * s, 1.1 * s, 2.6 * s, 8), '#E8D2A8', { x: 3 * s, z: r + 4 * s }));
+    pr.push(P(M.cylindre(4.4 * s, 3.4 * s, 2.6 * s, 10), '#C9934E', { y: h + 0.6 * s }), ...partsPomme(-1.4 * s, h + 2 * s, -0.6 * s, 1.8 * s, MC.pomme), ...partsPomme(1.6 * s, h + 2 * s, 0.4 * s, 1.8 * s, MC.pommeV), ...partsPomme(0.2 * s, h + 2.4 * s, 1.6 * s, 1.7 * s, MC.pommeJ));
+    return D;
+  }
+  // l'étagère aux peluches de la forêt (l'album, src/marche.js : la 5e sorte complétée ; 'argent', 'or' : les neuf en argent, puis en or, la même
+  // étagère à ce métal) : une planche et ses équerres, trois peluches (l'écureuil, le hérisson, le renard) assises, un petit gland. D'origine, à la
+  // place du second tableau (src/vie.js m1 : la déco l'y décroche, comme une déco posée)
+  const TEINTES_ALBUM = { argent: { bois: '#B9C3CF', ruban: '#E3E9F0' }, or: { bois: '#D9A62E', ruban: '#FFD45A' } };
+  function decoAlbum(c, place, teinte) {
+    const { LAY, K } = c, T = TEINTES_ALBUM[teinte] || null, m1 = LAY.decos.find((x) => x.id === 'm1'), D = place ? nouvelle('album') : nouvelle('album', { x: m1.x, y: murY(c, m1.y) - 6, z: 0 }), pr = D.fixe, s = place ? 1 : K * 1.15, bois = T ? T.bois : MC.bois;
+    pr.push(P(bo(36 * s, 2.2 * s, 9 * s, 0.6), bois, { z: 4.5 * s }), P(bo(1.8 * s, 6 * s, 5 * s, 0.4), bois, { x: -14 * s, y: -6 * s, z: 2.5 * s }), P(bo(1.8 * s, 6 * s, 5 * s, 0.4), bois, { x: 14 * s, y: -6 * s, z: 2.5 * s }));
+    if (T) pr.push(P(M.boiteSimple(36.4 * s, 0.6 * s, 0.4 * s), T.ruban, { y: 1.6 * s, z: 9.1 * s }));
+    const peluche = (x, corps, ventre, o) => {
+      const y = 2.2 * s, z = 4.6 * s; pr.push(P(M.sphere(3.4 * s, 8), corps, { x, y: y + 3 * s, z, sy: 0.95 }), P(M.sphere(2.2 * s, 8), ventre, { x, y: y + 2.7 * s, z: z + 1.6 * s, sy: 1.05, sz: 0.6 }), P(M.sphere(2.9 * s, 8), corps, { x, y: y + 7.6 * s, z }));
+      for (const sx of [-1, 1]) pr.push(P(M.sphere(1.1 * s, 6), corps, { x: x + sx * 2.6 * s, y: y + 1, z: z + 1.6 * s }), P(M.sphere(0.45 * s, 5), L, { x: x + sx * 1 * s, y: y + 8.1 * s, z: z + 2.6 * s }));
+      pr.push(P(M.sphere(0.6 * s, 5), o.nez || L, { x, y: y + 7.2 * s, z: z + 2.9 * s }));
+      if (o.oreilles) for (const sx of [-1, 1]) pr.push(P(M.cone(1.1 * s, 2.8 * s, 5), corps, { x: x + sx * 1.8 * s, y: y + 9.4 * s, z, rz: -sx * 0.3 }), P(M.cone(0.5 * s, 1.6 * s, 4), o.pointe || ventre, { x: x + sx * 2.1 * s, y: y + 11.4 * s, z: z + 0.2 * s, rz: -sx * 0.3 }));
+      if (o.queue) pr.push(P(M.sphere(2.6 * s, 8), o.queue, { x: x + 3.2 * s, y: y + 5.4 * s, z: z - 1.6 * s, sx: 0.7, sy: 1.4 }));
+      if (o.piquants) for (let k = 0; k < 7; k++) { const a = -1.2 + k * 0.4; pr.push(P(M.cone(0.9 * s, 2.4 * s, 4), '#5A3E2E', { x: x + Math.sin(a) * 3 * s, y: y + 3.6 * s + Math.cos(a) * 2.4 * s, z: z - 2 * s, rz: -a, rx: -0.5 })); }
+    };
+    peluche(-10 * s, '#C8662B', '#F2C79A', { oreilles: true, pointe: '#7B3A1A', queue: '#D97A3A' }); // l'écureuil
+    peluche(0, '#9A7A5E', '#EBCFA8', { piquants: true }); // le hérisson
+    peluche(10 * s, '#E0672A', '#FFF3E2', { oreilles: true, pointe: '#2E2420', queue: '#E0672A' }); // le renard
+    pr.push(P(M.sphere(1.3 * s, 6), '#B8862F', { x: 15.4 * s, y: 3.3 * s, z: 6 * s, sy: 1.2 }), P(M.cylindre(1.4 * s, 1.3 * s, 0.9 * s, 6), '#6B4026', { x: 15.4 * s, y: 4.2 * s, z: 6 * s })); // un gland
+    return D;
+  }
+  // l'arbre aux feuilles d'or (la Légende du Marché, le 20e palier) : un petit érable en pot, son tronc tordu, une couronne de feuilles d'or qui
+  // luisent doucement (plus fort le soir), et deux feuilles qui tombent en tournoyant, sans fin
+  function decoArbreOr(c, place) {
+    const { W, LAY, K } = c, D = place ? nouvelle('arbre-or') : nouvelle('arbre-or', { x: W * 0.93, z: c.wz(LAY.T * 0.66) }), pr = D.fixe, s = place ? 1 : K * 1.1, lp = [];
+    pr.push(P(M.cylindre(6 * s, 4.6 * s, 6 * s, 10), '#B5552B'), P(M.tore(6 * s, 0.7 * s, TAU, 4, 14), '#8E3B1E', { y: 6 * s, rx: HP }), P(M.cylindre(5.4 * s, 5.4 * s, 0.6 * s, 10), '#5A3A22', { y: 5.6 * s }));
+    pr.push(P(M.cylindre(1.1 * s, 1.7 * s, 14 * s, 6), '#6B4026', { y: 6 * s, rz: 0.12 }), P(M.cylindre(0.6 * s, 0.9 * s, 7 * s, 5), '#6B4026', { x: 1.6 * s, y: 15 * s, rz: -0.7 }), P(M.cylindre(0.6 * s, 0.9 * s, 6 * s, 5), '#6B4026', { x: -0.6 * s, y: 16 * s, rz: 0.8 }));
+    for (const [x, y, z, r] of [[0, 25, 0, 7.5], [-6, 22, 1, 5.5], [6.5, 21.5, 0, 5.2], [2, 29, -1, 5], [-3, 28, 2, 4.6]]) lp.push(P(M.sphere(r * s, 10), r > 6 ? '#F2C14A' : '#E8B33A', { x: x * s, y: y * s, z: z * s, sy: 0.85 }));
+    for (let k = 0; k < 10; k++) { const a = k * 2.4, y = (22 + (k % 4) * 2.6) * s; lp.push(feuille(Math.cos(a) * 7.6 * s, y, Math.sin(a) * 6 * s + 2 * s, 2.4 * s, k % 2 ? '#FFD45A' : '#E8A93A', { rz: a, rx: -0.4 })); }
+    D.vifs.push({ pr: lp, emi: '#E8B33A', k: (E) => 0.3 + 0.5 * E.lampes + 0.08 * Math.sin(E.t * 1.7), m: null });
+    for (let k = 0; k < 2; k++) D.vifs.push({ pr: [feuille(0, 0, 0, 2.6 * s, '#FFD45A')], emi: '#E8B33A', k: 0.5, m: (E, m4) => { const u = (E.t * 0.16 + k * 0.5) % 1; _eu.set(Math.sin(E.t * 3 + k) * 0.8, E.t * 2 + k, Math.sin(E.t * 2.3 + k) * 0.6); m4.makeRotationFromEuler(_eu); m4.setPosition((k ? 7 : -6) * s + Math.sin(u * 9 + k) * 3 * s, (22 - u * 20) * s, (3 + k * 2) * s); } });
+    return D;
+  }
+  // ─── les décos de la saison d'automne (src/saison-automne.js : la piste), posées seulement ───
+  function decoCouronneFeuilles() { // la couronne de la porte : un anneau de feuilles d'érable, des glands, deux baies, le nœud de toile rouille
+    const D = nouvelle('couronne-feuilles'), pr = D.fixe, n = 16;
+    pr.push(P(M.tore(10, 2.2, TAU, 6, 18), '#8E6B3A', { z: 1.5 }));
+    for (let k = 0; k < n; k++) { const a = k / n * TAU; pr.push(feuille(Math.cos(a) * 10, Math.sin(a) * 10, 3 + (k % 2) * 0.6, 3.6, MC.feuilles[k % MC.feuilles.length], { rz: a - HP + (k % 2 ? 0.4 : -0.3) })); }
+    for (const a of [0.6, 2.2, 3.9, 5.2]) pr.push(P(M.sphere(1.4, 6), '#B8862F', { x: Math.cos(a) * 8.6, y: Math.sin(a) * 8.6, z: 5, sy: 1.2 }), P(M.cylindre(1.5, 1.4, 1, 6), '#6B4026', { x: Math.cos(a) * 8.6, y: Math.sin(a) * 8.6 + 1.4, z: 5 }));
+    for (const [x, y] of [[-3, -9.5], [2.6, -10]]) pr.push(P(M.sphere(1.2, 6), '#C8342B', { x, y, z: 5.6 }));
+    pr.push(P(M.sphere(2.4, 8), MC.rouille, { y: -11, z: 6, sx: 1.3, sz: 0.6 }), P(bo(4.6, 3, 1.2, 0.4), MC.rouille, { x: -3.6, y: -12.4, z: 5.6, rz: 0.6 }), P(bo(4.6, 3, 1.2, 0.4), MC.rouille, { x: 3.6, y: -12.4, z: 5.6, rz: -0.6 }), P(bo(1.8, 7, 0.8, 0.3), MC.rouille, { x: -1.6, y: -19, z: 5.2, rz: 0.15 }), P(bo(1.8, 7, 0.8, 0.3), MC.rouille, { x: 1.6, y: -19, z: 5.2, rz: -0.15 }));
+    return D;
+  }
+  function decoGuirlandeFeuilles() { // la guirlande de feuilles : une ficelle drapée en deux creux, vingt feuilles, deux pommes de pin aux bouts
+    const D = nouvelle('guirlande-feuilles'), pr = D.fixe, w = 36;
+    for (let k = 0; k <= 20; k++) { const u = k / 20, x = -w / 2 + w * u, y = 6 - Math.abs(Math.sin(u * TAU)) * 4.5; pr.push(feuille(x, y, 1.5 + (k % 2), 3, MC.feuilles[k % MC.feuilles.length], { rz: (k % 3 - 1) * 0.6, rx: -0.3 })); }
+    for (const sx of [-1, 1]) { pr.push(P(M.cone(2, 4.6, 7), '#7B4A2A', { x: sx * (w / 2 + 1), y: 0, z: 1.5, rz: Math.PI })); for (let k = 0; k < 3; k++) pr.push(P(M.tore(1.6 - k * 0.4, 0.45, TAU, 4, 8), '#5A3A22', { x: sx * (w / 2 + 1), y: -1 - k * 1.2, z: 1.5, rx: HP })); }
+    return D;
+  }
+  // le toit en pyramide de la lanterne : le cône à quatre pans tourné d'un huitième de tour DANS sa géométrie (tourné par la matrice de la pièce,
+  // sa boîte, calculée sur la boîte du cône, gonflait de 41 % : la lanterne, placée par le milieu de sa boîte, glissait vers la salle)
+  let TOIT_LANTERNE = null;
+  const toitLanterne = () => { if (!TOIT_LANTERNE) { TOIT_LANTERNE = M.cone(8.2, 5, 4).clone().rotateY(Math.PI / 4); TOIT_LANTERNE.computeBoundingBox(); TOIT_LANTERNE.userData.cache = true; } return TOIT_LANTERNE; };
+  function decoLanterneAutomne() { // la lanterne d'automne : le socle et le toit de cuivre, quatre montants, la bougie qui luit derrière le verre ambré, des feuilles et deux glands au pied
+    const D = nouvelle('lanterne-automne', { sx: 0.9, sy: 0.9, sz: 0.9 }), pr = D.fixe, cu = '#B87333', lp = []; // (un peu plus petite que nature : elle tient dans sa place du comptoir)
+    pr.push(P(bo(12, 1.6, 12, 0.5), cu), P(bo(11, 1.2, 11, 0.4), cu, { y: 15 }), P(toitLanterne(), cu, { y: 16.2 }), P(M.tore(1.6, 0.45, TAU, 4, 8), cu, { y: 22.4 }));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.boiteSimple(1.1, 13.6, 1.1), M.assombrir(cu, 0.2), { x: sx * 4.9, y: 1.4, z: sz * 4.9 }));
+    pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
+    lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
+    D.vifs.push({ pr: lp, emi: '#FFB045', k: (E) => 0.35 + 0.65 * E.lampes + 0.06 * Math.sin(E.t * 9) + 0.04 * Math.sin(E.t * 23), m: null });
+    for (const [k, x, z] of [[0, -7.8, 1.9], [1, -8.1, -1.7], [2, 7.9, -2.1], [3, 5.4, 3.4], [4, -4.8, 3.4]]) pr.push(feuille(x, 0.6, z, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (sur les côtés du socle, jamais plus profond que lui : la place du comptoir pose la lanterne par le milieu de sa boîte, ce qui dépasserait devant ou derrière la décalerait vers la salle)
+    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 8.6, y: 1.3, z: 1.4, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 8.6, y: 2.5, z: 1.4 }));
+    return D;
+  }
+  function decoEpouvantail() { // l'épouvantail : le piquet et la traverse, la chemise à carreaux, la tête de toile cousue et son sourire, le chapeau de paille, la paille
+    // qui dépasse des manches, une corneille posée sur le bras ; il se balance un peu au vent
+    const D = nouvelle('epouvantail'), pr = D.fixe, v = [];
+    pr.push(P(M.cylindre(0.9, 1.1, 30, 6), MC.boisF), P(M.sphere(5.5, 8), '#8E6B3A', { y: 0, sy: 0.25 }));
+    v.push(P(M.cylindre(0.7, 0.7, 30, 5), MC.boisF, { y: 21, rz: HP, x: 15 }), P(bo(13, 13, 7, 2), '#C8552A', { y: 12 }), P(bo(13.4, 2.2, 7.4, 0.6), '#7A3A1A', { y: 15.6 }), P(bo(13.4, 2.2, 7.4, 0.6), '#7A3A1A', { y: 19.6 }), P(bo(3, 13.4, 7.4, 0.6), '#E8B33A', { x: -2.4, y: 11.8 }));
+    for (const sx of [-1, 1]) v.push(P(bo(8, 5, 5, 1.5), '#C8552A', { x: sx * 9.5, y: 18.4 }), P(M.cone(2.4, 4, 6), MC.paille, { x: sx * 14.6, y: 20.9, rz: sx * HP }));
+    v.push(P(M.sphere(5, 10), '#E8D2A8', { y: 30 }), P(M.sphere(0.8, 5), L, { x: -1.8, y: 31, z: 4.5 }), P(M.sphere(0.8, 5), L, { x: 1.8, y: 31, z: 4.5 }), P(M.tore(1.8, 0.35, Math.PI, 3, 8), L, { y: 28.8, z: 4.6, rz: Math.PI }));
+    v.push(P(M.cylindre(9, 9, 0.8, 14), MC.paille, { y: 33.6 }), P(M.cylindre(4.2, 5, 4.4, 12), MC.paille, { y: 34.2 }), P(M.cylindre(5.1, 5.1, 1.4, 12), MC.rouille, { y: 34.6 }));
+    v.push(P(M.sphere(2.2, 8), '#2E2A30', { x: 18, y: 23.6, sx: 1.4 }), P(M.sphere(1.5, 8), '#2E2A30', { x: 20.2, y: 25.2 }), P(M.cone(0.6, 1.6, 4), '#E8A93A', { x: 21.6, y: 25, rz: -HP }));
+    D.vifs.push({ pr: v, emi: null, k: 0, m: (E, m4) => { m4.makeRotationZ(Math.sin(E.t * 0.9) * 0.025); } });
+    return D;
+  }
+  function decoTropheeAutomne() { // le trophée de la saison d'automne 2026 : le socle de noyer, sa plaque « 2026 », la coupe d'or, une grande feuille d'or dressée
+    const D = nouvelle('trophee-automne-2026'), pr = D.fixe, or = '#E8B33A';
+    pr.push(P(bo(15, 5, 11, 1), '#5A3A22'), P(bo(13, 1.6, 9.4, 0.5), '#6B4026', { y: 5 }), P(M.boiteSimple(10, 3.4, 0.4), '#FFE9A8', { y: 0.8, z: 5.6 }));
+    let x = -3.9; for (const n of [2, 0, 2, 6]) { chiffre(pr, n, x, 1.1, 5.9, 2.6, '#6B4026'); x += 2.6; }
+    pr.push(P(M.cylindre(1.4, 2.6, 3, 10), or, { y: 6.6 }), P(M.cylindre(4.6, 1.4, 6, 12), or, { y: 9.6 }), P(M.tore(4.4, 0.7, TAU, 4, 14), '#FFD45A', { y: 15.6, rx: HP }));
+    for (const sx of [-1, 1]) pr.push(P(M.tore(2, 0.5, Math.PI, 4, 8), or, { x: sx * 5.4, y: 12.4, rz: sx * HP }));
+    pr.push(feuille(0, 22, 0.5, 6, '#F2C14A', { rz: 0.15 }), P(M.cylindre(0.4, 0.5, 4, 4), or, { y: 15.6 }));
+    return D;
   }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
@@ -1457,13 +1686,24 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     'souvenir-gare': { type: 'mur' }, 'souvenir-ile': { type: 'comptoir' }, 'souvenir-chateau': { type: 'mur' }, 'souvenir-cimes': { type: 'mur' }, 'souvenir-capitale': { type: 'comptoir' },
     'chaine-plan': { type: 'mur' }, 'chaine-cloche': { type: 'comptoir' }, 'chaine-globe': { type: 'comptoir' }, 'chaine-statue': { type: 'sol' }, 'chaine-enseigne': { type: 'mur' },
     'horloge-comtoise': { type: 'sol', faire: DECOS_PALIER['horloge-comtoise'] }, piano: { type: 'sol', faire: DECOS_PALIER.piano }, // (les décos rares des paliers, lot « progression »)
+    // le Marché d'automne (st.marche.decos) : leur place d'origine (o.rang : la place de la toque sur la porte du fond ; o.teinte : le métal de l'album)
+    cagettes: { type: 'sol', faire: (c, place) => decoCagettes(c, place) }, lampions: { type: 'rebord', faire: (c, place) => decoLampions(c, place) },
+    feuilles: { type: 'sol', faire: (c, place) => decoFeuilles(c, place) }, tonneau: { type: 'sol', faire: (c, place) => decoTonneau(c, place) },
+    album: { type: 'mur', faire: (c, place, o) => decoAlbum(c, place, o && o.teinte) }, 'arbre-or': { type: 'sol', faire: (c, place) => decoArbreOr(c, place) },
+    'toque-feuille': { type: 'mur', faire: (c, place, o) => decoToque(c, 'feuille', !place && o ? o.rang || 0 : 0) },
+    // la saison d'automne (la piste, SAISONS.possede) : posées seulement (DECOS_SAISON, comme les neuves)
+    'couronne-feuilles': { type: 'mur' }, 'guirlande-feuilles': { type: 'rebord' }, 'lanterne-automne': { type: 'comptoir' }, epouvantail: { type: 'sol' }, 'trophee-automne-2026': { type: 'comptoir' },
   };
+  // les décos de la saison d'automne (src/saison-automne.js, la piste) : à part des neuves de « Ma chaîne » (NEUVES) et des rares des paliers,
+  // comme elles sans place d'origine
+  const DECOS_SAISON = { 'couronne-feuilles': decoCouronneFeuilles, 'guirlande-feuilles': decoGuirlandeFeuilles, 'lanterne-automne': decoLanterneAutomne, epouvantail: decoEpouvantail, 'trophee-automne-2026': decoTropheeAutomne };
   for (const [id, f] of Object.entries(NEUVES)) DECOS[id].faire = f;
+  for (const [id, f] of Object.entries(DECOS_SAISON)) DECOS[id].faire = f;
   // une déco en parties, bâtie à sa place : place = null (sa place d'origine, celle d'aujourd'hui ; une déco neuve n'en a pas : null) ou une
   // place typée de LAY.decos → { d, place: Matrix4 | null }, avec la planchette d'un rebord en plus
   function decoParties(id, c, place, o) {
     const x = DECOS[id]; if (!x || !x.faire) return null;
-    if (!place) return NEUVES[id] || DECOS_PALIER[id] ? null : [{ d: x.faire(c, null, o), place: null }];
+    if (!place) return NEUVES[id] || DECOS_PALIER[id] || DECOS_SAISON[id] ? null : [{ d: x.faire(c, null, o), place: null }];
     if (x.type !== place.type) return null;
     const d = x.faire(c, place, o), out = [{ d, place: x.enPlace ? null : placer(d, place, c) }];
     if (place.type === 'rebord' && !x.enPlace) out.push({ d: planchette(place, c), place: null }); // (la toile se tend dans la vitre : pas de planchette)
@@ -1487,7 +1727,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     return out;
   }
   return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, fantome, hantee, standing, coinsStanding, dehors, PROJETS3D, // (dehors, PROJETS3D : les chantiers du quartier, lot « progression »)
+    marche, MC, erable, partsCagette, partsCourge, partsPomme, partsBotte, // (la Halle du Marché d'automne, en éco ; ses accessoires, repris par src/boutiquemarche.js)
     // « Mes décos » : les petits décors et les décos en parties typées, leur fusion, leurs places
-    DECOS, NEUVES, DECOS_PALIER, MAX_VIFS, decoParties, decoCadre, decoHorloge, decoDiplome, decoPlante, decoFleurs, decoPaillasson, decoLampe, decoPlan, decoArdoise, fusion, placerGroupe, boiteDe, atlas };
+    DECOS, NEUVES, DECOS_PALIER, DECOS_SAISON, MAX_VIFS, decoParties, decoCadre, decoHorloge, decoDiplome, decoPlante, decoFleurs, decoPaillasson, decoLampe, decoPlan, decoArdoise, fusion, placerGroupe, boiteDe, atlas };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

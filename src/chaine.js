@@ -359,9 +359,17 @@
   // ─── textes ───
   const OBTENIR_TENUE = { base: 'Offerte dès le début', or: 'La 1re place du classement de la semaine', argent: 'La 2e place du classement de la semaine', bronze: 'La 3e place du classement de la semaine',
     quartier: 'Le Quartier, paliers 3, 6, 9 et 12', 'quartier-or': 'Le podium final du Quartier', 'quartier-neon': 'Le Quartier, palier 20', parcours: 'Le parcours du boulanger : boutiques n°11, 17, 23 et 29',
-    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons', apprenti: 'L’objectif du premier jour' };
+    hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons', apprenti: 'L’objectif du premier jour',
+    marche: 'Le Marché d’automne, paliers 3, 5, 7 et 9', 'marche-or': 'Le podium final du Marché d’automne', 'marche-couronne': 'Le Marché d’automne, palier 20', automne: 'La saison d’automne 2026, crans 5, 9, 13 et 17' };
   const TITRES_PARCOURS = { 16: 'Boulanger de quartier', 22: 'Fournisseur officiel', 28: 'Grand maître du fournil', 30: 'Légende du Fournil' };
   const decosDe = (st, k) => { const q = st && st[k]; return q && typeof q === 'object' && Array.isArray(q.decos) ? q.decos : []; };
+  // le moteur des saisons (src/saison.js, chargé après ce module dans la page : lu à l'appel ; dans Node, demandé avec sa fiche d'automne)
+  let S_ = null;
+  const saisons = () => {
+    if (typeof SAISONS !== 'undefined') return SAISONS; // eslint-disable-line no-undef
+    if (!S_ && typeof module === 'object' && module.exports && typeof require === 'function') { try { S_ = require('./saison.js'); require('./saison-automne.js'); } catch (e) { S_ = null; } }
+    return S_;
+  };
   const FAMILLES = [
     { id: 'quartier', nom: 'Le Quartier', posable: true, items: [
       { id: 'graffiti', nom: 'Le tag sur la porte', place: 'mur', mesure: 1, obtenir: 'Le Quartier, palier 2' },
@@ -407,6 +415,26 @@
       const k = G.RARES_PALIER ? G.RARES_PALIER.findIndex((r) => r.id === rare) + 1 : 0;
       return Object.assign({ id, rare, nom, place: 'sol', mesure: null, obtenir: k > 0 && G.boutiqueDuPalier ? `Le palier n°${G.boutiqueDuPalier(k)} (${G.titrePalier(k)})` : 'Un palier après la boutique n°30' }, o);
     }), possede: (st, id) => { const x = id === 'horloge-comtoise' ? 'horloge' : id; return !!(G.rarePossede && G.rarePossede(st, x)); } },
+    // le Marché d'automne (src/marche.js : les paliers, l'album de la forêt, la recette du jour ; st.marche.decos, gardées à vie, l'album
+    // d'argent ou d'or teinte la même étagère) et la saison d'automne (src/saison-automne.js : la piste ; reçues cette saison ou une passée,
+    // SAISONS.possede). Ajoutées en dernier : le code des photos (ORDRE) ne change pas pour les décos d'avant. mesure : les appels de dessin
+    // d'une déco posée seule, fusionnée (« petits », et « lueurs » si elle a une part lumineuse ou animée)
+    { id: 'marche', nom: 'Le Marché d’automne', posable: true, items: [
+      { id: 'cagettes', nom: 'Les cagettes du perron', place: 'sol', mesure: 1, obtenir: 'Le Marché d’automne, palier 2' },
+      { id: 'lampions', nom: 'Les lampions de la Halle', place: 'rebord', mesure: 2, lueur: true, anime: true, obtenir: 'Le Marché d’automne, palier 4' },
+      { id: 'feuilles', nom: 'Le tas de feuilles mortes', place: 'sol', mesure: 1, obtenir: 'Le Marché d’automne, palier 6' },
+      { id: 'tonneau', nom: 'Le tonneau du pressoir', place: 'sol', mesure: 1, obtenir: 'Le Marché d’automne, palier 8' },
+      { id: 'album', nom: 'L’étagère aux peluches de la forêt', place: 'mur', mesure: 1, obtenir: 'L’album de la forêt : la 5e sorte de déguisement complétée (d’argent, puis d’or, avec l’album)' },
+      { id: 'arbre-or', nom: 'L’arbre aux feuilles d’or', place: 'sol', mesure: 2, lueur: true, anime: true, obtenir: 'Le Marché d’automne, palier 20' },
+      { id: 'toque-feuille', nom: 'La toque brodée de feuilles d’or', place: 'mur', mesure: 1, obtenir: 'Le Marché d’automne : la 500e fournée de la recette du jour' },
+    ], possede: (st, id) => decosDe(st, 'marche').includes(id) },
+    { id: 'piste-automne', nom: 'La saison d’automne 2026', posable: true, items: [
+      { id: 'couronne-feuilles', nom: 'La couronne de feuilles', place: 'mur', mesure: 1, obtenir: 'La saison d’automne 2026, cran 3' },
+      { id: 'guirlande-feuilles', nom: 'La guirlande de feuilles', place: 'rebord', mesure: 1, obtenir: 'La saison d’automne 2026, cran 7' },
+      { id: 'lanterne-automne', nom: 'La lanterne d’automne', place: 'comptoir', mesure: 2, lueur: true, obtenir: 'La saison d’automne 2026, cran 15' },
+      { id: 'epouvantail', nom: 'L’épouvantail', place: 'sol', mesure: 2, anime: true, obtenir: 'La saison d’automne 2026, cran 19' },
+      { id: 'trophee-automne-2026', nom: 'Le trophée de la saison d’automne 2026', place: 'comptoir', mesure: 1, obtenir: 'La saison d’automne 2026, cran 22 : le trophée de fin de saison' },
+    ], possede: (st, id) => { const S = saisons(); return !!(S && S.possede(st, id)); } },
   ];
   // (les trophées et les skins du casino s'ajoutent quand src/casino.js est chargé : CASINO.TROPHEES, CASINO.SKINS ; voir familleCasino)
   function familleCasino(C) {

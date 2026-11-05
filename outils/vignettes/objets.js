@@ -28,7 +28,7 @@ const VIG = (() => {
     if (id === 'vitrine-coupes') return { g: grp(MEUBLES.trophees(['or', 'argent', 'bronze'], ctx)), appui: 'sol' }; // (les trois coupes du podium)
     if (id === 'scooter') return { g: OBJ.scooter(), appui: 'sol' };
     const x = MEUBLES.DECOS[id]; if (!x || !x.faire) return null;
-    const place = id === 'toiles' ? LAY.decos.find((p) => p.id === 'r1') : null; // (la toile : une seule, tendue dans le coin de sa place ; sans place, la boutique en tend deux, aux deux bouts du mur)
+    const place = id === 'toiles' || id === 'lampions' ? LAY.decos.find((p) => p.id === 'r1') : null; // (la toile : une seule, tendue dans le coin de sa place ; sans place, la boutique en tend deux, aux deux bouts du mur ; les lampions : sur leurs deux piquets, comme posés, et non la longue guirlande de la fenêtre)
     const d = x.faire(ctx, place, {}), f = MEUBLES.fusion([{ d, place: null }]), mur = x.type === 'mur' || id === 'toiles', g = grp(f.petits, f.lueurs);
     if (mur) g.rotation.y = MUR_LACET; // (ce qui s'accroche au mur se tourne un peu vers nous : vu presque de face, comme dans la boutique)
     // le tag : cadré sur ses lettres (ses trois gouttes, aux coins de la toile, élargissaient le cadre : « LF » ne faisait que 26 px de large à 44)
@@ -95,7 +95,7 @@ const VIG = (() => {
 
   // ═══ le catalogue : les familles du carnet (src/chaine.js, avec celles de l'arrière-salle), ce qui a une vignette, et comment la bâtir ═══
   const FAB = {
-    quartier: deco, hantee: deco, podium: deco, chaine: deco, palier: deco, compagnons: compagnon, saison, tenues: tenue, // (palier : les décos rares des paliers, lot « progression »)
+    quartier: deco, hantee: deco, podium: deco, chaine: deco, palier: deco, marche: deco, 'piste-automne': deco, compagnons: compagnon, saison, tenues: tenue, // (palier : les décos rares des paliers, lot « progression » ; marche, piste-automne : le Marché d'automne et sa saison)
     trophees: (id) => OBJ.trophee(id), 'casino-trophees': (id) => OBJ.tropheeCasino(id), 'casino-skins': (id) => OBJ.skin(id),
   };
   const SANS = { titres: 'pas d’objet 3D : l’icône des titres', cartes: 'pas d’objet 3D : l’icône des cartes postales' };

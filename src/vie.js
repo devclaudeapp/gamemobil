@@ -26,6 +26,10 @@ const VIE = (() => {
     // la Maison hantée (src/boutiquehantee.js : la boutique pendant l'événement, en qualité éco ou sans HD) : papier peint violet nuit à rayures et ses
     // petites chauves-souris, parquet sombre, bois de cercueil, accents citrouille ; les cadres sombres, le portrait de l'ancêtre ; dehors, le jardin hanté
     hantee: { id: 'hantee', mur: '#56418A', mur2: '#34285A', murStyle: 'hantee', sol: '#4A3854', sol2: 'rgba(0,0,0,.14)', solStyle: 'planches', comptoir: '#4A2F45', comptoir2: '#8E6BD8', bois: '#3A2730', accent: '#E8782F', cadre: '#2A1E33', portrait: true, plante: '#8E6BD8', hauts: ['#FF8A3D', '#8E6BD8', '#7CD992', '#FFE7A3', '#E1496C', '#6CB8FF'], vue: 'hantee' },
+    // le Marché d'automne (src/boutiquemarche.js : la Halle, en qualité éco ou sans HD) : un mur de halle à colombages (poutres de chêne,
+    // torchis crème, croix de Saint-André), des tomettes rouges au sol, le comptoir rouille et crème, le bois de châtaignier ; dehors, la
+    // place du village, ses étals rayés et ses arbres roux
+    marche: { id: 'marche', mur: '#FBEBD2', mur2: '#EED3AC', murStyle: 'halle', sol: '#C97B4E', sol2: '#BC6C42', solStyle: 'tomettes', comptoir: '#B5552B', comptoir2: '#F4E3C3', bois: '#7B4A2A', accent: '#D9622B', cadre: '#6B4026', plante: '#D98C2B', hauts: ['#D9622B', '#E8B33A', '#7A9A3A', '#8E3B2E', '#4F6D8C', '#F2D3A0'], vue: 'marche' },
   };
   Q = DECORS.village;
   // les quartiers du parcours (la gare, l'île… : GAME.QUARTIERS) portent leur décor dans leurs données (theme) : lu tel quel, une fois
@@ -405,6 +409,7 @@ const VIE = (() => {
       or: !!or, pris: false, siege: null, mange: 0 };
     c.mariniere = Q.vue === 'mer' && c.haut === '#FFFFFF';
     if (modeVie !== '' && vueEv && vueEv.deguisements && !or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)]; // la boutique hantée : chacun vient déguisé
+    if (modeVie !== '' && vueEv && vueEv.taille && !or) c.taille *= vueEv.taille; // la Halle : des enfants (déguisés en animaux de la forêt), plus petits
     clients.push(c);
     return c;
   }
@@ -579,7 +584,7 @@ const VIE = (() => {
     vueEv = st.vueEv || null; // la boutique hantée : le décor et les saisons de l'événement, pas ceux du quartier
     // un client né entre la bascule et cette image (une vente juste après setEvenement : vueEv n'était pas encore lu) s'habille ici, avant
     // que la scène ne le bâtisse : jamais un client « sans déguisement » dans la boutique hantée, même dans l'image où il naît
-    if (modeVie !== '' && vueEv && vueEv.deguisements) for (const c of clients) if (!c.deg && !c.or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)];
+    if (modeVie !== '' && vueEv && vueEv.deguisements) for (const c of clients) if (!c.deg && !c.or) { c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)]; if (vueEv.taille) c.taille *= vueEv.taille; }
     Q = vueEv && DECORS[vueEv.decor] ? DECORS[vueEv.decor] : decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0, finition(st)); tags = force.saison || (vueEv && vueEv.tags) || G.saison(now);
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
