@@ -2941,7 +2941,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '6886f836e542';</script>
+<script>window.FOURNIL_VERSION = '2c90c4336411';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -11472,8 +11472,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
     lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
     D.vifs.push({ pr: lp, emi: '#FFB045', k: (E) => 0.35 + 0.65 * E.lampes + 0.06 * Math.sin(E.t * 9) + 0.04 * Math.sin(E.t * 23), m: null });
-    for (let k = 0; k < 5; k++) pr.push(feuille(-7 + k * 3.4, 0.6, 4.6 + (k % 2) * 1.1, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (au pied, tout près du socle : sur le comptoir, rien ne déborde vers la salle)
-    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.4, y: 1.3, z: 3.6, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.4, y: 2.5, z: 3.6 }));
+    for (const [k, x, z] of [[0, -7.2, 1.6], [1, -6.6, -3.4], [2, 6.9, -3], [3, -2.6, -6.8], [4, 2.8, -6.6]]) pr.push(feuille(x, 0.6, z, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (autour du socle, sur les côtés et derrière : sur le comptoir, rien ne déborde vers la salle)
+    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.2, y: 1.3, z: 1.2, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.2, y: 2.5, z: 1.2 }));
     return D;
   }
   function decoEpouvantail() { // l'épouvantail : le piquet et la traverse, la chemise à carreaux, la tête de toile cousue et son sourire, le chapeau de paille, la paille
@@ -23723,15 +23723,15 @@ const BOUTIQUE_MARCHE = (() => {
     };
     // les déguisements : la capuche (cap : sa teinte et sa saturation) et les habits (hab), leurs oreilles et ce qui fait l'animal, cousus sur la capuche
     const DEG = {
-      ecureuil: { cap: [21, 0.74], hab: [92, 0.42], or: 'pointues', c2: '#FBD9AE', pointe: '#7B3A1A' },
-      herisson: { cap: [28, 0.32], hab: [16, 0.66], or: 'petites', c2: '#F2DAB6', piquants: '#4A3020' },
-      lapin: { cap: [30, 0.08], hab: [210, 0.4], or: 'longues', c2: '#FFB8AA', clair: true },
-      renard: { cap: [22, 0.9], hab: [44, 0.6], or: 'pointues', c2: '#FFF6EA', pointe: '#2E2420' },
-      blaireau: { cap: [230, 0.07], hab: [6, 0.55], or: 'rondes', c2: '#FFFFFF', rayures: '#FFFFFF' },
-      chouette: { cap: [30, 0.5], hab: [92, 0.42], or: 'plumes', c2: '#F2DEB8' },
-      faon: { cap: [30, 0.58], hab: [2, 0.6], or: 'petites', c2: '#FBEBD3', taches: '#FFFFFF' },
-      marcassin: { cap: [20, 0.3], hab: [44, 0.75], or: 'petites', c2: '#E6C59A', rayures: '#EBCD9E' },
-      ourson: { cap: [24, 0.48], hab: [212, 0.45], or: 'rondes', c2: '#EED2AE' },
+      ecureuil: { cap: [16, 0.62], hab: [92, 0.42], or: 'pointues', c2: '#FBD9AE', pointe: '#6B2E14', ech: '#E8B33A', queue: 'ecureuil' },
+      herisson: { cap: [28, 0.32], hab: [16, 0.66], or: 'petites', c2: '#F2DAB6', piquants: '#4A3020', ech: '#7A9A3A' },
+      lapin: { cap: [30, 0.08], hab: [210, 0.4], or: 'longues', c2: '#FFB8AA', clair: true, ech: '#E8B33A', queue: 'lapin' },
+      renard: { cap: [25, 0.94], hab: [44, 0.6], or: 'pointues', c2: '#FFF6EA', pointe: '#2E2420', ech: '#8E3B2E', queue: 'renard' },
+      blaireau: { cap: [230, 0.07], hab: [6, 0.55], or: 'rondes', c2: '#FFFFFF', rayures: '#FFFFFF', ech: '#E8B33A' },
+      chouette: { cap: [30, 0.5], hab: [92, 0.42], or: 'plumes', c2: '#F2DEB8', ech: '#D9622B', queue: 'chouette' },
+      faon: { cap: [30, 0.58], hab: [2, 0.6], or: 'petites', c2: '#FBEBD3', taches: '#FFFFFF', ech: '#F2D3A0', queue: 'faon' },
+      marcassin: { cap: [20, 0.3], hab: [44, 0.75], or: 'petites', c2: '#E6C59A', rayures: '#EBCD9E', ech: '#4F6D8C', queue: 'marcassin' },
+      ourson: { cap: [24, 0.48], hab: [212, 0.45], or: 'rondes', c2: '#EED2AE', ech: '#C8552A', queue: 'ourson' },
     };
     // ce qui luit (la lueur des sommets) : les flammes, les braises, le verre des lanternes (jaune-orangé vif)
     const feu = function feu(h, s, l) { return h >= 28 && h <= 62 && s > 0.5 && l > 0.55 ? 1 : 0; };
@@ -23802,9 +23802,12 @@ const BOUTIQUE_MARCHE = (() => {
 
     // ─── le matériau partagé (jamais libéré) : couleurs de sommets, la lueur des sommets en émissif ───
     let MAT = null;
+    // l'ambiance de la pièce (l'environnement du rendu riche) sur les matériaux de la Halle : 1 de jour, elle baisse le soir et la nuit, quand
+    // les lampions et les lanternes prennent le relais (eclairer) ; comme les jumeaux de la boutique (src/scene.js, RICHE.envK)
+    const ENV = { k: 0.3, chaud: 1 }, suivreEnv = (m) => { Object.defineProperty(m, 'envMapIntensity', { get: () => ENV.k, set: () => {} }); return m; };
     function mat() {
       if (MAT) return MAT;
-      const m = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), u = { uLueur: { value: 1 } }; m.userData.u = u;
+      const m = suivreEnv(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 })), u = { uLueur: { value: 1 } }; m.userData.u = u;
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, u);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float lueur; varying float vLueur;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLueur = lueur;');
@@ -23821,9 +23824,10 @@ const BOUTIQUE_MARCHE = (() => {
     const EQUIPE3 = AMIS3.map((s) => 'ami-' + s);
     const PROTOS = new Map(); let CLIPS = null;
     // les pièces cousues sur la capuche : des formes de Three (oreilles, museau, piquants), dans le repère de l'os de la tête (k : leur taille)
+    const poseur = (out) => (geo, hex, x, y, z, rx, ry, rz, sx, sy, sz) => { geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx || 0, ry || 0, rz || 0)), new T.Vector3(sx || 1, sy || 1, sz || 1))); out.push({ geo, hex }); };
+    const capHexDe = (d, l) => { const c = hsl(d.cap[0], d.cap[1], l == null ? (d.clair ? 0.9 : 0.4) : l); return '#' + new T.Color().setRGB(lin(c[0]), lin(c[1]), lin(c[2])).getHexString(); };
     function cousues(d, k) { // (repère de l'os de la tête KayKit : la tête de −0,55 à 0,55 en x, de 0 à 1 en y, le visage vers +z jusqu'à 0,58)
-      const out = [], capC = hsl(d.cap[0], d.cap[1], d.clair ? 0.9 : 0.4), capHex = '#' + new T.Color().setRGB(lin(capC[0]), lin(capC[1]), lin(capC[2])).getHexString();
-      const ajoute = (geo, hex, x, y, z, rx, ry, rz, sx, sy, sz) => { geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx || 0, ry || 0, rz || 0)), new T.Vector3(sx || 1, sy || 1, sz || 1))); out.push({ geo, hex }); };
+      const out = [], capHex = capHexDe(d), ajoute = poseur(out);
       for (const sx of [-1, 1]) {
         if (d.or === 'pointues') { ajoute(new T.ConeGeometry(0.17 * k, 0.42 * k, 6), capHex, sx * 0.34, 0.94 + 0.13 * k, -0.04, 0, 0, -sx * 0.38); ajoute(new T.ConeGeometry(0.09 * k, 0.26 * k, 5), d.pointe || d.c2, sx * 0.36, 0.96 + 0.13 * k, 0.04, 0, 0, -sx * 0.38); }
         else if (d.or === 'longues') { ajoute(new T.CapsuleGeometry(0.1 * k, 0.52 * k, 3, 8), capHex, sx * 0.18, 1.02 + 0.36 * k, -0.06, 0, 0, -sx * 0.16, 1, 1, 0.62); ajoute(new T.CapsuleGeometry(0.055 * k, 0.4 * k, 3, 6), d.c2, sx * 0.18, 1.03 + 0.36 * k, -0.01, 0, 0, -sx * 0.16, 1, 1, 0.4); }
@@ -23838,9 +23842,34 @@ const BOUTIQUE_MARCHE = (() => {
       if (d.rayures) for (const sx of [-1, 1]) ajoute(new T.BoxGeometry(0.06, 0.04, 0.7), d.rayures, sx * 0.11, 1.0, -0.08, 0.15, 0, 0);
       return out;
     }
-    // le bonnet à pompon de la marchande (repère de l'os de la tête) : la calotte tricotée moutarde, le revers rouille, le pompon crème
-    function bonnetMarchande() { const l = []; const a = (geo, hex, x, y, z, sx, sy, sz) => { geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion(), new T.Vector3(sx || 1, sy || 1, sz || 1))); l.push({ geo, hex }); };
-      a(new T.SphereGeometry(0.6, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), '#E8A93A', 0, 0.42, -0.02, 1, 1.05, 1); a(new T.CylinderGeometry(0.6, 0.62, 0.14, 16), '#C8552A', 0, 0.46, -0.02); a(new T.SphereGeometry(0.15, 10, 8), '#FFF3DE', 0, 1.08, -0.04); return l; }
+    // l'écharpe tricotée des enfants (repère de l'os du buste : le cou à y ≈ 0,27) : le tour de cou, le nœud, deux pans, l'un rayé
+    function echarpe(d) {
+      const out = [], a = poseur(out), c = d.ech, r = d.raye || '#FFF3DE';
+      a(new T.TorusGeometry(ECH.R, ECH.r, 8, 18), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
+      a(new T.SphereGeometry(ECH.r * 1.1, 8, 6), c, -0.14, ECH.y - 0.03, ECH.z + ECH.R * 0.92);
+      a(new T.CapsuleGeometry(ECH.r * 0.75, 0.24, 3, 6), c, -0.2, ECH.y - 0.22, ECH.z + ECH.R * 0.92 + 0.05, 0.12, 0, 0.16, 1, 1, 0.6);
+      a(new T.CapsuleGeometry(ECH.r * 0.75, 0.18, 3, 6), r, -0.07, ECH.y - 0.19, ECH.z + ECH.R * 0.92 + 0.06, 0.12, 0, -0.12, 1, 1, 0.6);
+      return out;
+    }
+    const ECH = { R: 0.46, r: 0.1, y: 0.2, z: 0 }, QU = { y: 0.02, z: -0.44 }; // (mesurés sur le Rogue à capuche : sa pèlerine fait 0,45 de rayon au cou, sa cape descend dans le dos jusqu'à z = −0,4)
+    // la queue du déguisement (repère des hanches, dans le dos) : l'écureuil, en panache qui remonte ; le renard, longue, son bout blanc ; le
+    // pompon du lapin ; la petite queue blanche du faon ; celle, ronde, de l'ourson ; la queue en tire-bouchon du marcassin ; les plumes de la chouette
+    function queue(d) {
+      const out = [], a = poseur(out), c = capHexDe(d), c2 = capHexDe(d, d.clair ? 0.8 : 0.3), y = QU.y, z = QU.z;
+      if (d.queue === 'ecureuil') [[0.04, -0.04, 0.13], [0.24, -0.18, 0.17], [0.48, -0.26, 0.2], [0.73, -0.25, 0.2], [0.94, -0.17, 0.18], [1.08, -0.25, 0.14]].forEach(([yy, zz, r], i) => a(new T.SphereGeometry(r, 10, 8), i === 5 ? c2 : c, 0, y + yy, z + zz, 0, 0, 0, 0.9, 1, 1)); // (le panache remonte le long du dos, sa pointe se recourbe)
+      else if (d.queue === 'renard') { a(new T.CapsuleGeometry(0.11, 0.3, 3, 8), c, 0, y - 0.04, z - 0.14, -1.05, 0, 0); a(new T.SphereGeometry(0.14, 8, 6), c, 0, y - 0.13, z - 0.31, 0, 0, 0, 0.9, 1, 1); a(new T.SphereGeometry(0.1, 8, 6), '#FFF3E2', 0, y - 0.17, z - 0.44, 0, 0, 0, 0.85, 1, 1); }
+      else if (d.queue === 'lapin') a(new T.SphereGeometry(0.1, 8, 6), '#FFFFFF', 0, y + 0.04, z);
+      else if (d.queue === 'faon') a(new T.SphereGeometry(0.08, 8, 6), '#FFFFFF', 0, y + 0.08, z, -0.4, 0, 0, 1, 1.4, 0.6);
+      else if (d.queue === 'ourson') a(new T.SphereGeometry(0.08, 8, 6), c, 0, y + 0.03, z);
+      else if (d.queue === 'marcassin') a(new T.TorusGeometry(0.06, 0.022, 4, 10, Math.PI * 1.6), c, 0, y + 0.04, z - 0.02, 0, Math.PI / 2, 0);
+      else if (d.queue === 'chouette') for (const rz of [-0.45, 0, 0.45]) a(new T.CapsuleGeometry(0.035, 0.16, 3, 5), c2, Math.sin(rz) * 0.08, y - 0.02, z - 0.02, -0.5, 0, rz, 1, 1, 0.55);
+      return out;
+    }
+    // le bonnet à pompon de la marchande (repère de l'os de la tête) : la calotte tricotée moutarde posée haut (le visage reste libre, vu d'en
+    // haut aussi), le revers rouille, le pompon crème
+    function bonnetMarchande() { const l = [], a = poseur(l);
+      a(new T.SphereGeometry(0.6, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), '#E8A93A', 0, BON.y, -0.03, 0, 0, 0, 1, 0.82, 1); a(new T.CylinderGeometry(0.61, 0.63, 0.13, 18), '#C8552A', 0, BON.y + 0.02, -0.03); a(new T.SphereGeometry(0.14, 10, 8), '#FFF3DE', 0, BON.y + 0.54, -0.05); return l; }
+    const BON = { y: 0.6 };
     const DEFS = { // le corps KayKit, sa recette ; les déguisements (la capuche reteinte, ses pièces cousues)
       patronne: { src: 'Rogue', recette: 'marchande', bonnet: true }, // la marchande d'automne, derrière l'étal : le gilet rouille, un bonnet à pompon
     };
@@ -23871,10 +23900,9 @@ const BOUTIQUE_MARCHE = (() => {
           parts.push({ mesh: o, M: iB.clone().multiply(BI0[j]).multiply(bones[j].matrixWorld.clone().invert()).multiply(o.matrixWorld), os: j, recette: rec });
         }
       });
-      if (d.deg || d.bonnet) { // les oreilles, le museau, les piquants : cousus sur la capuche, portés par l'os de la tête ; le bonnet de la marchande
-        const ih = idx.has('head') ? idx.get('head') : 0, Mh = iB.clone().multiply(BI0[ih]);
-        for (const { geo, hex } of d.deg ? cousues(DEG[d.deg], d.k) : bonnetMarchande()) parts.push({ mesh: new T.Mesh(geo, matB(hex)), M: Mh, os: ih });
-      }
+      const coudre = (os, liste) => { const j = idx.has(os) ? idx.get(os) : 0, Mo = iB.clone().multiply(BI0[j]); for (const { geo, hex } of liste) parts.push({ mesh: new T.Mesh(geo, matB(hex)), M: Mo, os: j }); };
+      if (d.deg || d.bonnet) coudre('head', d.deg ? cousues(DEG[d.deg], d.k) : bonnetMarchande()); // les oreilles, le museau, les piquants : cousus sur la capuche ; le bonnet de la marchande
+      if (d.deg && !d.ami) { coudre('chest', echarpe(DEG[d.deg])); coudre('hips', queue(DEG[d.deg])); } // un enfant : son écharpe tricotée, la queue de son déguisement
       const c = cuire(parts, { skin: true, image: mc.images[d.src] || null }), geo = geometrie(c); geo.userData.cache = true; // (partagée par les clones : jamais libérée)
       const tpl = FOURNIL_HD.SkeletonUtils.clone(src); let S1 = null; const jeter = [];
       tpl.traverse((o) => { if (o.isMesh) { if (!S1 && o.isSkinnedMesh) S1 = o; else jeter.push(o); } });
@@ -23975,7 +24003,7 @@ const BOUTIQUE_MARCHE = (() => {
       for (let i = -1; i * px < cw + px; i++) for (let j = -1; j * hr < yb + hr; j++) { const cx = i * px, cy = j * hr + (i % 2 ? hr / 2 : 0); x.fillStyle = tons2[(i * 7 + j * 13 + ((i * j) % 5)) & 3]; x.beginPath(); x.moveTo(cx - r0 * 0.94, cy); x.lineTo(cx - r0 * 0.47, cy - hr * 0.47); x.lineTo(cx + r0 * 0.47, cy - hr * 0.47); x.lineTo(cx + r0 * 0.94, cy); x.lineTo(cx + r0 * 0.47, cy + hr * 0.47); x.lineTo(cx - r0 * 0.47, cy + hr * 0.47); x.closePath(); x.fill(); }
       x.restore();
       const tx = new T.CanvasTexture(cv); tx.colorSpace = T.SRGBColorSpace; tx.anisotropy = 4; // (rendue avec le décor : MODELES.dispose, quand la scène le remplace)
-      const m = new T.Mesh(new T.PlaneGeometry(W, D), new T.MeshStandardMaterial({ map: tx, roughness: 0.86, metalness: 0 })); m.rotation.x = -Math.PI / 2; m.position.set(W / 2, -0.05, D / 2); m.receiveShadow = true; m.userData.nom = 'sol';
+      const m = new T.Mesh(new T.PlaneGeometry(W, D), suivreEnv(new T.MeshStandardMaterial({ map: tx, roughness: 0.86, metalness: 0 }))); m.rotation.x = -Math.PI / 2; m.position.set(W / 2, -0.05, D / 2); m.receiveShadow = true; m.userData.nom = 'sol';
       return m;
     }
     // une pièce de MEUBLES (src/meubles.js : { geo, col, m }) → cuite et posée
@@ -24129,7 +24157,7 @@ const BOUTIQUE_MARCHE = (() => {
     function preparer() { if (echec || !(typeof HDM !== 'undefined' && HDM.pret('marche'))) return false; try { for (const s of SORTES.concat(EQUIPE3, ['patronne'])) proto(s); clips(); return true; } catch (e) { rater(e); return false; } }
     // ─── la lumière de la Halle (src/scene.js, eclairerHD) : le jour doré d'un après-midi d'automne, qui tourne au soir avec l'heure ; les
     //     lanternes s'allument le soir ; tout baisse quand le ×6 s'endort (AMB). Rend le niveau des lampes (pour les décors animés) ───
-    const PH = { jour: { ciel: '#FFF1D6', sol: '#B08A68', k: 1.25, soleil: '#FFD8A0', ks: 2.3, lampes: 0 }, soir: { ciel: '#FFB27E', sol: '#5A3A30', k: 0.9, soleil: '#FF9E5E', ks: 1.25, lampes: 0.8 }, nuit: { ciel: '#7E86C8', sol: '#2E2638', k: 0.6, soleil: '#9FB4FF', ks: 0.5, lampes: 1 } };
+    const PH = { jour: { ciel: '#FFF1D6', sol: '#B08A68', k: 1.25, soleil: '#FFD8A0', ks: 2.3, lampes: 0, env: 0.3 }, soir: { ciel: '#FFB27E', sol: '#5A3A30', k: 0.9, soleil: '#FF9E5E', ks: 1.25, lampes: 0.8, env: 0.3 }, nuit: { ciel: '#7E86C8', sol: '#2E2638', k: 0.6, soleil: '#9FB4FF', ks: 0.5, lampes: 1, env: 0.13 } };
     let _ca = null, _cb = null;
     function eclairer(E, L) {
       if (!_ca) { _ca = new T.Color(); _cb = new T.Color(); }
@@ -24141,17 +24169,18 @@ const BOUTIQUE_MARCHE = (() => {
       L.hemi.color.set(A.ciel).lerp(_ca.set(B.ciel), k); L.hemi.groundColor.set(A.sol).lerp(_cb.set(B.sol), k); L.hemi.intensity = mx(A.k, B.k) * (0.5 + 0.5 * a);
       L.dir.color.set(A.soleil).lerp(_ca.set(B.soleil), k); L.dir.intensity = mx(A.ks, B.ks) * (0.55 + 0.45 * a);
       const niv = mx(A.lampes, B.lampes);
+      ENV.k = mx(A.env, B.env) * (0.55 + 0.45 * a); // (l'ambiance de la pièce, phase par phase ; elle baisse aussi quand le ×6 s'endort)
       L.lampes.forEach((l, i) => { l.intensity = (l.userData.k || 0) * (0.06 + 0.94 * niv) * (0.3 + 0.7 * a) * (0.9 + 0.06 * Math.sin(t * 7 + i * 1.7) + 0.04 * Math.sin(t * 19 + i * 2.3)); });
       const hm = haloMat(); hm.uniforms.uT.value = t; hm.uniforms.uK.value = (0.12 + 0.88 * niv) * (0.3 + 0.7 * a);
       mat().userData.u.uLueur.value = (0.35 + 0.65 * niv) * (0.4 + 0.6 * a) * (0.95 + 0.05 * Math.sin(t * 9));
       const R0 = L.riche; // le rendu riche (haute, moyenne) : l'ambiance vient surtout de la pièce (PMREM), comme dans la boulangerie ; le ciel ne fait que teinter
       if (R0 && R0.actif) { R0.envK = R0.kEnv * L.hemi.intensity / 1.3 * (1 - 0.72 * niv); L.hemi.intensity *= R0.kHemi; L.dir.intensity *= R0.kDir; } // (le soir, la pièce s'assombrit : les lanternes prennent le relais)
-      if (L.post) { L.post.mat.uniforms.chaud.value = (R0 ? R0.chaud : 0.55) * (1 - 0.5 * niv); L.post.mat.uniforms.expo.value = 0; } // (pas d'ACES : la lumière du jour de la boutique)
+      if (L.post) { L.post.mat.uniforms.chaud.value = ENV.chaud * (R0 ? R0.chaud : 0.55) * (1 - 0.5 * niv); L.post.mat.uniforms.expo.value = 0; } // (pas d'ACES : la lumière du jour de la boutique)
       return Math.max(0.2, niv);
     }
     // l'ambiance de la scène en mode HD (src/scene.js, basculerHD) : pas de brouillard de nuit, l'environnement de la pièce (le rendu riche), une exposition douce
     const ambianceHD = { fog: null, clear: '#F2D9B4', exposition: 1, ton: false, env: true }; // (ton : false, sans ACES)
-    return { pret, decor, acteur, jouer, liberer, apparition, preparer, rater, mat, haloMat, eclairer, ambianceHD, EQUIPE3, DEFS, DEG, get echec() { return echec; } };
+    return { pret, decor, acteur, jouer, liberer, apparition, preparer, rater, mat, haloMat, eclairer, ambianceHD, EQUIPE3, DEFS, DEG, PH, ENV, ECH, QU, BON, PROTOS, get echec() { return echec; } };
   })();
 
   // ─── l'écran : la fenêtre sur la scène ───
