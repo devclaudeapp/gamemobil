@@ -1094,8 +1094,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
     lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
     D.vifs.push({ pr: lp, emi: '#FFB045', k: (E) => 0.35 + 0.65 * E.lampes + 0.06 * Math.sin(E.t * 9) + 0.04 * Math.sin(E.t * 23), m: null });
-    for (let k = 0; k < 5; k++) pr.push(feuille(-7 + k * 3.4, 0.6, 4.6 + (k % 2) * 1.1, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (au pied, tout près du socle : sur le comptoir, rien ne déborde vers la salle)
-    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.4, y: 1.3, z: 3.6, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.4, y: 2.5, z: 3.6 }));
+    for (const [k, x, z] of [[0, -7.2, 1.6], [1, -6.6, -3.4], [2, 6.9, -3], [3, -2.6, -6.8], [4, 2.8, -6.6]]) pr.push(feuille(x, 0.6, z, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (autour du socle, sur les côtés et derrière : sur le comptoir, rien ne déborde vers la salle)
+    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.2, y: 1.3, z: 1.2, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.2, y: 2.5, z: 1.2 }));
     return D;
   }
   function decoEpouvantail() { // l'épouvantail : le piquet et la traverse, la chemise à carreaux, la tête de toile cousue et son sourire, le chapeau de paille, la paille

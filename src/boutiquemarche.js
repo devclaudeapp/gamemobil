@@ -169,9 +169,12 @@ const BOUTIQUE_MARCHE = (() => {
 
     // ─── le matériau partagé (jamais libéré) : couleurs de sommets, la lueur des sommets en émissif ───
     let MAT = null;
+    // l'ambiance de la pièce (l'environnement du rendu riche) sur les matériaux de la Halle : 1 de jour, elle baisse le soir et la nuit, quand
+    // les lampions et les lanternes prennent le relais (eclairer) ; comme les jumeaux de la boutique (src/scene.js, RICHE.envK)
+    const ENV = { k: 1 }, suivreEnv = (m) => { Object.defineProperty(m, 'envMapIntensity', { get: () => ENV.k, set: () => {} }); return m; };
     function mat() {
       if (MAT) return MAT;
-      const m = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), u = { uLueur: { value: 1 } }; m.userData.u = u;
+      const m = suivreEnv(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 })), u = { uLueur: { value: 1 } }; m.userData.u = u;
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, u);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float lueur; varying float vLueur;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLueur = lueur;');
@@ -342,7 +345,7 @@ const BOUTIQUE_MARCHE = (() => {
       for (let i = -1; i * px < cw + px; i++) for (let j = -1; j * hr < yb + hr; j++) { const cx = i * px, cy = j * hr + (i % 2 ? hr / 2 : 0); x.fillStyle = tons2[(i * 7 + j * 13 + ((i * j) % 5)) & 3]; x.beginPath(); x.moveTo(cx - r0 * 0.94, cy); x.lineTo(cx - r0 * 0.47, cy - hr * 0.47); x.lineTo(cx + r0 * 0.47, cy - hr * 0.47); x.lineTo(cx + r0 * 0.94, cy); x.lineTo(cx + r0 * 0.47, cy + hr * 0.47); x.lineTo(cx - r0 * 0.47, cy + hr * 0.47); x.closePath(); x.fill(); }
       x.restore();
       const tx = new T.CanvasTexture(cv); tx.colorSpace = T.SRGBColorSpace; tx.anisotropy = 4; // (rendue avec le décor : MODELES.dispose, quand la scène le remplace)
-      const m = new T.Mesh(new T.PlaneGeometry(W, D), new T.MeshStandardMaterial({ map: tx, roughness: 0.86, metalness: 0 })); m.rotation.x = -Math.PI / 2; m.position.set(W / 2, -0.05, D / 2); m.receiveShadow = true; m.userData.nom = 'sol';
+      const m = new T.Mesh(new T.PlaneGeometry(W, D), suivreEnv(new T.MeshStandardMaterial({ map: tx, roughness: 0.86, metalness: 0 }))); m.rotation.x = -Math.PI / 2; m.position.set(W / 2, -0.05, D / 2); m.receiveShadow = true; m.userData.nom = 'sol';
       return m;
     }
     // une pièce de MEUBLES (src/meubles.js : { geo, col, m }) → cuite et posée
@@ -508,6 +511,7 @@ const BOUTIQUE_MARCHE = (() => {
       L.hemi.color.set(A.ciel).lerp(_ca.set(B.ciel), k); L.hemi.groundColor.set(A.sol).lerp(_cb.set(B.sol), k); L.hemi.intensity = mx(A.k, B.k) * (0.5 + 0.5 * a);
       L.dir.color.set(A.soleil).lerp(_ca.set(B.soleil), k); L.dir.intensity = mx(A.ks, B.ks) * (0.55 + 0.45 * a);
       const niv = mx(A.lampes, B.lampes);
+      ENV.k = mx(A.k, B.k) / PH.jour.k * (1 - 0.72 * niv); // (la pièce s'assombrit le soir : 1 de jour, 0,3 le soir, 0,13 la nuit)
       L.lampes.forEach((l, i) => { l.intensity = (l.userData.k || 0) * (0.06 + 0.94 * niv) * (0.3 + 0.7 * a) * (0.9 + 0.06 * Math.sin(t * 7 + i * 1.7) + 0.04 * Math.sin(t * 19 + i * 2.3)); });
       const hm = haloMat(); hm.uniforms.uT.value = t; hm.uniforms.uK.value = (0.12 + 0.88 * niv) * (0.3 + 0.7 * a);
       mat().userData.u.uLueur.value = (0.35 + 0.65 * niv) * (0.4 + 0.6 * a) * (0.95 + 0.05 * Math.sin(t * 9));
