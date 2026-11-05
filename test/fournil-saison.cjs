@@ -180,7 +180,7 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   check(!!p0 && p0.id === 'automne-2026', 'l’XP compte dès le début : st.piste existe');
   if (DEB) {
     check(!c.vu, 'la carte reste cachée tant que la piste n’est pas débloquée');
-    await T.ev(() => { window.__accueilEcart = 400; const F = window.__fournil, st = F.st; for (const x of F.G.ACCUEIL.deblocages) if (x.id !== 'piste') F.G.marquerDeblocage(st, x.id); st.tuto = 9; const j = F.G.objectifsDuJour(st, HORLOGE.maintenant()); j.objectifs.forEach((o) => { o.fait = true; o.reclame = true; }); j.etoileDonnee = true; st.piste.xp = 120; st.lifetime = 2e6; F.save(); });
+    await T.ev(() => { window.__accueilEcart = 400; const F = window.__fournil, st = F.st; for (const x of F.G.ACCUEIL.deblocages) if (x.id !== 'piste') F.G.marquerDeblocage(st, x.id); st.tuto = 9; const j = F.G.objectifsDuJour(st, HORLOGE.maintenant()); j.objectifs.forEach((o) => { o.fait = true; o.reclame = true; }); j.etoileDonnee = true; st.piste.xp = 100; st.lifetime = 2e6; F.save(); });
     const vu = await attendre(async () => { const x = await T.carte(); return x && x.vu ? x : null; }, 40000);
     check(!!vu && /cran 2\/22/.test(vu.txt) && vu.pret, `débloquée (« piste ») : la carte paraît, ses crans à recevoir (« ${vu && vu.txt} »)`);
     check(!!(await attendre(() => T.ev(() => { const a = document.querySelector('#annonce-accueil'); return a && !a.hidden && /saison d’automne/.test(a.innerText); }), 20000)), 'sa bulle d’annonce, comme les autres déblocages de l’accueil');
