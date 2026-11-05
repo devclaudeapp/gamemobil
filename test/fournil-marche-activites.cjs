@@ -1,7 +1,7 @@
 // Les activités du Marché d'automne (la Halle) : test/fournil-hantee-activites.cjs CALQUÉ GESTE POUR GESTE (docs/marche-contrat.md § 1 et
 // § 10 : la règle permanente du tiroir du Manoir, mêmes gestes, mêmes tailles d'écran, mêmes tolérances), sur l'écran #marche (ids mc-) que
 // bâtit la même fabrique (src/evenement.js, ficheBoutique ; src/hanteeactivites.js, le même module, lu sur la fiche) : la jauge sous le ×6
-// (« Le marché bat son plein », « s'assoupit », « somnole »), un enfant déguisé servi (la scène de la Halle : src/boutiquemarche.js,
+// (« En plein marché », « s'assoupit », « somnole »), un enfant déguisé servi (la scène de la Halle : src/boutiquemarche.js,
 // BOUTIQUE_MARCHE, constructeur C), la fournée parfaite, les apparitions (feuille d'or, châtaigne, champignon), la commande du marché, le ×6
 // qui s'assoupit, l'album de la forêt (bronze, la 5e : l'étagère aux peluches, la 9e : l'écureuil, puis l'argent), les bulles, la colonne,
 // le tiroir (trois crans, 390 × 844, 375 × 812, 360 × 640, installé), en haute puis en éco ; le soir (17 h, les lampions) ; puis le repli en

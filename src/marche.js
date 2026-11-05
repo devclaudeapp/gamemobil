@@ -58,7 +58,7 @@
   // plus (apres : le palier qui les ouvre) : les marrons glacés au 13e, les pains d'épices au 16e. Rien d'alcoolisé : le cidre et le vin
   // restent un décor (le tonneau du pressoir, la tonnelle).
   const PRODUITS = [
-    { id: 'chataigne', nom: 'Châtaignes grillées', pl: 'cornets de châtaignes grillées', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Gaspard l’écureuil', staffDesc: 'Il range une châtaigne sur trois dans sa joue. Pour l’hiver, dit-il.', poste: 'Le brasero du coin de la rue', desc: 'Chaudes dans le cornet : elles réchauffent les doigts.' },
+    { id: 'chataigne', nom: 'Châtaignes grillées', pl: 'cornets de châtaignes grillées', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Gaspard l’écureuil', staffDesc: 'Il range une châtaigne sur trois dans sa joue. Pour l’hiver, dit-il.', poste: 'Le brasero du coin', desc: 'Chaudes dans le cornet : elles réchauffent les doigts.' },
     { id: 'jus', nom: 'Jus de pomme pressé', pl: 'bouteilles de jus de pomme', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Rosalie la hérissonne', staffDesc: 'Elle tourne la manivelle du pressoir en chantonnant. Ses piquants ne touchent jamais les pommes.', poste: 'Le pressoir du verger', desc: 'Doux, trouble, et il sent le verger.' },
     { id: 'tarte', nom: 'Tartes aux pommes', pl: 'tartes aux pommes', cout: 720, debloquer: 1440, rev: 150, temps: 6, croiss: 1.13, staff: 150000, staffNom: 'Madame Blaireau', staffDesc: 'Elle range les pommes en rosace, une par une, sans jamais se presser.', poste: 'Le four à bois de la Halle', desc: 'Les pommes en rosace et la pâte qui croustille.' },
     { id: 'champignon', nom: 'Paniers de champignons', pl: 'paniers de champignons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Hortense la chouette', staffDesc: 'Elle voit les cèpes dans le noir. Elle ne cueille que les bons, elle connaît le livre par cœur.', poste: 'Le coin des sous-bois', desc: 'Des cèpes et des girolles, avec encore un peu de mousse.' },
@@ -785,7 +785,7 @@
       sortes: NOMS_SORTES, courts: NOMS_COURTS,
       apparitions: { feuille: 'Une feuille d’or', chataigne: 'Une châtaigne qui roule', champignon: 'Un champignon qui pousse' },
       textes: {
-        jauge: 'Le marché bat son plein : ×6 avec toi', jaugeBasse: 'Le marché s’assoupit…', jaugeDort: 'Le marché somnole : touche !', reveil: 'Zzz… touche la Halle pour la réveiller', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
+        jauge: 'En plein marché : ×6 avec toi', jaugeBasse: 'Le marché s’assoupit…', jaugeDort: 'Le marché somnole : touche !', reveil: 'Zzz… touche la Halle pour la réveiller', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
         clients: 'Les enfants déguisés', servi: (m) => `Merci ! +${m}`, parti: 'Il est reparti jouer dans les feuilles.', faux: 'Ce n’est pas sa commande !',
         parfait: 'Fournée parfaite ! ×2', parfaitRate: 'Pas cette fois : la prochaine sera la bonne.', parfaitNote: 'Touche la fournée quand elle brille.',
         apparition: 'Attrape-la !', serie: (n) => `Série de ${n} : ×1,5`, attrape: (m) => `Attrapée ! +${m}`,

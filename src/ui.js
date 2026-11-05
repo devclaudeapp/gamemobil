@@ -838,16 +838,16 @@ const UI = (() => {
       if (lot.etoiles > 0) l.push(`+${lot.etoiles} étoile${lot.etoiles > 1 ? 's' : ''} (+${Math.round(lot.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`);
       if (lot.boost) l.push(`un boost ×${lot.boost.mult} de ${G.fmtDuree(lot.boost.secs)}, dans ta réserve`);
       if (lot.vetement) { let nomV = lot.vetement; try { const x = G.vetement && G.vetement(lot.vetement); if (x) nomV = x.nom; } catch (e) { /* rien */ } l.push(`${nomV} pour la garde-robe du boulanger`); }
-      if (lot.deco && lot.deco !== lot.trophee) l.push(`${nomDecoSaison(lot.deco)} : dans « Mes décos », à poser où tu veux`);
-      if (lot.trophee) l.push(`${nomDecoSaison(lot.trophee)} : le trophée de fin de saison, dans « Mes décos » et la vitrine`);
-      if (lot.titre || lot.distinction) { let nomT = ''; try { const dd = G.DISTINCTIONS && G.DISTINCTIONS[lot.distinction]; nomT = dd ? dd.nom : ''; } catch (e) { nomT = ''; } const f = saiFiche(); l.push(`le titre « ${nomT || (f && f.titre && f.titre.nom) || 'de la saison'} », à côté de ton pseudo au classement`); }
+      if (lot.deco && lot.deco !== lot.trophee) l.push(`${nomDecoSaison(lot.deco)} : dans « Mes décos », à poser où tu veux`);
+      if (lot.trophee) l.push(`${nomDecoSaison(lot.trophee)} : le trophée de fin de saison, dans « Mes décos » et la vitrine`);
+      if (lot.titre || lot.distinction) { let nomT = ''; try { const dd = G.DISTINCTIONS && G.DISTINCTIONS[lot.distinction]; nomT = dd ? dd.nom : ''; } catch (e) { nomT = ''; } const f = saiFiche(); l.push(`le titre « ${nomT || (f && f.titre && f.titre.nom) || 'de la saison'} », à côté de ton pseudo au classement`); }
       return l;
     }
     if (lot.etoiles > 0) { st.etoiles += lot.etoiles; l.push(`+${lot.etoiles} étoile${lot.etoiles > 1 ? 's' : ''} (+${Math.round(lot.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`); }
     for (const b of [].concat(lot.boost || [], lot.boosts || [])) if (b && b.mult > 1 && b.secs > 0) { G.donnerBoostReserve(st, b.mult, b.secs); l.push(`un boost ×${b.mult} de ${G.fmtDuree(b.secs)}, dans ta réserve`); }
     for (const v of [].concat(lot.vetement || [], lot.vetements || [])) { let nomV = v; try { const x = G.vetement && G.vetement(v); if (x) nomV = x.nom; if (G.donnerVetement) G.donnerVetement(st, v); } catch (e) { /* une pièce que la garde-robe ne connaît pas encore */ } l.push(`${nomV} pour la garde-robe du boulanger`); }
-    for (const d of [].concat(lot.deco || [], lot.decos || [])) l.push(`${nomDecoSaison(d)} : dans « Mes décos », à poser où tu veux`);
-    if (lot.trophee) l.push(`${nomDecoSaison(lot.trophee)} : le trophée de fin de saison, dans « Mes décos » et la vitrine`);
+    for (const d of [].concat(lot.deco || [], lot.decos || [])) l.push(`${nomDecoSaison(d)} : dans « Mes décos », à poser où tu veux`);
+    if (lot.trophee) l.push(`${nomDecoSaison(lot.trophee)} : le trophée de fin de saison, dans « Mes décos » et la vitrine`);
     return l;
   }
   const NOMS_DECOS_SAISON = { 'couronne-feuilles': 'La couronne de feuilles', 'guirlande-feuilles': 'La guirlande de feuilles', 'lanterne-automne': 'La lanterne d’automne', epouvantail: 'L’épouvantail', 'trophee-automne-2026': 'Le trophée de l’automne 2026' };
@@ -881,7 +881,7 @@ const UI = (() => {
     const nom = (f && (f.court || f.nom)) || 'La saison';
     const cle = `${nom}|${n}|${xp}|${dus}|${titre}`; if (!force && cle === lastPiste && !el.hidden) return; lastPiste = cle;
     el.hidden = false; el.className = 'ticket piste' + (dus ? ' pret' : '') + (titre ? ' complet' : '');
-    const sous = titre ? `Le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} » est à toi` : fini ? `Le titre : ${fmtXp(xp)}/${fmtXp(cible)} XP` : `${fmtXp(xp)}/${fmtXp(cible)} XP`;
+    const sous = titre ? `Le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} » est à toi` : fini ? `Le titre : ${fmtXp(xp)}/${fmtXp(cible)} XP` : `${fmtXp(xp)}/${fmtXp(cible)} XP`;
     el.innerHTML = `<i class="ico">${icoPiste()}</i><span class="tk-txt"><b>${esc(nom.replace(/^La /, ''))} · cran ${n}/${nc}</b><small>${sous}</small><i class="pi-barre" aria-hidden="true"><b style="width:${(part * 100).toFixed(1)}%"></b></i></span>
       <span class="tk-pill">${dus ? 'Recevoir' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
     el.setAttribute('aria-label', `${nom} : cran ${n} sur ${nc}, ${xp} XP${dus ? `, ${dus} cran${dus > 1 ? 's' : ''} à recevoir` : ''}`);
@@ -899,7 +899,7 @@ const UI = (() => {
     openSheet(`<div class="pi-feuille" data-piste="1"><div class="pi-tete"><span class="pic">${icoPiste()}</span><div><h2>${esc(f.nom || 'La saison')}</h2><p class="sous">Cran ${n}/${nc} · ${fmtXp(xp)} XP · ${jours > 1 ? `encore ${jours} j` : jours === 1 ? 'dernier jour' : 'finie'}</p></div></div>
       <div class="pi-piste" role="list" aria-label="La piste : ${nc} crans de ${xc} XP"><ol>${crans}</ol></div>
       ${dus.length > 1 ? `<button type="button" class="btn large beurre" data-a="pi-tout"><b>Tout recevoir (${dus.length})</b></button>` : ''}
-      <div class="pi-titre${titre ? ' fait' : titreDu ? ' attend' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Reçu ! Il est à côté de ton pseudo, au classement.' : `${fmtXp(xp)}/${fmtXp(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre || titreDu ? 100 : tPart * 100).toFixed(1)}%"></b></i>${titreDu ? `<button type="button" class="btn menthe pi-recevoir" data-a="pi-recevoir" data-n="${nc + 1}"><b>Recevoir le titre</b></button>` : ''}</div></div>
+      <div class="pi-titre${titre ? ' fait' : titreDu ? ' attend' : ''}"><span class="pi-titre-ico" aria-hidden="true">${ICONS.UI.couronne || ICONS.UI.trophee}</span><div><b>Après le ${nc}e : le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} »</b><small>${titre ? 'Reçu ! Il est à côté de ton pseudo, au classement.' : `${fmtXp(xp)}/${fmtXp(tx)} XP · à côté de ton pseudo, au classement`}</small><i class="pi-barre"><b style="width:${(titre || titreDu ? 100 : tPart * 100).toFixed(1)}%"></b></i>${titreDu ? `<button type="button" class="btn menthe pi-recevoir" data-a="pi-recevoir" data-n="${nc + 1}"><b>Recevoir le titre</b></button>` : ''}</div></div>
       <h3 class="titre-section">D’où vient l’XP</h3>
       <ul class="pi-sources">${sourcesSaison(f).map((x) => `<li class="${x.fait ? 'fait' : ''}"><b>${esc(x.nom)}</b><small>${esc(x.detail)}</small><em>${esc(x.reste)}</em></li>`).join('')}</ul>
       <p class="note centre">Gratuite, rien à acheter : tout ce que tu reçois reste à vie. ${C.length} crans de ${xc} XP, jusqu’au ${esc(dateFinSaison(f))}.</p>
@@ -960,7 +960,7 @@ const UI = (() => {
     else if (st.piste && st.piste.id && SAI.fin) { let r = null; try { r = SAI.fin(st, t); } catch (e) { r = null; } if (r) { const lots = [].concat(r.lots || r.lot || []), l = []; for (const x of lots) l.push(...donnerLotSaison(x)); pisteFin = { r, lignes: l }; save(); lastPiste = ''; renderBoosts(); setTimeout(() => tenterAnnonces(true), 600); } }
     const f = SAI.active(t); if (!f) { majPiste(); return; }
     const avant = saiAtteints(); let g = 0; try { const r = SAI.pas(st, t, ctxSaison()); g = typeof r === 'number' ? r : (r && r.xp) || 0; } catch (e) { g = 0; }
-    if (g > 0) { save(); const apres = saiAtteints(); if (apres > avant && pisteVisible()) { son.deblocage(); toast(`Saison : cran ${apres} atteint ! Touche la carte pour le recevoir.`); } else if (saiTitre().atteint && !saiTitre().recu && saiDus().includes(saiCrans(f).length + 1) && pisteVisible() && st.pisteTitreVu !== f.id) { st.pisteTitreVu = f.id; son.deblocage(); toast(`Le titre « ${(f.titre && f.titre.nom) || 'de la saison'} » t’attend : touche la carte pour le recevoir !`); } }
+    if (g > 0) { save(); const apres = saiAtteints(); if (apres > avant && pisteVisible()) { son.deblocage(); toast(`Saison : cran ${apres} atteint ! Touche la carte pour le recevoir.`); } else if (saiTitre().atteint && !saiTitre().recu && saiDus().includes(saiCrans(f).length + 1) && pisteVisible() && st.pisteTitreVu !== f.id) { st.pisteTitreVu = f.id; son.deblocage(); toast(`Le titre « ${(f.titre && f.titre.nom) || 'de la saison'} » t’attend : touche la carte pour le recevoir !`); } }
     majPiste();
     if (saisonAAnnoncer() && performance.now() - tAnnoncePiste > 5000) { tAnnoncePiste = performance.now(); tenterAnnonces(false); }
   }
@@ -979,7 +979,7 @@ const UI = (() => {
       <h2>${esc(T.annonceTitre || `Nouveau : ${f.nom}`)}</h2>
       <p class="sous">${esc(T.annonce || `Une piste de ${C.length} récompenses gratuites : tes objectifs du jour, le défi de la semaine, ta série et les paliers du Marché la font avancer.`)}</p>
       <div class="pi-apercu">${apercu}</div>
-      <p class="encadre">${C.length} crans de ${saiXpCran(f)} XP : des étoiles, des boosts, une tenue de saison, des décos et un trophée ; au bout, le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} ». Rien à acheter.</p>
+      <p class="encadre">${C.length} crans de ${saiXpCran(f)} XP : des étoiles, des boosts, une tenue de saison, des décos et un trophée ; au bout, le titre « ${esc((f.titre && f.titre.nom) || 'de la saison')} ». Rien à acheter.</p>
       <button type="button" class="btn large beurre" data-a="pi-voir" style="margin-top:12px"><b>Voir la piste</b></button>
       <button type="button" class="btn large clair" data-a="close" style="margin-top:8px"><b>Plus tard</b></button></div>`);
     son.deblocage(); confettis(0.6);
@@ -990,7 +990,7 @@ const UI = (() => {
     const x = pisteFin; pisteFin = null; if (!x) return; const r = x.r, f = (SAI.fiche && SAI.fiche(r.id)) || null;
     openSheet(`<div class="pi-feuille pi-fin" data-piste-fin="1"><div class="pi-tete"><span class="pic">${icoPiste()}</span><div><h2>${esc(`${(f && f.nom) || r.nom || 'La saison'} est finie`)}</h2><p class="sous">${x.lignes.length ? 'Voici ce qui t’attendait encore : c’est dans ta boulangerie, à vie.' : 'Tout ce que tu as reçu reste à vie.'} ${r.crans != null ? `${r.crans}/${r.total || saiCrans(f).length} crans` : ''}${r.titre ? ' · le titre est à toi' : ''}.</p></div></div>
       ${x.lignes.length ? `<ul class="pq-dons">${x.lignes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-      <p class="encadre">Elle reste dans ton carnet : « Mes décos », la garde-robe et les titres. La prochaine saison arrive bientôt.</p>
+      <p class="encadre">Elle reste dans ton carnet : « Mes décos », la garde-robe et les titres. La prochaine saison arrive bientôt.</p>
       <button type="button" class="btn large beurre" data-a="close" style="margin-top:12px"><b>Merci !</b></button></div>`);
     son.deblocage(); confettis(0.8); on('[data-a="close"]', closeSheet);
   }
