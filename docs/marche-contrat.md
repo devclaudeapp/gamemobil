@@ -623,7 +623,7 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     cagettes, le brasero, la guirlande de feuilles et de lampions : 2 appels), les enfants à capuche d'animal (`PERSOS.DEGUISEMENTS`, les
     neuf sortes, écharpe, queue), les amis de la forêt (`ami-*`, capuche plus grande, tablier crème au liseré rouille), l'écureuil sur le
     comptoir. En haute : le lot `marche` de `src/hd.js` = `fournil/hd/marche/decor-marche.glb` (55 modèles CC0 cuits en couleurs de
-    sommets, 299 Ko, `outils/marche/faire-hd.mjs`, `LISEZMOI.txt` et licences à côté) **et les personnages du lot de la Maison hantée**
+    sommets, 299 Ko — 53 et 288 Ko depuis le 5 nov. —, `outils/marche/faire-hd.mjs`, `LISEZMOI.txt` et licences à côté) **et les personnages du lot de la Maison hantée**
     (`hantee3` : Rogue, Rogue_Hooded, anims-hante) : 4 fichiers, 0,76 Mo (≤ 2,4).
   · **Écarts aux modèles** : pas de Kenney Nature Kit (ni souches ni arbres Kenney) : les arbres d'automne sont les pins orange et jaunes de
     KayKit Halloween Bits, les feuilles sont faites main ; Kenney Food Kit, Mini Market et Furniture Kit viennent de la branche
@@ -672,6 +672,37 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     tâche de `pages.yml` (comme `fournil-hantee-boutique.cjs`) ; la visite d'un copain qui a les décos du Marché y est vérifiée côté scène
     (sa photo `dm`, `CLASSEMENT.boutiqueDepuisPhoto`, `SCENE.decosMarche`), pas par l'appel `fournil_boutique` (l'écran, B). Les douze
     décos d'automne sont dans `test/fournil-decos.cjs` (quatre dispositions, en 390 × 844 et 360 × 640).
+- 5 nov., constructeur C (reprise après le redémarrage du conteneur) :
+  · **La Halle en haute, revue à l'œil** : elle était délavée, toute orangée. Ses matériaux (le décor cuit, le sol peint, les personnages)
+    prenaient l'ambiance de la pièce (l'environnement PMREM du rendu riche) à 1, six fois celle de la boutique (`RICHE.envK` ≈ 0,16). Elle
+    se règle maintenant phase par phase (`BOUTIQUE_MARCHE.HD.PH.*.env` : 0,3 le jour, 0,2 le soir, 0,1 la nuit ; elle baisse aussi quand le
+    ×6 s'endort) ; la correction chaude de la boutique y est à 40 % (`HD.ENV.chaud` : la Halle est déjà chaude) ; le soleil du jour est moins
+    orangé. Les tomettes et le parquet de chêne retrouvent leurs teintes ; le soir s'assombrit, les lanternes prennent le relais. En haute,
+    la Halle suit ses propres phases (`eclairer` : le jour jusqu'à 16 h, le soir de 17 h à 19 h 30, la nuit après 21 h, fondus entre) : ses
+    lampions luisent dès 16-17 h (le coucher du soleil de novembre) ; en éco, à 18 h (les phases du ciel de la boutique, écrit le 4 nov.).
+  · **Le décor HD gagne des pièces faites main** (cuites et fusionnées dans le même maillage : aucun appel de dessin de plus) : le **four à
+    bois en dôme** (le socle de pierre et sa réserve de bûches, le dôme de terre cuite cerclé de briques, la bouche en arche et son feu qui
+    luit, la cheminée) à la place de la cuisinière rouge de KayKit (`oven`, dont des bords restaient rouge vif) ; la **guirlande de lampions
+    sous l'auvent** de l'étal, leurs halos dans le maillage des halos (le bord de l'auvent se voit sous le bandeau de l'écran, la guirlande de
+    feuilles du haut du mur y est cachée) ; le **tapis tissé** à bandes d'automne du coin salon (le tapis rayé de KayKit, cuit, n'avait plus
+    qu'une teinte). Le lot perd ces deux modèles : **53 modèles, 288 Ko** (`LISEZMOI.txt` à jour) ; 4 fichiers, 0,76 Mo avec les personnages.
+  · **Les enfants déguisés en haute** ont, comme en éco, leur **écharpe tricotée** (cousue sur l'os du buste, par-dessus la pèlerine de la
+    capuche : 0,46 de rayon au cou, mesuré sur le Rogue à capuche) et **la queue de leur déguisement** (sur l'os des hanches, hors de la
+    cape qui descend jusqu'aux chevilles : le panache de l'écureuil qui remonte le long du dos, la queue du renard et son bout blanc, le
+    pompon du lapin, la petite queue blanche du faon, celle de l'ourson, le tire-bouchon du marcassin, l'éventail de plumes de la chouette) ;
+    l'écureuil (capuche rousse) et le renard (orange vif) ne se confondent plus. Le **bonnet de la marchande** est posé plus haut et rayé de
+    rouille (vu de la caméra, ce n'était qu'une boule moutarde). Tout est cuit dans le maillage de chaque sorte : pas un appel de plus.
+  · **La lanterne d'automne** (la saison, cran 15) **tient dans sa place du comptoir** (`test/fournil-decos.cjs` échouait, 4 fois) : son toit
+    en pyramide était tourné par la matrice de la pièce, et la boîte d'une déco se calcule sur les boîtes de ses pièces : la sienne gonflait
+    de 41 % (±10,4 au lieu de ±5,2) ; la place du comptoir pose une déco par le milieu de sa boîte, la lanterne glissait vers la salle. Le toit
+    est tourné dans sa géométrie ; ses feuilles sont sur les côtés du socle ; sa vignette est recuite (5 Ko ; 1 504 Ko en tout, ≤ 1 536).
+  · **Les budgets mesurés** (`test/fournil-marche-boutique.cjs`, 390 × 844, SwiftShader, tout au max, des enfants partout) : éco, au pire
+    51 appels pour le décor (≤ 72) ; haute, 45 maillages visibles et 46 appels mesurés au pire (≤ 120), 4 lumières (≤ 8), 23 halos en un
+    appel, ~165 000 triangles ; processeur ×4 : **17,4 ms** par image en médiane (27,8 ms à 90 % ; < 40) ; trois allers-retours, la mémoire
+    ne monte pas (éco 72 → 78 → 78 géométries, 9 textures ; haute 102 → 102 → 102, 47 textures). Dans la boutique (`test/fournil-decos.cjs`,
+    capitale palier 1, tout au max) : toutes les décos d'événement, le Marché compris, 61 appels (≤ 72) ; les douze décos d'automne posées,
+    59 à 60 (≤ 72), 2 pour les décos fusionnées, en 390 × 844 et 360 × 640 ; haute, au pire 66 appels (≤ 80) ; douze changements de
+    disposition sans que la mémoire monte (2 maillages fusionnés vivants).
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
 1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
