@@ -23,7 +23,7 @@ const VIGNETTES = (() => {
     'saison': { 'galette': '6bd1fe0b', 'crepe': '755aa47c', 'paques': 'fe3a41a0', 'glace': '41695689', 'citrouille': 'c29d1edc', 'buche': 'eba5896a' },
     'palier': { 'horloge-comtoise': '5e21da74', 'piano': '2c737703' },
     'marche': { 'cagettes': '09e17036', 'lampions': '892bf448', 'feuilles': 'd6778350', 'tonneau': 'd908856a', 'album': 'cfc4a74f', 'arbre-or': 'a049d906', 'toque-feuille': '6271d4da' },
-    'piste-automne': { 'couronne-feuilles': '67307eb0', 'guirlande-feuilles': 'dd63b247', 'lanterne-automne': '31f47cf2', 'epouvantail': '003905a6', 'trophee-automne-2026': 'e6001027' },
+    'piste-automne': { 'couronne-feuilles': '67307eb0', 'guirlande-feuilles': 'dd63b247', 'lanterne-automne': 'e5053c7e', 'epouvantail': '003905a6', 'trophee-automne-2026': 'e6001027' },
     'casino-trophees': { 'premiere-main': 'cf8b27f3', 'blackjack': '5a5b9971', 'cinq-cartes': '083aa871', 'partage': 'eb173bf7', 'double': '94a58c33', 'paire-parfaite': '797cdbc0', 'plein': '01d46418', 'zero': 'd76979e2', 'habitue': 'c06088c5', 'serie-10': '3390949d', 'assidu': 'cc5436fd' },
     'casino-skins': { 'tapis-vert': 'ce401871', 'dos-classique': 'a924d400', 'jetons-classique': '7e039fe7', 'roue-classique': '774e34dd', 'tapis-bordeaux': '86b2812d', 'tapis-bleu-nuit': '9f6801f9', 'tapis-noir-or': '071f8d4f', 'tapis-prune': '0d808304', 'dos-or': '849ae83c', 'dos-fournil': '5427395f', 'dos-damier': 'a4e64cd4', 'jetons-nacre': '50c5d695', 'jetons-pastel': '1f34eccb', 'roue-fournil': '4eabf509', 'roue-ebene': 'ed2465a8', 'roue-or': 'e2a7b2cd' },
   };

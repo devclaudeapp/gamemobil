@@ -29,7 +29,7 @@ const HDM = (() => {
     // la boutique hantée (src/boutiquehantee.js : l'écran de la Maison hantée ; fournil/hd/hantee3/, ≈ 1,8 Mo) : le pack décor (67 modèles,
     // une scène par modèle), un GLB par personnage (sans clips : le rig KayKit à 41 os), les clips partagés, la peau du loup-garou, les ardoises
     hantee3: { hantee3: ['decor-hante', 'anims-hante', 'Skeleton_Minion', 'Skeleton_Mage', 'Rogue', 'Rogue_Hooded', 'Mage', 'Knight', 'Werewolf_Wolf'], images: ['hantee3/werewolf_B.png', 'hantee3/ardoises.jpg', 'hantee3/ardoises-normale.jpg'] },
-    // la Halle du Marché d'automne (src/boutiquemarche.js ; fournil/hd/marche/decor-marche.glb, ≈ 300 Ko : 56 modèles KayKit et Kenney cuits
+    // la Halle du Marché d'automne (src/boutiquemarche.js ; fournil/hd/marche/decor-marche.glb, ≈ 290 Ko : 53 modèles KayKit et Kenney cuits
     // d'avance en couleurs de sommets par outils/marche/faire-hd.mjs, une scène par modèle) ; ses enfants déguisés et ses amis de la forêt sont
     // des personnages du lot de la Maison hantée (le rig KayKit, ses clips partagés : trois fichiers de fournil/hd/hantee3/, pas son décor)
     marche: { marche: ['decor-marche'], hantee3: ['anims-hante', 'Rogue_Hooded', 'Rogue'] },

@@ -1,11 +1,11 @@
 La Halle du Marché d'automne (Le Fournil, src/boutiquemarche.js), qualité haute : tout est en CC0.
 
-decor-marche.glb : 55 modèles (une scène par modèle), cuits en couleurs de sommets (sans textures ni UV), soudés, quantifiés, meshopt ;
+decor-marche.glb : 53 modèles (une scène par modèle), cuits en couleurs de sommets (sans textures ni UV), soudés, quantifiés, meshopt ;
   fabriqué par outils/marche/faire-hd.mjs (déterministe : mêmes sources, même fichier).
   KayKit de Kay Lousberg (kaylousberg.com, github.com/KayKit-Game-Assets) :
-    Restaurant Bits : wall, wall_window_open, wall_orderwindow, door_A, pillar_A, kitchencounter_straight_A et _B, oven, table_round_A_small,
+    Restaurant Bits : wall, wall_window_open, wall_orderwindow, door_A, pillar_A, kitchencounter_straight_A et _B, table_round_A_small,
       chair_A, chair_stool, crate, crate_carrots, crate_potatoes, crate_onions, crate_tomatoes, crate_lettuce, jar_A_large, jar_B_medium, menu ;
-    Furniture Bits : couch_pillows, armchair_pillows, rug_rectangle_stripes_A, table_low, lamp_standing, shelf_B_large_decorated,
+    Furniture Bits : couch_pillows, armchair_pillows, table_low, lamp_standing, shelf_B_large_decorated,
       pictureframe_large_A ;
     Halloween Bits : pumpkin_orange, pumpkin_yellow, pumpkin_orange_small, pumpkin_yellow_small, tree_pine_orange_large,
       tree_pine_orange_medium, tree_pine_yellow_medium, lantern_standing, post_lantern, bench, fence, fence_pillar, path_A, path_B, candle,
@@ -14,5 +14,7 @@ decor-marche.glb : 55 modèles (une scène par modèle), cuits en couleurs de so
     Furniture Kit (bear) ; les paquets complets sont sur la branche rendu-assets de ce dépôt (fournil/modeles-kenney/).
 Les personnages (la marchande, les enfants déguisés, les amis de la forêt) sont ceux du lot de la Maison hantée (fournil/hd/hantee3/ :
   KayKit Adventurers Rogue et Rogue_Hooded, les clips d'anims-hante.glb), reteints et coiffés à la pose (les capuches d'animaux, les oreilles,
-  les museaux, le bonnet de la marchande : des volumes faits main, src/boutiquemarche.js).
+  les museaux, les écharpes tricotées et les queues des enfants, le bonnet rayé de la marchande : des volumes faits main, src/boutiquemarche.js).
+Faits main aussi (src/boutiquemarche.js) : le four à bois en dôme, l'auvent rayé et ses lampions, le brasero, le tapis tissé, les poutres,
+  la guirlande de feuilles d'érable.
 Les licences de chaque pack sont à côté (LICENCE-*.txt).

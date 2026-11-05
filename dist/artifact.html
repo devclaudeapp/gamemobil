@@ -9363,7 +9363,7 @@ const VIGNETTES = (() => {
     'saison': { 'galette': '6bd1fe0b', 'crepe': '755aa47c', 'paques': 'fe3a41a0', 'glace': '41695689', 'citrouille': 'c29d1edc', 'buche': 'eba5896a' },
     'palier': { 'horloge-comtoise': '5e21da74', 'piano': '2c737703' },
     'marche': { 'cagettes': '09e17036', 'lampions': '892bf448', 'feuilles': 'd6778350', 'tonneau': 'd908856a', 'album': 'cfc4a74f', 'arbre-or': 'a049d906', 'toque-feuille': '6271d4da' },
-    'piste-automne': { 'couronne-feuilles': '67307eb0', 'guirlande-feuilles': 'dd63b247', 'lanterne-automne': '31f47cf2', 'epouvantail': '003905a6', 'trophee-automne-2026': 'e6001027' },
+    'piste-automne': { 'couronne-feuilles': '67307eb0', 'guirlande-feuilles': 'dd63b247', 'lanterne-automne': 'e5053c7e', 'epouvantail': '003905a6', 'trophee-automne-2026': 'e6001027' },
     'casino-trophees': { 'premiere-main': 'cf8b27f3', 'blackjack': '5a5b9971', 'cinq-cartes': '083aa871', 'partage': 'eb173bf7', 'double': '94a58c33', 'paire-parfaite': '797cdbc0', 'plein': '01d46418', 'zero': 'd76979e2', 'habitue': 'c06088c5', 'serie-10': '3390949d', 'assidu': 'cc5436fd' },
     'casino-skins': { 'tapis-vert': 'ce401871', 'dos-classique': 'a924d400', 'jetons-classique': '7e039fe7', 'roue-classique': '774e34dd', 'tapis-bordeaux': '86b2812d', 'tapis-bleu-nuit': '9f6801f9', 'tapis-noir-or': '071f8d4f', 'tapis-prune': '0d808304', 'dos-or': '849ae83c', 'dos-fournil': '5427395f', 'dos-damier': 'a4e64cd4', 'jetons-nacre': '50c5d695', 'jetons-pastel': '1f34eccb', 'roue-fournil': '4eabf509', 'roue-ebene': 'ed2465a8', 'roue-or': 'e2a7b2cd' },
   };
@@ -11456,8 +11456,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
     lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
     D.vifs.push({ pr: lp, emi: '#FFB045', k: (E) => 0.35 + 0.65 * E.lampes + 0.06 * Math.sin(E.t * 9) + 0.04 * Math.sin(E.t * 23), m: null });
-    for (const [k, x, z] of [[0, -7.2, 1.6], [1, -6.6, -3.4], [2, 6.9, -3], [3, -2.6, -6.8], [4, 2.8, -6.6]]) pr.push(feuille(x, 0.6, z, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (autour du socle, sur les côtés et derrière : sur le comptoir, rien ne déborde vers la salle)
-    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 7.2, y: 1.3, z: 1.2, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 7.2, y: 2.5, z: 1.2 }));
+    for (const [k, x, z] of [[0, -7.8, 1.9], [1, -8.1, -1.7], [2, 7.9, -2.1], [3, 5.4, 3.4], [4, -4.8, 3.4]]) pr.push(feuille(x, 0.6, z, 2.6, MC.feuilles[k], { rx: -HP + 0.2, rz: k * 1.3 })); // (sur les côtés du socle, jamais plus profond que lui : la place du comptoir pose la lanterne par le milieu de sa boîte, ce qui dépasserait devant ou derrière la décalerait vers la salle)
+    pr.push(P(M.sphere(1.3, 6), '#B8862F', { x: 8.6, y: 1.3, z: 1.4, sy: 1.2 }), P(M.cylindre(1.4, 1.3, 0.9, 6), '#6B4026', { x: 8.6, y: 2.5, z: 1.4 }));
     return D;
   }
   function decoEpouvantail() { // l'épouvantail : le piquet et la traverse, la chemise à carreaux, la tête de toile cousue et son sourire, le chapeau de paille, la paille
@@ -13268,7 +13268,7 @@ const HDM = (() => {
     // la boutique hantée (src/boutiquehantee.js : l'écran de la Maison hantée ; fournil/hd/hantee3/, ≈ 1,8 Mo) : le pack décor (67 modèles,
     // une scène par modèle), un GLB par personnage (sans clips : le rig KayKit à 41 os), les clips partagés, la peau du loup-garou, les ardoises
     hantee3: { hantee3: ['decor-hante', 'anims-hante', 'Skeleton_Minion', 'Skeleton_Mage', 'Rogue', 'Rogue_Hooded', 'Mage', 'Knight', 'Werewolf_Wolf'], images: ['hantee3/werewolf_B.png', 'hantee3/ardoises.jpg', 'hantee3/ardoises-normale.jpg'] },
-    // la Halle du Marché d'automne (src/boutiquemarche.js ; fournil/hd/marche/decor-marche.glb, ≈ 300 Ko : 56 modèles KayKit et Kenney cuits
+    // la Halle du Marché d'automne (src/boutiquemarche.js ; fournil/hd/marche/decor-marche.glb, ≈ 290 Ko : 53 modèles KayKit et Kenney cuits
     // d'avance en couleurs de sommets par outils/marche/faire-hd.mjs, une scène par modèle) ; ses enfants déguisés et ses amis de la forêt sont
     // des personnages du lot de la Maison hantée (le rig KayKit, ses clips partagés : trois fichiers de fournil/hd/hantee3/, pas son décor)
     marche: { marche: ['decor-marche'], hantee3: ['anims-hante', 'Rogue_Hooded', 'Rogue'] },
@@ -23829,7 +23829,7 @@ const BOUTIQUE_MARCHE = (() => {
     // l'écharpe tricotée des enfants (repère de l'os du buste : le cou à y ≈ 0,27) : le tour de cou, le nœud, deux pans, l'un rayé
     function echarpe(d) {
       const out = [], a = poseur(out), c = d.ech, r = d.raye || '#FFF3DE';
-      a(new T.TorusGeometry(ECH.R, ECH.r, 8, 18), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
+      a(new T.TorusGeometry(ECH.R, ECH.r, 6, 16), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
       a(new T.SphereGeometry(ECH.r * 1.1, 8, 6), c, -0.14, ECH.y - 0.03, ECH.z + ECH.R * 0.92);
       a(new T.CapsuleGeometry(ECH.r * 0.75, 0.24, 3, 6), c, -0.2, ECH.y - 0.22, ECH.z + ECH.R * 0.92 + 0.05, 0.12, 0, 0.16, 1, 1, 0.6);
       a(new T.CapsuleGeometry(ECH.r * 0.75, 0.18, 3, 6), r, -0.07, ECH.y - 0.19, ECH.z + ECH.R * 0.92 + 0.06, 0.12, 0, -0.12, 1, 1, 0.6);
@@ -23840,7 +23840,7 @@ const BOUTIQUE_MARCHE = (() => {
     // pompon du lapin ; la petite queue blanche du faon ; celle, ronde, de l'ourson ; la queue en tire-bouchon du marcassin ; les plumes de la chouette
     function queue(d) {
       const out = [], a = poseur(out), c = capHexDe(d), c2 = capHexDe(d, d.clair ? 0.8 : 0.3), y = QU.y, z = QU.z;
-      if (d.queue === 'ecureuil') [[0.04, -0.04, 0.13], [0.24, -0.18, 0.17], [0.48, -0.26, 0.2], [0.73, -0.25, 0.2], [0.94, -0.17, 0.18], [1.08, -0.25, 0.14]].forEach(([yy, zz, r], i) => a(new T.SphereGeometry(r, 10, 8), i === 5 ? c2 : c, 0, y + yy, z + zz, 0, 0, 0, 0.9, 1, 1)); // (le panache remonte le long du dos, sa pointe se recourbe)
+      if (d.queue === 'ecureuil') [[0.04, -0.04, 0.13], [0.24, -0.18, 0.17], [0.48, -0.26, 0.2], [0.73, -0.25, 0.2], [0.94, -0.17, 0.18], [1.08, -0.25, 0.14]].forEach(([yy, zz, r], i) => a(new T.SphereGeometry(r, 8, 6), i === 5 ? c2 : c, 0, y + yy, z + zz, 0, 0, 0, 0.9, 1, 1)); // (le panache remonte le long du dos, sa pointe se recourbe)
       else if (d.queue === 'renard') { a(new T.CapsuleGeometry(0.11, 0.3, 3, 8), c, 0, y - 0.04, z - 0.14, -1.05, 0, 0); a(new T.SphereGeometry(0.14, 8, 6), c, 0, y - 0.13, z - 0.31, 0, 0, 0, 0.9, 1, 1); a(new T.SphereGeometry(0.1, 8, 6), '#FFF3E2', 0, y - 0.17, z - 0.44, 0, 0, 0, 0.85, 1, 1); }
       else if (d.queue === 'lapin') a(new T.SphereGeometry(0.1, 8, 6), '#FFFFFF', 0, y + 0.04, z);
       else if (d.queue === 'faon') a(new T.SphereGeometry(0.08, 8, 6), '#FFFFFF', 0, y + 0.08, z, -0.4, 0, 0, 1, 1.4, 0.6);

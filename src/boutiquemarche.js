@@ -212,7 +212,7 @@ const BOUTIQUE_MARCHE = (() => {
     // l'écharpe tricotée des enfants (repère de l'os du buste : le cou à y ≈ 0,27) : le tour de cou, le nœud, deux pans, l'un rayé
     function echarpe(d) {
       const out = [], a = poseur(out), c = d.ech, r = d.raye || '#FFF3DE';
-      a(new T.TorusGeometry(ECH.R, ECH.r, 8, 18), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
+      a(new T.TorusGeometry(ECH.R, ECH.r, 6, 16), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
       a(new T.SphereGeometry(ECH.r * 1.1, 8, 6), c, -0.14, ECH.y - 0.03, ECH.z + ECH.R * 0.92);
       a(new T.CapsuleGeometry(ECH.r * 0.75, 0.24, 3, 6), c, -0.2, ECH.y - 0.22, ECH.z + ECH.R * 0.92 + 0.05, 0.12, 0, 0.16, 1, 1, 0.6);
       a(new T.CapsuleGeometry(ECH.r * 0.75, 0.18, 3, 6), r, -0.07, ECH.y - 0.19, ECH.z + ECH.R * 0.92 + 0.06, 0.12, 0, -0.12, 1, 1, 0.6);
@@ -223,7 +223,7 @@ const BOUTIQUE_MARCHE = (() => {
     // pompon du lapin ; la petite queue blanche du faon ; celle, ronde, de l'ourson ; la queue en tire-bouchon du marcassin ; les plumes de la chouette
     function queue(d) {
       const out = [], a = poseur(out), c = capHexDe(d), c2 = capHexDe(d, d.clair ? 0.8 : 0.3), y = QU.y, z = QU.z;
-      if (d.queue === 'ecureuil') [[0.04, -0.04, 0.13], [0.24, -0.18, 0.17], [0.48, -0.26, 0.2], [0.73, -0.25, 0.2], [0.94, -0.17, 0.18], [1.08, -0.25, 0.14]].forEach(([yy, zz, r], i) => a(new T.SphereGeometry(r, 10, 8), i === 5 ? c2 : c, 0, y + yy, z + zz, 0, 0, 0, 0.9, 1, 1)); // (le panache remonte le long du dos, sa pointe se recourbe)
+      if (d.queue === 'ecureuil') [[0.04, -0.04, 0.13], [0.24, -0.18, 0.17], [0.48, -0.26, 0.2], [0.73, -0.25, 0.2], [0.94, -0.17, 0.18], [1.08, -0.25, 0.14]].forEach(([yy, zz, r], i) => a(new T.SphereGeometry(r, 8, 6), i === 5 ? c2 : c, 0, y + yy, z + zz, 0, 0, 0, 0.9, 1, 1)); // (le panache remonte le long du dos, sa pointe se recourbe)
       else if (d.queue === 'renard') { a(new T.CapsuleGeometry(0.11, 0.3, 3, 8), c, 0, y - 0.04, z - 0.14, -1.05, 0, 0); a(new T.SphereGeometry(0.14, 8, 6), c, 0, y - 0.13, z - 0.31, 0, 0, 0, 0.9, 1, 1); a(new T.SphereGeometry(0.1, 8, 6), '#FFF3E2', 0, y - 0.17, z - 0.44, 0, 0, 0, 0.85, 1, 1); }
       else if (d.queue === 'lapin') a(new T.SphereGeometry(0.1, 8, 6), '#FFFFFF', 0, y + 0.04, z);
       else if (d.queue === 'faon') a(new T.SphereGeometry(0.08, 8, 6), '#FFFFFF', 0, y + 0.08, z, -0.4, 0, 0, 1, 1.4, 0.6);
