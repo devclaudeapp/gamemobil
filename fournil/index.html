@@ -2941,7 +2941,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '3323f01ef99d';</script>
+<script>window.FOURNIL_VERSION = '56076adf5f0b';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -11465,9 +11465,13 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     for (const sx of [-1, 1]) { pr.push(P(M.cone(2, 4.6, 7), '#7B4A2A', { x: sx * (w / 2 + 1), y: 0, z: 1.5, rz: Math.PI })); for (let k = 0; k < 3; k++) pr.push(P(M.tore(1.6 - k * 0.4, 0.45, TAU, 4, 8), '#5A3A22', { x: sx * (w / 2 + 1), y: -1 - k * 1.2, z: 1.5, rx: HP })); }
     return D;
   }
+  // le toit en pyramide de la lanterne : le cône à quatre pans tourné d'un huitième de tour DANS sa géométrie (tourné par la matrice de la pièce,
+  // sa boîte, calculée sur la boîte du cône, gonflait de 41 % : la lanterne, placée par le milieu de sa boîte, glissait vers la salle)
+  let TOIT_LANTERNE = null;
+  const toitLanterne = () => { if (!TOIT_LANTERNE) { TOIT_LANTERNE = M.cone(8.2, 5, 4).clone().rotateY(Math.PI / 4); TOIT_LANTERNE.computeBoundingBox(); TOIT_LANTERNE.userData.cache = true; } return TOIT_LANTERNE; };
   function decoLanterneAutomne() { // la lanterne d'automne : le socle et le toit de cuivre, quatre montants, la bougie qui luit derrière le verre ambré, des feuilles et deux glands au pied
     const D = nouvelle('lanterne-automne', { sx: 0.9, sy: 0.9, sz: 0.9 }), pr = D.fixe, cu = '#B87333', lp = []; // (un peu plus petite que nature : elle tient dans sa place du comptoir)
-    pr.push(P(bo(12, 1.6, 12, 0.5), cu), P(bo(11, 1.2, 11, 0.4), cu, { y: 15 }), P(M.cone(8.2, 5, 4), cu, { y: 16.2, ry: Math.PI / 4 }), P(M.tore(1.6, 0.45, TAU, 4, 8), cu, { y: 22.4 }));
+    pr.push(P(bo(12, 1.6, 12, 0.5), cu), P(bo(11, 1.2, 11, 0.4), cu, { y: 15 }), P(toitLanterne(), cu, { y: 16.2 }), P(M.tore(1.6, 0.45, TAU, 4, 8), cu, { y: 22.4 }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.boiteSimple(1.1, 13.6, 1.1), M.assombrir(cu, 0.2), { x: sx * 4.9, y: 1.4, z: sz * 4.9 }));
     pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF1C9', { y: 1.6 }));
     lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#F2B24A', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
