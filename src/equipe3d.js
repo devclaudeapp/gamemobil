@@ -794,10 +794,10 @@ const EQUIPE3D = (() => {
     yield;
     if (!jacquard) parts.push(yield* drapeGen(pr, { yH: yh, yB: yb, pas: (yh - yb) / 4, colonnes: 8, e: 0.013 * u, largeur: (y) => lk * (0.86 + 0.14 * (y - yb) / (yh - yb)), role: (uu, vv) => (vv < 0.2 || Math.abs(uu) > 0.78 && vv < 0.75 ? 'bord' : 'poche') }));
     yield;
-    // l'étoile, sur la poitrine gauche (pas sur le gilet ni sur le pull) ; le pull jacquard : sa bande tricotée autour de la poitrine (rouille,
-    // deux filets verts)
+    // l'étoile, sur la poitrine gauche (pas sur le gilet ni sur le pull) ; le pull jacquard : sa bande tricotée autour du ventre (rouille, deux
+    // filets verts), sous les pans d'une écharpe ou du foulard rouge du titre (ils descendent sur la poitrine jusqu'à 0,23 u sous le col)
     if (!laine && !jacquard) { const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), or ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y))); }
-    if (jacquard) { const yc = m.buste.max.y - 0.2 * u; parts.push(bandeCorps(pr, 'fonce', yc - 0.034 * u, yc + 0.034 * u, 0.005 * u), bandeCorps(pr, 'clair', yc + 0.022 * u, yc + 0.03 * u, 0.008 * u), bandeCorps(pr, 'clair', yc - 0.03 * u, yc - 0.022 * u, 0.008 * u)); }
+    if (jacquard) { const yc = m.veste.min.y + 0.155 * u; parts.push(bandeCorps(pr, 'fonce', yc - 0.034 * u, yc + 0.034 * u, 0.005 * u), bandeCorps(pr, 'clair', yc + 0.022 * u, yc + 0.03 * u, 0.008 * u), bandeCorps(pr, 'clair', yc - 0.03 * u, yc - 0.022 * u, 0.008 * u)); }
     parts.push(...poignets(pr, 'bord', 0.006 * u, 0.04 * u), ...ourlet(pr, 'bord', 0.034 * u));
     return { parts };
   }
