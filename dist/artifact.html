@@ -6075,7 +6075,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const p = reparer(st, now); if (!p) return null;
     const F = active(now);
     if (p.id && (!F || p.id !== F.id)) fin(st, now); // la saison de la piste est finie (ou inconnue) : archivée, ses dus rangés
-    else if (!p.id && F) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre
+    else if (!p.id && F && !p.passees[F.id]) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre (jamais une saison déjà finie : une horloge reculée après la fin ne la rouvre pas)
     return st.piste;
   }
 
@@ -6184,8 +6184,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (F && Number.isFinite(now) && now < F.debut) return null; // (une horloge reculée avant le début : on attend)
     const lots = F ? toutRecevoir(st) : [];
     const res = { id: p.id, nom: F ? F.nom : p.id, lots, xp: p.xp, crans: F ? crans(st) : 0, titre: F && F.titre ? p.titre : 0 };
-    const passees = Object.assign({}, p.passees); passees[p.id] = { xp: res.xp, crans: res.crans, titre: res.titre };
-    const n = Fa ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!Fa) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
+    const passees = Object.assign({}, p.passees), av = objet(passees[p.id]) ? passees[p.id] : null; // (une archive déjà là : fusionnée au plus haut, jamais écrasée)
+    passees[p.id] = av ? { xp: Math.max(av.xp, res.xp), crans: Math.max(av.crans, res.crans), titre: av.titre || res.titre ? 1 : 0 } : { xp: res.xp, crans: res.crans, titre: res.titre };
+    const n = Fa && !passees[Fa.id] ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!n.id) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
     n.dus = lots.length ? res : (p.dus || null); // (des dus d'avant pas encore montrés : gardés)
     if (lots.length && p.dus && Array.isArray(p.dus.lots)) res.lots = p.dus.lots.concat(lots);
     st.piste = n;
@@ -30179,6 +30180,9 @@ const UI = (() => {
   const MAJ_ATTENTE = () => (window.__accueilMajAttente | 0) || 30000;
   const annonceAttente = (ms) => { finAnnoncePrec = performance.now() - ECART() + ms; }; // la prochaine annonce dans ms au plus tôt
   const SILENCE = { evenements: () => true, nouveautes: () => true, saison: () => !(st.saison && G.recetteSaison(st)), classement: () => !classement, decos: () => !CE, chaine: () => !CE, garderobe: () => !GRU, piste: () => !(SAI && st.piste && SAI.active(maintenantSai())) };
+  // la piste due avant l'ouverture de sa saison (le 13 au matin, ou la toute première seconde, st.piste pas encore créée) : elle attend, son bit
+  // n'est pas marqué en silence ; la bulle passera à l'ouverture (après la saison, plus rien à venir : en silence, comme sans SAI)
+  const pisteAttend = () => { if (!SAI || !st) return false; const t = maintenantSai(); return SAI.active(t) ? !(st.piste && st.piste.id) : (SAI.FICHES || []).some((f) => f.debut > t); };
   const TXT_ANNONCE = {
     boulanger: () => (G.ptsTalents(st) > 0 ? 'Nouveau : l’onglet Boulanger ! Tu as un point de talent à dépenser.' : 'Nouveau : l’onglet Boulanger ! Ton niveau, tes talents et tes trophées.'),
     defis: () => 'Nouveau : les Défis ! Trois objectifs par jour, une étoile quand tu les finis.',
@@ -30244,7 +30248,7 @@ const UI = (() => {
     if (p.nouvelles.length) { let n = nbBits(a.o) - p.nouvelles.length; for (const k of p.nouvelles) toast(`Premier jour : ✓ ${G.ACCUEIL.etapes[k].txt} (${++n}/7)`); renderDebutant(true); save(); }
     const dus = G.deblocagesDus(st, { chaine: CH ? CH.etat(st).b.length : 0 });
     let change = '';
-    for (const id of dus) if (SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
+    for (const id of dus) if (!(id === 'piste' && pisteAttend()) && SILENCE[id] && SILENCE[id]()) { G.marquerDeblocage(st, id); change = id; apresDeblocage(id); }
     // le bandeau de mise à jour (.maj) occupe le haut de la scène : les annonces du haut et de la scène l'attendent, puis, s'il reste là
     // (il ne part qu'en rechargeant), leur bouton s'ouvre en silence ; les autres annonces passent normalement
     const maj = !!$('.maj'), t = performance.now();
@@ -31013,7 +31017,7 @@ const UI = (() => {
     if ([1, 2, 3].includes(r.quartier)) { const n = G.donnerCollection(st, 'quartier-or').length; if (n) { neuves += n; toast('Podium final du Quartier : la tenue du quartier en or est dans ta garde-robe !'); } } // le podium final de l'événement « Le Quartier », à vie
     for (const E of EVM()) { // le podium final de chaque événement (la Maison hantée, le Marché d'automne) : sa tenue en or, à vie
       const xh = r[E.cle] || (r.evenements && r.evenements[E.cle]), rh = typeof xh === 'number' ? xh : xh && xh.rang; // classement v5 : evenements.<cle> = { rang, podium }
-      if ([1, 2, 3].includes(rh)) { const n = G.donnerCollection(st, `${E.cle}-or`).length; if (n) { neuves += n; const tx = E.R.FICHE && E.R.FICHE.textes; toast((tx && tx.podiumFinal) || `Podium final de ${NOM_EVT_LONG[E.cle] || E.F.nom} : la tenue en or est dans ta garde-robe !`); } }
+      if ([1, 2, 3].includes(rh)) { const n = G.donnerCollection(st, `${E.cle}-or`).length; if (n) { neuves += n; const tx = E.R.FICHE && E.R.FICHE.textes; toast((tx && tx.podiumFinal) || `Podium final ${deEvt(E.cle, NOM_EVT_LONG[E.cle] || E.F.nom)} : la tenue en or est dans ta garde-robe !`); } }
     }
     if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
     if (visite && visite.scene) return; // la scène montre la boutique du copain : les siennes reviennent au retour
@@ -31117,6 +31121,8 @@ const UI = (() => {
     sheetEvt();
   }
   const NOM_EVT_LONG = { hantee: 'la Maison hantée', marche: 'le Marché d’automne' };
+  // le nom avec sa préposition (« de la Maison hantée », « du Marché d’automne », jamais « de le Marché ») : la contraction de CLASSEMENT.phraseEvt
+  const deEvt = (id, nom) => { const n = String(NOM_EVT_LONG[id] || nom || 'l’événement').replace(/^(L[ea]s?) /, (x) => x.toLowerCase()); return /^le /.test(n) ? 'du ' + n.slice(3) : /^les /.test(n) ? 'des ' + n.slice(4) : 'de ' + n; };
   const TENUE_EVT = { hantee: 'la tenue d’Halloween', marche: 'la tenue d’automne' }; // (la tenue en or du podium final de chaque événement)
   function sheetEvt() {
     const r = recVue(), l = r && r.evtAPayer ? r.evtAPayer : []; if (!l.length) return;
@@ -31125,7 +31131,7 @@ const UI = (() => {
     openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI[p.id] || ICO_REPLI[p.id] || ICONS.UI.podium}</span></div>
       <h2>${esc(CLM.phraseEvt(p))}</h2>
       <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? `, et ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or` : ''}</p>
-      <p class="sous">${tenue ? `Sur le podium final : les quatre pièces de ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or sont dans ta garde-robe, à vie. ` : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
+      <p class="sous">${tenue ? `Sur le podium final : les quatre pièces de ${TENUE_EVT[p.id] || 'la tenue de l’événement'} en or sont dans ta garde-robe, à vie. ` : ''}À la fin ${esc(deEvt(p.id))}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
       <button type="button" class="btn large beurre" data-a="ev-recuperer"><b>Récupérer</b></button></div>`);
     vueCl = 'evt-place';
     let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
@@ -31149,7 +31155,7 @@ const UI = (() => {
     const r = recVue(), places = r && r.places ? r.places : [], evp = r && r.evtPlaces ? r.evtPlaces : []; if (!r || (!r.podiums.length && !places.length && !evp.length)) return '';
     const n = r.podiums.length, dernieres = n ? r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('') : `<i class="rec-mini">${ICONS.UI.podium}</i>`;
     const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche', np = places.length;
-    const quoi = (r.aPayer || []).length || (r.evtAPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : np ? `${np} place${np > 1 ? 's' : ''} au classement` : `${rangDe(evp[0].rang)} de ${NOM_EVT_LONG[evp[0].id] || 'l’événement'}`;
+    const quoi = (r.aPayer || []).length || (r.evtAPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : np ? `${np} place${np > 1 ? 's' : ''} au classement` : `${rangDe(evp[0].rang)} ${deEvt(evp[0].id)}`;
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${quoi}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)

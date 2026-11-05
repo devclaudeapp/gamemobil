@@ -31,7 +31,7 @@ de 22 crans de récompenses à vie, nourrie d'XP plafonnée. La saison d'hiver (
   Marathon (23 h 48/j, tout au mieux, Astuces achetées **et** offertes) : ×2,20 sous la table au plus juste (24 tirages), ×2,21 sur 24 tirages
   jamais vus, ×14,6 au plus large après 7 h 15 ; marathon le plus haut à la fin : 6,6e17 noisettes (log10 17,82). Croissante, recollable.
 - **Piste « Automne »** : 22 crans de 50 XP (1 100 XP), le titre de la saison à 1 350 XP. Joueur déjà là depuis le 5 oct. : quotidien 1 h
-  → **finie le 28 nov.** ; assidu 2 h → le 26 (+ le titre) ; très actif → le 24 (+ le titre) ; occasionnel 17 min 4 j/7 → **13/22 (59 %)**
+  → **finie le 28 nov.** ; assidu 2 h → le 26 (+ le titre) ; très actif → le 24 (+ le titre) ; occasionnel 17 min 4 j/7 → **13/22 (59 %)** à l'outil, **10/22 (45 %, 535 XP) sur le vrai moteur** (§ 8.2, § 13.1)
   (17 min tous les jours : 18/22). Nouveau joueur le 13 : pareil ; nouveau le 20 : quotidien 13/22, occasionnel 7/22.
 - **Longévité** : avec toutes les récompenses de la piste (16 étoiles, 3 petits boosts lancés aussitôt, aucune prime), `test/longevite.js`
   ne bouge pas au-delà du bruit (§ 8.3) et tient tous ses garde-fous. Deux versions plus généreuses ont été écartées : 5 boosts jusqu'à ×5 et
@@ -433,6 +433,7 @@ Avec les seuils de la Maison hantée tels quels : 11 / 15 / 17 / 20 (un jour de 
 | Profil | XP | crans | finie | titre |
 |---|---|---|---|---|
 | occasionnel 17 min, 4 j/7 | 650 | 13/22 (59 %) | — | non |
+| occasionnel 17 min, 4 j/7, **sur le vrai moteur** (`test/fournil-saison.test.js`, récompenses versées) | 535 | **10/22 (45 %)** | — | non |
 | (repère) occasionnel 17 min, 7 j/7 | 910 | 18/22 | — | non |
 | quotidien 1 h | 1 215 | 22/22 | **28 nov.** | non |
 | assidu 2 h | 1 365 | 22/22 | 26 nov. | oui |
@@ -440,6 +441,10 @@ Avec les seuils de la Maison hantée tels quels : 11 / 15 / 17 / 20 (un jour de 
 | quotidien, nouveau le 13 | 1 215 | 22/22 | 28 nov. | non |
 | quotidien / occasionnel, nouveaux le 20 | 660 / 370 | 13 / 7 | — | non |
 Sources du quotidien : objectifs 270, journées 180, défis 225, série 170, paliers 280, casino 90.
+Sur le vrai moteur, l'occasionnel quatre jours sur sept n'a que **535 XP** (objectifs 140, journées 60, **un seul défi sur trois** 75, série 60,
+paliers du Marché 200, casino 0) : **10/22**, et non les 13/22 de l'outil (l'outil ne verse pas les récompenses : un cas qui n'arrive jamais
+dans le jeu). La longévité, départ 5 oct., donne aussi 10/22. Le test garde sa fourchette de 40 à 65 %. **Rien n'est changé sans l'accord du
+joueur** (§ 13.1).
 
 ### 8.3 La longévité (`longevite-saison-resultats.txt`)
 Les joueurs de `test/longevite.js` aux deux départs qui couvrent la saison (5 oct., 1er nov.), 60 jours, sans puis avec la piste (étoiles
@@ -733,9 +738,20 @@ boulanger 3D en tenue d'automne · les décos posées dans la boutique · l'écu
     d'affilée en touchant leur bulle). Sous SwiftShader, la Halle en haute tourne à 1,5-2 images/s (le Manoir 2,5-4 ; la Halle sans
     l'environnement PMREM 2-4) : sur un téléphone, elle coûte ce que coûte la boutique en haute (le même rendu riche) ; le Manoir n'a pas
     d'environnement.
+- 5 nov., réparations après relecture :
+  · **Une horloge reculée après la fin** (`src/horloge.js`, le recul) ne rouvre plus la saison d'automne : `SAISONS.etat` et `fin` n'ouvrent
+    jamais une saison déjà dans `passees`, et une seconde fin fusionne l'archive au plus haut (xp, crans, titre) au lieu de l'écraser.
+  · **Un nouveau joueur qui passe 1 M€ avant le 13 à midi** : le déblocage « piste » (bit 15) attend l'ouverture de la saison au lieu d'être
+    marqué en silence (`pisteAttend`, `src/ui.js`) ; sa bulle part à l'ouverture (`test/fournil-saison.cjs`).
+  · « de le Marché d'automne » → « du Marché d'automne » dans la feuille du classement final, l'entrée « Mes récompenses » et le toast de
+    repli du podium (`deEvt`, `src/ui.js`).
+  · L'occasionnel sur le vrai moteur : 10/22 (§ 8.2, § 13.1), à redemander au joueur.
 
 ## 13. Les questions qui restent pour le joueur (avec la recommandation)
-1. **L'occasionnel** : à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
+1. **L'occasionnel** (5 nov. : **à redemander au joueur avant la mise en ligne**, avec le vrai chiffre) : sur le vrai moteur, à 17 min quatre
+   jours sur sept, il voit **10 crans sur 22 (45 %, 535 XP, un seul défi sur trois)**, et non 13/22 (59 %) comme le dit l'outil sans les
+   récompenses versées. Garder (la décision du 4 nov. portait sur 13/22), ou ajuster (par exemple 45 XP par cran) ? Pour mémoire, l'outil :
+   à 17 min **quatre jours sur sept**, il voit 13 crans sur 22 (59 %) ; à 17 min **tous les jours**, 18 sur 22. Garder
    ainsi (recommandé : jouer chaque jour paie, la moitié reste à portée de qui ne vient qu'en fin de semaine), ou passer à 24 crans ?
 2. **Les récompenses de la piste** : 16 ★, 3 petits boosts, aucune heure de gains, une tenue cosmétique (sans bonus), 5 décos, un trophée,
    un titre. Recommandé tel quel (plus généreux, la longévité bouge) ; ou un petit bonus sur la tenue de saison complète (+2 %) ?

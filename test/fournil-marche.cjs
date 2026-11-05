@@ -261,6 +261,10 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     await ev(() => window.__fournil.recompenses()); await sleep(800);
     const mr = await feuille(); check(/Mes événements/i.test(mr) && /Le Marché d’automne/.test(mr), `« Mes récompenses » : la place au Marché d’automne, dans « Mes événements » (« ${mr.replace(/\s+/g, ' ').slice(0, 300)} »)`);
     await shot('09-mes-recompenses'); await fermerFeuille();
+    await ev(() => window.__fournil.page('boulanger')); await sleep(700);
+    const ent = await ev(() => { const b = document.querySelector('.rec-entree'); return b ? b.innerText.replace(/\s+/g, ' ').trim() : ''; });
+    check(/7e du Marché d’automne/.test(ent) && !/de le /i.test(ent), `l’entrée « Mes récompenses » de l’onglet Boulanger : « ${ent} » (jamais « de le Marché »)`);
+    await ev(() => window.__fournil.page('boutique')); await sleep(400);
   } else passe('la place du classement final (« Tu as fini 7e du Marché d’automne sur 12 ») attend src/classement.js (EVTS, evtAPayer : constructeur A)');
   // un 2e : la tenue d'automne en or (le podium final), à vie
   { const connu = await ev(() => { try { return !!window.__fournil.G.vetement('marche-or-bonnet'); } catch (e) { return false; } });
@@ -272,6 +276,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       check(await attendre(() => ev(() => window.__fournil.G.possede(window.__fournil.st, 'marche-or-bonnet')), 10000), 'un 2e du classement final : la tenue d’automne en or est dans la garde-robe');
       const f2 = await attendre(async () => { const t = await feuille(); return /2e du Marché d’automne/.test(t) ? t : null; }, 15000), ts = await ev(() => window.__toasts.slice());
       check((!!f2 && /tenue d’automne en or/.test(f2)) || ts.some((t) => /Podium final du Marché d’automne/.test(t)), `le 2e le lit : « ${((f2 || '').split('\n').find((l) => /en or/.test(l)) || ts.find((t) => /Podium final/.test(t)) || '—').trim()} »`);
+      check(!!f2 && /À la fin du Marché d’automne, les quinze premiers/.test(f2) && !/de le /i.test(f2), `la feuille du 2e : « À la fin du Marché d’automne, les quinze premiers… » (jamais « de le Marché »)`);
       await sleep(400); await shot('10-fini-2e-tenue-or');
     } else passe('la tenue d’automne en or du 2e attend src/classement.js (EVTS) et la garde-robe du Marché (src/game.js : constructeur A)'); }
 

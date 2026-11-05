@@ -188,6 +188,29 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   } else passe('le déblocage « piste » de l’accueil (bit 15) attend src/game.js (ACCUEIL.deblocages : constructeur A) ; sans lui, la carte est là d’emblée');
   await T.ctx.close();
 
+  console.log('── un nouveau joueur qui passe 1 M€ le 13 au matin, avant l’ouverture de la saison ──');
+  if (DEB) {
+    const MATIN = new Date('2026-11-13T09:00:00+01:00').getTime(), MIDI = new Date('2026-11-13T12:05:00+01:00').getTime();
+    T = await ouvrir({ accueil: true, quand: MATIN });
+    await T.charger();
+    await T.ev(() => { window.__accueilEcart = 400; const F = window.__fournil, st = F.st; for (const x of F.G.ACCUEIL.deblocages) if (x.id !== 'piste') F.G.marquerDeblocage(st, x.id); st.tuto = 9; st.lifetime = 3e7; F.save(); });
+    await sleep(4000);
+    const m = await T.ev(() => { const F = window.__fournil, st = F.st; return { bit: F.G.accueilOuvert(st, 'piste'), p: st.piste ? st.piste.id : null, an: st.pisteAnnonce || null }; });
+    check(!m.bit && !m.p && !m.an, `le 13 à 9 h, 30 M€ (seuil franchi) : le déblocage « piste » attend l’ouverture, pas marqué en silence (bit ${m.bit}, piste ${m.p}, annonce ${m.an})`);
+    decal = MIDI - Date.now(); await T.ev((d) => localStorage.setItem('test.tel', String(d)), decal); await T.ev(() => window.__fournil.save());
+    await T.charger();
+    await T.ev(() => { window.__accueilEcart = 400; });
+    let bulle = null;
+    for (let k = 0; k < 60 && !bulle; k++) {
+      bulle = await T.ev(() => { const a = document.querySelector('#annonce-accueil'); return a && !a.hidden && /saison d’automne/.test(a.innerText) ? a.innerText : null; });
+      if (!bulle) { await T.ev(() => { const f = document.querySelector('#feuille'); if (!f.hidden) { const b = f.querySelector('[data-a="pq-tard"], [data-a="close"], [data-a="pq-ok"]'); if (b) b.click(); } if (window.__fournil.tiroir) window.__fournil.tiroir('mi'); }); await sleep(1000); }
+    }
+    const apres = await T.ev(() => { const F = window.__fournil, st = F.st; return { bit: F.G.accueilOuvert(st, 'piste'), an: st.pisteAnnonce || null }; });
+    check(!!bulle && apres.bit && apres.an === 'automne-2026', `le 13 à 12 h 05 : sa bulle d’annonce de la saison paraît à l’ouverture (« ${bulle && bulle.trim()} »), puis le bit et st.pisteAnnonce`);
+    await T.shot('11-nouveau-joueur-matin-du-13');
+    await T.ctx.close();
+  }
+
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s)` : '\ntout est bon');
