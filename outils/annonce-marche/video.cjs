@@ -49,7 +49,7 @@ function monter() {
   console.log(`vidéo ${sortie} : ${t.toFixed(1)} s, ${(fs.statSync(sortie).size / 1024).toFixed(0)} Ko`);
   // l'affiche : une image du premier plan (son titre posé), en JPEG
   const imgs = fs.readdirSync(path.join(BASE, 'plans', dirs[0])).filter((f) => f.endsWith('.png')).sort(), affiche = path.join(V, 'marche-affiche.jpg');
-  execFileSync('convert', [path.join(BASE, 'plans', dirs[0], imgs[Math.min(imgs.length - 1, Math.round(imgs.length * 0.62))]), '-resize', `${LARGEUR}x`, '-strip', '-sampling-factor', '4:2:0', '-quality', val('--qualite-affiche', '66'), affiche]);
+  execFileSync('convert', [path.join(BASE, 'plans', dirs[0], imgs[Math.min(imgs.length - 1, Math.round(imgs.length * 0.62))]), '-resize', `${LARGEUR}x`, '-strip', '-sampling-factor', '4:2:0', '-quality', val('--qualite-affiche', '58'), affiche]);
   console.log(`affiche ${affiche} : ${(fs.statSync(affiche).size / 1024).toFixed(0)} Ko`);
   if (opt('--publier')) { const M = path.join(ROOT, 'fournil', 'media'); fs.mkdirSync(M, { recursive: true }); fs.copyFileSync(sortie, path.join(M, 'marche.mp4')); fs.copyFileSync(affiche, path.join(M, 'marche-affiche.jpg')); console.log('publiées dans fournil/media/'); }
 }
