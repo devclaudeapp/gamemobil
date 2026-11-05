@@ -26834,7 +26834,7 @@ const EVENEMENTS = (() => {
     icoSorte: { ecureuil: 'chataigne', herisson: 'champignon', lapin: 'panier', renard: 'feuille', blaireau: 'panier', chouette: 'feuille', faon: 'champignon', marcassin: 'chataigne', ourson: 'panier' },
     icoApp: { feuille: 'feuille', chataigne: 'chataigne', champignon: 'champignon' },
     compagnon: { espece: 'ecureuil', cle: 'ecureuil', attend: 'Il t’attend dans la boutique ✓' },
-    video: null, // (fournil/media/marche.mp4 si le constructeur C la fournit : { fichier: 'marche.mp4', affiche: 'marche-affiche.jpg', label })
+    video: { fichier: 'marche.mp4', affiche: 'marche-affiche.jpg', label: "Le Marché d'automne en vidéo : la Halle, ses étals, l'écureuil et les feuilles d'or" },
     sceneAnnonce: (I) => `<div class="ht-annonce-scene mc-annonce-scene" aria-hidden="true"><i class="mc-soleil"></i><span class="ht-pic">${I('halle')}</span><i class="mc-tombe a">${FEUILLE_M}</i><i class="mc-tombe b">${FEUILLE_M}</i><i class="mc-tombe c">${FEUILLE_M}</i></div>`,
     coups: () => ({
       taper: { cls: 'descente', titre: 'Les pies voleuses !', bouton: 'Ouste !', detail: (ev, f) => `${ev.n} touches pour chasser les pies · prime <b>${f(ev.prime)}</b> · sinon elles emportent ${f(ev.enjeu || 0)}`, reussite: (m) => `Les pies sont chassées : +${m}`, debut: 'Des pies chipent les noisettes : chasse-les, vite !', perte: (m) => `Les pies s’envolent avec ${m}…` },
