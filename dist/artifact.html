@@ -23832,7 +23832,7 @@ const BOUTIQUE_MARCHE = (() => {
     }
     // l'écharpe tricotée des enfants (repère de l'os du buste : le cou à y ≈ 0,27) : le tour de cou, le nœud, deux pans, l'un rayé
     function echarpe(d) {
-      const out = [], a = poseur(out), c = d.ech, r = d.raye || '#FFF3DE';
+      const out = [], a = poseur(out), c = d.ech, r = '#' + new T.Color(c).lerp(new T.Color('#FFFFFF'), 0.4).getHexString(); // (le pan rayé : la couleur éclaircie, comme l'écharpe des chibis)
       a(new T.TorusGeometry(ECH.R, ECH.r, 6, 16), c, 0, ECH.y, ECH.z, Math.PI / 2, 0, 0);
       a(new T.SphereGeometry(ECH.r * 1.1, 8, 6), c, -0.14, ECH.y - 0.03, ECH.z + ECH.R * 0.92);
       a(new T.CapsuleGeometry(ECH.r * 0.75, 0.24, 3, 6), c, -0.2, ECH.y - 0.22, ECH.z + ECH.R * 0.92 + 0.05, 0.12, 0, 0.16, 1, 1, 0.6);
@@ -24205,7 +24205,7 @@ const BOUTIQUE_MARCHE = (() => {
     }
     // l'ambiance de la scène en mode HD (src/scene.js, basculerHD) : pas de brouillard de nuit, l'environnement de la pièce (le rendu riche), une exposition douce
     const ambianceHD = { fog: null, clear: '#F2D9B4', exposition: 1, ton: false, env: true }; // (ton : false, sans ACES)
-    return { pret, decor, acteur, jouer, liberer, apparition, preparer, rater, mat, haloMat, eclairer, ambianceHD, EQUIPE3, DEFS, DEG, PH, ENV, ECH, QU, BON, PROTOS, get echec() { return echec; } };
+    return { pret, decor, acteur, jouer, liberer, apparition, preparer, rater, mat, haloMat, eclairer, ambianceHD, EQUIPE3, DEFS, DEG, PH, ENV, get echec() { return echec; } };
   })();
 
   // ─── l'écran : la fenêtre sur la scène ───

@@ -147,7 +147,8 @@ function tempsVirtuel(decal) {
     process.stdout.write('\n');
   }
   const act = () => ev(() => window.__fournil.evMarche.act.etat());
-  const grand = async (h) => { await ev((h) => { const sc = document.querySelector('#marche .pq-scene'); sc.style.height = h ? h + 'px' : ''; sc.style.flex = h ? '0 0 auto' : ''; window.dispatchEvent(new Event('resize')); }, h || 0);
+  // (le tiroir de l'écran, celui du Manoir depuis src/tiroir.js, passe par-dessus la scène : en grand, on le ferme ; sinon, à mi-hauteur)
+  const grand = async (h) => { await ev((h) => { const sc = document.querySelector('#marche .pq-scene'); sc.style.height = h ? h + 'px' : ''; sc.style.flex = h ? '0 0 auto' : ''; const E = window.__fournil.evMarche; if (E && E.tiroir) E.tiroir(h ? 'ferme' : 'mi'); window.dispatchEvent(new Event('resize')); }, h || 0);
     for (let k = 0; k < 2; k++) { await page.screenshot({ type: 'jpeg', quality: 10 }); await pas(3); } };
   const toucher = async (x, y) => { await ev(([x, y]) => { const d = document.createElement('i'); d.className = 'vt-doigt'; d.style.left = x + 'px'; d.style.top = y + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 700); }, [x, y]); await page.touchscreen.tap(x, y); };
   await ev(() => { window.__dessin = (on) => { if (!window.__dessins) { window.__dessins = []; for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (C.prototype[m]) window.__dessins.push([C, m, C.prototype[m]]); }
