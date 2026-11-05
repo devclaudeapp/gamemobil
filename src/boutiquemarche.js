@@ -171,7 +171,7 @@ const BOUTIQUE_MARCHE = (() => {
     let MAT = null;
     // l'ambiance de la pièce (l'environnement du rendu riche) sur les matériaux de la Halle : 1 de jour, elle baisse le soir et la nuit, quand
     // les lampions et les lanternes prennent le relais (eclairer) ; comme les jumeaux de la boutique (src/scene.js, RICHE.envK)
-    const ENV = { k: 0.3, chaud: 1 }, suivreEnv = (m) => { Object.defineProperty(m, 'envMapIntensity', { get: () => ENV.k, set: () => {} }); return m; };
+    const ENV = { k: 0.3, chaud: 0.4 }, suivreEnv = (m) => { Object.defineProperty(m, 'envMapIntensity', { get: () => ENV.k, set: () => {} }); return m; };
     function mat() {
       if (MAT) return MAT;
       const m = suivreEnv(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 })), u = { uLueur: { value: 1 } }; m.userData.u = u;
@@ -235,7 +235,9 @@ const BOUTIQUE_MARCHE = (() => {
     // le bonnet à pompon de la marchande (repère de l'os de la tête) : la calotte tricotée moutarde posée haut (le visage reste libre, vu d'en
     // haut aussi), le revers rouille, le pompon crème
     function bonnetMarchande() { const l = [], a = poseur(l);
-      a(new T.SphereGeometry(0.6, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), '#E8A93A', 0, BON.y, -0.03, 0, 0, 0, 1, 0.82, 1); a(new T.CylinderGeometry(0.61, 0.63, 0.13, 18), '#C8552A', 0, BON.y + 0.02, -0.03); a(new T.SphereGeometry(0.14, 10, 8), '#FFF3DE', 0, BON.y + 0.54, -0.05); return l; }
+      a(new T.SphereGeometry(0.6, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), '#D99A2E', 0, BON.y, -0.03, 0, 0, 0, 1, 0.82, 1); a(new T.CylinderGeometry(0.61, 0.63, 0.13, 18), '#C8552A', 0, BON.y + 0.02, -0.03);
+      for (const h of [0.14, 0.28]) a(new T.TorusGeometry(0.6 * Math.sqrt(1 - Math.pow(h / 0.49, 2)) + 0.005, 0.028, 4, 22), '#C8552A', 0, BON.y + h, -0.03, Math.PI / 2, 0, 0); // deux rayures tricotées
+      a(new T.SphereGeometry(0.12, 10, 8), '#FFF3DE', 0, BON.y + 0.53, -0.05); return l; }
     const BON = { y: 0.6 };
     const DEFS = { // le corps KayKit, sa recette ; les déguisements (la capuche reteinte, ses pièces cousues)
       patronne: { src: 'Rogue', recette: 'marchande', bonnet: true }, // la marchande d'automne, derrière l'étal : le gilet rouille, un bonnet à pompon
@@ -383,6 +385,11 @@ const BOUTIQUE_MARCHE = (() => {
       const { LAY, K, W, H } = c, U = 29 * K, Hm = c.wy(LAY.murH), parts = [], hs = [], lum = [], HP = Math.PI / 2, MB = typeof MEUBLES !== 'undefined' ? MEUBLES : null;
       const pose = (nom, o) => { const ck = cuitModele(nom, o.t, o.lueur); if (ck) parts.push({ c: ck, M: matriceDe(o, U) }); return ck; };
       const main = (geo, hex, o, lueur) => { parts.push(piece(geo, hex, o, lueur)); }; // une pièce faite main (en unités du monde)
+      const tapis = (x, z, w, d) => { // le tapis tissé du coin salon : un fond crème, des bandes d'automne, les franges aux deux bouts
+        main(new T.BoxGeometry(w, 0.5, d), '#EAD7B4', { x, y: 0.25, z }); const bandes = ['#C8552A', '#E8B33A', '#7A9A3A', '#E8B33A', '#C8552A'], bw = w / (bandes.length * 2 + 1);
+        bandes.forEach((col, i) => main(new T.BoxGeometry(bw, 0.6, d - 2 * K), col, { x: x - w / 2 + bw * (2 * i + 1.5), y: 0.3, z }));
+        for (const sx of [-1, 1]) for (let j = 0; j < 7; j++) main(new T.BoxGeometry(2.2 * K, 0.4, 0.5 * K), '#D9C49E', { x: x + sx * (w / 2 + 1.1 * K), y: 0.2, z: z - d / 2 + d * (j + 0.5) / 7 });
+      };
       const halo = (x, y, z, col, r, a, vac) => hs.push({ x, y, z, col, r: r * K, a, vac });
       const lumiere = (x, y, z, col, k, d) => lum.push({ x, y, z, col, k, d: d || 150 * K });
       const zDev = c.wz(LAY.devanture.y), zBord = c.wz(LAY.trottoir.bord), zFin = c.wd(H + 60 - LAY.murH), porte = LAY.devanture.porte, cr = c.crans;
@@ -411,8 +418,7 @@ const BOUTIQUE_MARCHE = (() => {
       for (let z = zDev + 0.6 * U, r = 0; z < zBord - 0.3 * U; z += 1.15 * 0.6 * U, r++) for (let x = -8 + (r % 2) * 0.55 * 0.6 * U; x < W + 10; x += 1.9 * 0.6 * U) pose('path_A', { x, y: 0.05, z, s: 0.6, ry: (x * 7 + r * 3) % 6.3 }); // les pavés du trottoir
       // ── le fournil : le four à bois (son feu luit), des cagettes de légumes et une citrouille à la place du froid, le brasero aux châtaignes
       const f = LAY.four, sf = f.w / (2 * U);
-      pose('oven', { x: f.x + f.w / 2, z: 1.03 * sf * U + 2, s: sf, t: 'chene', lueur: feu });
-      halo(f.x + f.w / 2, 0.55 * sf * U, 1.4 * sf * U, '#FF7A2A', 26, 0.45, 0.1);
+      { const o = fourBois(f.x + f.w / 2, 1.0 * sf * U + 2, f.w, 1.9 * sf * U, sf * U); for (const q of o.pr) main(q.geo, q.col, q.o); for (const q of o.lp) main(q.geo, q.col, q.o, 1); halo(o.bouche.x, o.bouche.y, o.bouche.z, '#FF7A2A', 24, 0.6, 0.12); }
       const fr = LAY.froid; pose('crate_carrots', { x: fr.x + fr.w / 2, z: c.wz(fr.y + fr.h * 0.35), s: 0.75 }); pose('crate_potatoes', { x: fr.x + fr.w / 2, y: 0.55 * U, z: c.wz(fr.y + fr.h * 0.35), s: 0.7, ry: 0.15 });
       pose('pumpkin_orange', { x: fr.x + fr.w / 2 + 3 * K, z: c.wz(fr.y + fr.h * 0.85), s: 0.55, ry: 0.4 });
       const pl = LAY.plan, xc = pl.x + pl.w * 0.5, zc = c.wz(pl.y + pl.h * 0.5);
@@ -425,7 +431,16 @@ const BOUTIQUE_MARCHE = (() => {
       const C = LAY.comptoir;
       { const x0 = C.x - 6 * K, x1 = C.x + C.w + 6 * K, n = Math.max(6, Math.round((x1 - x0) / (9 * K))), sw = (x1 - x0) / n, D = 0.62 * U, a = 0.42, L2 = D / Math.cos(a), Y = Hm - 0.18 * U, yf = Y - D * Math.tan(a);
         for (let i = 0; i < n; i++) { const x = x0 + sw * (i + 0.5), col = i % 2 ? '#F6E7C8' : '#C8552A'; main(new T.BoxGeometry(sw + 0.05, 0.05 * U, L2), col, { x, y: Y - D * Math.tan(a) / 2, z: D / 2, rx: a }); main(new T.CylinderGeometry(sw / 2, sw / 2, 0.03 * U, 10, 1, false, 0, Math.PI).rotateX(HP).rotateZ(-HP), col, { x, y: yf - 0.02 * U, z: D + 0.02 * U }); }
-        main(new T.CylinderGeometry(0.03 * U, 0.03 * U, x1 - x0 + 4, 6).rotateZ(HP), chene, { x: (x0 + x1) / 2, y: Y + 0.02 * U, z: 0.04 * U }); }
+        main(new T.CylinderGeometry(0.03 * U, 0.03 * U, x1 - x0 + 4, 6).rotateZ(HP), chene, { x: (x0 + x1) / 2, y: Y + 0.02 * U, z: 0.04 * U });
+        // la guirlande de lampions, accrochée au bord de l'auvent : le fil qui pend, des lanternes de papier (ambre, citrouille, crème) qui luisent le soir
+        const nl = Math.max(4, Math.round((x1 - x0) / (16 * K))), lt = ['#F2B24A', '#E8743A', '#FFE3A8'], zl = D + 0.06 * U;
+        for (let i = 0; i < nl; i++) {
+          const u = (i + 0.5) / nl, x = x0 + (x1 - x0) * u, y = yf - 0.16 * U - Math.sin(u * Math.PI) * 0.06 * U, r = 2.3 * K;
+          main(new T.CylinderGeometry(0.12 * K, 0.12 * K, yf - y - r, 4), '#5A3A24', { x, y: (yf + y + r) / 2, z: zl });
+          main(new T.CylinderGeometry(r * 0.55, r * 0.55, 0.5 * K, 8), '#5A3A24', { x, y: y + r * 1.15, z: zl });
+          main(new T.SphereGeometry(r, 10, 8), lt[i % 3], { x, y, z: zl, sy: 1.22 }, 1);
+          halo(x, y, zl + 1, i % 3 === 1 ? '#FF9A4A' : '#FFC070', 10, 0.75, 0.05);
+        } }
       for (const x of [p.x - 9 * K, Math.min(W - 6 * K, p.x + p.w + 9 * K)]) { const z = c.wz(LAY.murH + 8 * K); pose('lantern_standing', { x, z, s: 0.75, lueur: feu }); halo(x, 0.45 * 0.75 * U, z, '#FFB060', 13, 0.8); }
       if (MB) { const n = 18, x0 = LAY.fenetre.x + LAY.fenetre.w + 6, x1 = C.x - 8 * K; for (let i = 0; i <= n; i++) { const u = i / n, x = x0 + (x1 - x0) * u, y = Hm - 0.3 * U - Math.sin(((u * 2) % 1) * Math.PI) * 5 * K; main(MB.erable().clone(), MB.MC.feuilles[i % MB.MC.feuilles.length], { x, y, z: 0.12 * U, sx: 3 * K, sy: 3 * K, sz: 0.4, rz: (i % 3 - 1) * 0.5 }); } }
       // ── l'étal : le comptoir retourné (les tiroirs côté boulanger), les fruits de saison exposés dessus, des cagettes devant, des courges au pied
@@ -459,7 +474,7 @@ const BOUTIQUE_MARCHE = (() => {
       if ((cr.banquette || 0) > 0) {
         const bq = LAY.banquette; pose('couch_pillows', { x: bq.x, z: c.wz(bq.y) - 3 * K, s: 54 * K / (3 * U), t: 'rouille' });
         if (cr.banquette >= 2) {
-          const t = bq.tapis, tt = bq.table; pose('rug_rectangle_stripes_A', { x: t.x, y: 0.2, z: c.wz(t.y), sx: t.w / (3 * U), sz: c.wd(t.h) / (2 * U), sy: 0.6, t: 'ocre' });
+          const t = bq.tapis, tt = bq.table; tapis(t.x, c.wz(t.y), t.w, c.wd(t.h));
           pose('table_low', { x: tt.x, z: c.wz(tt.y), s: 0.6, t: 'chene' }); pose('pie', { x: tt.x, y: 0.28 * U, z: c.wz(tt.y), s: 0.7 });
         }
         if (cr.banquette >= 3) {
@@ -504,6 +519,28 @@ const BOUTIQUE_MARCHE = (() => {
       ];
       return { g, dessusY, dessusZ: zC, lumieres: lum.slice(0, 8), postes, U };
     }
+    const HP2 = Math.PI / 2;
+    // le four à bois de la Halle, en dôme (fait main, en pièces de Three) : le socle de pierre et sa réserve de bûches, le dôme de terre cuite
+    // cerclé de briques, la bouche en arche (sa voûte de pierre claire, les braises et les flammes qui luisent), la cheminée ; centré en x,
+    // posé contre le mur (z : le milieu de sa profondeur dp) ; u : l'unité du four (sa largeur w fait ~2 u). Rend { pr, lp, bouche }
+    function fourBois(x, z, w, dp, u) {
+      const pr = [], lp = [], add = (l, geo, col, o) => l.push({ geo, col, o }), hp = 0.62 * u, R = w * 0.47, zs = dp * 0.46 / R, yd = hp + 0.07 * u, zf = z + dp / 2;
+      add(pr, new T.BoxGeometry(w, hp, dp), '#A89580', { x, y: hp / 2, z }); add(pr, new T.BoxGeometry(w + 0.08 * u, 0.07 * u, dp + 0.08 * u), '#857261', { x, y: hp + 0.035 * u, z });
+      for (const [k, yy] of [[0, 0.22], [1, 0.45]]) add(pr, new T.BoxGeometry(w + 0.01 * u, 0.025 * u, dp + 0.01 * u), '#968370', { x, y: hp * yy + k * 0.01, z }); // les assises de pierre
+      add(pr, new T.BoxGeometry(w * 0.62, hp * 0.5, 0.06 * u), '#3A2A20', { x, y: hp * 0.3, z: zf - 0.02 * u }); // la réserve de bois, sous le four
+      for (const [dx, yy] of [[-0.16, 0.13], [0.0, 0.13], [0.16, 0.13], [-0.08, 0.26], [0.08, 0.26]]) { add(pr, new T.CylinderGeometry(0.075 * u, 0.075 * u, 0.12 * u, 7).rotateX(HP2), '#7B4A2A', { x: x + dx * w, y: hp * yy * 1.4, z: zf - 0.02 * u }); add(pr, new T.CircleGeometry(0.06 * u, 7), '#D9A066', { x: x + dx * w, y: hp * yy * 1.4, z: zf + 0.045 * u }); }
+      add(pr, new T.SphereGeometry(R, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), '#B86A44', { x, y: yd, z, sy: 0.82, sz: zs }); // le dôme
+      add(pr, new T.TorusGeometry(R * 1.0, 0.06 * u, 6, 28).rotateX(HP2), '#8E4A2E', { x, y: yd + 0.03 * u, z, sz: zs }); // le cercle de briques
+      for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2 + 0.3, r = R * (0.55 + 0.25 * ((i * 7) % 3) / 2); add(pr, new T.BoxGeometry(0.16 * u, 0.06 * u, 0.04 * u), '#A0573A', { x: x + Math.cos(a) * r, y: yd + Math.sqrt(Math.max(0, R * R - r * r)) * 0.82 + 0.01 * u, z: z + Math.sin(a) * r * zs, ry: -a }); } // quelques briques sur le dôme
+      const rb = R * 0.42, yb = yd, zb = z + R * zs - 0.12 * u; // la bouche : un demi-disque sombre dans une voûte de pierre claire, la sole devant
+      add(pr, new T.CylinderGeometry(rb, rb, 0.3 * u, 14, 1, false, -HP2, Math.PI).rotateX(HP2), '#26170F', { x, y: yb, z: zb + 0.02 * u });
+      add(pr, new T.TorusGeometry(rb * 1.08, 0.07 * u, 6, 14, Math.PI), '#E2D2B4', { x, y: yb, z: zb + 0.17 * u });
+      add(pr, new T.BoxGeometry(rb * 2.6, 0.05 * u, 0.22 * u), '#857261', { x, y: yb - 0.01 * u, z: zb + 0.24 * u });
+      for (const [dx, r, col, sy] of [[-0.35, 0.09, '#FF7A2A', 1.6], [0, 0.12, '#FFB03A', 2.1], [0.32, 0.08, '#FF8A2A', 1.5], [-0.12, 0.07, '#FFD36A', 1.4], [0.18, 0.07, '#FF6A1A', 1.2]]) add(lp, new T.SphereGeometry(r * u, 7, 5), col, { x: x + dx * rb, y: yb + r * u * 0.5, z: zb + 0.1 * u, sy }); // le feu
+      add(pr, new T.CylinderGeometry(0.11 * u, 0.13 * u, 0.62 * u, 8), '#8E4A2E', { x: x + R * 0.38, y: yd + R * 0.82 * 0.78 + 0.2 * u, z: z - R * zs * 0.35 }); // la cheminée
+      add(pr, new T.CylinderGeometry(0.17 * u, 0.15 * u, 0.07 * u, 8), '#5A3A2A', { x: x + R * 0.38, y: yd + R * 0.82 * 0.78 + 0.53 * u, z: z - R * zs * 0.35 });
+      return { pr, lp, bouche: { x, y: yb + rb * 0.35, z: zb + 0.3 * u } };
+    }
     // le brasero du marchand de marrons (la même recette que MEUBLES, en pièces de Three) : pr les parts fixes, lp les braises (qui luisent)
     function braseroHD(pr, lp, x, y, z, s) {
       const fer = '#3A302C', add = (l, geo, col, o) => l.push({ geo, col, o });
@@ -524,7 +561,7 @@ const BOUTIQUE_MARCHE = (() => {
     function preparer() { if (echec || !(typeof HDM !== 'undefined' && HDM.pret('marche'))) return false; try { for (const s of SORTES.concat(EQUIPE3, ['patronne'])) proto(s); clips(); return true; } catch (e) { rater(e); return false; } }
     // ─── la lumière de la Halle (src/scene.js, eclairerHD) : le jour doré d'un après-midi d'automne, qui tourne au soir avec l'heure ; les
     //     lanternes s'allument le soir ; tout baisse quand le ×6 s'endort (AMB). Rend le niveau des lampes (pour les décors animés) ───
-    const PH = { jour: { ciel: '#FFF1D6', sol: '#B08A68', k: 1.25, soleil: '#FFD8A0', ks: 2.3, lampes: 0, env: 0.3 }, soir: { ciel: '#FFB27E', sol: '#5A3A30', k: 0.9, soleil: '#FF9E5E', ks: 1.25, lampes: 0.8, env: 0.3 }, nuit: { ciel: '#7E86C8', sol: '#2E2638', k: 0.6, soleil: '#9FB4FF', ks: 0.5, lampes: 1, env: 0.13 } };
+    const PH = { jour: { ciel: '#FFF6E8', sol: '#B08A68', k: 1.25, soleil: '#FFE6C4', ks: 2.3, lampes: 0, env: 0.3 }, soir: { ciel: '#FFB27E', sol: '#5A3A30', k: 0.8, soleil: '#FF9E5E', ks: 1.15, lampes: 0.8, env: 0.2 }, nuit: { ciel: '#7E86C8', sol: '#2E2638', k: 0.6, soleil: '#9FB4FF', ks: 0.5, lampes: 1, env: 0.1 } };
     let _ca = null, _cb = null;
     function eclairer(E, L) {
       if (!_ca) { _ca = new T.Color(); _cb = new T.Color(); }
