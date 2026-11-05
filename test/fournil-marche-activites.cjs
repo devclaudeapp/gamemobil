@@ -181,7 +181,7 @@ function faux(d) {
       const vie3 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid);
       check(!!bas, 'sa patience presque finie : la bulle presse (orange)');
       check(fin && fin.stats.clientsPartis === p0 + 1 && fin.billets - b3 < 1e9 && vie3 && vie3.humeur === 'fache' && vie3.etat === 'sort', `40 s sans être servi : il repart fâché (${vie3 && vie3.humeur}), rien de payé pour lui`);
-      await sleep(600); check(!(await act()).clients.some((c) => c.id === c3.id) && (await flottes()).some((t) => /assez d’attendre/.test(t)), '« Il en a eu assez d’attendre. », sa bulle s’en va');
+      await sleep(600); check(!(await act()).clients.some((c) => c.id === c3.id) && (await flottes()).some((t) => /reparti jouer dans les feuilles/.test(t)), '« Il est reparti jouer dans les feuilles. », sa bulle s’en va');
     } else check(false, 'un troisième client entre');
 
     // la capture : la file de monstres, chacun sa bulle
@@ -260,7 +260,7 @@ function faux(d) {
     // ─── la commande de la nuit : sa carte, sa jauge, son bouton ───
     await pousser('commande');
     const cm = await attendre(() => ev(() => { const e = document.querySelector('#mc-commande'); return !e.hidden && e.querySelector('[data-a="mh-commande"]') ? e.innerText.replace(/\s+/g, ' ') : null; }), 8000);
-    check(!!cm && (await toasts()).some((t) => /commande de la nuit/i.test(t)), `une commande de la nuit arrive : son bandeau (« ${cm} »)`);
+    check(!!cm && (await toasts()).some((t) => /commande du marché/i.test(t)), `une commande du marché arrive : son bandeau (« ${cm} »)`);
     { // en bandeau sur la scène, juste au-dessus du tiroir (comme les coups de pouce) : il ne touche ni la colonne, ni les bulles de la file ;
       // tiroir en haut, il passe dans sa tête (toujours sous les yeux), puis revient
       const g = await geo(), e = await act(), bulles = e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h }));
@@ -295,7 +295,7 @@ function faux(d) {
       let mot = ''; for (let k = 0; k < cb.commande.length + 3; k++) { const c = await bullePosee(cb.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); mot = (await act()).mot || mot; }
       const fete = await attendre(() => ev(() => { const f = document.querySelector('#feuille'), x = f && !f.hidden && f.querySelector('[data-bestiaire-fete]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 8000);
       const apres = await ev(() => { const F = window.__fournil, q = F.st.marche; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice() }; }); apres.mot = mot;
-      check(!!fete && fete.sorte === cb.sorte && /rejoint le bestiaire/.test(fete.txt) && /5\/9/.test(fete.txt), `le dixième ${cb.sorte} servi au doigt : la feuille de fête (« ${fete && fete.txt.slice(0, 70)}… »)`);
+      check(!!fete && fete.sorte === cb.sorte && /rejoint l’album/.test(fete.txt) && /5\/9/.test(fete.txt), `le dixième ${cb.sorte} servi au doigt : la feuille de fête (« ${fete && fete.txt.slice(0, 70)}… »)`);
       check(apres.et === avant.et + 2 && apres.aVerser === 0 && apres.faits.length === 5, `la 5e sorte : +2 étoiles versées tout de suite dans la boulangerie (${avant.et} → ${apres.et}), une fois (plus rien à verser)`);
       check(!avant.decos.includes('album') && apres.decos.includes('album') && !!fete && /étagère aux peluches/.test(fete.txt) && await attendre(() => ev(() => window.__fournil.SCENE.decosMarcheVues.includes('album') || !!(window.__fournil.SCENE.evenement && window.__fournil.SCENE.evenement.hd)), 4000), 'et le décor : l’étagère aux bocaux de monstres, posée dans la boutique (q.decos ; la scène, en éco : en haute, le décor cuit de la boutique hantée la remplace, elle revient avec la boutique)');
       check(/10\/10/.test(apres.mot), `le petit mot sur la scène : « ${apres.mot} »`);
@@ -315,9 +315,9 @@ function faux(d) {
         const r9 = await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.bestiaireFaits = F.MC.SORTES.filter((k) => k !== 'ourson'); for (const k of q.bestiaireFaits) q.bestiaire[k] = 10; q.bestiaire.ourson = 9;
           const id = 880001; q.manoir.file.push({ id, sorte: 'ourson', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); const e0 = F.st.etoiles, r = F.evMarche.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, cs: q.chauvesouris }; });
         const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="ourson"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
-        check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Pirouette/.test(f9 || ''), `la 9e sorte (le loup-garou) : +2 étoiles, la chauve-souris ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
+        check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Pirouette/.test(f9 || ''), `la 9e sorte : +2 étoiles, l’écureuil ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
         if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
-        check(await attendre(() => ev(() => window.__fournil.st.compagnon === 'ecureuil' && window.__fournil.G.aCompagnon(window.__fournil.st, 'ecureuil')), 4000), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
+        check(await attendre(() => ev(() => window.__fournil.st.compagnon === 'ecureuil' && window.__fournil.G.aCompagnon(window.__fournil.st, 'ecureuil')), 4000), '« Choisir Pirouette tout de suite » : l’écureuil devient le compagnon de la boutique');
         await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
@@ -341,7 +341,7 @@ function faux(d) {
       const cm = fe && fe.cases.find((c) => c.sorte === SA), csq = fe && fe.cases.find((c) => c.sorte === 'ecureuil');
       check(fe && cm && cm.med === 'argent' && /30\/140/.test(cm.txt) && csq && csq.med === 'bronze' && /28\/30/.test(csq.txt) && fe.cases.filter((c) => c.med === 'bronze').length === 8 && /Argent 1\/9/.test(fe.sous) && /30 pour l’argent, 140 pour l’or/.test(fe.sous),
         `la feuille : la momie en argent (« ${cm && cm.txt} »), le squelette en bronze vers l’argent (« ${csq && csq.txt} ») ; « ${fe && fe.sous} »`);
-      check(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /bocaux d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait),
+      check(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /étagère d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait),
         `les étagères : ${fe && fe.paliers.map((l) => l.txt).join(' | ')}`);
       await sleep(300); await shot(page, `${qual}-bestiaire-feuille-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-argent.png`), path.join(out3, 'bestiaire-feuille-argent.png'));
       if (out3 && qual === 'haute') { await ev(() => { const l = document.querySelector('#feuille .mh-best-paliers'); if (l) l.scrollIntoView({ block: 'center' }); }); await sleep(400); await shot(page, `${qual}-bestiaire-feuille-etageres`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-etageres.png`), path.join(out3, 'bestiaire-feuille-etageres.png')); }
