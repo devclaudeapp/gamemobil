@@ -617,11 +617,21 @@ const ZRENDU = (() => {
     const matFaisceau = new T.MeshBasicMaterial({ color: '#FFE27A', transparent: true, opacity: 0.28, depthWrite: false, blending: T.AdditiveBlending });
     const geoFaisceau = cyl(0.35, 0.5, 6, 10, true).translate(0, 3, 0);
     const reserveObjets = [];
+    const matFaisceauRare = new T.MeshBasicMaterial({ color: '#A66BFF', transparent: true, opacity: 0.42, depthWrite: false }); // (mélange normal : il reste violet sur l'herbe)
+    const geoGemme = new T.OctahedronGeometry(0.3, 0), geoSocle = new T.RingGeometry(0.42, 0.6, 24).rotateX(-Math.PI / 2), geoFaisceauB = cyl(0.22, 0.3, 2.2, 10, true).translate(0, 1.1, 0);
     function objetRare(type) {
       let o = reserveObjets.find((x) => !x.pris && x.type === type);
+      if (!o && type.startsWith('bonus:')) { // un bonus : sa gemme, son socle lumineux, son icône qui flotte au-dessus, un petit faisceau
+        const k = type.slice(6), B = D.BONUS[k] || { couleur: '#FFFFFF' }, g = new T.Group();
+        const m = new T.Mesh(geoGemme, new T.MeshLambertMaterial({ color: B.couleur, emissive: new T.Color(B.couleur).multiplyScalar(0.45) })); m.castShadow = true; m.position.y = 0.45; g.add(m);
+        const socle = new T.Mesh(geoSocle, new T.MeshBasicMaterial({ color: B.couleur, transparent: true, opacity: 0.85, depthWrite: false })); socle.position.y = 0.04; g.add(socle);
+        const f = new T.Mesh(geoFaisceauB, new T.MeshBasicMaterial({ color: B.couleur, transparent: true, opacity: 0.22, depthWrite: false, blending: T.AdditiveBlending })); g.add(f);
+        const sp = new T.Sprite(new T.SpriteMaterial({ map: textureIcone(k), depthWrite: false, transparent: true })); sp.scale.set(0.75, 0.75, 1); sp.position.y = 1.25; g.add(sp);
+        scene.add(g); o = { type, g, m, socle, pris: false }; reserveObjets.push(o);
+      }
       if (!o) {
-        const g = new T.Group(), m = new T.Mesh(type === 'caisse' ? geoCaisse : geoSoin, matVC); m.castShadow = true; g.add(m);
-        if (type === 'caisse') { const f = new T.Mesh(geoFaisceau, matFaisceau); g.add(f); }
+        const g = new T.Group(), m = new T.Mesh(type === 'soin' ? geoSoin : geoCaisse, matVC); m.castShadow = true; g.add(m);
+        if (type === 'caisse' || type === 'caisseRare') { const f = new T.Mesh(geoFaisceau, type === 'caisseRare' ? matFaisceauRare : matFaisceau); if (type === 'caisseRare') f.scale.set(1.3, 1.6, 1.3); g.add(f); }
         scene.add(g); o = { type, g, m, pris: false }; reserveObjets.push(o);
       }
       o.pris = true; o.g.visible = true; return o;
@@ -635,13 +645,103 @@ const ZRENDU = (() => {
           const clign = o.age > 38 && Math.floor(o.age * 6) % 2 === 0;
           _q.setFromEuler(_e.set(0, t * 2 + o.id, 0)); _v.set(o.x, (o.vole ? 0.35 : 0.05 + Math.abs(Math.sin(t * 3 + o.id)) * 0.08), o.z); const k = clign ? 0.001 : 0.9 + Math.min(o.valeur, 8) * 0.06; _s.set(k, k, k);
           _base.compose(_v, _q, _s); ferraille.setMatrixAt(n++, _base);
+        } else if (o.type === 'bonus') { // (il flotte, tourne, et clignote ses 3 dernières secondes)
+          const r = objetRare('bonus:' + o.bonus); r.g.position.set(o.x, Math.sin(t * 3 + o.id) * 0.1, o.z); r.m.rotation.y = t * 2; r.socle.scale.setScalar(1 + Math.sin(t * 5) * 0.08);
+          r.g.visible = !(o.age > D.BONUS_CHANCE.dure - 3 && Math.floor(o.age * 7) % 2 === 0);
         } else {
-          const r = objetRare(o.type); r.g.position.set(o.x, Math.sin(t * 2.5 + o.id) * 0.06, o.z); r.m.rotation.y = t * 0.8;
+          const r = objetRare(o.type === 'caisse' && o.rare ? 'caisseRare' : o.type); r.g.position.set(o.x, Math.sin(t * 2.5 + o.id) * 0.06, o.z); r.m.rotation.y = t * 0.8;
         }
       }
       ferraille.count = n; ferraille.instanceMatrix.needsUpdate = true;
       for (const o of reserveObjets) if (!o.pris) o.g.visible = false;
     }
+
+    // ─── le Lot 4 : les icônes des bonus, les auras, les leurres, le largage, les pièges ───
+    // l'icône d'un bonus (un rond de sa couleur, un symbole blanc), dessinée une fois dans un canvas ; la même sert au HUD
+    const icones = {};
+    function canvasIcone(k) {
+      if (icones[k]) return icones[k];
+      const B = D.BONUS[k] || { couleur: '#888' }, n = 128, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), m = n / 2;
+      g.fillStyle = B.couleur; g.strokeStyle = '#1F2533'; g.lineWidth = 8; g.beginPath(); g.arc(m, m, m - 6, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineCap = 'round'; g.lineJoin = 'round';
+      if (k === 'rage' || k === 'double') { g.font = 'bold 56px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 6; g.strokeStyle = '#1F2533'; g.strokeText('×2', m, m + 3); g.fillText('×2', m, m + 3); if (k === 'double') { g.lineWidth = 5; g.strokeStyle = '#fff'; g.beginPath(); for (let a = 0; a < 6; a++) g.lineTo(m + Math.cos(a / 6 * 6.28) * 46, m + Math.sin(a / 6 * 6.28) * 46); g.closePath(); g.stroke(); } }
+      else if (k === 'bouclier') { g.beginPath(); g.moveTo(m, 22); g.lineTo(m + 36, 34); g.quadraticCurveTo(m + 34, 86, m, 106); g.quadraticCurveTo(m - 34, 86, m - 36, 34); g.closePath(); g.fill(); }
+      else if (k === 'aimant') { g.lineWidth = 18; g.beginPath(); g.arc(m, m + 4, 26, Math.PI, 0, true); g.stroke(); g.fillRect(m - 35, 30, 18, 20); g.fillRect(m + 17, 30, 18, 20); }
+      else if (k === 'ralenti') { g.beginPath(); g.moveTo(m - 28, 26); g.lineTo(m + 28, 26); g.lineTo(m, m); g.closePath(); g.moveTo(m - 28, 102); g.lineTo(m + 28, 102); g.lineTo(m, m); g.closePath(); g.fill(); }
+      else if (k === 'bombe') { g.beginPath(); g.arc(m - 4, m + 8, 30, 0, 7); g.fill(); g.lineWidth = 7; g.beginPath(); g.moveTo(m + 14, m - 16); g.quadraticCurveTo(m + 30, m - 40, m + 40, m - 30); g.stroke(); g.fillStyle = '#FFE07A'; g.beginPath(); g.arc(m + 42, m - 32, 8, 0, 7); g.fill(); }
+      else if (k === 'leurre') { g.lineWidth = 9; for (const r of [36, 20]) { g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke(); } g.beginPath(); g.arc(m, m, 7, 0, 7); g.fill(); }
+      return (icones[k] = c);
+    }
+    const texIcones = {};
+    function textureIcone(k) { if (!texIcones[k]) { const t = new T.CanvasTexture(canvasIcone(k)); if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; texIcones[k] = t; } return texIcones[k]; }
+    function iconeBonus(k) { return canvasIcone(k).toDataURL('image/png'); }
+    // les auras du survivant : une bulle bleue (le bouclier), un anneau de sa couleur à ses pieds (rage, double ferraille, super-aimant)
+    const geoBulle = new T.SphereGeometry(1, 18, 12), geoAura = new T.RingGeometry(0.78, 1.0, 32).rotateX(-Math.PI / 2);
+    function auras(s, j, t, dt) {
+      const E = j.effets || {};
+      if (!s.bulle) { s.bulle = new T.Mesh(geoBulle, new T.MeshBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.2, depthWrite: false, blending: T.AdditiveBlending })); s.bulle.position.y = 1.05; s.g.add(s.bulle);
+        s.aura = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#E5533D', transparent: true, opacity: 0.85, depthWrite: false })); s.aura.position.y = 0.05; s.g.add(s.aura); } // (accrochées au survivant : elles partent avec lui)
+      const b = E.bouclier || 0; s.bulle.visible = b > 0 && j.vivant && !(b < 1.5 && Math.floor(b * 8) % 2 === 0); if (s.bulle.visible) { s.bulle.scale.setScalar(1.15 + Math.sin(t * 6) * 0.04); s.bulle.material.opacity = 0.16 + Math.sin(t * 9) * 0.05; }
+      const k = ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
+      if (k) { s.aura.material.color.set(D.BONUS[k].couleur); s.aura.rotation.y = t * 2; s.aura.scale.setScalar((k === 'aimant' ? 1.6 : 1.1) + Math.sin(t * 7) * 0.07); if (k === 'rage' && Math.random() < dt * 14) particule(j.x + (Math.random() - 0.5) * 0.8, 0.3, j.z + (Math.random() - 0.5) * 0.8, 0, 2.5 + Math.random() * 2, 0, 0.45, 0.08, Math.random() < 0.5 ? '#FF5A3A' : '#FFB347', 0); }
+    }
+    // le leurre : un mannequin de bois et sa cible, un cercle rose qui pulse à ses pieds
+    const reserveLeurres = [];
+    function leurre3d() {
+      const g = new T.Group(), F = new Fab();
+      F.add(cyl(0.05, 0.06, 1.2, 6), '#7A5634', mat(0, 0.6, 0)); F.add(BOITE, '#C9A06A', mat(0, 1.25, 0, 0, 0.55, 0.65, 0.3)); F.add(BOITE, '#C9A06A', mat(0, 1.25, 0, 0, 1.0, 0.14, 0.14));
+      F.add(new T.SphereGeometry(0.2, 10, 8), '#D8B07A', mat(0, 1.75, 0)); F.add(BOITE, '#E5533D', mat(0, 1.3, 0.16, 0, 0.32, 0.32, 0.02)); F.add(BOITE, '#FFFFFF', mat(0, 1.3, 0.17, 0, 0.18, 0.18, 0.02)); F.add(BOITE, '#E5533D', mat(0, 1.3, 0.18, 0, 0.07, 0.07, 0.02));
+      const m = new T.Mesh(F.geo(), matVC); m.castShadow = true; g.add(m);
+      const r = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#F28CB8', transparent: true, opacity: 0.8, depthWrite: false })); r.position.y = 0.05; g.add(r);
+      scene.add(g); const o = { g, r }; reserveLeurres.push(o); return o;
+    }
+    function majLeurres(jeu, t) {
+      const l = jeu.leurres || []; let i = 0;
+      for (const L of l) { const o = reserveLeurres[i] || leurre3d(); i++; o.g.visible = !(L.t < 2 && Math.floor(L.t * 6) % 2 === 0); o.g.position.set(L.x, 0, L.z); o.g.rotation.y = Math.sin(t * 3 + L.id) * 0.15; o.r.scale.setScalar(1.2 + (t * 1.5 % 1) * 2.4); o.r.material.opacity = 0.7 * (1 - (t * 1.5 % 1)); }
+      for (; i < reserveLeurres.length; i++) reserveLeurres[i].g.visible = false;
+    }
+    // le largage : la fumée verte qui monte du point de chute, un anneau qui pulse au sol, puis la caisse qui descend sous son parachute
+    let largage3d = null, fumeeAcc = 0;
+    function majLargage(jeu, t, dt) {
+      const la = jeu.largage;
+      if (!largage3d) {
+        const g = new T.Group(), F = new Fab();
+        const caisse = new T.Mesh(geoCaisse, matVC); caisse.castShadow = true; g.add(caisse);
+        F.add(new T.SphereGeometry(1.3, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#F2EDE4', mat(0, 2.6, 0)); for (const [x, z] of [[0.9, 0.9], [-0.9, 0.9], [0.9, -0.9], [-0.9, -0.9]]) F.add(BOITE, '#4A4F57', mat(x * 0.45, 1.65, z * 0.45, 0, 0.03, 1.9, 0.03, z * 0.42, -x * 0.42));
+        const para = new T.Mesh(F.geo(), matVC); g.add(para);
+        const anneau = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#2FBF4A', transparent: true, opacity: 0.9, depthWrite: false })); anneau.position.y = 0.06; scene.add(anneau);
+        scene.add(g); largage3d = { g, anneau };
+      }
+      const L = largage3d, vu = !!(la && la.pose);
+      L.anneau.visible = vu; L.g.visible = vu && la.t < 2.6;
+      if (!vu) return;
+      L.anneau.position.set(la.x, 0.06, la.z); L.anneau.scale.setScalar(1.2 + Math.sin(t * 6) * 0.2); L.anneau.rotation.y = t;
+      fumeeAcc += dt * 12; while (fumeeAcc >= 1) { fumeeAcc--; fumee(la.x + (Math.random() - 0.5) * 0.5, 0.3, la.z + (Math.random() - 0.5) * 0.5, 1.0 + Math.random() * 0.5, 2.6, Math.random() < 0.5 ? '#2FBF4A' : '#6FE07F'); }
+      if (L.g.visible) { const h = Math.max(0, la.t / 2.6) * 20; L.g.position.set(la.x, h, la.z); L.g.rotation.y = t * 0.6; L.g.rotation.z = Math.sin(t * 2) * 0.08; }
+    }
+    // les pièges : la grille (cerclée de jaune et noir) et son interrupteur (un poteau, un bouton au sol, un voyant : vert prêt, bleu allumé, rouge
+    // qui recharge) ; allumée, la grille luit et crépite
+    let pieges3d = null, piegesDe = null;
+    function majPieges(jeu, t) {
+      const l = jeu.pieges || [];
+      if (piegesDe !== jeu) {
+        if (pieges3d) for (const p of pieges3d) { scene.remove(p.g); }
+        piegesDe = jeu; pieges3d = l.map((p) => {
+          const g = new T.Group(), F = new Fab(), r = D.PIEGE.rayon;
+          F.add(cyl(r, r, 0.08, 28), '#2E3238', mat(p.x, 0.04, p.z)); for (let k = -2; k <= 2; k++) { F.add(BOITE, '#5C6168', mat(p.x + k * r * 0.36, 0.09, p.z, 0, 0.06, 0.03, r * 1.7 * Math.sqrt(1 - (k * 0.36) ** 2))); F.add(BOITE, '#5C6168', mat(p.x, 0.09, p.z + k * r * 0.36, 0, r * 1.7 * Math.sqrt(1 - (k * 0.36) ** 2), 0.03, 0.06)); }
+          for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; F.add(BOITE, k % 2 ? '#F2C230' : '#1F2533', mat(p.x + Math.cos(a) * (r - 0.1), 0.1, p.z + Math.sin(a) * (r - 0.1), -a, 0.2, 0.04, 0.85 * r * Math.PI / 8 / 0.85 * 0.5)); }
+          F.add(cyl(0.55, 0.55, 0.06, 16), '#4A4F57', mat(p.sx, 0.03, p.sz)); F.add(cyl(0.4, 0.4, 0.08, 16), '#E5533D', mat(p.sx, 0.07, p.sz)); F.add(BOITE, '#5C6168', mat(p.sx + 0.7, 0.45, p.sz, 0, 0.16, 0.9, 0.16));
+          const m = new T.Mesh(F.geo(), matVC); m.receiveShadow = true; g.add(m);
+          const voyant = new T.Mesh(new T.SphereGeometry(0.15, 10, 8), new T.MeshBasicMaterial({ color: '#5CE06A' })); voyant.position.set(p.sx + 0.7, 0.98, p.sz); g.add(voyant);
+          const lueur = new T.Mesh(new T.CircleGeometry(r * 0.96, 28).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#7FDBFF', transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending })); lueur.position.set(p.x, 0.12, p.z); g.add(lueur);
+          scene.add(g); return { g, voyant, lueur };
+        });
+      }
+      l.forEach((p, i) => { const o = pieges3d[i]; if (!o) return;
+        o.voyant.material.color.set(p.etat === 'actif' ? '#7FDBFF' : p.etat === 'recharge' ? '#B8342A' : '#5CE06A'); o.voyant.scale.setScalar(p.etat === 'pret' ? 1 + Math.sin(t * 4) * 0.2 : 1);
+        o.lueur.material.opacity = p.etat === 'actif' ? 0.28 + Math.sin(t * 30) * 0.12 : 0; });
+    }
+    function zap(e) { const r = D.PIEGE.rayon; for (let k = 0; k < 3; k++) { const a0 = Math.random() * 6.28, a1 = a0 + 1.5 + Math.random() * 2, r0 = Math.random() * r * 0.9, r1 = Math.random() * r * 0.9; const pts = [[e.x + Math.cos(a0) * r0, e.z + Math.sin(a0) * r0], [e.x + Math.cos(a1) * r1, e.z + Math.sin(a1) * r1]]; for (let i = 0; i < 3; i++) { const f0 = i / 3, f1 = (i + 1) / 3, j0 = i ? 0.3 : 0, j1 = i < 2 ? 0.3 : 0; segment(pts[0][0] + (pts[1][0] - pts[0][0]) * f0 + (Math.random() - 0.5) * j0, 0.2 + Math.random() * 0.4, pts[0][1] + (pts[1][1] - pts[0][1]) * f0 + (Math.random() - 0.5) * j0, pts[0][0] + (pts[1][0] - pts[0][0]) * f1 + (Math.random() - 0.5) * j1, 0.2 + Math.random() * 0.4, pts[0][1] + (pts[1][1] - pts[0][1]) * f1 + (Math.random() - 0.5) * j1, 0.07, '#BFF0FF', 0.12); } } if (Math.random() < 0.5) lumiere(e.x, 1, e.z, '#7FDBFF', 10, 6, 0.12); }
 
     // ─── les défenses : un groupe par défense posée, fait de morceaux partagés par type ───
     const geosDef = {};
@@ -816,7 +916,7 @@ const ZRENDU = (() => {
     function fumee(x, y, z, k, vie, couleur) { const o = fumees[iFumee]; iFumee = (iFumee + 1) % fumees.length; o.sp.position.set(x, y, z); o.k = k; o.t = 0; o.vie = vie; o.vx = (Math.random() - 0.5) * 0.6; o.vz = (Math.random() - 0.5) * 0.6; o.sp.material.color.set(couleur); o.sp.material.rotation = Math.random() * 6.28; o.sp.visible = true; }
     const ondes = []; for (let i = 0; i < 6; i++) { const m = new T.Mesh(new T.RingGeometry(0.82, 1, 28).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#FFD08A', transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, fog: false })); m.visible = false; scene.add(m); ondes.push({ m, t: 0, r: 1 }); }
     let iOnde = 0;
-    function onde(x, z, r) { const o = ondes[iOnde]; iOnde = (iOnde + 1) % ondes.length; o.m.position.set(x, 0.06, z); o.r = r; o.t = 0; o.m.visible = true; }
+    function onde(x, z, r, couleur) { const o = ondes[iOnde]; iOnde = (iOnde + 1) % ondes.length; o.m.position.set(x, 0.06, z); o.r = r; o.t = 0; o.m.material.color.set(couleur || '#FFD08A'); o.m.visible = true; }
     function majEffets(dt) {
       // (un éclair ou un flash tout neuf est montré au moins une image entière, même quand les images sont lentes)
       for (const o of eclats) if (o.sp.visible) { if (o.neuf) { o.neuf = false; continue; } o.t -= dt; o.sp.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.sp.visible = false; }
@@ -1020,12 +1120,21 @@ const ZRENDU = (() => {
             else flaque(e.x, e.z, 1.6, '#2A2420');
             break;
           case 'casse': boum(e.x, e.z, 1.0); break;
+          case 'bonus': {
+            const B = D.BONUS[e.bonus] || { couleur: '#FFF' }; onde(e.x, e.z, 1.6, B.couleur); for (let k = 0; k < 14; k++) { const a = Math.random() * 6.28, v = 2 + Math.random() * 3; particule(e.x, 0.7, e.z, Math.cos(a) * v, 2 + Math.random() * 3, Math.sin(a) * v, 0.5, 0.09, B.couleur, 0); }
+            if (e.bonus === 'bombe') { const j = jeu.joueurs.find((x) => x.id === e.id); if (j) { boum(j.x, j.z, 4.5); onde(j.x, j.z, e.r || 14, '#FFFFFF'); onde(j.x, j.z, (e.r || 14) * 0.6, '#FF8A3A'); lumiere(j.x, 3, j.z, '#FFF2C0', 60, 30, 0.45); secousse = Math.max(secousse, 0.8); } }
+            break;
+          }
+          case 'largue': { secousse = Math.max(secousse, 0.15); for (let k = 0; k < 4; k++) fumee(e.x + (Math.random() - 0.5) * 1.5, 0.3, e.z + (Math.random() - 0.5) * 1.5, 0.9, 1.4, '#B8A88A'); for (let k = 0; k < 12; k++) { const a = Math.random() * 6.28; particule(e.x, 0.2, e.z, Math.cos(a) * 3, 1.5 + Math.random() * 2, Math.sin(a) * 3, 0.6, 0.1, '#C8B48A', 0.2); } break; }
+          case 'piege': onde(e.x, e.z, D.PIEGE.rayon * 1.3, '#7FDBFF'); break;
+          case 'zap': zap(e); break;
         }
       }
       majSurvivants(jeu, idMoi, dt);
       majZombies(jeu, dt);
       majBoss(jeu, dt);
       majObjets(jeu);
+      { const tps = performance.now() / 1000; for (const j of jeu.joueurs) { const s = survivants.get(j.id); if (s) auras(s, j, tps, dt); } majLeurres(jeu, tps); majLargage(jeu, tps, dt); majPieges(jeu, tps); }
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majDisquesZones(jeu, dt);
@@ -1122,7 +1231,7 @@ const ZRENDU = (() => {
       const px2 = petit.getContext('2d'); px2.imageSmoothingQuality = 'high'; px2.drawImage(grand, 0, 0, L, L);
       const url = petit.toDataURL('image/png'); portraits.set(cle, url); return url;
     }
-    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, vitrine, get enVitrine() { return vit; }, portrait, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
+    return { charger, image, taille, qualite: regler, ecranDe, stats, cinema, decaler: (v) => { decalVoulu = +v || 0; }, vitrine, get enVitrine() { return vit; }, portrait, iconeBonus, renderer, scene, camera, get morceaux() { return morceaux.length; }, get particules() { return particules.length; } };
   }
   return { creer };
 })();

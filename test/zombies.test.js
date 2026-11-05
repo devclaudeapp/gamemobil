@@ -375,6 +375,57 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
 }
 
 // ─── un joueur automatique sur chaque arène : plusieurs vagues tenues, aucune bloquée ; le temps de calcul ───
+// ─── le Lot 4 : les bonus au sol, les leurres, les largages, les pièges ───
+{
+  const z1 = (id, x, z, vie) => { const Z = D.ZOMBIES.trainard; return { id, type: 'trainard', x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: Z.vitesse, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 0, coup: 0.5, crache: 1, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const nouvelle = (o) => { const jeu = J.creer(Object.assign({ arene: 'jardin', graine: 21, attente: 99 }, o || {})); jeu.joueurs[0].xp = -1e9; return jeu; };
+  check(Object.keys(D.BONUS).length === 7 && Object.values(D.BONUS).every((b) => b.nom && b.desc && /^#[0-9A-F]{6}$/i.test(b.couleur) && b.poids > 0 && b.duree >= 0), 'sept bonus au sol (rage, bouclier, super-aimant, double ferraille, ralenti, bombe, leurre), chacun sa couleur');
+  // le second tirage : la partie d'avant ne change pas (même graine → mêmes vagues, même tirage principal)
+  { const a = J.creer({ arene: 'jardin', graine: 5 }); const b = J.creer({ arene: 'jardin', graine: 5 }); check(a.rnd() === b.rnd() && typeof a.rndB === 'function' && a.rndB() !== a.rnd(), 'bonus, largages et pièges tirent à part : le tirage principal reste celui d’avant'); }
+  // la rage double les dégâts ; le bouclier arrête tout ; le super-aimant attire de loin ; la double ferraille compte double
+  { const jeu = nouvelle(), j = jeu.joueurs[0], m0 = J.multDegats(j); J.appliquerBonus(jeu, j, 'rage', j.x, j.z); check(Math.abs(J.multDegats(j) - m0 * 2) < 1e-9 && j.effets.rage === 8, 'la rage : dégâts ×2 pendant 8 s'); }
+  { const jeu = nouvelle({ attente: 0.1 }), j = jeu.joueurs[0]; J.appliquerBonus(jeu, j, 'bouclier', j.x, j.z); jeu.zombies.push(z1(9001, j.x + 0.9, j.z)); const v0 = j.vie; avancer(jeu, 60 * 2); check(j.vie === v0 && j.effets.bouclier > 0, `le bouclier : un zombie au contact, aucun coup ne passe (${j.vie} / ${v0})`); avancer(jeu, 60 * 5); check(!j.effets.bouclier && j.vie < v0, 'le bouclier fini, les coups repassent'); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; jeu.objets.push({ id: 8001, type: 'ferraille', x: j.x + 9, z: j.z, valeur: 4, age: 0, vole: false }); avancer(jeu, 60 * 2); const loin = jeu.objets.some((o) => o.id === 8001); J.appliquerBonus(jeu, j, 'aimant', j.x, j.z); J.appliquerBonus(jeu, j, 'double', j.x, j.z); const f0 = j.ferraille; avancer(jeu, 60 * 2); check(loin && !jeu.objets.some((o) => o.id === 8001) && j.ferraille === f0 + 8, `le super-aimant attire une ferraille à 9 m, la double ferraille la compte double (+${j.ferraille - f0})`); }
+  // le ralenti : les zombies avancent moins vite
+  { const pas = (bonus) => { const jeu = nouvelle(), j = jeu.joueurs[0]; jeu.zombies.push(z1(9002, j.x + 12, j.z)); if (bonus) J.appliquerBonus(jeu, j, 'ralenti', j.x, j.z); avancer(jeu, 60); return 12 - Math.hypot(jeu.zombies[0].x - j.x, jeu.zombies[0].z - j.z); };
+    const a = pas(false), b = pas(true); check(b > 0 && b < a * 0.75, `le ralenti : les zombies avancent ${b.toFixed(2)} m au lieu de ${a.toFixed(2)} m`); }
+  // la bombe : tout ce qui est autour tombe, le boss encaisse
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; for (let k = 0; k < 6; k++) jeu.zombies.push(z1(9100 + k, j.x + 3 + k, j.z + (k % 2 ? 2 : -2), 300)); jeu.zombies.push(z1(9200, j.x + 30, j.z, 300)); const evs = []; J.appliquerBonus(jeu, j, 'bombe', j.x, j.z); for (const x of J.pas(jeu, null, PAS)) evs.push(x);
+    check(jeu.zombies.filter((z) => z.id >= 9100 && z.id < 9200 && z.vie > 0).length === 0 && jeu.zombies.some((z) => z.id === 9200), 'la bombe : les six zombies autour tombent, celui à 30 m reste'); }
+  // le leurre : la horde le préfère au survivant
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; jeu.zombies.push(z1(9300, j.x + 6, j.z + 0.5)); J.appliquerBonus(jeu, j, 'leurre', j.x + 9, j.z + 6); const L = jeu.leurres[0]; const d0 = Math.hypot(jeu.zombies[0].x - L.x, jeu.zombies[0].z - L.z); avancer(jeu, 60 * 2);
+    const z = jeu.zombies[0]; check(L && Math.hypot(z.x - L.x, z.z - L.z) < d0 - 1, `le leurre : le zombie marche vers lui (${d0.toFixed(1)} m → ${Math.hypot(z.x - L.x, z.z - L.z).toFixed(1)} m)`); avancer(jeu, 60 * 7); check(jeu.leurres.length === 0, 'le leurre disparaît au bout de 8 s'); }
+  // les bonus tombent des zombies (une élite bien plus souvent), restent 14 s, et se ramassent
+  { let n = 0, m = 0; for (let g = 1; g <= 40; g++) { const jeu = J.creer({ arene: 'jardin', graine: g, attente: 0.1 }); jeu.joueurs[0].vie = jeu.joueurs[0].vieMax = 1e6; jeu.joueurs[0].xp = -1e9; avancer(jeu, 60 * 40, () => ({ mx: 0, mz: 0 })); n += jeu.stats.tues; m += jeu.objets.filter((o) => o.type === 'bonus').length; }
+    check(m > 0, `des bonus tombent des zombies (${m} au sol pour ${n} zombies abattus)`); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; jeu.objets.push({ id: 8100, type: 'bonus', bonus: 'rage', x: j.x + 0.5, z: j.z, valeur: 0, age: 0, vole: false }); const evs = avancer(jeu, 5); check(j.effets.rage > 0 && evs.some((e) => e.t === 'bonus' && e.bonus === 'rage'), 'marcher dessus : le bonus s’applique et s’annonce'); jeu.objets.push({ id: 8101, type: 'bonus', bonus: 'rage', x: j.x + 20, z: j.z, valeur: 0, age: 0, vole: false }); avancer(jeu, 60 * 15); check(!jeu.objets.some((o) => o.id === 8101), 'un bonus pas ramassé disparaît au bout de 14 s'); }
+  // le largage : à partir de la vague 3, la fumée, la caisse rare qui tombe, son arme rare et sa ferraille
+  { const jeu = J.creer({ arene: 'jardin', graine: 8, vagueDepart: 3, attente: 0.1 }), j = jeu.joueurs[0]; j.vie = j.vieMax = 1e6; j.xp = -1e9; const evs = avancer(jeu, 60 * 30, () => ({ mx: 0, mz: 0 }));
+    const fu = evs.find((e) => e.t === 'largage'), at = evs.find((e) => e.t === 'largue'), c = jeu.objets.find((o) => o.type === 'caisse' && o.rare);
+    check(fu && at && c && Math.abs(c.x - fu.x) < 1e-6 && Math.hypot(c.x - j.x, c.z - j.z) >= 5, `le largage : la fumée (${fu ? fu.x.toFixed(1) + ', ' + fu.z.toFixed(1) : '—'}), puis la caisse rare tombe ${D.LARGAGE.delai} s plus tard, à quelques pas`);
+    if (c) { const f0 = j.ferraille; c.x = j.x + 0.3; c.z = j.z; const e2 = avancer(jeu, 3); const r = e2.find((e) => e.t === 'ramasse' && e.quoi === 'caisse'); check(r && r.rare && j.ferraille >= f0 + D.LARGAGE.ferraille && j.armes[1], `la caisse rare : une arme (${r && r.arme}) et ${D.LARGAGE.ferraille} de ferraille`); } }
+  { const jeu = J.creer({ arene: 'jardin', graine: 8, attente: 0.1 }); jeu.joueurs[0].vie = jeu.joueurs[0].vieMax = 1e6; jeu.joueurs[0].xp = -1e9; const evs = avancer(jeu, 60 * 30, () => ({ mx: 0, mz: 0 })); check(!evs.some((e) => e.t === 'largage'), 'pas de largage aux deux premières vagues'); }
+  // les largages en caisse rare sortent des armes plus rares qu'une caisse ordinaire
+  { const moy = (rare) => { let s = 0; for (let g = 1; g <= 200; g++) { const jeu = J.creer({ arene: 'jardin', graine: g }); jeu.vague = 6; const j = jeu.joueurs[0]; jeu.objets.push({ id: 7000, type: 'caisse', rare, x: j.x, z: j.z, valeur: 0, age: 0, vole: false }); J.pas(jeu, null, PAS); s += D.ARMES[j.armes[1].id].rarete; } return s / 200; };
+    const a = moy(false), b = moy(true); check(b < a * 0.75, `une caisse larguée sort des armes plus rares (rareté moyenne ${b.toFixed(1)} contre ${a.toFixed(1)})`); }
+  // les pièges : deux par arène, sur un sol libre ; l'interrupteur (10 de ferraille) l'allume 8 s, il blesse ce qui est sur la grille, puis recharge 30 s
+  { const jeu = nouvelle(), j = jeu.joueurs[0], P = D.PIEGE;
+    check(jeu.pieges.length === 2 && jeu.pieges.every((p) => !jeu.monde.bloque(p.x, p.z, 0.6) && !jeu.monde.bloque(p.sx, p.sz, 0.6) && Math.hypot(p.x, p.z) >= 7), 'deux pièges dans le Jardin, sur un sol libre, loin du centre');
+    const p = jeu.pieges[0]; j.ferraille = 5; j.x = p.sx; j.z = p.sz; let evs = avancer(jeu, 3); check(p.etat === 'pret' && evs.some((e) => e.t === 'piegeCher'), 'sans assez de ferraille, l’interrupteur le dit et ne fait rien');
+    j.ferraille = 30; const zb = z1(9400, p.x + 0.4, p.z, 1000); zb.vitesse = 0.001; jeu.zombies.push(zb); evs = avancer(jeu, 60 * 2);
+    check(p.etat === 'actif' && j.ferraille === 30 - P.cout && evs.some((e) => e.t === 'piege') && zb.vie < 1000 - P.dps * 1.5, `l’interrupteur l’allume (−${P.cout} de ferraille) : le zombie sur la grille perd ${Math.round(1000 - zb.vie)} points de vie en 2 s`);
+    j.x += 6; avancer(jeu, 60 * 7); check(p.etat === 'recharge', 'au bout de 8 s il s’éteint et recharge'); avancer(jeu, 60 * 31); check(p.etat === 'pret', 'trente secondes plus tard, il est de nouveau prêt'); }
+  { const jeu = J.creer({ arene: 'jardin', graine: 3, mode: 'duel', joueurs: [{ id: 'a' }, { id: 'b' }] }); check(jeu.pieges.length === 0, 'pas de pièges en duel ni en chacun pour soi'); }
+  // à plusieurs : l'instantané de l'hôte porte tout ça jusqu'aux copains (la place des pièges se déduit de la graine, la même des deux côtés)
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'jardin', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h = J.creer(o), g = J.creer(o), ja = h.joueurs[0];
+    J.appliquerBonus(h, ja, 'rage', ja.x, ja.z); J.appliquerBonus(h, ja, 'leurre', ja.x + 2, ja.z); J.appliquerBonus(h, ja, 'ralenti', 0, 0);
+    h.objets.push({ id: 5, type: 'bonus', bonus: 'bombe', x: 1, z: 2, valeur: 0, age: 0, vole: false }, { id: 6, type: 'caisse', rare: true, x: 3, z: 2, valeur: 30, age: 0, vole: false });
+    h.largage = { pose: true, x: 4, z: 5, t: 2 }; h.pieges[0].etat = 'actif'; h.pieges[0].t = 5;
+    ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
+    check(g.joueurs[0].effets.rage > 0 && g.leurres.length === 1 && g.ralenti > 0 && g.largage && g.largage.x === 4 && g.pieges[0].etat === 'actif' && g.pieges.every((p, i) => p.x === h.pieges[i].x)
+      && g.objets.some((x) => x.type === 'bonus' && x.bonus === 'bombe') && g.objets.some((x) => x.type === 'caisse' && x.rare), 'à plusieurs : bonus, effets, leurre, ralenti, largage et pièges arrivent chez les copains'); }
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;

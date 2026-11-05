@@ -363,6 +363,25 @@
     finitionTous: 3, // une finition d'arme tous les trois échelons
   };
 
+  // ─── les objets du Lot 4 ───
+  // les bonus au sol : un zombie tombé en laisse parfois un (une élite bien plus souvent) ; ramassé, il agit aussitôt (la bombe, le leurre)
+  // ou pendant « duree » secondes ; « poids » : sa chance relative d'être tiré
+  const BONUS = {
+    rage:     { nom: 'Rage',             desc: 'Dégâts ×2',                       duree: 8,  couleur: '#E5533D', poids: 3, facteur: 2 },
+    bouclier: { nom: 'Bouclier',         desc: 'Plus aucun coup ne passe',        duree: 6,  couleur: '#4FC3F7', poids: 2 },
+    aimant:   { nom: 'Super-aimant',     desc: 'La ferraille vient de loin',      duree: 12, couleur: '#B57CFF', poids: 3, rayon: 14 },
+    double:   { nom: 'Double ferraille', desc: 'Chaque ferraille compte double',  duree: 15, couleur: '#FFD24A', poids: 3 },
+    ralenti:  { nom: 'Ralenti',          desc: 'Les zombies au ralenti',          duree: 6,  couleur: '#7FE0D0', poids: 2, facteur: 0.45 },
+    bombe:    { nom: 'Bombe',            desc: 'Nettoie tout autour de toi',      duree: 0,  couleur: '#FF8A3A', poids: 1, rayon: 14, boss: 400 },
+    leurre:   { nom: 'Leurre',           desc: 'Un mannequin qui attire la horde', duree: 8, couleur: '#F28CB8', poids: 2, attire: 12 },
+  };
+  const BONUS_CHANCE = { zombie: 0.03, elite: 0.35, dure: 14 }; // (dure : il reste au sol 14 s)
+  // les largages : à partir de la vague 3, une fois par vague, une fumée verte annonce une caisse rare (une arme rare, de la ferraille) qui
+  // tombe « delai » secondes plus tard, à quelques pas ; à toi d'aller la chercher
+  const LARGAGE = { depuis: 3, delai: 4, apres: [8, 20], ferraille: 30, distance: [6, 18] };
+  // les pièges des arènes : une grille au sol et son interrupteur ; marcher sur l'interrupteur (avec assez de ferraille) l'allume
+  const PIEGE = { nombre: 2, cout: 10, duree: 8, recharge: 30, dps: 70, rayon: 2.2 };
+
   // ─── la collection ───
   // les survivants (Blocky Characters de Kenney, texture a … r ; le Gardien est le fossoyeur du Graveyard Kit) ; pour les obtenir : prix (des
   // médailles, au Vestiaire), ou un exploit (echelon : l'échelon de l'Ascension atteint ; boss, vague, defis, coop : voir ui.js) — les
@@ -428,5 +447,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

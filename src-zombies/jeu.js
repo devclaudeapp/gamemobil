@@ -52,11 +52,15 @@
       // l'Ascension : l'objectif de l'échelon, sa météo (les chutes : foudre, météores), ses vedettes ; gagne : true / false à la fin
       objectif: o.objectif ? Object.assign({}, o.objectif) : null, meteo: o.meteo || A.meteo || 'clair', chutes: [], vedettes: o.vedettes || [], vaguesFinies: 0, tempsVague: 0, gagne: null,
     };
+    // le Lot 4 : un second tirage (bonus, largages, pièges : le premier reste celui d'avant, les parties à graine fixe ne changent pas),
+    // les leurres posés, le ralenti en cours, le largage de la vague, les pièges de l'arène
+    jeu.rndB = mulberry32(((jeu.graine ^ 0x5bd1e995) >>> 0) || 7); jeu.leurres = []; jeu.ralenti = 0; jeu.largage = null;
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
     // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
     if (o.mode === 'cps' || o.mode === 'duel') jeu.mode = o.mode;
     jeu.gagnant = '';
+    jeu.pieges = o.sansPieges || jeu.mode ? [] : poserPieges(jeu);
     // en solo, un niveau passé met la partie en pause le temps du choix ; à plusieurs, chacun choisit sans arrêter les autres
     jeu.pauseChoix = o.pauseChoix != null ? !!o.pauseChoix : !(o.joueurs && o.joueurs.length > 1);
     const liste = o.joueurs && o.joueurs.length ? o.joueurs : [{ id: 'moi', pseudo: 'Moi' }];
@@ -64,7 +68,7 @@
       const a = (k / liste.length) * TAU, p = monde.libreProche(A.depart[0] + (liste.length > 1 ? Math.cos(a) * 1.2 : 0), A.depart[1] + (liste.length > 1 ? Math.sin(a) * 1.2 : 0), D.JOUEUR.rayon, 6) || A.depart;
       jeu.joueurs.push({
         id: j.id, pseudo: j.pseudo || 'Survivant', x: p[0], z: p[1], vx: 0, vz: 0, angle: -Math.PI / 2, rayon: D.JOUEUR.rayon,
-        vie: D.JOUEUR.vie, vieMax: D.JOUEUR.vie, vivant: true, invul: 0,
+        vie: D.JOUEUR.vie, vieMax: D.JOUEUR.vie, vivant: true, invul: 0, effets: {},
         armes: [{ id: D.ARME_DE_BASE, mun: Infinity }, null], main: 0, attente: 0, cible: 0, visee: 0,
         ferraille: o.ferraille != null ? o.ferraille : 0, score: 0, tues: 0, niveaux: {}, bouge: 0,
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
@@ -97,12 +101,12 @@
   const ev = (jeu, e) => { jeu.evs.push(e); };
   const niveau = (j, type) => j.niveaux[type] || 0;
   const rang = (j, k) => j.atouts[k] || 0;
-  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par);
+  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par) * (j.effets && j.effets.rage > 0 ? D.BONUS.rage.facteur : 1);
   const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
   const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
   const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
-  const aimant = (j) => D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par;
+  const aimant = (j) => Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
   function compteDefenses(jeu, type) { let n = 0; for (const d of jeu.defenses) if (d.type === type) n++; return n; }
   const prixDefense = (jeu, type) => (D.DEFENSES[type] ? D.DEFENSES[type].prix : Infinity);
@@ -122,6 +126,7 @@
     }
     const O = jeu.objectif;
     if (O && O.type === 'contrat' && !O.lance) { O.lance = true; if (fairesortir(jeu, O.cible)) { const e = jeu.zombies[jeu.zombies.length - 1]; e.vie = e.vieMax = Math.round(e.vieMax * O.vie); e.elite = true; O.id = e.id; } }
+    if (!jeu.mode && !jeu.mod.sansLargage && jeu.vague >= D.LARGAGE.depuis) { const L = D.LARGAGE; jeu.largage = { t: L.apres[0] + jeu.rndB() * (L.apres[1] - L.apres[0]), pose: false }; }
     ev(jeu, { t: 'vague', n: jeu.vague, total: jeu.totalVague, boss: jeu.bossAVenir });
   }
   function poserCaisse(jeu) {
@@ -304,6 +309,7 @@
       jeu.objets.push({ id: nouvelId(jeu), type: 'ferraille', x: zb.x + Math.cos(a) * r, z: zb.z + Math.sin(a) * r, valeur: v, age: 0, vole: false });
     }
     if (rnd() < (Z.boss ? 1 : 0.035) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'soin', x: zb.x + 0.4, z: zb.z, valeur: 30, age: 0, vole: false });
+    if (!Z.boss && !jeu.mode && jeu.rndB() < (zb.elite ? D.BONUS_CHANCE.elite : D.BONUS_CHANCE.zombie) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'bonus', bonus: tirerBonus(jeu), x: zb.x - 0.3, z: zb.z + 0.2, valeur: 0, age: 0, vole: false });
     if (Z.boss) poserCaisse(jeu);
     const dc = zb.dernier || { px: 0, pz: 0, fort: false };
     ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss, kx: Math.round(dc.px * 100) / 100, kz: Math.round(dc.pz * 100) / 100, fort: dc.fort });
@@ -494,6 +500,9 @@
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
     majObjets(jeu, dt);
+    majEffets(jeu, dt);
+    majLargage(jeu, dt);
+    majPieges(jeu, dt);
     majChutes(jeu, dt);
     majLave(jeu, dt);
     majObjectif(jeu, dt);
@@ -597,6 +606,7 @@
   }
   function blesserJoueur(jeu, j, deg, continu) {
     if (!j.vivant || (j.invul > 0 && !continu) || (continu && j.invul > D.JOUEUR.invulnerable)) return; // (relevé : vraiment invulnérable)
+    if (j.effets && j.effets.bouclier > 0) { if (!continu) ev(jeu, { t: 'pare', id: j.id, x: j.x, z: j.z }); return; } // (le bouclier : rien ne passe)
     j.vie -= deg; if (!continu) j.invul = D.JOUEUR.invulnerable;
     ev(jeu, { t: 'blesse', id: j.id, degats: Math.round(deg) });
     if (j.vie <= 0) { j.vie = 0; j.vivant = false; j.releve = 0; j.choix = null; ev(jeu, { t: 'tombe', id: j.id }); majChoixGlobal(jeu); }
@@ -612,11 +622,12 @@
       if (jeu.t - zb.naissance < SORTIE) { zb.bouge = 0; continue; } // il sort de terre : ni pas ni coup
       // il brûle (un peu toutes les 0,33 s), il est gelé (il avance moins vite)
       if (zb.feu > 0) { zb.feu -= dt; zb.feuT = (zb.feuT || 0) - dt; if (zb.feuT <= 0) { zb.feuT = 0.33; blesserZombie(jeu, zb, zb.feuDps * 0.33, 0, 0, zb.feuDe, false, false, true); if (zb.vie <= 0) continue; } }
-      const lent = zb.gel > 0 ? (zb.gel -= dt, D.ARMES.cryo.gel.ralenti) : 1;
+      const lent = (zb.gel > 0 ? (zb.gel -= dt, D.ARMES.cryo.gel.ralenti) : 1) * (jeu.ralenti > 0 ? D.BONUS.ralenti.facteur : 1);
       // la proie : le survivant le plus proche, ou un épouvantail tout près
       let cx = 0, cz = 0, proie = null, best = Infinity;
       for (const j of vivants) { const d = (j.x - zb.x) ** 2 + (j.z - zb.z) ** 2; if (d < best) { best = d; proie = j; } }
       for (const d of epouvantails) { const r = D.DEFENSES[d.type].attire, dd = (d.x - zb.x) ** 2 + (d.z - zb.z) ** 2; if (dd < r * r && dd < best * (d.type === 'radio' ? 4 : 1.6)) { best = dd; proie = d; } }
+      for (const L of jeu.leurres || []) { const r = D.BONUS.leurre.attire, dd = (L.x - zb.x) ** 2 + (L.z - zb.z) ** 2; if (dd < r * r && dd < best * 4) { best = dd; proie = L; } } // (le leurre : il les attire de loin)
       if (!proie) { zb.bouge = 0; continue; }
       cx = proie.x; cz = proie.z;
       const dist = Math.sqrt(best);
@@ -850,7 +861,7 @@
   function majObjets(jeu, dt) {
     for (let i = jeu.objets.length - 1; i >= 0; i--) {
       const o = jeu.objets[i]; o.age += dt;
-      if (o.type === 'ferraille' && o.age > DUREE_FERRAILLE) { jeu.objets.splice(i, 1); continue; }
+      if ((o.type === 'ferraille' && o.age > DUREE_FERRAILLE) || (o.type === 'bonus' && o.age > D.BONUS_CHANCE.dure)) { jeu.objets.splice(i, 1); continue; }
       let pris = null;
       for (const j of jeu.joueurs) {
         if (!j.vivant) continue;
@@ -863,16 +874,79 @@
       }
       if (!pris) continue;
       jeu.objets.splice(i, 1);
-      if (o.type === 'ferraille') { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur, x: o.x, z: o.z }); }
+      if (o.type === 'ferraille') { const v = o.valeur * (pris.effets && pris.effets.double > 0 ? 2 : 1); pris.ferraille += v; jeu.stats.ferraille += v; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: v, x: o.x, z: o.z }); }
+      else if (o.type === 'bonus') appliquerBonus(jeu, pris, o.bonus, o.x, o.z);
       else if (o.type === 'soin') { pris.vie = Math.min(pris.vieMax, pris.vie + o.valeur); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'soin', valeur: o.valeur }); }
-      else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a }); }
+      else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris, o.rare); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a, rare: !!o.rare }); if (o.rare && o.valeur) { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur, x: o.x, z: o.z }); } }
     }
   }
-  function ouvrirCaisse(jeu, j) {
+  // ─── le Lot 4 : les bonus, les leurres, le largage, les pièges ───
+  function tirerBonus(jeu) { const l = Object.keys(D.BONUS); let s = 0; for (const k of l) s += D.BONUS[k].poids; let r = jeu.rndB() * s; for (const k of l) { r -= D.BONUS[k].poids; if (r <= 0) return k; } return l[0]; }
+  function appliquerBonus(jeu, j, k, x, z) {
+    const B = D.BONUS[k]; if (!B) return;
+    if (k === 'bombe') { for (const zb of jeu.zombies) if (zb.vie > 0 && Math.hypot(zb.x - j.x, zb.z - j.z) < B.rayon) blesserZombie(jeu, zb, D.ZOMBIES[zb.type].boss ? B.boss : zb.vie + 1, 0, 0, j.id, false, true); }
+    else if (k === 'leurre') { jeu.leurres.push({ id: nouvelId(jeu), type: 'leurre', x, z, rayon: 0.45, vie: 1e9, vieMax: 1e9, t: B.duree }); if (jeu.leurres.length > 3) jeu.leurres.shift(); }
+    else if (k === 'ralenti') jeu.ralenti = B.duree;
+    else j.effets[k] = B.duree;
+    ev(jeu, { t: 'bonus', id: j.id, bonus: k, x, z, r: B.rayon || 0 });
+  }
+  function majEffets(jeu, dt) {
+    for (const j of jeu.joueurs) for (const k in j.effets) { j.effets[k] -= dt; if (j.effets[k] <= 0) { delete j.effets[k]; ev(jeu, { t: 'finBonus', id: j.id, bonus: k }); } }
+    if (jeu.ralenti > 0) { jeu.ralenti -= dt; if (jeu.ralenti <= 0) { jeu.ralenti = 0; ev(jeu, { t: 'finBonus', id: '', bonus: 'ralenti' }); } }
+    for (let i = jeu.leurres.length - 1; i >= 0; i--) { const L = jeu.leurres[i]; L.t -= dt; if (L.flash > 0) L.flash -= dt; if (L.t <= 0) { jeu.leurres.splice(i, 1); ev(jeu, { t: 'finLeurre', x: L.x, z: L.z }); } }
+  }
+  function majLargage(jeu, dt) {
+    const la = jeu.largage, L = D.LARGAGE; if (!la || jeu.phase !== 'vague') return;
+    la.t -= dt; if (la.t > 0) return;
+    if (!la.pose) { // sa place : à quelques pas d'un survivant, sur un sol libre
+      const j0 = jeu.joueurs.find((j) => j.vivant); if (!j0) return; const demi = jeu.A.taille / 2 - 3;
+      for (let e = 0; e < 30; e++) {
+        const a = jeu.rndB() * TAU, d = L.distance[0] + jeu.rndB() * (L.distance[1] - L.distance[0]), x = j0.x + Math.cos(a) * d, z = j0.z + Math.sin(a) * d;
+        if (Math.abs(x) > demi || Math.abs(z) > demi || jeu.monde.bloque(x, z, 1.0)) continue;
+        la.pose = true; la.x = x; la.z = z; la.t = L.delai; ev(jeu, { t: 'largage', x, z, delai: L.delai }); return;
+      }
+      jeu.largage = null; return;
+    }
+    jeu.objets.push({ id: nouvelId(jeu), type: 'caisse', rare: true, x: la.x, z: la.z, valeur: L.ferraille, age: 0, vole: false });
+    ev(jeu, { t: 'largue', x: la.x, z: la.z }); jeu.largage = null;
+  }
+  function poserPieges(jeu) {
+    const P = D.PIEGE, demi = jeu.A.taille / 2 - 4, r = jeu.rndB, l = [], m = jeu.monde;
+    const libre = (x, z, rr) => { if (m.bloque(x, z, 0.6)) return false; for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; if (m.bloque(x + Math.cos(a) * rr, z + Math.sin(a) * rr, 0.4)) return false; } return true; };
+    for (let e = 0; e < 120 && l.length < P.nombre; e++) {
+      const a = r() * TAU, d = 7 + r() * Math.max(1, demi - 7), x = Math.cos(a) * d, z = Math.sin(a) * d;
+      if (Math.abs(x) > demi || Math.abs(z) > demi || !libre(x, z, P.rayon) || l.some((p) => Math.hypot(p.x - x, p.z - z) < 11)) continue;
+      const as = r() * TAU, sx = x + Math.cos(as) * (P.rayon + 1.5), sz = z + Math.sin(as) * (P.rayon + 1.5);
+      if (Math.abs(sx) > demi || Math.abs(sz) > demi || m.bloque(sx, sz, 0.7)) continue;
+      l.push({ id: l.length, x, z, sx, sz, etat: 'pret', t: 0, tic: 0, cher: 0 });
+    }
+    return l;
+  }
+  function majPieges(jeu, dt) {
+    const P = D.PIEGE;
+    for (const p of jeu.pieges || []) {
+      if (p.etat === 'actif') {
+        p.t -= dt; p.tic -= dt;
+        if (p.tic <= 0) { p.tic = 0.25; for (const zb of jeu.zombies) if (zb.vie > 0 && (zb.x - p.x) ** 2 + (zb.z - p.z) ** 2 < P.rayon * P.rayon) blesserZombie(jeu, zb, P.dps * 0.25, 0, 0, 'piege', false, false, true); ev(jeu, { t: 'zap', id: p.id, x: p.x, z: p.z }); }
+        if (p.t <= 0) { p.etat = 'recharge'; p.t = P.recharge; }
+        continue;
+      }
+      if (p.etat === 'recharge') { p.t -= dt; if (p.t <= 0) { p.etat = 'pret'; p.t = 0; ev(jeu, { t: 'piegePret', id: p.id, x: p.x, z: p.z }); } continue; }
+      if (p.cher > 0) p.cher -= dt;
+      for (const j of jeu.joueurs) {
+        if (!j.vivant || Math.hypot(j.x - p.sx, j.z - p.sz) > 0.9) continue;
+        if (j.ferraille >= P.cout) { j.ferraille -= P.cout; p.etat = 'actif'; p.t = P.duree; p.tic = 0; ev(jeu, { t: 'piege', id: p.id, de: j.id, x: p.x, z: p.z }); }
+        else if (p.cher <= 0) { p.cher = 3; ev(jeu, { t: 'piegeCher', id: j.id, cout: P.cout }); }
+        break;
+      }
+    }
+  }
+  function ouvrirCaisse(jeu, j, rare) {
     // une arme au hasard parmi celles permises à cette vague (pondérées par leur rareté)
-    const n = Math.max(1, jeu.vague), l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= n);
-    let s = 0; for (const k of l) s += D.ARMES[k].rarete; let r = jeu.rnd() * s, id = l[0];
-    for (const k of l) { r -= D.ARMES[k].rarete; if (r <= 0) { id = k; break; } }
+    const n = Math.max(1, jeu.vague) + (rare ? 4 : 0), l = Object.keys(D.ARMES).filter((k) => D.ARMES[k].rarete > 0 && D.ARMES[k].depuis <= n);
+    const poids = (k) => (rare ? 400 / D.ARMES[k].rarete : D.ARMES[k].rarete), tir = rare ? jeu.rndB : jeu.rnd; // (largage : les plus rares d'abord)
+    let s = 0; for (const k of l) s += poids(k); let r = tir() * s, id = l[0];
+    for (const k of l) { r -= poids(k); if (r <= 0) { id = k; break; } }
     const A = D.ARMES[id], slot = j.armes[1];
     if (slot && slot.id === id) slot.mun += A.munitions; else j.armes[1] = { id, mun: A.munitions };
     j.main = 1; j.attente = Math.min(j.attente, 0.15);
@@ -941,5 +1015,5 @@
     const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
