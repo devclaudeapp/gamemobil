@@ -71,6 +71,8 @@ const ZHUD = (() => {
     R.innerHTML = `
       <div class="h-vie"><span class="h-coeur">${ICO.coeur}</span><div class="h-barre"><i></i></div><b class="h-vie-n contour">100</b></div>
       <div class="h-xp"><span class="h-niv">N1</span><div class="h-xp-barre"><i></i></div></div>
+      <div class="h-effets" aria-live="polite"></div>
+      <div class="h-lent" aria-hidden="true"></div>
       <canvas class="h-carte" width="132" height="132" aria-label="Mini-carte"></canvas>
       <div class="h-centre">
         <div class="h-ligne"><span class="h-tues contour"><span class="ico">${ICO.crane}</span><b>0</b></span><span class="h-ferraille contour"><span class="ico">${ICO.ecrou}</span><b>0</b><small>FERRAILLE</small></span></div>
@@ -94,7 +96,7 @@ const ZHUD = (() => {
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
       </div>
       <div class="h-trouve" hidden></div>
-      <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i></div></div>
+      <div class="h-boss" hidden><span class="contour">MASTODONTE</span><div class="h-barre rouge"><i></i><u class="cran c2"></u><u class="cran c1"></u></div></div>
       <div class="h-toast" hidden></div>
       <div class="h-rouge"></div>
       <div class="h-flash"></div>
@@ -161,7 +163,10 @@ const ZHUD = (() => {
     if (carteJeu !== jeu.A) fondCarte(jeu);
     const g = el.carte.getContext('2d'), k = 132 / jeu.A.taille, h = jeu.A.taille / 2;
     g.drawImage(carteFond, 0, 0);
-    g.fillStyle = '#F2C230'; for (const o of jeu.objets) if (o.type === 'caisse') g.fillRect((o.x + h) * k - 3, (o.z + h) * k - 3, 6, 6);
+    for (const p of jeu.pieges || []) { g.strokeStyle = p.etat === 'actif' ? '#7FDBFF' : p.etat === 'pret' ? '#F2C230' : '#6A6F78'; g.lineWidth = 1.5; g.beginPath(); g.arc((p.x + h) * k, (p.z + h) * k, D.PIEGE.rayon * k + 1, 0, 7); g.stroke(); }
+    if (jeu.largage && jeu.largage.pose) { const la = jeu.largage, pulse = 3 + (performance.now() / 160 % 4); g.strokeStyle = '#5BD16B'; g.lineWidth = 2; g.beginPath(); g.arc((la.x + h) * k, (la.z + h) * k, pulse, 0, 7); g.stroke(); }
+    for (const o of jeu.objets) { if (o.type === 'caisse') { g.fillStyle = o.rare ? '#C79BFF' : '#F2C230'; g.fillRect((o.x + h) * k - 3, (o.z + h) * k - 3, 6, 6); } else if (o.type === 'bonus' && D.BONUS[o.bonus]) { g.fillStyle = D.BONUS[o.bonus].couleur; g.beginPath(); g.arc((o.x + h) * k, (o.z + h) * k, 2.6, 0, 7); g.fill(); } }
+    g.fillStyle = '#F28CB8'; for (const L of jeu.leurres || []) g.fillRect((L.x + h) * k - 2.5, (L.z + h) * k - 2.5, 5, 5);
     g.fillStyle = '#7FD3FF'; for (const d of jeu.defenses) g.fillRect((d.x + h) * k - 2, (d.z + h) * k - 2, 4, 4);
     g.fillStyle = '#FF5A4A'; for (const z of jeu.zombies) { const s = D.ZOMBIES[z.type].boss ? 6 : 3; g.fillRect((z.x + h) * k - s / 2, (z.z + h) * k - s / 2, s, s); }
     for (const j of jeu.joueurs) { if (!j.vivant) continue; g.fillStyle = j.id === idMoi ? '#FFFFFF' : '#9AD0FF'; g.fillRect((j.x + h) * k - 3, (j.z + h) * k - 3, 6, 6); }
@@ -182,6 +187,11 @@ const ZHUD = (() => {
     // la série
     const m = jeu.serie.mult > 1 && jeu.t - jeu.serie.t <= D.SERIE.fenetre ? jeu.serie.mult : 1;
     if (vu.serie !== m) { vu.serie = m; el.serie.hidden = m <= 1; el.serie.textContent = `SÉRIE ×${m}`; el.serie.dataset.m = m; }
+    // les bonus en cours (les tiens, et le ralenti de tous) : une pastille par bonus, son icône et ses secondes
+    { const E = Object.assign({}, j.effets || {}); if (jeu.ralenti > 0) E.ralenti = jeu.ralenti;
+      const cle = Object.keys(E).sort().map((k) => k + Math.ceil(E[k])).join('|');
+      if (vu.effets !== cle) { vu.effets = cle; const box = R.querySelector('.h-effets'); box.innerHTML = Object.keys(E).sort().map((k) => { const B = D.BONUS[k]; return B ? `<span class="h-effet${E[k] < 2 ? ' fin' : ''}" style="--c:${B.couleur}" title="${B.nom}">${A.iconeBonus ? `<img alt="" src="${iconeDe(k)}">` : ''}<b>${Math.ceil(E[k])}</b></span>` : ''; }).join(''); }
+      R.classList.toggle('ralenti', jeu.ralenti > 0); }
     // la pause entre deux vagues
     const entre = jeu.phase === 'pause' && !jeu.fini;
     if (vu.entre !== entre) { vu.entre = entre; el.entre.hidden = !entre; }
@@ -230,7 +240,12 @@ const ZHUD = (() => {
     // le boss (ou l'élite d'un contrat)
     const boss = jeu.zombies.find((z) => D.ZOMBIES[z.type].boss) || jeu.zombies.find((z) => z.elite && z.vie > 0);
     if (vu.boss !== !!boss) { vu.boss = !!boss; el.boss.hidden = !boss; }
-    if (boss && vu.bossNom !== boss.type + (boss.elite ? 'e' : '')) { vu.bossNom = boss.type + (boss.elite ? 'e' : ''); el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '')).toUpperCase(); }
+    const cleBoss = boss ? boss.type + (boss.elite ? 'e' : '') + (boss.phase || 1) : '';
+    if (boss && vu.bossNom !== cleBoss) { // (le nom, la phase ; les crans des phases sur la barre, pour un vrai boss)
+      vu.bossNom = cleBoss; const ph = D.ZOMBIES[boss.type].boss ? boss.phase || 1 : 0;
+      el.bossN.textContent = (D.ZOMBIES[boss.type].nom + (boss.elite ? ' d’élite' : '') + (ph > 1 ? ` · phase ${ph}` : '')).toUpperCase();
+      el.boss.classList.toggle('phases', ph > 0); el.boss.classList.toggle('rage', ph >= 3);
+    }
     if (boss) el.bossB.style.width = `${Math.max(0, boss.vie / boss.vieMax) * 100}%`;
     // les événements : rougeur, annonces, messages
     if (evs) for (const e of evs) {
@@ -239,6 +254,12 @@ const ZHUD = (() => {
       else if (e.t === 'vagueFinie') annonce('VAGUE TERMINÉE', `+${e.prime} points · construis, améliore`, 2.4);
       else if (e.t === 'arme' && e.id === idMoi && D.ARMES[e.arme] && e.arme !== 'pistolet' && !e.trouvee) toast(`${D.ARMES[e.arme].nom} !`); // (trouvée : sa carte le dit déjà)
       else if (e.t === 'vide' && e.id === idMoi) toast('Plus de munitions : retour au pistolet');
+      else if (e.t === 'bonus' && e.id === idMoi && D.BONUS[e.bonus]) toast(`${D.BONUS[e.bonus].nom} ! ${D.BONUS[e.bonus].desc}`);
+      else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
+      else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
+      else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);
+      else if (e.t === 'piegeCher' && e.id === idMoi) toast(`Il faut ${e.cout} de ferraille pour allumer le piège`);
+      else if (e.t === 'piege' && e.de === idMoi) toast('Piège électrique allumé !');
       else if (e.t === 'serie' && e.mult >= 3) el.serie.classList.remove('pulse'), void el.serie.offsetWidth, el.serie.classList.add('pulse');
       else if (e.t === 'casse') toast(`${D.DEFENSES[e.type].nom} détruite`);
     }
@@ -332,6 +353,15 @@ const ZHUD = (() => {
     c.className = `h-trouve rar-${rar}`; c.innerHTML = `${img ? `<img alt="" src="${img}">` : iconeArme(id)}<span><small>ARME TROUVÉE · ${RARS[rar].toUpperCase()}</small><b>${Ar.nom}</b></span>`;
     c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 1900);
   }
+  // un ennemi encore jamais vu : sa carte (son nom, comment s'en sortir), un peu plus longtemps que celle d'une arme
+  function carteEnnemi(type) {
+    const Z = D.ZOMBIES[type], c = R.querySelector('.h-trouve'); if (!Z || !c) return;
+    if ((annonceT > 0 && !el.annonce.hidden) || (!c.hidden && !c.classList.contains('ennemi'))) { setTimeout(() => carteEnnemi(type), Math.max(annonceT * 1000, 600) + 80); return; }
+    c.className = 'h-trouve ennemi'; c.style.setProperty('--teinte', Z.teinte || '#9AA0A8');
+    c.innerHTML = `<i class="ennemi-ico" aria-hidden="true"></i><span><small>NOUVEL ENNEMI</small><b>${Z.nom}</b><em>${Z.astuce || ''}</em></span>`;
+    c.hidden = false; void c.offsetWidth; c.classList.add('vu'); clearTimeout(c.minuterie); c.minuterie = setTimeout(() => { c.hidden = true; }, 3600);
+  }
+  const iconesB = {}; const iconeDe = (k) => iconesB[k] || (iconesB[k] = A.iconeBonus(k));
   function chiffre(x, y, z, texte, classe) {
     const c = chiffres[iChiffre]; iChiffre = (iChiffre + 1) % NB_CHIFFRES;
     c.x = x; c.y = y; c.z = z; c.dx = (Math.random() - 0.5) * 26; c.duree = classe === 'crit' ? 0.9 : classe === 'niveau' ? 1.4 : 0.7; c.t = c.duree;

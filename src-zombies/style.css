@@ -681,3 +681,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .h-trouve { position: absolute; left: 50%; bottom: calc(116px + var(--hb)); transform: translateX(-50%); z-index: 2; }
 @keyframes trouve { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.9); } 10% { opacity: 1; transform: translateX(-50%); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%); } }
 @media (orientation: landscape) and (max-height: 400px) { .h-trouve { bottom: calc(100px + var(--hb)); } .h-trouve img { width: 64px; height: 36px; } .h-trouve b { font-size: 16px; } }
+/* le Lot 4 : les bonus en cours (une pastille par bonus, sous la barre d'expérience), le voile du ralenti */
+.h-effets { position: absolute; left: calc(132px + var(--hg)); top: calc(64px + var(--ht)); display: flex; gap: 5px; pointer-events: none; }
+.h-effet { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 2px; border-radius: 999px; background: var(--pastille); border: 2px solid var(--c); color: #fff; font: 700 14px/1 var(--titre); }
+.h-effet img { width: 24px; height: 24px; }
+.h-effet.fin { animation: effetFin .4s ease infinite alternate; }
+@keyframes effetFin { to { opacity: .45; } }
+.h-lent { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; background: radial-gradient(ellipse at center, transparent 55%, rgba(80, 210, 200, .35) 100%); }
+#hud.ralenti .h-lent { opacity: 1; }
+@media (orientation: portrait) { .h-effets { left: calc(12px + var(--hg)); top: calc(110px + var(--ht)); } }
+@media (prefers-reduced-motion: reduce) { .h-effet.fin { animation: none; } }
+
+/* ─── Lot 5 : les phases du boss, la carte d'un nouvel ennemi ─── */
+.h-boss .h-barre { position: relative; }
+.h-boss .cran { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, .75); display: none; }
+.h-boss .cran.c2 { left: 66.6%; } .h-boss .cran.c1 { left: 33.3%; }
+.h-boss.phases .cran { display: block; }
+.h-boss.rage .h-barre { box-shadow: 0 0 12px rgba(255, 60, 40, .75); animation: rage-boss .7s ease-in-out infinite alternate; }
+@keyframes rage-boss { from { filter: brightness(1); } to { filter: brightness(1.35); } }
+.h-trouve.ennemi { border-color: var(--teinte, #9AA0A8); max-width: min(86vw, 430px); }
+.h-trouve.ennemi small { color: #FF9A8A; }
+.h-trouve.ennemi em { font: 600 12px/1.25 var(--texte); font-style: normal; color: #E4E7EC; }
+.h-trouve.ennemi.vu { animation-duration: 3.6s; }
+.ennemi-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 50% 38%, var(--teinte, #9AA0A8) 0 46%, rgba(0, 0, 0, .35) 47%); position: relative; }
+.ennemi-ico::before, .ennemi-ico::after { content: ''; position: absolute; top: 13px; width: 7px; height: 7px; border-radius: 50%; background: #1F2533; box-shadow: 0 0 0 2px #FF4A3A; }
+.ennemi-ico::before { left: 11px; } .ennemi-ico::after { right: 11px; }
+@media (orientation: landscape) and (max-height: 400px) { .h-trouve.ennemi em { font-size: 11px; } .ennemi-ico { width: 32px; height: 32px; } .ennemi-ico::before, .ennemi-ico::after { top: 10px; } .ennemi-ico::before { left: 8px; } .ennemi-ico::after { right: 8px; } }
+@media (prefers-reduced-motion: reduce) { .h-boss.rage .h-barre { animation: none; } }
