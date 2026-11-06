@@ -7,7 +7,7 @@ const ZSONS = (() => {
   'use strict';
   const P = typeof PSONS !== 'undefined' ? PSONS : null;
   let actif = true, bus = null, busCtx = null, grogneT = 0;
-  const CLASSE = { pistolet: 'pistolet', mitraillette: 'mitraillette', pompe: 'pompe', fusil: 'fusil', sniper: 'sniper' };
+  const CLASSE = { pistolet: 'pistolet', mitraillette: 'mitraillette', pompe: 'pompe', fusil: 'fusil', sniper: 'sniper', toxine: 'pistolet' };
   function sortie() {
     const ctx = P && P.contexte; if (!ctx || ctx.state !== 'running' || !actif) return null;
     if (busCtx !== ctx) { bus = ctx.createGain(); bus.gain.value = 0.8; bus.connect(ctx.destination); busCtx = ctx; }
@@ -54,6 +54,15 @@ const ZSONS = (() => {
     laser(ctx, d, t, v) { osc(ctx, d, 'square', 1800, 300, t, 0.12, 0.08 * v, 0.003); osc(ctx, d, 'sine', 900, 200, t, 0.14, 0.12 * v, 0.003); },
     arc(ctx, d, t, v) { souffle(ctx, d, 'bandpass', 600, 1800, 3, t, 0.09, 0.4 * v); osc(ctx, d, 'triangle', 300, 120, t, 0.06, 0.12 * v, 0.002); },
     acide(ctx, d, t, v) { souffle(ctx, d, 'lowpass', 700, 200, 1.5, t, 0.2, 0.4 * v); osc(ctx, d, 'sine', 140, 70, t, 0.18, 0.2 * v); },
+    // le Lot 5b : la machette qui fend l'air, le canon sonique (une onde grave), la singularité (un grondement qui ondule), son implosion
+    lame(ctx, d, t, v) { souffle(ctx, d, 'bandpass', 900, 3200, 2.5, t, 0.16, 0.45 * v); souffle(ctx, d, 'highpass', 4000, 6000, 1, t + 0.05, 0.06, 0.08 * v); },
+    sonique(ctx, d, t, v) { osc(ctx, d, 'sine', 140, 40, t, 0.4, 0.5 * v, 0.004); osc(ctx, d, 'square', 70, 35, t, 0.25, 0.08 * v, 0.004); souffle(ctx, d, 'lowpass', 1200, 200, 0.7, t, 0.3, 0.3 * v); },
+    trou(ctx, d, t, v) {
+      const o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(45, t + 2.4);
+      lfo.frequency.value = 9; lg.gain.value = 18; lfo.connect(lg); lg.connect(o.frequency); env(ctx, g, t, 0.2, 2.5, 0.35 * v); o.connect(g); g.connect(d); o.start(t); lfo.start(t); o.stop(t + 2.6); lfo.stop(t + 2.6);
+      souffle(ctx, d, 'bandpass', 300, 1200, 2, t, 2.4, 0.12 * v);
+    },
+    implose(ctx, d, t, v) { osc(ctx, d, 'sine', 40, 160, t, 0.18, 0.5 * v, 0.004); souffle(ctx, d, 'lowpass', 300, 3000, 0.8, t, 0.18, 0.5 * v); SONS.boum(ctx, d, t + 0.16, v * 0.8); },
     piece(ctx, d, t, v, h) { osc(ctx, d, 'square', 1320 * h, 1320 * h, t, 0.05, 0.05 * v, 0.002); osc(ctx, d, 'square', 1760 * h, 1760 * h, t + 0.045, 0.08, 0.05 * v, 0.002); },
   };
   function jouer(nom, v, p, h) {
@@ -77,10 +86,11 @@ const ZSONS = (() => {
     for (const e of evs) {
       switch (e.t) {
         case 'tir': {
-          if (e.b) break; // une seule détonation pour les plombs d'un même coup
+          if (e.b || e.rb) break; // une seule détonation pour les plombs d'un même coup (et pas pour un ricochet)
           const mien = e.de === idMoi, [k, p] = mien ? [1, 0] : ecoute(e.x, e.z, 30);
           if (k > 0.02) {
             if (CLASSE[e.arme]) P.jouer(CLASSE[e.arme], (mien ? 0.75 : 0.45) * k, p, e.cle === 'tourelle' ? 1.25 : 1, mien ? 0 : 0.3);
+            else if (e.arme === 'trou') jouer('laser', (mien ? 0.9 : 0.5) * k, p);
             else if (SONS[e.arme]) { const t = performance.now(); if (e.arme !== 'flamme' && e.arme !== 'cryo' || t - souffleT > 90) { souffleT = t; jouer(e.arme, (mien ? 0.9 : 0.5) * k, p); } }
             else P.jouer('pistolet', 0.5 * k, p);
           }
@@ -145,6 +155,11 @@ const ZSONS = (() => {
         case 'prepare': { const [k, p] = ecoute(e.x, e.z, 34); if (k > 0.03) P.jouer('ding', 0.5 * k + 0.2, p, 0.6); break; }
         case 'frappe': { const [k, p] = ecoute(e.x, e.z, 36); jouer(e.genre === 'nova' ? 'cryo' : 'boum', 0.4 + 0.6 * k, p, e.genre === 'nova' ? 0.7 : 0.8); if (k > 0.4) P.vibrer(e.genre === 'nova' ? 30 : 45); break; }
         case 'eclipse': { const [k, p] = ecoute(e.x, e.z, 30); jouer('arc', 0.6 * k + 0.2, p, 0.6); break; }
+        // le Lot 5b : la roulade, la singularité qui s'ouvre puis implose, le poison qui passe aux voisins
+        case 'roule': if (e.id === idMoi) { P.jouer('glissade', 0.7); } else { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.1) P.jouer('glissade', 0.4 * k, p); } break;
+        case 'trou': { const [k, p] = ecoute(e.x, e.z, 30); jouer('trou', 0.3 + 0.7 * k, p); break; }
+        case 'implose': { const [k, p] = ecoute(e.x, e.z, 36); jouer('implose', 0.4 + 0.6 * k, p); if (k > 0.4) P.vibrer(40); break; }
+        case 'contagion': { const [k, p] = ecoute(e.x, e.z, 22); if (k > 0.05) jouer('acide', 0.4 * k, p); break; }
         case 'invoque': { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.03) { jouer('grogne', 0.9 * k + 0.1, p, 0.6); jouer('vague', 0.25 * k, p); } break; }
       }
     }

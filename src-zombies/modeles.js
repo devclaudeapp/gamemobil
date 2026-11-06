@@ -87,9 +87,10 @@ const ZMODELES = (() => {
   }
   // ─── les armes faites main, dans le style de l'Ultimate Gun Pack (formes simples, couleurs unies) : ce que le pack n'a pas ───
   // le canon vers −z, comme les modèles du pack ; arme() les traite pareil (taille, finitions)
-  const FAITS = ['minigun', 'roquettes', 'lancegrenades', 'flammes', 'arbalete'];
+  const FAITS = ['minigun', 'roquettes', 'lancegrenades', 'flammes', 'arbalete', 'machette', 'ricocheur', 'toxines', 'harpon', 'sonique', 'grappes', 'singularite'];
+  const LUEURS = { '#8CF05A': '#2E6A14', '#9B6BFF': '#4A2A9A', '#7FF0E0': '#1E6A60' }; // (les pièces qui luisent : le poison, le cœur de la singularité, l'émetteur sonique)
   function faitMain(id) {
-    const g = new T.Group(), mats = new Map(), mat = (c) => { if (!mats.has(c)) mats.set(c, new T.MeshLambertMaterial({ color: c })); return mats.get(c); };
+    const g = new T.Group(), mats = new Map(), mat = (c) => { if (!mats.has(c)) mats.set(c, new T.MeshLambertMaterial(LUEURS[c] ? { color: c, emissive: LUEURS[c] } : { color: c })); return mats.get(c); };
     const boite = (w, h, d, x, y, z, c, rx, ry, rz) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, rz || 0); g.add(m); return m; };
     const tube = (av, ar, l, x, y, z, c, n) => { const m = new T.Mesh(new T.CylinderGeometry(av, ar, l, n || 12), mat(c)); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); g.add(m); return m; }; // (av : le rayon devant, vers −z)
     const NOIR = '#1D1F22', METAL = '#3A3E44', ACIER = '#6A7078', BOIS = '#6B4A2F', OLIVE = '#4E5A32', KAKI = '#7C7A52';
@@ -113,6 +114,34 @@ const ZMODELES = (() => {
       boite(0.1, 0.13, 0.36, 0, 0.0, 0.0, METAL); boite(0.05, 0.15, 0.06, 0, -0.12, 0.1, NOIR, 0.25); boite(0.05, 0.12, 0.05, 0, -0.1, -0.28, NOIR);
       tube(0.085, 0.085, 0.34, 0, -0.16, 0.02, '#9C2F23', 14); tube(0.087, 0.087, 0.03, 0, -0.16, -0.12, NOIR, 14); tube(0.087, 0.087, 0.03, 0, -0.16, 0.16, NOIR, 14); // le réservoir
       boite(0.06, 0.1, 0.22, 0, 0.0, 0.3, NOIR);
+    } else if (id === 'machette') { // une lame large, un peu recourbée, le manche de bois et sa garde
+      boite(0.022, 0.13, 0.62, 0, 0.02, -0.26, '#C8CED6'); boite(0.024, 0.04, 0.6, 0, 0.085, -0.25, '#E8EDF2'); boite(0.022, 0.16, 0.12, 0, 0.0, -0.6, '#C8CED6', 0.35); // la lame, son fil, sa pointe
+      boite(0.05, 0.05, 0.2, 0, -0.01, 0.15, BOIS); boite(0.06, 0.06, 0.03, 0, -0.01, 0.26, NOIR); boite(0.07, 0.16, 0.03, 0, 0.01, 0.04, NOIR);
+    } else if (id === 'ricocheur') { // un fusil court, des ailettes orange au bout du canon (le déflecteur)
+      tube(0.03, 0.03, 0.5, 0, 0.03, -0.4, METAL, 10); for (let k = 0; k < 3; k++) boite(0.12, 0.02, 0.05, 0, 0.03 + (k - 1) * 0.04, -0.62, '#E0A040');
+      boite(0.08, 0.13, 0.4, 0, 0.0, 0.0, '#3A3E44'); boite(0.085, 0.035, 0.3, 0, 0.08, -0.02, '#E0A040'); boite(0.05, 0.15, 0.06, 0, -0.12, 0.08, NOIR, 0.25);
+      boite(0.05, 0.16, 0.07, 0, -0.12, -0.12, NOIR, -0.1); boite(0.06, 0.11, 0.24, 0, -0.01, 0.32, NOIR); boite(0.03, 0.05, 0.1, 0, 0.12, -0.12, NOIR);
+    } else if (id === 'toxines') { // une mitraillette, et sa fiole verte qui luit sur le dessus
+      tube(0.026, 0.026, 0.34, 0, 0.02, -0.38, METAL, 10); boite(0.08, 0.13, 0.38, 0, 0.0, -0.02, '#2F3A2C'); boite(0.05, 0.15, 0.06, 0, -0.12, 0.07, NOIR, 0.25);
+      tube(0.055, 0.055, 0.26, 0, 0.12, -0.04, '#8CF05A', 12); tube(0.06, 0.06, 0.03, 0, 0.12, -0.18, NOIR, 12); tube(0.06, 0.06, 0.03, 0, 0.12, 0.1, NOIR, 12);
+      boite(0.05, 0.18, 0.06, 0, -0.14, -0.16, NOIR); boite(0.05, 0.1, 0.22, 0, 0.0, 0.28, '#2F3A2C');
+    } else if (id === 'harpon') { // un long tube, le harpon à pointe barbelée qui dépasse, la corde enroulée
+      tube(0.04, 0.04, 0.8, 0, 0.02, -0.2, '#2E4A5E', 12); tube(0.012, 0.012, 0.5, 0, 0.02, -0.7, ACIER, 6); tube(0.0, 0.04, 0.12, 0, 0.02, -0.98, ACIER, 6);
+      boite(0.1, 0.012, 0.03, 0, 0.02, -0.9, ACIER, 0, 0, 0.6); boite(0.1, 0.012, 0.03, 0, 0.02, -0.9, ACIER, 0, 0, -0.6);
+      tube(0.07, 0.07, 0.1, 0, -0.08, -0.05, '#C8B07A', 14); boite(0.05, 0.15, 0.06, 0, -0.11, 0.12, NOIR, 0.25); boite(0.06, 0.12, 0.24, 0, -0.02, 0.36, '#4A8FB8');
+    } else if (id === 'sonique') { // un pavillon large qui s'ouvre vers l'avant, des anneaux, l'émetteur qui luit
+      tube(0.17, 0.05, 0.28, 0, 0.02, -0.5, '#5CC8C0', 16); tube(0.18, 0.18, 0.025, 0, 0.02, -0.64, NOIR, 16); tube(0.09, 0.09, 0.04, 0, 0.02, -0.36, '#7FF0E0', 14);
+      boite(0.12, 0.15, 0.34, 0, 0.0, -0.06, '#2A3A44'); for (let k = 0; k < 3; k++) tube(0.085, 0.085, 0.025, 0, 0.0, -0.18 + k * 0.1, '#5CC8C0', 12);
+      boite(0.05, 0.15, 0.06, 0, -0.13, 0.08, NOIR, 0.25); boite(0.07, 0.12, 0.2, 0, -0.01, 0.26, '#2A3A44');
+    } else if (id === 'grappes') { // un gros tube à quatre canons, le chargeur rond, la poignée
+      for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + Math.PI / 4; tube(0.045, 0.045, 0.42, Math.cos(a) * 0.065, 0.02 + Math.sin(a) * 0.065, -0.36, k % 2 ? METAL : '#C86A3A', 10); }
+      tube(0.12, 0.12, 0.05, 0, 0.02, -0.56, NOIR, 14); tube(0.13, 0.13, 0.22, 0, 0.0, -0.06, '#5A3A28', 10);
+      boite(0.09, 0.13, 0.3, 0, 0.0, 0.16, METAL); boite(0.05, 0.15, 0.06, 0, -0.12, 0.2, NOIR, 0.25); boite(0.06, 0.11, 0.2, 0, 0.0, 0.4, '#C86A3A');
+    } else if (id === 'singularite') { // le cœur violet qui luit dans sa cage d'anneaux, deux pointes devant
+      { const c = new T.Mesh(new T.SphereGeometry(0.1, 14, 10), mat('#9B6BFF')); c.position.set(0, 0.03, -0.32); g.add(c); }
+      for (let k = 0; k < 3; k++) { const r = new T.Mesh(new T.TorusGeometry(0.15, 0.018, 6, 20), mat(k === 1 ? '#C8B4FF' : '#3A2A6A')); r.position.set(0, 0.03, -0.32); r.rotation.set(k * 1.05, k * 0.6, 0); g.add(r); }
+      boite(0.03, 0.03, 0.3, 0.07, 0.03, -0.6, '#3A2A6A'); boite(0.03, 0.03, 0.3, -0.07, 0.03, -0.6, '#3A2A6A');
+      boite(0.11, 0.14, 0.34, 0, 0.0, 0.0, '#2A2244'); boite(0.05, 0.15, 0.06, 0, -0.12, 0.08, NOIR, 0.25); boite(0.07, 0.11, 0.22, 0, 0.0, 0.3, '#2A2244');
     } else if (id === 'arbalete') {
       boite(0.06, 0.07, 0.82, 0, 0, 0.18, BOIS); boite(0.07, 0.13, 0.22, 0, -0.03, 0.5, BOIS); boite(0.045, 0.14, 0.06, 0, -0.11, 0.24, NOIR, 0.25);
       boite(0.32, 0.035, 0.05, 0.16, 0.02, -0.2, METAL, 0, 0.32); boite(0.32, 0.035, 0.05, -0.16, 0.02, -0.2, METAL, 0, -0.32); // les branches de l'arc

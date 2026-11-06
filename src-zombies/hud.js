@@ -31,6 +31,7 @@ const ZHUD = (() => {
     vitesse: '<svg viewBox="0 0 40 40"><path d="M8 27c6 0 9-2 12-8l3-6 7 3-2 5h5l1 6c-8 2-18 3-26 0z" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M3 14h9M2 20h7" stroke="#2B2A33" stroke-width="2.5" stroke-linecap="round"/></svg>',
     portee: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="26" height="7" rx="3" fill="#6C6F7D" stroke="#2B2A33" stroke-width="2.5"/><rect x="12" y="9" width="14" height="7" rx="3" fill="#9B6BD6" stroke="#2B2A33" stroke-width="2.5"/><path d="M30 20h7" stroke="#2B2A33" stroke-width="3"/></svg>',
     butin: '<svg viewBox="0 0 40 40"><path d="M8 16h24l-2 18H10z" fill="#B98E5A" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 16a6 6 0 0 1 12 0" stroke="#2B2A33" stroke-width="2.5" fill="none"/><path d="M20 21l5 3v6l-5 3-5-3v-6z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/></svg>',
+    roulade: '<svg viewBox="0 0 40 40"><path d="M9 27a12 12 0 1 1 20 4" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><path d="M24 30l6 2 1-7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="19" r="4.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="2"/></svg>',
     grenade: '<svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="12" fill="#5E7A3E" stroke="#2B2A33" stroke-width="2.5"/><path d="M11 20h16M11 27h16M19 13v22" stroke="#3E5228" stroke-width="2"/><rect x="15" y="7" width="9" height="6" rx="1.5" fill="#9AA0A8" stroke="#2B2A33" stroke-width="2"/><path d="M24 9c5 0 7 3 6 7" stroke="#2B2A33" stroke-width="2.5" fill="none"/><circle cx="30" cy="17" r="2.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.5"/></svg>',
     medaille: '<svg viewBox="0 0 24 24"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="#D9534F"/><circle cx="12" cy="15" r="7" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.8"/><path d="M12 11l1.2 2.5 2.7.3-2 1.8.6 2.7-2.5-1.4-2.5 1.4.6-2.7-2-1.8 2.7-.3z" fill="#E0A61E"/></svg>',
     cadenas: '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="#9AA0A8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#9AA0A8" stroke-width="2.4" fill="none"/></svg>',
@@ -90,7 +91,7 @@ const ZHUD = (() => {
         </div>
         <div class="h-info" hidden></div>
       </div>
-      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button></div></div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button><button type="button" class="h-roulade" aria-label="Rouler"><span class="ico">${ICO.roulade}</span><span class="h-roul-voile"></span></button></div></div>
       <div class="h-milieu">
         <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
@@ -110,7 +111,7 @@ const ZHUD = (() => {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), roul: $('.h-roulade'), roulVoile: $('.h-roul-voile'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -121,6 +122,7 @@ const ZHUD = (() => {
     sur($('.h-pause'), () => A.pause && A.pause());
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
+    sur(el.roul, () => A.roulade && A.roulade());
     // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
     sur(el.emote, () => {
       if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
@@ -275,6 +277,9 @@ const ZHUD = (() => {
     // la grenade : le voile descend pendant le rechargement
     const gr = j.grenadeT > 0 ? j.grenadeT / Math.max(0.1, ZJEU.rechargeGrenade ? ZJEU.rechargeGrenade(j) : D.GRENADE.recharge) : 0, gk = gr > 0 ? Math.ceil(gr * 20) : 0;
     if (vu.gren !== gk) { vu.gren = gk; el.grenVoile.style.height = `${Math.min(100, gr * 100)}%`; el.gren.classList.toggle('prete', gk === 0); }
+    // la roulade : pareil (la recharge), cachée là où elle n'existe pas (l'Infection)
+    const rr = j.rouleCd > 0 ? j.rouleCd / D.ROULADE.recharge : 0, rk = rr > 0 ? Math.ceil(rr * 20) : 0;
+    if (vu.roul !== rk) { vu.roul = rk; el.roulVoile.style.height = `${Math.min(100, rr * 100)}%`; el.roul.classList.toggle('prete', rk === 0); }
     // le choix d'un atout (la partie attend)
     const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
