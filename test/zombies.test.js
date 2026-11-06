@@ -18,7 +18,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
 // ─── les données ───
 {
   const nombre = (v) => typeof v === 'number' && (Number.isFinite(v) || v === Infinity);
-  check(Object.values(D.ARMES).every((a) => a.nom && a.degats > 0 && a.cadence > 0 && a.portee > 0 && a.balles >= 1 && nombre(a.munitions) && a.munitions > 0 && ['pistolet', 'mitraillette', 'pompe', 'fusil', 'sniper', 'flamme', 'cryo', 'tesla', 'roquette', 'scie', 'laser', 'arc', 'acide'].includes(a.classe) && /^[a-r]$/.test(a.modele) && a.famille), `chaque arme (${Object.keys(D.ARMES).length}) a ses dégâts, sa cadence, sa portée, ses munitions, un son, sa famille et son blaster`);
+  check(Object.values(D.ARMES).every((a) => a.nom && a.degats > 0 && a.cadence > 0 && a.portee > 0 && a.balles >= 1 && nombre(a.munitions) && a.munitions > 0 && ['pistolet', 'mitraillette', 'pompe', 'fusil', 'sniper', 'flamme', 'cryo', 'tesla', 'roquette', 'scie', 'laser', 'arc', 'acide', 'lame', 'toxine', 'sonique', 'trou'].includes(a.classe) && /^[a-r]$/.test(a.modele) && a.famille), `chaque arme (${Object.keys(D.ARMES).length}) a ses dégâts, sa cadence, sa portée, ses munitions, un son, sa famille et son blaster`);
   check(D.ARMES[D.ARME_DE_BASE].munitions === Infinity && D.ARMES[D.ARME_DE_BASE].rarete === 0, 'l’arme de base (le pistolet) a des munitions sans fin et ne sort jamais d’une caisse');
   check(Object.values(D.ZOMBIES).every((z) => z.vie > 0 && z.vitesse > 0 && z.degats > 0 && z.rayon > 0 && z.ferraille >= 1 && z.points > 0 && /^#[0-9A-F]{6}$/i.test(z.peau)), 'chaque zombie a sa vie, sa vitesse, ses coups, sa ferraille, ses points et ses couleurs');
   check(Object.values(D.ZOMBIES).some((z) => z.boss) && D.VAGUES.boss(5) && !D.VAGUES.boss(4), 'un boss toutes les cinq vagues');
@@ -477,6 +477,50 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     const f = mk(1, 'fouisseur', 3, 3); f.terre = true; const bl = mk(2, 'blinde', 4, 4); bl.excite = 2; const bo = mk(3, 'vampire', 5, 5); bo.phase = 3; h.zombies.push(f, bl, bo); h.joueurs[0].gele = 2;
     ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b'); const G = (id) => g.zombies.find((z) => z.id === id);
     check(G(1).terre && !G(2).terre && G(2).excite > 0 && G(2).bouclier > 0 && G(3).phase === 3 && g.joueurs[0].gele > 0, 'à plusieurs : le fouisseur sous terre, le blindé excité et son bouclier, la phase du boss, le gel du survivant arrivent chez les copains'); }
+}
+// ─── le Lot 5b : sept armes à la mécanique à elles, la roulade ───
+{
+  const mk = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: 0.001, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const nouvelle = (o) => { const jeu = J.creer(Object.assign({ arene: 'jardin', graine: 41, attente: 99 }, o || {})); const j = jeu.joueurs[0]; j.xp = -1e9; j.vie = j.vieMax = 1e6; return jeu; };
+  const A = D.ARMES, nv = ['machette', 'ricocheur', 'toxines', 'harpon', 'sonique', 'grappes', 'singularite'];
+  check(nv.every((k) => A[k]) && A.machette.mode === 'lame' && A.ricocheur.ricochets > 0 && A.toxines.toxine && A.harpon.recul < 0 && A.sonique.mode === 'onde' && A.grappes.grappe && A.singularite.trou && Object.keys(A).length === 31, 'sept armes de plus (31), chacune sa mécanique : lame, ricochets, toxines, harpon, onde, grappe, singularité');
+  // la machette : tout ce qui est dans l'arc devant prend d'un coup ; derrière, rien
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const l = [mk(1, 'trainard', j.x + 1.6, j.z), mk(2, 'trainard', j.x + 1.3, j.z + 1.0), mk(3, 'trainard', j.x + 1.3, j.z - 1.0), mk(4, 'trainard', j.x - 1.5, j.z)]; jeu.zombies.push(...l);
+    J.tirer(jeu, j, A.machette, l[0], 'machette'); check(l.slice(0, 3).every((z) => z.vie < 1e5) && l[3].vie === 1e5, 'la machette : un coup touche les trois zombies devant, pas celui de derrière'); }
+  // le ricocheur : tirée vers le mur du bord, la balle revient et touche le zombie derrière le survivant
+  { const jeu = nouvelle(), j = jeu.joueurs[0], h = D.ARENES.jardin.taille / 2; let z0 = null; for (let z = -12; z <= 12 && z0 == null; z += 0.5) if (jeu.monde.passe(h - 9, z, h - 0.6, z, 0.3)) z0 = z;
+    j.x = h - 4; j.z = z0; j.angle = 0; const zb = mk(5, 'trainard', h - 7.5, z0); jeu.zombies.push(zb); jeu.evs.length = 0; J.tirer(jeu, j, Object.assign({}, A.ricocheur, { dispersion: 0 }), null, 'ricocheur');
+    check(z0 != null && zb.vie < 1e5 && jeu.evs.some((e) => e.t === 'tir' && e.rb === 1), `le ricocheur : la balle rebondit sur le mur et touche le zombie derrière le survivant (${(1e5 - zb.vie).toFixed(0)})`); }
+  // le fusil à toxines : le poison ronge, et passe aux voisins quand le zombie tombe
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const a = mk(6, 'trainard', j.x + 5, j.z, 200), b = mk(7, 'trainard', j.x + 6.2, j.z + 1.0, 500); jeu.zombies.push(a, b);
+    J.tirer(jeu, j, Object.assign({}, A.toxines, { dispersion: 0 }), a, 'toxines'); const v1 = a.vie; J.pas(jeu, null, PAS); jeu.joueurs[0].x -= 50; avancer(jeu, 60 * 2);
+    const ronge = a.vie < v1 - 15; a.vie = 1; let evs = avancer(jeu, 60); check(ronge && b.poison > 0 && evs.some((e) => e.t === 'contagion'), `les toxines : ${(v1 - Math.max(1, a.vie)).toFixed(0)} de poison en 2 s, puis la contagion au voisin quand il tombe`); }
+  // le fusil-harpon : le zombie touché est ramené vers le survivant
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const zb = mk(8, 'cracheur', j.x + 10, j.z); jeu.zombies.push(zb); J.tirer(jeu, j, A.harpon, zb, 'harpon'); j.x -= 0; avancer(jeu, 30);
+    const d = Math.hypot(zb.x - j.x, zb.z - j.z); check(d < 8.8, `le fusil-harpon : le zombie à 10 m est ramené à ${d.toFixed(1)} m`); }
+  // le canon sonique : repoussé loin, et étourdi (il ne bouge plus de lui-même le temps que ça dure)
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const zb = mk(9, 'trainard', j.x + 2.5, j.z); zb.vitesse = 1.5; jeu.zombies.push(zb); J.tirer(jeu, j, A.sonique, zb, 'sonique'); const e0 = zb.etourdi; avancer(jeu, 30);
+    const d = Math.hypot(zb.x - j.x, zb.z - j.z); check(e0 > 0.5 && d > 4.5, `le canon sonique : repoussé à ${d.toFixed(1)} m, étourdi ${e0.toFixed(1)} s`); }
+  // le lance-grappes : l'obus éclate, puis ses petites bombes autour
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const zb = mk(10, 'trainard', j.x + 7, j.z); jeu.zombies.push(zb); J.tirer(jeu, j, A.grappes, zb, 'grappes'); const evs = avancer(jeu, 90);
+    const b = evs.filter((e) => e.t === 'boum'); check(b.length === 1 + A.grappes.grappe.n && b.filter((e) => e.petite).length === A.grappes.grappe.n, `le lance-grappes : une explosion, puis ${b.length - 1} petites bombes`); }
+  // la singularité : elle aspire les zombies autour, puis implose
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; j.angle = 0; const c = mk(11, 'trainard', j.x + 8, j.z, 1e5), l = [mk(12, 'trainard', j.x + 8, j.z + 3, 1e5), mk(13, 'costaud', j.x + 10.5, j.z - 1, 1e5)]; jeu.zombies.push(c, ...l);
+    J.tirer(jeu, j, A.singularite, c, 'singularite'); let evs = avancer(jeu, 60); const T0 = jeu.trous[0], d0 = l.map((z) => T0 ? Math.hypot(z.x - T0.x, z.z - T0.z) : 0);
+    evs = avancer(jeu, 60 * 3); const d1 = l.map((z) => T0 ? Math.hypot(z.x - T0.x, z.z - T0.z) : 99);
+    check(T0 && d1.every((d, i) => d < d0[i] - 0.8) && evs.some((e) => e.t === 'implose') && jeu.trous.length === 0 && l.every((z) => z.vie < 1e5 - 100), `la singularité : elle aspire (${d0.map((d) => d.toFixed(1)).join(', ')} m → ${d1.map((d) => d.toFixed(1)).join(', ')} m) puis implose`); }
+  // la roulade : un bond de 3,4 m dans le sens du pouce, intouchable, puis la recharge
+  { const jeu = nouvelle(), j = jeu.joueurs[0], x0 = j.x; avancer(jeu, 5, { mx: 1, mz: 0 }); const xa = j.x; const r = J.roulade(jeu, j.id), ev0 = jeu.evs.some((e) => e.t === 'roule'); avancer(jeu, Math.round(D.ROULADE.duree * 60), { mx: 1, mz: 0 }); const fait = j.x - xa;
+    check(r.ok && ev0 && fait > D.ROULADE.distance * 0.9 && fait < D.ROULADE.distance * 1.15 && !J.roulade(jeu, j.id).ok, `la roulade : ${fait.toFixed(1)} m dans le sens du pouce, puis il faut attendre la recharge`); void x0;
+    avancer(jeu, 60 * D.ROULADE.recharge); check(J.roulade(jeu, j.id).ok, 'la recharge passée, elle revient'); }
+  { const jeu = nouvelle(), j = jeu.joueurs[0]; const zb = mk(14, 'costaud', j.x + 0.9, j.z); zb.coup = 0; jeu.zombies.push(zb); const v0 = j.vie; J.roulade(jeu, j.id); j.tire = null; avancer(jeu, 10); const pendant = j.vie;
+    const jeu2 = nouvelle(), j2 = jeu2.joueurs[0]; j2.tire = { de: 1, t: 0.5 }; J.roulade(jeu2, j2.id); check(pendant === v0 && j2.tire === null, 'pendant la roulade, rien ne le touche ; elle casse la chaîne d’un geôlier'); }
+  // à plusieurs : la singularité, la roulade, le poison et l'étourdissement arrivent chez les copains (et le copain roule tout de suite chez lui)
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'jardin', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h = J.creer(o), g = J.creer(o);
+    h.trous.push({ id: 77, x: 2, z: 3, t: 0.5, duree: 2.6, r: 4.6 }); const z1 = mk(1, 'trainard', 3, 3); z1.poison = 2; z1.etourdi = 0.5; h.zombies.push(z1); J.roulade(h, 'a');
+    ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b'); const G = g.zombies.find((z) => z.id === 1);
+    check(g.trous.length === 1 && g.trous[0].x === 2 && g.joueurs[0].roule > 0 && G.poison > 0 && G.etourdi > 0, 'à plusieurs : la singularité, la roulade du copain, le poison et l’étourdissement arrivent chez les autres'); }
 }
 {
   function bot(jeu) {

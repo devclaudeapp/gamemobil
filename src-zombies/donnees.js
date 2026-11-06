@@ -44,7 +44,20 @@
     plasma:        { nom: 'Fusil à plasma',    famille: 'energie', modele: 'c', teinte: '#B48CFF', degats: 30, cadence: 3,   portee: 12,  balles: 1,  dispersion: 0.02, munitions: 90,  perce: 0, recul: 0.3,  classe: 'laser',        couleur: '#9B6BFF', rarete: 8, depuis: 9, explose: { souffle: 1.4, degats: 28 } },
     flammes:       { nom: 'Lance-flammes',     famille: 'flamme', modele: 'b', teinte: '#FF8A3A', degats: 6,  cadence: 10,  portee: 4.8, balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0.05, classe: 'flamme',       couleur: '#FF7A1A', rarete: 10, depuis: 4, mode: 'flamme', cone: 0.36, feu: { dps: 16, duree: 2.5 } },
     cryo:          { nom: 'Cryo-canon',        famille: 'flamme', modele: 'c', teinte: '#9FE7FF', degats: 3,  cadence: 10,  portee: 5,   balles: 1,  dispersion: 0.0,  munitions: 300, perce: 0, recul: 0,    classe: 'cryo',         couleur: '#7FD6F5', rarete: 9, depuis: 7, mode: 'flamme', cone: 0.32, gel: { ralenti: 0.4, duree: 2.5 } },
+    // le Lot 5b : sept armes à la mécanique à elles. La machette (« lame » : un coup en arc de près, tout ce qui est dedans prend) ; le
+    // ricocheur (ses balles rebondissent sur les murs) ; le fusil à toxines (le poison ronge, et passe aux voisins quand le zombie tombe) ;
+    // le fusil-harpon (il ramène les zombies vers toi : un recul négatif) ; le canon sonique (« onde » : un cône qui repousse loin et
+    // étourdit) ; le lance-grappes (l'obus éclate en petites bombes) ; la singularité (« trou » : une sphère qui aspire tout puis implose)
+    machette:      { nom: 'Machette',          famille: 'lame', modele: 'b', teinte: '#C8CED6', degats: 48, cadence: 2.4, portee: 2.4, balles: 1,  dispersion: 0.0,  munitions: 140, perce: 99, recul: 1.4,  classe: 'lame',         couleur: '#9AA3AE', rarete: 20, depuis: 2, mode: 'lame', cone: 1.05 },
+    ricocheur:     { nom: 'Ricocheur',         famille: 'fusil', modele: 'g', teinte: '#E0A040', degats: 22, cadence: 4.2, portee: 12,  balles: 1,  dispersion: 0.04, munitions: 160, perce: 0, recul: 0.25, classe: 'fusil',        couleur: '#D08A2A', rarete: 13, depuis: 5, ricochets: 2 },
+    toxines:       { nom: 'Fusil à toxines',   famille: 'mitraillette', modele: 'd', teinte: '#7FD650', degats: 8,  cadence: 6,   portee: 10,  balles: 1,  dispersion: 0.06, munitions: 180, perce: 0, recul: 0.1,  classe: 'toxine',       couleur: '#5DBE3A', rarete: 14, depuis: 4, toxine: { dps: 12, duree: 4, contagion: 2.6 } },
+    harpon:        { nom: 'Fusil-harpon',      famille: 'sniper', modele: 'n', teinte: '#4A8FB8', degats: 58, cadence: 1.15, portee: 14, balles: 1,  dispersion: 0.0,  munitions: 32,  perce: 2, recul: -5,   classe: 'arc',          couleur: '#3A7AA8', rarete: 12, depuis: 6 },
+    sonique:       { nom: 'Canon sonique',     famille: 'energie', modele: 'c', teinte: '#8FE0D8', degats: 16, cadence: 1.3, portee: 6.5, balles: 1,  dispersion: 0.0,  munitions: 45,  perce: 0, recul: 7,    classe: 'sonique',      couleur: '#5CC8C0', rarete: 9, depuis: 7, mode: 'onde', cone: 0.62, etourdit: 0.9 },
+    grappes:       { nom: 'Lance-grappes',     famille: 'lanceur', modele: 'm', teinte: '#C86A3A', degats: 55, cadence: 0.9, portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 16,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#B85A2A', rarete: 8, depuis: 9, mode: 'obus', souffle: 1.9, grappe: { n: 5, r: 2.4, souffle: 1.4, degats: 34 } },
+    singularite:   { nom: 'Singularité',       famille: 'energie', modele: 'c', teinte: '#3A2A6A', degats: 95, cadence: 0.45, portee: 11, balles: 1,  dispersion: 0.0,  munitions: 8,   perce: 0, recul: 0,    classe: 'trou',         couleur: '#5A3AA8', rarete: 5, depuis: 12, mode: 'obus', trou: { r: 4.6, duree: 2.6, attire: 4.2, dps: 18, implose: 95, souffle: 3.2 } },
   };
+  // la roulade (Lot 5b) : un bond de côté, intouchable le temps qu'il dure ; la direction du pouce, ou à l'opposé de la cible à l'arrêt
+  const ROULADE = { duree: 0.34, distance: 3.4, recharge: 2.4 };
   // les raretés, d'après le poids dans les caisses (l'écran de la collection et la couleur du nom à la caisse)
   const RARETE = (a) => (a.rarete === 0 || a.rarete >= 20 ? 'commune' : a.rarete >= 12 ? 'rare' : a.rarete >= 8 ? 'epique' : 'legendaire');
   const ARME_DE_BASE = 'pistolet';
@@ -459,5 +472,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

@@ -349,7 +349,9 @@ const ZRENDU = (() => {
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
           if (ACC[zb.type] && zb.type !== 'fouisseur' && (zb.type !== 'blinde' || zb.bouclier > 0)) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.excite > 0 ? 4 : 0);
+          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.poison > 0 ? 5 : zb.excite > 0 ? 4 : 0);
+          if (zb.etourdi > 0 && Math.random() < dt * 8) { const b = temps * 8 + zb.id; particule(zb.x + Math.cos(b) * 0.4, 2.3 * Zd.taille, zb.z + Math.sin(b) * 0.4, 0, 0.3, 0, 0.35, 0.09, '#FFE84A', 0); } // (étourdi : des étoiles)
+          if (zb.poison > 0 && Math.random() < dt * 4) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.6 * Zd.taille, zb.z + (Math.random() - 0.5) * 0.5, 0, 0.8, 0, 0.6, 0.1, '#8CF05A', 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
       }
       for (const [id, r] of rendusZ) { if (!r.vu) rendusZ.delete(id); else r.vu = false; }
@@ -374,7 +376,7 @@ const ZRENDU = (() => {
       const Mz = MOD.M.zombie;
       KZ = { M: Mz, k: (1.6 * ECHELLE) / Mz.hauteur, inst: Mz.pieces.map((p) => { const m = new T.InstancedMesh(p.geo, Mz.mat, MAX_Z + MAX_MORCEAUX); m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; m.setColorAt(0, BLANC); scene.add(m); return m; }) };
     }
-    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A'), OR = new T.Color('#FFD24A'), EXCITE = new T.Color('#FF6A5A');
+    const GEL = new T.Color('#A8E4FF'), FEU = new T.Color('#FFB27A'), OR = new T.Color('#FFD24A'), EXCITE = new T.Color('#FF6A5A'), TOXIQUE = new T.Color('#9CF06A');
     // les accessoires qui font reconnaître un type d'un coup d'œil : le sabre du sabreur, la bombe du kamikaze, le boulet du geôlier, l'aura
     // de l'invocateur (des maillages instanciés, posés à côté du zombie, dans son repère)
     const mkAcc = (geo, couleur, base) => { const m = new T.InstancedMesh(geo, base || new T.MeshLambertMaterial({ color: couleur }), 32); m.frustumCulled = false; m.count = 0; m.castShadow = !base; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
@@ -409,7 +411,7 @@ const ZRENDU = (() => {
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
       const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
       let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
-      const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : etat === 4 ? EXCITE : teintes[type];
+      const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : etat === 4 ? EXCITE : etat === 5 ? TOXIQUE : teintes[type];
       for (let p = 0; p < np; p++) { _m2.fromArray(C.mats, (f * np + p) * 16); _part.multiplyMatrices(_base, _m2); KZ.inst[p].setMatrixAt(i, _part); KZ.inst[p].setColorAt(i, couleur); }
     }
 
@@ -588,10 +590,20 @@ const ZRENDU = (() => {
       }
       s.mixer.update(dt);
       s.g.visible = !(j.invul > 0 && j.invul < 10 && Math.floor(j.invul * 20) % 2 === 0); // (le clignotement après un coup ; pas l'invincibilité de la démonstration, 99 s)
+      rouler(s, j, dt);
+    }
+    // la roulade : un salto avant dans le sens du bond (le tour autour de la taille, pas des pieds), un peu de poussière
+    function rouler(s, j, dt) {
+      s.g.rotation.order = 'YXZ';
+      if (!(j.roule > 0) || !j.vivant) { s.g.rotation.x = 0; if (s.anneau) s.anneau.visible = j.vivant && !j.parti; return; }
+      const k = 1 - j.roule / D.ROULADE.duree, th = k * Math.PI * 2, a = Math.atan2(j.rdz || 0, j.rdx || 1), h = 0.85;
+      s.g.rotation.set(th, Math.PI / 2 - a, 0); s.g.position.set(j.x - Math.cos(a) * h * Math.sin(th), h - h * Math.cos(th), j.z - Math.sin(a) * h * Math.sin(th));
+      if (s.anneau) s.anneau.visible = false;
+      if (Math.random() < dt * 30) particule(j.x + (Math.random() - 0.5) * 0.5, 0.1, j.z + (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5, 0.45, 0.13, '#C8B48A', 0);
     }
     const survivants = new Map();
     const LONGUEUR = { pistolet: 0.32, revolver: 0.4, pompe: 0.75, mitraillette: 0.55, fusil: 0.8, precision: 0.95, canon: 1.05, minigun: 0.85, doublecanon: 0.78, roquettes: 0.95 };
-    const PAR_FAMILLE = { pistolet: 0.36, mitraillette: 0.55, pompe: 0.72, fusil: 0.8, sniper: 0.95, lanceur: 0.8, energie: 0.7, flamme: 0.75 };
+    const PAR_FAMILLE = { lame: 0.62, pistolet: 0.36, mitraillette: 0.55, pompe: 0.72, fusil: 0.8, sniper: 0.95, lanceur: 0.8, energie: 0.7, flamme: 0.75 };
     const longueur = (id) => LONGUEUR[id] || (D.ARMES[id] && PAR_FAMILLE[D.ARMES[id].famille]) || 0.4;
     function majSurvivants(jeu, idMoi, dt) {
       const vus = new Set();
@@ -851,7 +863,7 @@ const ZRENDU = (() => {
       o.m.material.color.set(COULEUR_TRACE[arme] || '#FFE89A');
     }
     // l'effet d'un tir, selon l'arme : traçante, rayon laser, cône de flammes ou de givre, éclair (lignes brisées), rien (roquette, scie : le projectile se voit)
-    const COULEUR_TRACE = { tourelle: '#9AE6FF', laser: '#FF5C8A', sniper: '#FFE89A', arc: '#E8D2A6' };
+    const COULEUR_TRACE = { tourelle: '#9AE6FF', laser: '#FF5C8A', sniper: '#FFE89A', arc: '#E8D2A6', toxine: '#8CF05A' };
     function effetTir(e, bc) {
       const A = D.ARMES[e.cle];
       if (e.arme === 'flamme' || e.arme === 'cryo') {
@@ -860,6 +872,18 @@ const ZRENDU = (() => {
         return;
       }
       if (e.arme === 'tesla') { if (e.pts) eclair(e.pts); return; }
+      if (e.arme === 'lame') { // la machette : un arc blanc qui balaie devant le survivant
+        const C = A ? A.cone : 1, R = (e.l || 2.2) * 0.8, n = 7; let px = null, pz = null;
+        for (let k = 0; k <= n; k++) { const b = e.a - C + (2 * C * k) / n, x = e.x + Math.cos(b) * R, z = e.z + Math.sin(b) * R; if (px != null) segment(px, 1.0, pz, x, 1.0, z, 0.09, k > n / 2 ? '#FFFFFF' : '#CFE3F2', 0.13); px = x; pz = z; }
+        if (e.touche) for (let k = 0; k < 6; k++) { const b = e.a + (Math.random() - 0.5) * C * 2; particule(e.x + Math.cos(b) * R, 1.0, e.z + Math.sin(b) * R, Math.cos(b) * 3, 1 + Math.random() * 2, Math.sin(b) * 3, 0.3, 0.08, '#8FD14F', 0.3); }
+        return;
+      }
+      if (e.arme === 'sonique') { // le canon sonique : trois fronts d'onde qui partent en éventail
+        const C = A ? A.cone : 0.6;
+        for (let f = 0; f < 3; f++) for (let k = 0; k < 9; k++) { const b = e.a - C + (2 * C * k) / 8, v = 9 + f * 2.5; particule(e.x + Math.cos(b) * 0.4, 1.0, e.z + Math.sin(b) * 0.4, Math.cos(b) * v, 0.2, Math.sin(b) * v, Math.max(0.12, e.l / v) * (0.7 + f * 0.12), 0.11 - f * 0.02, f ? '#BFF6F0' : '#FFFFFF', 0); }
+        secousse = Math.max(secousse, 0.08); return;
+      }
+      if (e.arme === 'trou') return;
       if (e.arme === 'roquette' || e.arme === 'scie' || e.arme === 'acide') return;
       const cle = e.cle === 'tourelle' ? 'tourelle' : A && A.classe === 'laser' ? 'laser' : e.arme;
       if (bc) { const fx = e.x + Math.cos(e.a) * e.l, fz = e.z + Math.sin(e.a) * e.l, l = Math.hypot(fx - bc.x, fz - bc.z); if (l > 0.3) { tracante(bc.x, bc.z, Math.atan2(fz - bc.z, fx - bc.x), l, cle, bc.y); return; } } // (depuis le bout du canon)
@@ -960,13 +984,34 @@ const ZRENDU = (() => {
     const geoBille = new T.IcosahedronGeometry(0.16, 0);
     const crachats = new T.InstancedMesh(geoBille, new T.MeshBasicMaterial({ color: '#B6F04A' }), 24); crachats.frustumCulled = false; crachats.count = 0; scene.add(crachats);
     const obus = new T.InstancedMesh(geoBille, new T.MeshLambertMaterial({ color: '#3B3E2E' }), 12); obus.frustumCulled = false; obus.count = 0; obus.castShadow = true; scene.add(obus);
+    // les singularités : une sphère noire qui palpite, un anneau violet qui tourne, de la poussière qui spirale vers elle
+    const reserveTrous = [], geoTrou = new T.SphereGeometry(0.55, 16, 12), geoAnneauTrou = new T.RingGeometry(0.75, 1.0, 32).rotateX(-Math.PI / 2);
+    function trou3d() {
+      const g = new T.Group(), c = new T.Mesh(geoTrou, new T.MeshBasicMaterial({ color: '#0C0618' })); c.position.y = 1.0; g.add(c);
+      const halo = new T.Mesh(geoTrou, new T.MeshBasicMaterial({ color: '#8A5AFF', transparent: true, opacity: 0.35, blending: T.AdditiveBlending, depthWrite: false })); halo.position.y = 1.0; halo.scale.setScalar(1.5); g.add(halo);
+      const a = new T.Mesh(geoAnneauTrou, new T.MeshBasicMaterial({ color: '#B48CFF', transparent: true, opacity: 0.7, depthWrite: false })); a.position.y = 0.06; g.add(a);
+      scene.add(g); const o = { g, c, halo, a }; reserveTrous.push(o); return o;
+    }
+    function majTrous(jeu, dt) {
+      const l = jeu.trous || []; let i = 0; const t = performance.now() / 1000;
+      for (const T0 of l) {
+        const o = reserveTrous[i] || trou3d(); i++; o.g.visible = true; o.g.position.set(T0.x, 0, T0.z);
+        const k = Math.min(1, T0.t / 0.25), fin = T0.duree - T0.t < 0.4 ? Math.max(0.2, (T0.duree - T0.t) / 0.4) : 1;
+        o.c.scale.setScalar(k * fin * (1 + Math.sin(t * 18) * 0.08)); o.halo.scale.setScalar(k * (1.5 + Math.sin(t * 9) * 0.15));
+        o.a.rotation.y = t * 4; o.a.scale.setScalar(T0.r * (0.95 + Math.sin(t * 6) * 0.05)); o.a.material.opacity = 0.4 + 0.3 * k;
+        if (Math.random() < dt * 40) { const b = Math.random() * 6.28, r = T0.r * (0.6 + Math.random() * 0.4); particule(T0.x + Math.cos(b) * r, 0.3 + Math.random() * 1.2, T0.z + Math.sin(b) * r, -Math.cos(b) * r * 1.6 - Math.sin(b) * 2, 0.6, -Math.sin(b) * r * 1.6 + Math.cos(b) * 2, 0.55, 0.08, Math.random() < 0.5 ? '#B48CFF' : '#5A3AA8', 0); }
+      }
+      for (; i < reserveTrous.length; i++) reserveTrous[i].g.visible = false;
+    }
     function majProjectiles(jeu) {
       let n = 0;
       for (const c of jeu.crachats) { if (n >= 24) break; _base.makeTranslation(c.x, 0.9, c.z); crachats.setMatrixAt(n++, _base); }
       crachats.count = n; crachats.instanceMatrix.needsUpdate = true; n = 0;
       for (const o of jeu.obus) {
         if (n >= 12) break; const k = Math.min(1, o.t / o.duree), h = o.droit ? 1.0 : 0.8 + Math.sin(k * Math.PI) * (o.grenade || o.de === 'mortier' || !o.de ? 6 : 3), x = o.x0 + (o.x1 - o.x0) * k, z = o.z0 + (o.z1 - o.z0) * k;
-        _base.makeTranslation(x, h, z); _r.makeScale(o.droit ? 1.0 : 1.4, o.droit ? 1.0 : 1.4, o.droit ? 1.0 : 1.4); _base.multiply(_r); obus.setMatrixAt(n++, _base);
+        const sc = o.trou ? 1.6 : o.petite ? 0.8 : o.droit ? 1.0 : 1.4;
+        _base.makeTranslation(x, h, z); _r.makeScale(sc, sc, sc); _base.multiply(_r); obus.setMatrixAt(n++, _base);
+        if (o.trou) { for (let k = 0; k < 2; k++) particule(x + (Math.random() - 0.5) * 0.4, h + (Math.random() - 0.5) * 0.4, z + (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.6, 0.3, (Math.random() - 0.5) * 0.6, 0.4, 0.1, k ? '#B48CFF' : '#2A1A4A', 0); continue; }
         if (o.droit && Math.random() < 0.8) particule(x, h, z, (Math.random() - 0.5) * 0.4, 0.5, (Math.random() - 0.5) * 0.4, 0.5, 0.12, Math.random() < 0.3 ? '#FFB347' : '#B8B8B8', 0);
       }
       obus.count = n; obus.instanceMatrix.needsUpdate = true;
@@ -1101,8 +1146,9 @@ const ZRENDU = (() => {
       if (evs) for (const e of evs) {
         switch (e.t) {
           case 'tir': {
+            if (e.rb) { tracante(e.x, e.z, e.a, e.l, e.arme); for (let k = 0; k < 3; k++) particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.2, 0.05, '#FFE07A', 0); break; } // (un ricochet : la trace repart du mur, une étincelle)
             const s = survivants.get(e.de), bc = boutCanon(s), A0 = D.ARMES[e.cle];
-            if (bc && e.arme !== 'flamme' && e.arme !== 'cryo' && e.arme !== 'tesla' && e.arme !== 'scie') { // (l'éclair du canon, et sa lumière une fois sur deux)
+            if (bc && e.arme !== 'flamme' && e.arme !== 'cryo' && e.arme !== 'tesla' && e.arme !== 'scie' && e.arme !== 'lame' && e.arme !== 'sonique') { // (l'éclair du canon, et sa lumière une fois sur deux)
               const gros = A0 && (A0.famille === 'pompe' || A0.famille === 'sniper' || A0.famille === 'lanceur'), laser = A0 && A0.famille === 'energie';
               eclatBouche(bc, gros ? 1.2 : 0.8, laser ? '#FF9AC0' : '#FFE2A0'); if (gros || Math.random() < 0.5) lumiere(bc.x, bc.y, bc.z, laser ? '#FF6FA0' : '#FFC870', gros ? 9 : 5, 6, 0.07);
             } else if (e.cle === 'tourelle') eclatBouche(_bout.set(e.x + Math.cos(e.a) * 0.6, 1.05, e.z + Math.sin(e.a) * 0.6), 0.55, '#BFEFFF');
@@ -1143,6 +1189,11 @@ const ZRENDU = (() => {
           case 'largue': { secousse = Math.max(secousse, 0.15); for (let k = 0; k < 4; k++) fumee(e.x + (Math.random() - 0.5) * 1.5, 0.3, e.z + (Math.random() - 0.5) * 1.5, 0.9, 1.4, '#B8A88A'); for (let k = 0; k < 12; k++) { const a = Math.random() * 6.28; particule(e.x, 0.2, e.z, Math.cos(a) * 3, 1.5 + Math.random() * 2, Math.sin(a) * 3, 0.6, 0.1, '#C8B48A', 0.2); } break; }
           case 'piege': onde(e.x, e.z, D.PIEGE.rayon * 1.3, '#7FDBFF'); break;
           case 'zap': zap(e); break;
+          // le Lot 5b : la roulade, la singularité qui s'ouvre et qui implose, la contagion des toxines
+          case 'roule': for (let k = 0; k < 10; k++) { const b = (e.a || 0) + Math.PI + (Math.random() - 0.5) * 1.4, v = 1 + Math.random() * 2.5; particule(e.x, 0.15, e.z, Math.cos(b) * v, 0.8 + Math.random(), Math.sin(b) * v, 0.5, 0.14, '#C8B48A', 0); } break;
+          case 'trou': onde(e.x, e.z, e.r || 4, '#8A5AFF'); lumiere(e.x, 1.5, e.z, '#8A5AFF', 20, 10, 0.3); break;
+          case 'implose': boum(e.x, e.z, e.r || 3); onde(e.x, e.z, (e.r || 3) * 1.6, '#B48CFF'); onde(e.x, e.z, e.r || 3, '#FFFFFF'); lumiere(e.x, 2, e.z, '#C8A8FF', 50, 22, 0.4); secousse = Math.max(secousse, 0.5); for (let k = 0; k < 30; k++) { const b = Math.random() * 6.28, v = 3 + Math.random() * 6; particule(e.x, 1, e.z, Math.cos(b) * v, 2 + Math.random() * 4, Math.sin(b) * v, 0.7, 0.11, k % 2 ? '#B48CFF' : '#2A1A4A', 0.3); } break;
+          case 'contagion': onde(e.x, e.z, e.r || 2.5, '#8CF05A'); for (let k = 0; k < 12; k++) { const b = Math.random() * 6.28, v = 1 + Math.random() * 2.5; particule(e.x, 0.8, e.z, Math.cos(b) * v, 1 + Math.random() * 1.5, Math.sin(b) * v, 0.7, 0.16, k % 2 ? '#8CF05A' : '#4F8A2E', 0); } break;
           // le Lot 5 : le bouclier qui sonne et qui casse, le fouisseur, la ponte, le hurlement ; les boss (la phase, l'attaque annoncée puis portée)
           case 'ricoche': { const a = e.a || 0; for (let k = 0; k < 4; k++) particule(e.x + Math.cos(a) * 0.55, 0.9, e.z + Math.sin(a) * 0.55, Math.cos(a) * 2 + (Math.random() - 0.5) * 4, 1 + Math.random() * 2.5, Math.sin(a) * 2 + (Math.random() - 0.5) * 4, 0.25, 0.06, k % 2 ? '#FFFFFF' : '#FFE07A', 0); break; }
           case 'brise': { const a = e.a || 0; for (let k = 0; k < 16; k++) particule(e.x + Math.cos(a) * 0.5, 0.9, e.z + Math.sin(a) * 0.5, Math.cos(a) * 3 + (Math.random() - 0.5) * 6, 2 + Math.random() * 4, Math.sin(a) * 3 + (Math.random() - 0.5) * 6, 0.9, 0.1, k % 3 ? '#8A929E' : '#D8DEE6', 0.5); lumiere(e.x, 1, e.z, '#FFF2C0', 8, 6, 0.08); break; }
@@ -1173,6 +1224,7 @@ const ZRENDU = (() => {
       { const tps = performance.now() / 1000; for (const j of jeu.joueurs) { const s = survivants.get(j.id); if (s) auras(s, j, tps, dt); } majLeurres(jeu, tps); majLargage(jeu, tps, dt); majPieges(jeu, tps); }
       majDefenses(jeu, dt);
       majProjectiles(jeu);
+      majTrous(jeu, dt);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
       if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
