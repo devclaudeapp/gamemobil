@@ -145,8 +145,8 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   const c1 = await P(() => ({ col: window.__zombies.save.collection, med: window.__zombies.save.meta.medailles, demo: window.__zombies.demo && window.__zombies.demo.joueurs[0].skin }));
   check(c1.col.skin === 'marcel' && c1.col.skins.includes('marcel') && c1.med === 80 && c1.demo === 'marcel', 'acheter Marcel (20 médailles) : il est porté, et le survivant de la démonstration le montre');
   await page.tap('[data-onglet="finitions"]'); await sleep(250);
-  const grille = await P(() => ({ n: document.querySelectorAll('[data-arme-col]').length, rar: document.querySelectorAll('[data-arme-col] .rar').length }));
-  check(grille.n === 24, `l’onglet Armes : les ${grille.n} armes en portraits, avec leur rareté`);
+  const grille = await P(() => ({ total: Object.keys(ZDONNEES.ARMES).length, n: document.querySelectorAll('[data-arme-col]').length, rar: document.querySelectorAll('[data-arme-col] .rar').length }));
+  check(grille.n === grille.total && grille.n >= 31, `l’onglet Armes : les ${grille.n} armes en portraits, avec leur rareté`);
   await page.tap('[data-arme-col="revolver"]'); await sleep(200);
   const fins = await P(() => [...document.querySelectorAll('[data-fin]')].map((b) => b.querySelector('.nom').textContent));
   await page.tap('[data-fin="onyx"]'); await sleep(200); await page.tap('[data-fin="givre"]'); await sleep(200);

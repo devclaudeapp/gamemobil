@@ -708,3 +708,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ennemi-ico::before { left: 11px; } .ennemi-ico::after { right: 11px; }
 @media (orientation: landscape) and (max-height: 400px) { .h-trouve.ennemi em { font-size: 11px; } .ennemi-ico { width: 32px; height: 32px; } .ennemi-ico::before, .ennemi-ico::after { top: 10px; } .ennemi-ico::before { left: 8px; } .ennemi-ico::after { right: 8px; } }
 @media (prefers-reduced-motion: reduce) { .h-boss.rage .h-barre { animation: none; } }
+
+/* ─── Lot 5b : la roulade, à droite de la grenade ─── */
+.h-roulade { position: relative; width: 58px; height: 58px; align-self: center; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); padding: 0; overflow: hidden; display: grid; place-items: center; box-shadow: 0 4px 0 rgba(31, 37, 51, .35); }
+.h-roulade .ico { width: 36px; height: 36px; position: relative; z-index: 1; }
+.h-roulade.prete { background: linear-gradient(#6FC3F2, #2F7FC0); }
+.h-roulade:active { transform: translateY(2px); }
+.h-roul-voile { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(15, 18, 26, .65); z-index: 2; }
+@media (max-height: 430px) { .h-roulade { width: 52px; height: 52px; } .h-roulade .ico { width: 31px; height: 31px; } }

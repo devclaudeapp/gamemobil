@@ -46,6 +46,7 @@
     else if (monChoix() && /^arme[012]$/.test(n)) { const k = monChoix().options[+n.slice(-1)]; if (k) choisir(k); }
     else if (n === 'passer') faire('passer');
     else if (n === 'grenade') lancerGrenade();
+    else if (n === 'roulade') rouler();
     else if (n === 'arme0' || n === 'arme1') faire('arme', +n.slice(-1));
   } });
   reglerJoy();
@@ -57,6 +58,7 @@
     pause() { pause(); },
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
+    roulade() { rouler(); },
     emote(e) { if (jeu) faire('emote', e); },
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
@@ -74,6 +76,7 @@
       case 'construire': return ZJEU.construire(jeu, idMoi, arg);
       case 'ameliorer': return ZJEU.ameliorer(jeu, idMoi, arg);
       case 'grenade': return ZJEU.grenade(jeu, idMoi);
+      case 'roulade': return ZJEU.roulade(jeu, idMoi);
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
@@ -83,6 +86,7 @@
   }
   const moi = () => (jeu ? jeu.joueurs.find((p) => p.id === idMoi) || jeu.joueurs[0] : null);
   const monChoix = () => { const m = moi(); return m ? m.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null) : null; };
+  function rouler() { if (!jeu || jeu.mode === 'infection' || (enPause && !partie)) return; const r = faire('roulade'); if (r && r.ok) PSONS.vibrer(12); }
   function lancerGrenade() { if (jeu && jeu.mode === 'infection') { if (!enPause && ZINFECTION.bondir(jeu)) PSONS.vibrer(15); return; } if (!jeu || (enPause && !partie)) return; const r = faire('grenade'); if (r && !r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
   function choisir(k) { if (!jeu || (enPause && !partie) || !monChoix()) return; const r = faire('atout', k); if (r && r.ok) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
