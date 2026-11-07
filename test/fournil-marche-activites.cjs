@@ -30,6 +30,9 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
 // sur les machines lentes de GitHub (rendu logiciel, la Halle en haute), chaque attente dure trois fois plus longtemps au plus : elle s'arrête
 // toujours dès que la condition est vraie, et rien de ce qui est vérifié ne change (6 nov. : deux runs rouges sur des attentes expirées)
 const LENT = Number(process.env.FOURNIL_ATTENTE) || (process.env.CI ? 3 : 1);
+// FOURNIL_CPU=n : le processeur de chaque page ralenti n fois (CDP, comme les machines de GitHub) ; FOURNIL_CADENCE=1 : la sonde de cadence
+// (images/s, pas de jeu/s, les retours « gel » ou « saut ») aux moments clés. Sans elles, rien ne change
+const CPU = Number(process.env.FOURNIL_CPU) || 0, SONDE = !!process.env.FOURNIL_CADENCE;
 const attendre = async (fn, ms = 20000, pas = 150) => { ms *= LENT; for (let t = 0; t < ms; t += pas) { try { const r = await fn(); if (r) return r; } catch (e) { /* rien */ } await sleep(pas); } return null; };
 // une fausse heure du téléphone, qu'on peut avancer (Date et performance.now ensemble : l'horloge de confiance du jeu suit)
 function faux(d) {
@@ -39,6 +42,11 @@ function faux(d) {
   // avancer de total ms, pas ms à chaque image (la page tourne entre deux pas ; plus de 5 s d'un coup, le jeu croirait qu'elle a gelé)
   window.__avancerParImage = (total, pas) => new Promise((ok) => { let fait = 0; const un = () => { if (fait >= total) { ok(plus); return; } const p = Math.min(pas, total - fait); plus += p; fait += p; requestAnimationFrame(un); }; requestAnimationFrame(un); });
   window.__toasts = []; window.__flottes = []; window.__voles = 0; window.__pd = [];
+  // l'horodatage que requestAnimationFrame donne à ses rappels avance avec performance.now (un vrai téléphone : la même horloge). Sans cela,
+  // ui.js, qui mêle les deux (lastFrame = performance.now() après un retour ou un écran fermé, puis now − lastFrame à chaque image), voyait
+  // chaque image « trop tôt » pendant toute l'avance prise (4 min 8 s) : le jeu gelé, la pastille et le coup de pouce jamais redessinés
+  // (7 nov., GitHub : une image de plus de 5 s en haute, puis un retour « saut ») ; window.__rafN : la sonde de cadence (les images reçues)
+  { const raf = window.requestAnimationFrame.bind(window); window.__rafN = 0; window.requestAnimationFrame = (cb) => raf((t) => { window.__rafN++; cb(t + plus); }); }
   document.addEventListener('pointerdown', (e) => { window.__pd.push([Math.round(e.clientX), Math.round(e.clientY), e.target && e.target.className, e.pointerType]); if (window.__pd.length > 20) window.__pd.shift(); }, true);
   new MutationObserver((l) => { for (const m of l) for (const n of m.addedNodes) { if (!n.classList) continue; if (n.classList.contains('mh-flotte')) window.__flottes.push(n.textContent); if (n.classList.contains('mh-vole')) window.__voles++; }
     const t = document.querySelector('.toast'); if (t && window.__toasts[window.__toasts.length - 1] !== t.textContent) window.__toasts.push(t.textContent); }).observe(document, { childList: true, subtree: true, characterData: true });
@@ -52,6 +60,7 @@ function faux(d) {
     await ctx.addInitScript(faux, decal);
     await ctx.route(/supabase\.co/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [];
+    if (CPU > 1) { const c = await ctx.newCDPSession(page); await c.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
     page.on('pageerror', (e) => erreurs.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) erreurs.push(m.text()); if (m.type() === 'warning' && /Boutique du Marché|Boutique hantée/.test(m.text())) erreurs.push(m.text()); });
     await page.goto(`http://localhost:${PORT}/fournil/${requete}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900);
@@ -61,14 +70,17 @@ function faux(d) {
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.annonce = true; q.billets = 5e9; q.total = 2e12;
       [[60, 1], [40, 1], [25, 1], [12, 0], [6, 0]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5, 6]; F.save(); });
     for (let k = 0; k < 2; k++) { await ev(() => { const b = document.querySelector('#feuille [data-a="pq-tard"], #feuille [data-a="close"], #feuille [data-a="pq-ok"]'); if (b) b.click(); }); await sleep(300); }
-    return { ctx, page, erreurs, ev };
+    const sonde = async (ou) => { if (!SONDE) return; const r = await ev(() => new Promise((ok) => { const F = window.__fournil, cle = F.evMarche && F.evMarche.ouvert ? 'marche' : 'hantee', q0 = () => (F.st[cle] || {}).now, j0 = (F.st.journalRetours || []).length, n0 = window.__rafN, t0 = performance.now(); let v = q0(), pas = 0;
+      const un = () => { const x = q0(); if (x !== v) { v = x; pas++; } if (performance.now() - t0 < 4000) setTimeout(un, 15); else { const s = (performance.now() - t0) / 1000, c = F.cadence ? F.cadence() : {}; requestAnimationFrame((tr) => ok({ images: ((window.__rafN - n0) / s).toFixed(1), pas: (pas / s).toFixed(1), jeu: c.mesuree, travail: c.travail, retours: (F.st.journalRetours || []).slice(j0).map((e) => e.r).join(' '), journal: (F.st.journalRetours || []).slice(-4).map((e) => e.r).join(' '), ecart: Math.round(performance.now() - tr), enCours: F.retour.enCours, dernier: F.retour.dernier })); } }; un(); }));
+      console.log(`   (cadence, ${ou}) ${r.images} images/s (${r.jeu} traitées par le jeu), ${r.pas} pas de jeu/s, la dernière image ${r.travail} ms ; retours pendant la mesure : ${r.retours || 'aucun'} (le journal : ${r.journal || 'vide'}) ; performance.now() − l'horodatage de rAF : ${r.ecart} ms${r.enCours ? ' (un retour en cours)' : ''}`); };
+    return { ctx, page, erreurs, ev, sonde };
   }
   const shot = async (page, nom) => { await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); const f = path.join(out, nom + '.png'); await page.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, 'final-' + nom + '.png')); await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; });
     await page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))); await sleep(200); }; // (en haute, juste après une capture, le premier toucher pouvait se perdre : deux images d'abord)
 
   for (const qual of (process.env.QUALITES != null ? process.env.QUALITES : 'haute,eco').split(',').filter(Boolean)) {
     console.log(`── qualité ${qual} : les activités de la Maison hantée, au doigt ──`);
-    const { ctx, page, erreurs, ev } = await ouvrir(`?qualite=${qual}`);
+    const { ctx, page, erreurs, ev, sonde } = await ouvrir(`?qualite=${qual}`);
     const act = () => ev(() => window.__fournil.evMarche.act.etat());
     const regles = () => ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()), M = q.manoir; return { billets: q.billets, stats: Object.assign({}, q.stats), file: M.file.map((c) => ({ id: c.id, sorte: c.sorte, commande: c.commande.map((l) => Object.assign({}, l)) })), apps: M.apps.map((a) => a.id), serie: M.serie, record: M.record || 0, commande: M.commande && Object.assign({}, M.commande), actif: q.actif, now: q.now }; });
     const pousser = (quoi) => ev((k) => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()), t = HORLOGE.maintenant() - 1; if (k === 'client') q.manoir.prochainClient = t; if (k === 'app') q.manoir.prochaineApp = t; if (k === 'commande') q.manoir.prochaineCommande = t; }, quoi);
@@ -78,7 +90,7 @@ function faux(d) {
     await ev(() => document.querySelector('#b-marche').click()); // l'icône citrouille du coin
     check(await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.apprentis.length >= 3 && e.apprentis.every((a) => a.bati); }), 30000), 'l’icône citrouille ouvre la Maison hantée : la boutique hantée');
     if (qual === 'haute') check(!!(await attendre(() => ev(() => window.__fournil.SCENE.evenement.hd), 20000)), 'en haute, la HD de la boutique hantée');
-    await sleep(1000);
+    await sleep(1000); await sonde('la Halle ouverte');
     let a = await act();
     check(a.ouvert && a.mode === 'scene', `les activités sont reliées à la scène de la boutique hantée (mode ${a.mode})`);
     const ouv = await ev(() => { const e = document.querySelector('#mc-eveil'); return { vu: !e.hidden && e.getBoundingClientRect().height > 0, txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#mc-taux').innerText }; });
@@ -239,6 +251,7 @@ function faux(d) {
 
     // ─── les apparitions : les attraper au doigt, trois d'affilée (la série) ───
     const dansScene = (x0, x1) => attendre(async () => { const e = await act(); const r = await ev(() => { const c = document.querySelector('.mh-couche').getBoundingClientRect(); return { t: c.top, b: c.bottom }; }); return e.apps.find((x) => x.x > x0 && x.x < x1 && x.y > r.t + 10 && x.y < r.b - 10) || null; }, 15000, 100);
+    await sonde('avant les apparitions');
     { // la capture d'abord, sur une apparition qu'on laisse filer (en haute, une capture dure plusieurs secondes : celle-ci s'échappe, et sa série avec)
       await pousser('app'); const ap = await dansScene(90, 300);
       check(!!ap && ap.sid != null && !ap.dom && (await ev((s) => BOUTIQUE_MARCHE.apparitions().some((x) => x.id === s), ap.sid)), `une apparition des règles (${ap && ap.type}) traverse la scène de la boutique`);
@@ -508,6 +521,7 @@ function faux(d) {
     }
 
     // ─── la pastille du bouton Sortilèges : combien sont achetables tout de suite (la règle de la feuille), mise à jour avec le solde ───
+    await sonde('avant la pastille');
     {
       const am = () => ev(() => { const p = document.querySelector('#marche [data-pq="ameliorations"] .pq-am-n'), F = window.__fournil, R = F.evMarche.R, q = R.etat(F.st, HORLOGE.maintenant());
         const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout);
@@ -516,16 +530,16 @@ function faux(d) {
       let vuA = null; const a1 = await attendre(async () => { const x = await am(); vuA = x; return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 5000);
       await ev((id) => { const F = window.__fournil; F.evMarche.R.amelioration(F.evMarche.R.etat(F.st, HORLOGE.maintenant()), id); }, a1 && a1.id);
       const a2 = await attendre(async () => { const x = await am(); vuA = x; return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 5000);
-      const a3 = await ev(() => new Promise((ok) => { const F = window.__fournil, R = F.evMarche.R, q = R.etat(F.st, HORLOGE.maintenant()), p = document.querySelector('#marche [data-pq="ameliorations"] .pq-am-n'), t0 = performance.now(); q.billets = 0;
-        const voir = () => { const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout).length;
-          if (p.hidden && att === 0) ok({ n: 0 }); else if (performance.now() - t0 > 1500) ok(null); else { q.billets = 0; requestAnimationFrame(voir); } }; requestAnimationFrame(voir); })); // (remis à 0 à chaque image : une fournée vendue d'un coup rapporte de quoi en payer une)
+      const a3 = await ev(() => new Promise((ok) => { const F = window.__fournil, R = F.evMarche.R, q = R.etat(F.st, HORLOGE.maintenant()), p = document.querySelector('#marche [data-pq="ameliorations"] .pq-am-n'), t0 = performance.now(); let n0 = q.now, pas = 0; q.billets = 0;
+        const voir = () => { if (q.now !== n0) { n0 = q.now; pas++; } const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout).length;
+          if (p.hidden && att === 0) ok({ n: 0 }); else if ((performance.now() - t0 > 1500 && pas >= 3) || performance.now() - t0 > 30000) ok(null); else { q.billets = 0; requestAnimationFrame(voir); } }; requestAnimationFrame(voir); })); // (remis à 0 à chaque image : une fournée vendue d'un coup rapporte de quoi en payer une ; 1,5 s et trois pas du jeu au moins : en haute, sur une machine lente, un pas par seconde)
       check(!!a1 && !!a2 && !!a3, `la pastille de Sortilèges : ${a1 && a1.n} achetable(s) avec assez de bonbons, ${a2 && a2.n} après un achat, cachée à 0${a1 && a2 && a3 ? '' : ` (dernier vu : ${JSON.stringify(vuA)})`}`);
       await ev(() => { const F = window.__fournil; F.evMarche.R.etat(F.st, HORLOGE.maintenant()).billets = 5e9; }); await sleep(300);
     }
 
     // ─── en 360 × 640, la colonne et le tiroir restent justes ───
     await page.setViewportSize({ width: 360, height: 640 }); await sleep(1500);
-    const gp = await verifierColonne('en 360 × 640');
+    await sonde('en 360 × 640'); const gp = await verifierColonne('en 360 × 640');
     check(gp.pos === 'mi' && gp.cartes.b <= 640 + 1 && gp.cartes.ht > 40 && gp.barre.d <= 360 + 1, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
     await colonneEtCoup('360 × 640');
     await shot(page, `${qual}-360-tiroir-bas`);
@@ -552,13 +566,13 @@ function faux(d) {
   // ─── le soir (21 h 15) : la file avec ses bulles et une apparition, pour les captures (haute et éco) ───
   for (const qual of (process.env.QUALITES != null ? process.env.QUALITES : 'haute,eco').split(',').filter(Boolean)) {
     console.log(`── le soir, qualité ${qual} ──`);
-    const { ctx, page, erreurs, ev } = await ouvrir(`?qualite=${qual}`, SOIR);
+    const { ctx, page, erreurs, ev, sonde } = await ouvrir(`?qualite=${qual}`, SOIR);
     const act = () => ev(() => window.__fournil.evMarche.act.etat());
     if (qual === 'haute') { await ev(() => window.__fournil.SCENE.precharger('marche')); await attendre(() => ev(() => HDM.pret('marche')), 60000); await sleep(1200); }
     await ev(() => document.querySelector('#b-marche').click());
     await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.apprentis.length >= 3; }), 30000); await sleep(1500);
     for (let k = 0; k < 3; k++) { await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochainClient = HORLOGE.maintenant() - 1; }); await sleep(900); }
-    const n = await attendre(async () => { const e = await act(); const b = e.clients.filter((c) => c.bulle && c.etat === 'file').length; return b >= 2 ? b : null; }, 30000);
+    const n = await attendre(async () => { const e = await act(); const b = e.clients.filter((c) => c.bulle && c.etat === 'file').length; return b >= 2 ? b : null; }, 30000); await sonde('le soir');
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
     const ap = await attendre(async () => (await act()).apps.find((x) => x.x > 90 && x.x < 300) || null, 15000, 100);
     const h = await ev(() => new Date(HORLOGE.maintenant()).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }));
