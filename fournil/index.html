@@ -2941,7 +2941,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'cb33f399e143';</script>
+<script>window.FOURNIL_VERSION = '06c9c945cefc';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -14675,14 +14675,15 @@ const EQUIPE3D = (() => {
     if (v === 'or') parts.push(yield* drapeGen(pr, { yH: yK + ourlet + 0.016 * u, yB: yK + ourlet + 0.008 * u, pas: 0.01 * u, colonnes: 12, e: e + 0.002 * u, largeur: (y) => largeur(y) * 0.995, role: () => 'bijou' }));
     yield;
     // la bride du cou : des coins de la bavette au col (elle passe dessous)
-    const wH = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/);
+    const wH = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/); yield; // (les poids du corps d'un côté, les tubes de l'autre : un pas de moins de 30 ms sous un processeur ×4)
     for (const s of [1, -1]) {
       const x0 = cx + s * lH * 0.92, x1 = cx + s * 0.104 * u, y1 = yH + 0.034 * u;
       parts.push(pc(tube([new T.Vector3(x0, yH - 0.01 * u, f.zA(x0, yH - 0.01 * u) + e), new T.Vector3(x0 + s * 0.004 * u, yH + 0.012 * u, f.zA(x0, yH + 0.012 * u) + e * 0.8), new T.Vector3(x1, y1, f.zA(x1, y1) + 0.003 * u), new T.Vector3(cx + s * 0.13 * u, m.foulard.max.y - 0.045 * u, m.busteZ + 0.015 * u)], 0.0058 * u, 4, 9), 'tissu', null, wH));
     }
     yield;
     // les cordons, de la taille au dos, et leur boucle
-    const C = contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'), yL = yT + 0.014 * u, wB = poidsCorps(pr, /^(Torso|Abdomen|Hips|Body)/), cz = C.cz, rL = (th) => C.r(th, yL) + e * 1.15 + 0.004 * u;
+    const C = contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'); yield;
+    const yL = yT + 0.014 * u, wB = poidsCorps(pr, /^(Torso|Abdomen|Hips|Body)/), cz = C.cz, rL = (th) => C.r(th, yL) + e * 1.15 + 0.004 * u; yield;
     const a0 = Math.atan2(lT * 0.96, f.zA(cx + lT, yL) - cz);
     for (const s of [1, -1]) { const pts = []; for (let k = 0; k <= 8; k++) { const th = s * (a0 + (Math.PI - 0.16 - a0) * k / 8); pts.push(new T.Vector3(cx + Math.sin(th) * rL(th), yL, cz + Math.cos(th) * rL(th))); } parts.push(pc(fourreau(pts, pts.map(() => [0.011 * u, 0.0036 * u]), 6, { n0: new T.Vector3(0, 1, 0), debut: true, bout: true }), 'tissu', null, wB)); }
     const zb = cz - rL(Math.PI) - 0.006 * u, B = new T.Vector3(cx, yL, zb);
@@ -15536,6 +15537,7 @@ const EQUIPE3D = (() => {
   function rhabiller(a, rang, garde, nom) { const g = rhabillerGen(a, rang, garde, nom); let x; do x = g.next(); while (!x.done); return x.value; }
   function* rhabillerGen(a, rang, garde, nom) {
     const h = habitBoulanger(rang, garde, nom), cles = kitsDe(h).map((k) => k[1] + '|' + k[0]).join(';'); if (a.cleHabit === h.cle0 && a.clesKits === cles && a.habit) return false;
+    yield; // (l'habit et ses kits d'un côté, le début de la géométrie de l'autre : un seul pas faisait ~31 ms sous un processeur ×4)
     const x = yield* geometrieGen(a.pr, h); yield;
     const vieux = a.S.geometry; a.S.geometry = x.geo; if (vieux && !vieux.userData.partagee && vieux !== x.geo) vieux.dispose();
     teindre(x.geo, x.R, x.C0, x.MU, palette(h));
