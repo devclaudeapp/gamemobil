@@ -513,13 +513,13 @@ function faux(d) {
         const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout);
         return { vu: !p.hidden && p.getBoundingClientRect().width > 0, n: p.hidden ? 0 : +p.textContent, att: att.length, id: att.length ? att[0].id : null }; });
       await ev(() => { const F = window.__fournil; F.evMarche.R.etat(F.st, HORLOGE.maintenant()).billets = 1e30; });
-      const a1 = await attendre(async () => { const x = await am(); return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 5000);
+      let vuA = null; const a1 = await attendre(async () => { const x = await am(); vuA = x; return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 5000);
       await ev((id) => { const F = window.__fournil; F.evMarche.R.amelioration(F.evMarche.R.etat(F.st, HORLOGE.maintenant()), id); }, a1 && a1.id);
-      const a2 = await attendre(async () => { const x = await am(); return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 5000);
+      const a2 = await attendre(async () => { const x = await am(); vuA = x; return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 5000);
       const a3 = await ev(() => new Promise((ok) => { const F = window.__fournil, R = F.evMarche.R, q = R.etat(F.st, HORLOGE.maintenant()), p = document.querySelector('#marche [data-pq="ameliorations"] .pq-am-n'), t0 = performance.now(); q.billets = 0;
         const voir = () => { const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout).length;
           if (p.hidden && att === 0) ok({ n: 0 }); else if (performance.now() - t0 > 1500) ok(null); else { q.billets = 0; requestAnimationFrame(voir); } }; requestAnimationFrame(voir); })); // (remis à 0 à chaque image : une fournée vendue d'un coup rapporte de quoi en payer une)
-      check(!!a1 && !!a2 && !!a3, `la pastille de Sortilèges : ${a1 && a1.n} achetable(s) avec assez de bonbons, ${a2 && a2.n} après un achat, cachée à 0`);
+      check(!!a1 && !!a2 && !!a3, `la pastille de Sortilèges : ${a1 && a1.n} achetable(s) avec assez de bonbons, ${a2 && a2.n} après un achat, cachée à 0${a1 && a2 && a3 ? '' : ` (dernier vu : ${JSON.stringify(vuA)})`}`);
       await ev(() => { const F = window.__fournil; F.evMarche.R.etat(F.st, HORLOGE.maintenant()).billets = 5e9; }); await sleep(300);
     }
 
