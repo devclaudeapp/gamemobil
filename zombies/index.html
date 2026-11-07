@@ -739,6 +739,49 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .h-roulade:active { transform: translateY(2px); }
 .h-roul-voile { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(15, 18, 26, .65); z-index: 2; }
 @media (max-height: 430px) { .h-roulade { width: 52px; height: 52px; } .h-roulade .ico { width: 31px; height: 31px; } }
+
+/* ─── Lot 5c : le bouton de la capacité, à droite de la roulade ─── */
+.h-capa { position: relative; width: 62px; height: 62px; align-self: center; border-radius: 50%; border: 3px solid var(--encre); background: var(--pastille); padding: 0; overflow: hidden; display: grid; place-items: center; box-shadow: 0 4px 0 rgba(31, 37, 51, .35); }
+.h-capa[hidden] { display: none; }
+.h-capa .ico { width: 38px; height: 38px; position: relative; z-index: 1; }
+.h-capa .ico svg { width: 100%; height: 100%; }
+.h-capa.prete { background: var(--cc, #E0703A); box-shadow: 0 4px 0 rgba(31, 37, 51, .35), 0 0 0 3px rgba(255, 255, 255, .55); animation: capa-prete 1.6s ease-in-out infinite; }
+.h-capa.active { background: var(--cc, #E0703A); box-shadow: 0 0 16px var(--cc, #E0703A); }
+.h-capa:active { transform: translateY(2px); }
+.h-capa-voile { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(15, 18, 26, .65); z-index: 2; }
+@keyframes capa-prete { 50% { box-shadow: 0 4px 0 rgba(31, 37, 51, .35), 0 0 0 6px rgba(255, 255, 255, .25); } }
+@media (max-height: 430px) { .h-capa { width: 54px; height: 54px; } .h-capa .ico { width: 33px; height: 33px; } }
+@media (prefers-reduced-motion: reduce) { .h-capa.prete { animation: none; } }
+/* l'écran des talents : les capacités à gauche, l'arbre de celle choisie à droite */
+.talents { width: min(860px, 100%); }
+.tal-corps { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr); gap: 12px; align-items: start; }
+.tal-caps { display: grid; gap: 6px; }
+.tal-cap { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 8px; padding: 6px 10px; border-radius: 14px; border: 2.5px solid transparent; background: rgba(31, 37, 51, .06); text-align: left; color: var(--encre); font: inherit; }
+.tal-cap .ico { grid-row: 1 / span 2; width: 38px; height: 38px; border-radius: 50%; background: var(--c); display: grid; place-items: center; }
+.tal-cap .ico svg { width: 28px; height: 28px; }
+.tal-cap b { font: 700 15px/1.1 var(--titre); } .tal-cap small { font: 600 11.5px/1.2 var(--texte); color: #6A6F7A; }
+.tal-cap.choisie { border-color: var(--c); background: #fff; box-shadow: 0 3px 0 rgba(31, 37, 51, .12); }
+.tal-arbre { display: grid; gap: 8px; }
+.tal-arbre h3 { margin: 0; font: 700 18px/1.1 var(--titre); color: var(--c); }
+.tal-arbre > p { margin: 0; font: 600 12.5px/1.3 var(--texte); color: #4A4F5A; }
+.tal-maitrise { height: 8px; border-radius: 4px; background: #E2DED4; overflow: hidden; } .tal-maitrise i { display: block; height: 100%; background: var(--c); }
+.tal-palier { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; position: relative; }
+.tal-palier > small { grid-column: 1 / -1; font: 700 11px/1 var(--texte); letter-spacing: .05em; text-transform: uppercase; color: #8A8F9A; }
+.tal-t { display: grid; gap: 2px; padding: 6px 8px; border-radius: 12px; border: 2.5px solid #D8D3C8; background: #fff; text-align: left; color: var(--encre); font: inherit; min-height: 44px; }
+.tal-t b { font: 700 13.5px/1.1 var(--titre); } .tal-t span { font: 600 11px/1.25 var(--texte); color: #5A5F6A; }
+.tal-t.pris { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, #fff); box-shadow: inset 0 0 0 1px var(--c); }
+.tal-t:disabled { opacity: .45; }
+@media (orientation: landscape) and (max-height: 430px) { .tal-cap { padding: 4px 8px; } .tal-cap .ico { width: 32px; height: 32px; } .tal-cap .ico svg { width: 24px; height: 24px; } .tal-t { padding: 4px 7px; min-height: 40px; } .tal-arbre { gap: 6px; } }
+
+/* le titre : la capacité choisie, au-dessus du survivant (son icône, son nom) */
+.vitrine-boutons { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.cap-chip { position: relative; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; padding: 4px 12px 4px 5px; }
+.cap-chip .ico { grid-row: 1 / span 2; width: 32px; height: 32px; border-radius: 50%; background: var(--cc, #E0703A); display: grid; place-items: center; border: 2px solid var(--encre); }
+.cap-chip .ico svg { width: 24px; height: 24px; }
+.cap-chip b { font-size: 14px; } .cap-chip small { font-size: 11px; }
+.cap-chip .notif { left: auto; right: -4px; top: -4px; }
+@media (orientation: landscape) and (max-height: 400px) { .cap-chip .ico { width: 28px; height: 28px; } .cap-chip .ico svg { width: 20px; height: 20px; } .cap-chip { padding: 3px 10px 3px 4px; } }
+@media (orientation: landscape) and (max-height: 430px) { .talents .resume { display: none; } .talents h2 { margin-bottom: 2px; } }
 </style>
 </head>
 <body>
@@ -760,7 +803,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
         <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
         <div class="vitrine-place" aria-hidden="true"></div>
-        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button>
+        <div class="vitrine-boutons"><button type="button" class="vitrine-nom cap-chip" id="b-capacites"><span class="ico" aria-hidden="true"></span><b class="cap-nom">Frappe d’artillerie</b><small>Capacité et talents ›</small><i class="notif" hidden></i></button>
+        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button></div>
       </div>
       <div class="titre-droite">
         <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
@@ -918,6 +962,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div class="medailles" id="bunker-medailles"></div>
       <div class="bunker-liste"></div>
       <div class="pied"><button type="button" class="gros" id="b-bunker-ok">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-capacites" hidden>
+    <div class="carte-ecran talents">
+      <h2>Capacités et talents</h2>
+      <p class="resume">Une capacité par partie, sur le bouton à droite de la roulade. Plus tu t’en sers, plus son arbre s’ouvre : à chaque palier, garde un des deux talents.</p>
+      <div class="tal-corps"><div class="tal-caps"></div><div class="tal-arbre"></div></div>
+      <div class="pied"><button type="button" class="gros" id="b-capacites-ok">Retour</button></div>
     </div>
   </section>
 
@@ -2225,6 +2278,36 @@ const PRESEAU = (() => {
     grappes:       { nom: 'Lance-grappes',     famille: 'lanceur', modele: 'm', teinte: '#C86A3A', degats: 55, cadence: 0.9, portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 16,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#B85A2A', rarete: 8, depuis: 9, mode: 'obus', souffle: 1.9, grappe: { n: 5, r: 2.4, souffle: 1.4, degats: 34 } },
     singularite:   { nom: 'Singularité',       famille: 'energie', modele: 'c', teinte: '#3A2A6A', degats: 95, cadence: 0.45, portee: 11, balles: 1,  dispersion: 0.0,  munitions: 8,   perce: 0, recul: 0,    classe: 'trou',         couleur: '#5A3AA8', rarete: 5, depuis: 12, mode: 'obus', trou: { r: 4.6, duree: 2.6, attire: 4.2, dps: 18, implose: 95, souffle: 3.2 } },
   };
+  // ─── les capacités (Lot 5c) : une par survivant, au choix (l'écran « Talents ») ; un bouton en partie, une longue recharge ───
+  // Chacune a son arbre : trois paliers, deux talents par palier (on en garde un). Les paliers s'ouvrent avec la maîtrise : le nombre de
+  // fois qu'on s'en est servi (PALIERS_CAPACITE). Un talent : « plus » s'ajoute, « fois » multiplie, « oui » allume une option.
+  const CAPACITES = {
+    artillerie: { nom: 'Frappe d’artillerie', desc: 'Un barrage d’obus sur le plus gros groupe de zombies autour de toi.', couleur: '#E0703A', recharge: 30, obus: 5, degats: 80, souffle: 2.2, rayon: 3, delai: 0.9, portee: 14, etourdit: 0,
+      talents: [[{ nom: 'Barrage', desc: '3 obus de plus', plus: { obus: 3 } }, { nom: 'Gros calibre', desc: 'Dégâts +50 %', fois: { degats: 1.5 } }],
+        [{ nom: 'Napalm', desc: 'Le sol brûle après la frappe', oui: ['napalm'] }, { nom: 'Onde de choc', desc: 'Les zombies touchés restent étourdis', plus: { etourdit: 1.2 } }],
+        [{ nom: 'Rappel rapide', desc: 'Recharge 30 % plus courte', fois: { recharge: 0.7 } }, { nom: 'Double frappe', desc: 'Une seconde salve, 2 s après', oui: ['double'] }]] },
+    soin: { nom: 'Infirmier', desc: 'Soigne d’un coup toi et les survivants autour de toi.', couleur: '#4FC36A', recharge: 35, soin: 0.35, rayon: 6, bouclier: 0, regen: 0, vite: 0,
+      talents: [[{ nom: 'Grand soin', desc: 'Soin +50 %', fois: { soin: 1.5 } }, { nom: 'Large rayon', desc: 'Rayon ×1,8 (pour les copains)', fois: { rayon: 1.8 } }],
+        [{ nom: 'Bouclier', desc: '2,5 s où rien ne passe', plus: { bouclier: 2.5 } }, { nom: 'Remède', desc: 'Dégèle, et soigne encore 5 s', plus: { regen: 8 } }],
+        [{ nom: 'Réanimation', desc: 'Relève aussitôt un copain tombé', oui: ['releve'] }, { nom: 'Adrénaline', desc: '+35 % de vitesse pendant 5 s', plus: { vite: 5 } }]] },
+    rage: { nom: 'Berserker', desc: 'Quelques secondes de furie : plus de dégâts, plus de cadence, et tu te soignes en frappant.', couleur: '#E5533D', recharge: 35, duree: 7, degats: 1.6, cadence: 1.3, volVie: 0.03, prolonge: 0,
+      talents: [[{ nom: 'Fureur', desc: '3 s de plus', plus: { duree: 3 } }, { nom: 'Sauvagerie', desc: 'Dégâts ×2 au lieu de ×1,6', fois: { degats: 1.25 } }],
+        [{ nom: 'Inarrêtable', desc: 'Ni ralenti, ni gelé, ni attrapé ; tu bouscules les zombies', oui: ['inarretable'] }, { nom: 'Vampire', desc: 'Trois fois plus de vie volée', fois: { volVie: 3 } }],
+        [{ nom: 'Carnage', desc: 'Chaque zombie abattu la prolonge de 0,4 s', plus: { prolonge: 0.4 } }, { nom: 'Déflagration', desc: 'Une explosion autour de toi à la fin', oui: ['explose'] }]] },
+    drone: { nom: 'Drone', desc: 'Un drone qui tourne autour de toi et tire tout seul.', couleur: '#3BB7F0', recharge: 30, duree: 12, drones: 1, cadence: 4, degats: 16, portee: 9, rebonds: 0,
+      talents: [[{ nom: 'Escadrille', desc: 'Deux drones', plus: { drones: 1 } }, { nom: 'Autonomie', desc: '8 s de plus', plus: { duree: 8 } }],
+        [{ nom: 'Incendiaire', desc: 'Ses balles enflamment', oui: ['feu'] }, { nom: 'Arc électrique', desc: 'Le tir rebondit sur 2 zombies de plus', plus: { rebonds: 2 } }],
+        [{ nom: 'Récupérateur', desc: 'Il attire la ferraille de toute l’arène', oui: ['aimant'] }, { nom: 'Kamikaze', desc: 'Il explose sur les zombies à la fin', oui: ['explose'] }]] },
+  };
+  const ORDRE_CAPACITES = ['artillerie', 'soin', 'rage', 'drone'];
+  const PALIERS_CAPACITE = [2, 8, 20]; // (le palier n s'ouvre après tant d'utilisations de la capacité)
+  // les réglages d'une capacité avec ses talents choisis (t : l'indice du talent gardé à chaque palier, −1 : aucun)
+  function specCapacite(id, t) {
+    const C = CAPACITES[id]; if (!C) return null;
+    const o = { id, oui: {} }; for (const k in C) if (typeof C[k] === 'number') o[k] = C[k];
+    (C.talents || []).forEach((p, i) => { const T = p[t && t[i] != null ? t[i] : -1]; if (!T) return; for (const k in T.plus || {}) o[k] = (o[k] || 0) + T.plus[k]; for (const k in T.fois || {}) o[k] = (o[k] || 0) * T.fois[k]; for (const k of T.oui || []) o.oui[k] = true; });
+    return o;
+  }
   // la roulade (Lot 5b) : un bond de côté, intouchable le temps qu'il dure ; la direction du pouce, ou à l'opposé de la cible à l'arrêt
   const ROULADE = { duree: 0.34, distance: 3.4, recharge: 2.4 };
   // les raretés, d'après le poids dans les caisses (l'écran de la collection et la couleur du nom à la caisse)
@@ -2641,7 +2724,7 @@ const PRESEAU = (() => {
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
 
 /* ── src-zombies/monde.js ── */
@@ -2819,7 +2902,7 @@ const PRESEAU = (() => {
     // le Lot 4 : un second tirage (bonus, largages, pièges : le premier reste celui d'avant, les parties à graine fixe ne changent pas),
     // les leurres posés, le ralenti en cours, le largage de la vague, les pièges de l'arène
     jeu.rndB = mulberry32(((jeu.graine ^ 0x5bd1e995) >>> 0) || 7); jeu.leurres = []; jeu.ralenti = 0; jeu.largage = null;
-    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
+    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; jeu.drones = []; jeu.frappes = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
     // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
@@ -2839,6 +2922,7 @@ const PRESEAU = (() => {
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        capacite: j.capacite && D.CAPACITES[j.capacite.id] ? { id: j.capacite.id, t: (j.capacite.t || []).slice(0, 3).map((x) => (x === 0 || x === 1 ? x : -1)) } : null, capT: 0, rageT: 0, capN: 0,
         skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
@@ -2866,12 +2950,14 @@ const PRESEAU = (() => {
   const ev = (jeu, e) => { jeu.evs.push(e); };
   const niveau = (j, type) => j.niveaux[type] || 0;
   const rang = (j, k) => j.atouts[k] || 0;
-  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par) * (j.effets && j.effets.rage > 0 ? D.BONUS.rage.facteur : 1);
-  const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
+  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par) * (j.effets && j.effets.rage > 0 ? D.BONUS.rage.facteur : 1) * (j.rageT > 0 ? specDe(j).degats : 1);
+  const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par) * (j.rageT > 0 ? specDe(j).cadence : 1);
+  // les réglages de la capacité d'un survivant (gardés : ils ne changent pas en cours de partie)
+  const specDe = (j) => j._spec || (j._spec = j.capacite ? D.specCapacite(j.capacite.id, j.capacite.t) : {});
   const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
   const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
-  const aimant = (j) => Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
+  const aimant = (j) => j.droneAimant ? 60 : Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
   function compteDefenses(jeu, type) { let n = 0; for (const d of jeu.defenses) if (d.type === type) n++; return n; }
   const prixDefense = (jeu, type) => (D.DEFENSES[type] ? D.DEFENSES[type].prix : Infinity);
@@ -3116,6 +3202,7 @@ const PRESEAU = (() => {
       }
     }
     zb.vie -= deg; zb.flash = 0.12;
+    if (typeof de === 'string') { const t = jeu.joueurs.find((k) => k.id === de); if (t && t.rageT > 0 && t.vivant) t.vie = Math.min(t.vieMax, t.vie + deg * specDe(t).volVie); } // (le berserker se soigne en frappant)
     zb.dernier = { px, pz, fort: !!crit || !!souffle || deg >= 60 }; // le dernier coup : d'où il vient, et s'il était fort (le rendu fait voler les morceaux)
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
@@ -3134,6 +3221,7 @@ const PRESEAU = (() => {
     // le tueur (un survivant, ou une défense : les points vont au plus proche des survivants)
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
+    if (j && j.rageT > 0 && specDe(j).prolonge) j.rageT = Math.min(specDe(j).duree * 2, j.rageT + specDe(j).prolonge);
     if (j) { j.score += points; j.tues++; if (Z.boss) j.boss++; gagnerXp(jeu, j, Z.points * D.XP.parPoint); }
     if (j && jeu.mode === 'duel' && !zb.envoye && (j.envois = (j.envois || 0) + 1) % 6 === 0) envoyer(jeu, j);
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
@@ -3343,6 +3431,7 @@ const PRESEAU = (() => {
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
+    majCapacites(jeu, dt);
     majObjets(jeu, dt);
     majEffets(jeu, dt);
     majLargage(jeu, dt);
@@ -3384,6 +3473,11 @@ const PRESEAU = (() => {
     if (!j.vivant) return;
     if (j.invul > 0) j.invul -= dt;
     if (j.rouleCd > 0) j.rouleCd = Math.max(0, j.rouleCd - dt);
+    if (j.capT > 0) j.capT = Math.max(0, j.capT - dt);
+    if (j.rageT > 0) { j.rageT -= dt; if (j.rageT <= 0) { j.rageT = 0; ev(jeu, { t: 'finCapacite', id: j.id, cap: 'rage' }); if (specDe(j).oui.explose) explosion(jeu, j.x, j.z, 4, 120 * multDegats(j), j.id); } }
+    if (j.vite > 0) j.vite = Math.max(0, j.vite - dt);
+    if (j.regenC > 0) { j.regenC -= dt; j.vie = Math.min(j.vieMax, j.vie + (j.regenV || 0) * dt); }
+    const inarretable = j.rageT > 0 && specDe(j).oui.inarretable; if (inarretable) { j.gele = 0; j.tire = null; }
     // tiré par la chaîne d'un geôlier : il glisse vers lui (ses pas ne comptent plus le temps du tirage)
     if (j.tire) {
       const g = jeu.zombies.find((z) => z.id === j.tire.de && z.vie > 0); j.tire.t -= dt;
@@ -3394,7 +3488,7 @@ const PRESEAU = (() => {
     const roule = j.roule > 0; // (en pleine roulade : le pouce ne compte plus, il file dans sa direction)
     let mx = e && !j.tire && !roule ? +e.mx || 0 : 0, mz = e && !j.tire && !roule ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     if (j.gele > 0) j.gele = Math.max(0, j.gele - dt);
-    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1);
+    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (j.vite > 0 ? 1.35 : 1);
     if (j.grenadeT > 0) j.grenadeT = Math.max(0, j.grenadeT - dt);
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
@@ -3620,7 +3714,9 @@ const PRESEAU = (() => {
       }
       for (const j of vivants) {
         const ex = j.x - a.x, ez = j.z - a.z, m = a.rayon + j.rayon, d2 = ex * ex + ez * ez; if (d2 >= m * m) continue;
-        const d = Math.sqrt(d2) || 1e-4, p = (m - d) / d; j.x += ex * p * 0.35; j.z += ez * p * 0.35; a.x -= ex * p * 0.65; a.z -= ez * p * 0.65;
+        const d = Math.sqrt(d2) || 1e-4, p = (m - d) / d;
+        if (j.rageT > 0 && specDe(j).oui.inarretable && !D.ZOMBIES[a.type].boss) { a.rx -= ex / d * 6; a.rz -= ez / d * 6; a.x -= ex * p; a.z -= ez * p; continue; } // (inarrêtable : il les bouscule)
+        j.x += ex * p * 0.35; j.z += ez * p * 0.35; a.x -= ex * p * 0.65; a.z -= ez * p * 0.65;
       }
       monde.pousser(a);
     }
@@ -3714,6 +3810,71 @@ const PRESEAU = (() => {
     }
     if (A.genre === 'onde') for (const d of jeu.defenses) if (d.type !== 'generateur' && Math.hypot(d.x - x, d.z - z) < R) { d.vie -= A.degats; d.flash = 0.15; }
     ev(jeu, { t: 'frappe', id: zb.id, genre: A.genre, x: r2j(x), z: r2j(z), r: R });
+  }
+
+  // ─── les capacités (Lot 5c) ───
+  function capacite(jeu, idJ) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !j.vivant || jeu.fini || !j.capacite) return { ok: false };
+    if (j.capT > 0) return { ok: false, raison: 'recharge' };
+    const S = specDe(j), id = j.capacite.id; let x = j.x, z = j.z;
+    if (id === 'artillerie') {
+      // la cible : le zombie qui a le plus de voisins (à portée du survivant), sinon droit devant
+      let best = -1; const R2 = S.rayon * S.rayon, P2 = S.portee * S.portee;
+      for (const zb of jeu.zombies) { if (zb.vie <= 0 || zb.terre || (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2 > P2) continue; let n = 0; for (const o of jeu.zombies) if ((o.x - zb.x) ** 2 + (o.z - zb.z) ** 2 < R2) n++; if (n > best) { best = n; x = zb.x; z = zb.z; } }
+      if (best < 0) { x = j.x + Math.cos(j.angle) * 6; z = j.z + Math.sin(j.angle) * 6; }
+      const f = { x, z, t: S.delai, n: Math.round(S.obus), r: S.rayon, degats: S.degats * multDegats(j), souffle: S.souffle, de: j.id, etourdit: S.etourdit, napalm: !!S.oui.napalm };
+      jeu.frappes.push(f); ev(jeu, { t: 'alerte', x, z, r: S.rayon + S.souffle * 0.5, delai: S.delai, meteo: 'artillerie' });
+      if (S.oui.double) { jeu.frappes.push(Object.assign({}, f, { t: S.delai + 2 })); }
+    } else if (id === 'soin') {
+      for (const k of jeu.joueurs) {
+        if (k.parti || Math.hypot(k.x - j.x, k.z - j.z) > (k === j ? 0.1 : S.rayon)) continue;
+        if (!k.vivant) { if (S.oui.releve) { k.vivant = true; k.releve = 0; k.vie = Math.round(k.vieMax * 0.5); k.invul = 2; ev(jeu, { t: 'releve', id: k.id, par: j.id }); } continue; }
+        k.vie = Math.min(k.vieMax, k.vie + k.vieMax * S.soin);
+        if (S.bouclier) k.effets.bouclier = Math.max(k.effets.bouclier || 0, S.bouclier);
+        if (S.regen) { k.regenC = 5; k.gele = 0; k.regenV = S.regen; }
+        if (S.vite) k.vite = S.vite;
+      }
+    } else if (id === 'rage') { j.rageT = S.duree; }
+    else if (id === 'drone') { for (let k = 0; k < Math.round(S.drones); k++) jeu.drones.push({ id: nouvelId(jeu), de: j.id, x: j.x, z: j.z, a: k * Math.PI, t: S.duree, tir: 0.3 + k * 0.12 }); }
+    j.capT = S.recharge; j.capN = (j.capN || 0) + 1; jeu.stats.capacites = (jeu.stats.capacites || 0) + 1;
+    ev(jeu, { t: 'capacite', id: j.id, cap: id, x: r2j(x), z: r2j(z), r: S.rayon || 0 });
+    return { ok: true };
+  }
+  function majCapacites(jeu, dt) {
+    // les frappes d'artillerie : au bout du délai, les obus tombent au hasard dans le cercle (le second tirage)
+    for (let i = (jeu.frappes || []).length - 1; i >= 0; i--) {
+      const f = jeu.frappes[i]; f.t -= dt; if (f.t > 0) continue; jeu.frappes.splice(i, 1);
+      for (let k = 0; k < f.n; k++) {
+        const a = jeu.rndB() * TAU, r = Math.sqrt(jeu.rndB()) * f.r, x = f.x + Math.cos(a) * r, z = f.z + Math.sin(a) * r;
+        if (f.etourdit) for (const zb of jeu.zombies) if (zb.vie > 0 && !zb.terre && Math.hypot(zb.x - x, zb.z - z) < f.souffle + zb.rayon) zb.etourdi = Math.max(zb.etourdi || 0, D.ZOMBIES[zb.type].boss ? 0.3 : f.etourdit);
+        explosion(jeu, x, z, f.souffle, f.degats, f.de, k > 0);
+      }
+      if (f.napalm) { jeu.zones.push({ id: nouvelId(jeu), x: f.x, z: f.z, r: f.r + 0.5, dps: 40, vie: 5, duree: 5, de: f.de, tick: 0, feu: true }); ev(jeu, { t: 'acide', x: f.x, z: f.z, r: f.r + 0.5, feu: true }); }
+    }
+    // les drones : ils tournent autour de leur survivant et tirent sur le zombie le plus proche, en vue
+    for (const j of jeu.joueurs) j.droneAimant = false;
+    for (let i = (jeu.drones || []).length - 1; i >= 0; i--) {
+      const d = jeu.drones[i], j = trouverJoueur(jeu, d.de); d.t -= dt;
+      if (!j || !j.vivant || d.t <= 0) {
+        jeu.drones.splice(i, 1);
+        if (j && specDe(j).oui.explose) explosion(jeu, d.x, d.z, 3, 150 * multDegats(j), d.de);
+        ev(jeu, { t: 'finDrone', x: d.x, z: d.z }); continue;
+      }
+      const S = specDe(j); if (S.oui.aimant) j.droneAimant = true;
+      d.a += dt * 1.6; d.x = j.x + Math.cos(d.a) * 1.6; d.z = j.z + Math.sin(d.a) * 1.6;
+      d.tir -= dt; if (d.tir > 0) continue;
+      let cible = null, best = S.portee * S.portee;
+      for (const zb of jeu.zombies) { if (zb.vie <= 0 || zb.terre) continue; const d2 = (zb.x - d.x) ** 2 + (zb.z - d.z) ** 2; if (d2 < best && jeu.monde.vue(d.x, d.z, zb.x, zb.z)) { best = d2; cible = zb; } }
+      if (!cible) { d.tir = 0.1; continue; }
+      d.tir = 1 / S.cadence; const pts = [[r2j(d.x), r2j(d.z)]], deja = new Set(); let cur = cible, px = d.x, pz = d.z;
+      for (let k = 0; cur && k <= (S.rebonds || 0); k++) {
+        deja.add(cur.id); pts.push([r2j(cur.x), r2j(cur.z)]); const n = Math.hypot(cur.x - px, cur.z - pz) || 1;
+        if (S.oui.feu) { cur.feu = 2; cur.feuDps = Math.max(cur.feuDps || 0, 14 * multDegats(j)); cur.feuDe = j.id; }
+        const nx = cur.x, nz = cur.z; blesserZombie(jeu, cur, S.degats * multDegats(j) * Math.pow(0.8, k), (cur.x - px) / n * 0.2, (cur.z - pz) / n * 0.2, j.id, false);
+        px = nx; pz = nz; let b2 = 9, suivant = null; for (const o of jeu.zombies) { if (o.vie <= 0 || o.terre || deja.has(o.id)) continue; const q = (o.x - px) ** 2 + (o.z - pz) ** 2; if (q < b2) { b2 = q; suivant = o; } } cur = S.rebonds ? suivant : null;
+      }
+      ev(jeu, { t: 'drone', id: d.id, de: d.de, pts, feu: !!S.oui.feu, arc: !!S.rebonds });
+    }
   }
 
   // la roulade : la direction du pouce (sa dernière vitesse), sinon à l'opposé de la cible, sinon droit devant ; elle casse la chaîne d'un
@@ -4006,7 +4167,7 @@ const PRESEAU = (() => {
     const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
 
 /* ── src-zombies/modeles.js ── */
@@ -4502,7 +4663,7 @@ const ZRENDU = (() => {
     function majAlertes(dt) {
       for (let i = alertes.length - 1; i >= 0; i--) { const a = alertes[i]; a.t += dt; if (a.t >= a.delai) alertes.splice(i, 1); }
       anneaux.forEach((o, i) => {
-        const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && a.meteo === 'meteores'; if (!a) return;
+        const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && (a.meteo === 'meteores' || a.meteo === 'artillerie'); if (!a) return;
         const k = a.t / a.delai; o.m.material.color.set(a.couleur || '#FF3B2F'); o.m.position.set(a.x, 0.04, a.z); o.m.scale.setScalar(a.r * (1.25 - k * 0.25)); o.m.material.opacity = 0.45 + 0.45 * Math.abs(Math.sin(a.t * 14));
         if (o.r.visible) { o.r.position.set(a.x + (1 - k) * 4, 0.3 + (1 - k) * 14, a.z - (1 - k) * 2); o.r.rotation.set(a.t * 5, a.t * 3, 0); if (Math.random() < 0.6) particule(o.r.position.x, o.r.position.y, o.r.position.z, 0, 0.5, 0, 0.5, 0.2, Math.random() < 0.5 ? '#FF8A3A' : '#8A8A8A', 0); }
       });
@@ -4922,8 +5083,9 @@ const ZRENDU = (() => {
       if (!s.bulle) { s.bulle = new T.Mesh(geoBulle, new T.MeshBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.2, depthWrite: false, blending: T.AdditiveBlending })); s.bulle.position.y = 1.05; s.g.add(s.bulle);
         s.aura = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#E5533D', transparent: true, opacity: 0.85, depthWrite: false })); s.aura.position.y = 0.05; s.g.add(s.aura); } // (accrochées au survivant : elles partent avec lui)
       const b = E.bouclier || 0; s.bulle.visible = b > 0 && j.vivant && !(b < 1.5 && Math.floor(b * 8) % 2 === 0); if (s.bulle.visible) { s.bulle.scale.setScalar(1.15 + Math.sin(t * 6) * 0.04); s.bulle.material.opacity = 0.16 + Math.sin(t * 9) * 0.05; }
-      const k = j.gele > 0 ? 'gele' : ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
-      if (k === 'gele') { s.aura.material.color.set('#A8E4FF'); s.aura.rotation.y = t * 0.6; s.aura.scale.setScalar(1.25); if (Math.random() < dt * 10) particule(j.x + (Math.random() - 0.5) * 0.9, 0.3 + Math.random(), j.z + (Math.random() - 0.5) * 0.9, 0, 0.6, 0, 0.6, 0.06, '#E8F8FF', 0); }
+      const k = j.gele > 0 ? 'gele' : j.rageT > 0 ? 'berserk' : ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
+      if (k === 'berserk') { s.aura.material.color.set('#E5533D'); s.aura.rotation.y = t * 4; s.aura.scale.setScalar(1.3 + Math.sin(t * 12) * 0.1); if (Math.random() < dt * 20) particule(j.x + (Math.random() - 0.5) * 0.8, 0.4 + Math.random() * 1.4, j.z + (Math.random() - 0.5) * 0.8, 0, 2, 0, 0.4, 0.09, Math.random() < 0.5 ? '#FF4A2A' : '#FFB03A', 0); }
+      else if (k === 'gele') { s.aura.material.color.set('#A8E4FF'); s.aura.rotation.y = t * 0.6; s.aura.scale.setScalar(1.25); if (Math.random() < dt * 10) particule(j.x + (Math.random() - 0.5) * 0.9, 0.3 + Math.random(), j.z + (Math.random() - 0.5) * 0.9, 0, 0.6, 0, 0.6, 0.06, '#E8F8FF', 0); }
       else if (k) { s.aura.material.color.set(D.BONUS[k].couleur); s.aura.rotation.y = t * 2; s.aura.scale.setScalar((k === 'aimant' ? 1.6 : 1.1) + Math.sin(t * 7) * 0.07); if (k === 'rage' && Math.random() < dt * 14) particule(j.x + (Math.random() - 0.5) * 0.8, 0.3, j.z + (Math.random() - 0.5) * 0.8, 0, 2.5 + Math.random() * 2, 0, 0.45, 0.08, Math.random() < 0.5 ? '#FF5A3A' : '#FFB347', 0); }
     }
     // le leurre : un mannequin de bois et sa cible, un cercle rose qui pulse à ses pieds
@@ -5126,7 +5288,7 @@ const ZRENDU = (() => {
       let n = 0; const tps = performance.now() / 1000;
       for (const d of jeu.disques || []) { if (n >= 16) break; _q.setFromEuler(_e.set(0, tps * 25 + d.id, 0)); _v.set(d.x, 0.9, d.z); _s.set(1, 1, 1); _base.compose(_v, _q, _s); disques.setMatrixAt(n++, _base); }
       disques.count = n; disques.instanceMatrix.needsUpdate = true; n = 0;
-      for (const z of jeu.zones || []) { if (n >= 16) break; const k = z.r * Math.min(1, (z.duree - z.vie) * 5 + 0.3) * (z.vie < 0.6 ? z.vie / 0.6 : 1); _q.identity(); _v.set(z.x, 0.03, z.z); _s.set(k, 1, k); _base.compose(_v, _q, _s); zonesM.setMatrixAt(n++, _base); if (Math.random() < dt * 6) particule(z.x + (Math.random() - 0.5) * z.r, 0.1, z.z + (Math.random() - 0.5) * z.r, 0, 0.8 + Math.random(), 0, 0.6, 0.08, '#C6F56A', 0); }
+      for (const z of jeu.zones || []) { if (z.feu) { if (Math.random() < dt * 30) { const b = Math.random() * 6.28, r = Math.random() * z.r; particule(z.x + Math.cos(b) * r, 0.1, z.z + Math.sin(b) * r, 0, 1.5 + Math.random() * 1.5, 0, 0.5, 0.18, Math.random() < 0.5 ? '#FF7A1A' : '#FFC23A', 0); } continue; } if (n >= 16) break; const k = z.r * Math.min(1, (z.duree - z.vie) * 5 + 0.3) * (z.vie < 0.6 ? z.vie / 0.6 : 1); _q.identity(); _v.set(z.x, 0.03, z.z); _s.set(k, 1, k); _base.compose(_v, _q, _s); zonesM.setMatrixAt(n++, _base); if (Math.random() < dt * 6) particule(z.x + (Math.random() - 0.5) * z.r, 0.1, z.z + (Math.random() - 0.5) * z.r, 0, 0.8 + Math.random(), 0, 0.6, 0.08, '#C6F56A', 0); }
       zonesM.count = n; zonesM.instanceMatrix.needsUpdate = true;
       // les zombies qui brûlent fument, ceux qui sont gelés givrent
       for (const zb of jeu.zombies) { if (zb.feu > 0 && Math.random() < dt * 10) particule(zb.x + (Math.random() - 0.5) * 0.4, 1.2 + Math.random() * 0.6, zb.z + (Math.random() - 0.5) * 0.4, 0, 1.6, 0, 0.45, 0.14, Math.random() < 0.6 ? '#FF8A2A' : '#FFD06A', 0); else if (zb.gel > 0 && Math.random() < dt * 5) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.0 + Math.random() * 0.8, zb.z + (Math.random() - 0.5) * 0.5, 0, -0.3, 0, 0.5, 0.08, '#E6FAFF', 0); }
@@ -5216,6 +5378,21 @@ const ZRENDU = (() => {
         if (Math.random() < dt * 40) { const b = Math.random() * 6.28, r = T0.r * (0.6 + Math.random() * 0.4); particule(T0.x + Math.cos(b) * r, 0.3 + Math.random() * 1.2, T0.z + Math.sin(b) * r, -Math.cos(b) * r * 1.6 - Math.sin(b) * 2, 0.6, -Math.sin(b) * r * 1.6 + Math.cos(b) * 2, 0.55, 0.08, Math.random() < 0.5 ? '#B48CFF' : '#5A3AA8', 0); }
       }
       for (; i < reserveTrous.length; i++) reserveTrous[i].g.visible = false;
+    }
+    // les drones (Lot 5c) : un petit quadricoptère qui flotte et tourne autour du survivant, ses hélices floues
+    const reserveDrones = [];
+    function drone3d() {
+      const g = new T.Group(), F = new Fab();
+      F.add(BOITE, '#2E3440', mat(0, 0, 0, 0, 0.36, 0.14, 0.36)); F.add(BOITE, '#3BB7F0', mat(0, 0.08, 0, 0, 0.2, 0.05, 0.2)); F.add(BOITE, '#E5533D', mat(0.19, 0, 0, 0, 0.04, 0.05, 0.08));
+      F.add(BOITE, '#2E3440', mat(0, 0, 0, 0.785, 0.9, 0.05, 0.06)); F.add(BOITE, '#2E3440', mat(0, 0, 0, -0.785, 0.9, 0.05, 0.06));
+      const m = new T.Mesh(F.geo(), matVC); m.castShadow = true; g.add(m);
+      const helices = []; for (const [x, z] of [[0.32, 0.32], [-0.32, 0.32], [0.32, -0.32], [-0.32, -0.32]]) { const h = new T.Mesh(new T.CircleGeometry(0.17, 12).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#DDE6EE', transparent: true, opacity: 0.45, depthWrite: false })); h.position.set(x, 0.06, z); g.add(h); helices.push(h); }
+      g.scale.setScalar(1.15); scene.add(g); const o = { g, helices }; reserveDrones.push(o); return o;
+    }
+    function majDrones(jeu, dt) {
+      const t = performance.now() / 1000; let i = 0;
+      for (const d of jeu.drones || []) { const o = reserveDrones[i] || drone3d(); i++; o.g.visible = !(d.t < 1.2 && Math.floor(d.t * 8) % 2 === 0); o.g.position.set(d.x, 2.1 + Math.sin(t * 3 + d.id) * 0.12, d.z); o.g.rotation.y = -t * 1.6; for (const h of o.helices) h.rotation.y = t * 40; }
+      for (; i < reserveDrones.length; i++) reserveDrones[i].g.visible = false;
     }
     function majProjectiles(jeu) {
       let n = 0;
@@ -5389,7 +5566,7 @@ const ZRENDU = (() => {
           case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
           case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
           case 'infecte': flaque(e.x, e.z, 1.0, '#5E8C2E'); for (let k = 0; k < 18; k++) particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 5, 2 + Math.random() * 3, (Math.random() - 0.5) * 5, 0.7, 0.12, k % 2 ? '#8FD14F' : '#4F8A2E', 0.4); secousse = Math.max(secousse, 0.2); break;
-          case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo }); break;
+          case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo, couleur: e.meteo === 'artillerie' ? '#FF8A3A' : null }); break;
           case 'impact':
             if (e.meteo === 'orage') { let px = e.x + (Math.random() - 0.5) * 2, py = 16, pz = e.z + (Math.random() - 0.5) * 2; for (let k = 1; k <= 6; k++) { const f = k / 6, nx = e.x + (Math.random() - 0.5) * (1 - f) * 2.5, ny = 16 * (1 - f), nz = e.z + (Math.random() - 0.5) * (1 - f) * 2.5; segment(px, py, pz, nx, ny, nz, 0.16, '#E8F4FF', 0.22); px = nx; py = ny; pz = nz; } eclairT = 0.15; }
             else flaque(e.x, e.z, 1.6, '#2A2420');
@@ -5404,6 +5581,17 @@ const ZRENDU = (() => {
           case 'piege': onde(e.x, e.z, D.PIEGE.rayon * 1.3, '#7FDBFF'); break;
           case 'zap': zap(e); break;
           // le Lot 5b : la roulade, la singularité qui s'ouvre et qui implose, la contagion des toxines
+          // le Lot 5c : les capacités, les tirs des drones
+          case 'capacite': {
+            const C = D.CAPACITES[e.cap] || { couleur: '#FFF' }, j = jeu.joueurs.find((x) => x.id === e.id), x = j ? j.x : e.x, z = j ? j.z : e.z;
+            if (e.cap === 'soin') { onde(x, z, e.r || 6, '#4FC36A'); onde(x, z, 1.6, '#FFFFFF'); for (const k of jeu.joueurs) if (k.vivant && Math.hypot(k.x - x, k.z - z) <= (k.id === e.id ? 0.1 : e.r || 6)) for (let n = 0; n < 16; n++) particule(k.x + (Math.random() - 0.5) * 0.9, 0.3, k.z + (Math.random() - 0.5) * 0.9, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, n % 3 ? '#7FE08A' : '#FFFFFF', 0); lumiere(x, 2, z, '#7FE08A', 25, 10, 0.3); }
+            else if (e.cap === 'rage') { onde(x, z, 3, '#E5533D'); for (let n = 0; n < 24; n++) { const b = Math.random() * 6.28, v = 2 + Math.random() * 4; particule(x, 1.0, z, Math.cos(b) * v, 1 + Math.random() * 3, Math.sin(b) * v, 0.5, 0.11, n % 2 ? '#FF4A2A' : '#FFB03A', 0.3); } lumiere(x, 2, z, '#FF5A3A', 30, 10, 0.3); secousse = Math.max(secousse, 0.2); }
+            else if (e.cap === 'drone') { for (let n = 0; n < 14; n++) particule(x, 1.6, z, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.5, 0.08, n % 2 ? '#3BB7F0' : '#FFFFFF', 0); onde(x, z, 1.8, '#3BB7F0'); }
+            else if (e.cap === 'artillerie') { fumee(x, 0.3, z, 0.8, 1.6, '#FF8A3A'); for (let n = 0; n < 8; n++) particule(x, 0.3, z, (Math.random() - 0.5) * 1.5, 3 + Math.random() * 2, (Math.random() - 0.5) * 1.5, 0.8, 0.12, '#FF6A2A', 0); }
+            break;
+          }
+          case 'drone': { const p = e.pts || [], c = e.feu ? '#FFB03A' : e.arc ? '#BFF0FF' : '#9AE6FF'; for (let k = 0; k + 1 < p.length; k++) segment(p[k][0], k ? 1.0 : 2.1, p[k][1], p[k + 1][0], 1.0, p[k + 1][1], e.arc ? 0.06 : 0.045, c, 0.08); if (p.length > 1) particule(p[1][0], 1.0, p[1][1], 0, 1, 0, 0.2, 0.07, c, 0); break; }
+          case 'finDrone': for (let n = 0; n < 8; n++) particule(e.x, 2.1, e.z, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 0.4, 0.08, '#9AA3AE', 0.4); break;
           case 'roule': for (let k = 0; k < 10; k++) { const b = (e.a || 0) + Math.PI + (Math.random() - 0.5) * 1.4, v = 1 + Math.random() * 2.5; particule(e.x, 0.15, e.z, Math.cos(b) * v, 0.8 + Math.random(), Math.sin(b) * v, 0.5, 0.14, '#C8B48A', 0); } break;
           case 'trou': onde(e.x, e.z, e.r || 4, '#8A5AFF'); lumiere(e.x, 1.5, e.z, '#8A5AFF', 20, 10, 0.3); break;
           case 'implose': boum(e.x, e.z, e.r || 3); onde(e.x, e.z, (e.r || 3) * 1.6, '#B48CFF'); onde(e.x, e.z, e.r || 3, '#FFFFFF'); lumiere(e.x, 2, e.z, '#C8A8FF', 50, 22, 0.4); secousse = Math.max(secousse, 0.5); for (let k = 0; k < 30; k++) { const b = Math.random() * 6.28, v = 3 + Math.random() * 6; particule(e.x, 1, e.z, Math.cos(b) * v, 2 + Math.random() * 4, Math.sin(b) * v, 0.7, 0.11, k % 2 ? '#B48CFF' : '#2A1A4A', 0.3); } break;
@@ -5439,6 +5627,7 @@ const ZRENDU = (() => {
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majTrous(jeu, dt);
+      majDrones(jeu, dt);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
       if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }
@@ -5543,10 +5732,10 @@ const ZRENDU = (() => {
    le doigt se pose n'importe où dans la zone de jeu (hors des boutons du HUD), la base du joystick naît sous lui, le pouce s'en écarte
    de RAYON pixels au plus ; zone morte, courbe un peu exponentielle (mêmes réglages que Poncin). Pointer Events suivis par pointerId,
    touch-action: none. Le tir est automatique (la simulation vise le zombie le plus proche) : seul le déplacement passe par ici.
-   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Maj ou C : la roulade ; Échap ou P : pause ; Espace : lancer la vague.
+   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Maj ou C : la roulade ; F ou R : la capacité ; Échap ou P : pause ; Espace : lancer la vague.
    Manette (PS5, Xbox… : Gamepad API, disposition standard) : stick gauche ou croix pour courir ; A / Croix : la grenade (et, dans les
    menus, le bouton principal) ; X / Carré, Y / Triangle, B / Rond : l'arme 1 / 2 (les atouts 1 / 2 / 3 au passage d'un niveau) ;
-   R1 / RB : lancer la vague ; L1 / LB ou R2 / RT : la roulade ; Start / Options : pause.
+   R1 / RB : lancer la vague ; L1 / LB ou R2 / RT : la roulade ; L2 / LT : la capacité ; Start / Options : pause.
    API : ZCONTROLES.init(zone, { surTouche(nom) }), lire() → { mx, mz } (vecteur du monde : x vers l'est, z vers le sud ; longueur ≤ 1),
          activer(bool), reinit(), get joystick() → { actif, x, y } (pour les tests). */
 const ZCONTROLES = (() => {
@@ -5588,7 +5777,7 @@ const ZCONTROLES = (() => {
   }
   // ─── la manette : sondée à chaque image tant qu'il y en a une ───
   let manette = false, sondeEnCours = false, px = 0, pz = 0; const avant = [];
-  const BOUTONS = { 0: 'grenade', 2: 'arme0', 3: 'arme1', 1: 'arme2', 5: 'passer', 9: 'pause', 4: 'roulade', 7: 'roulade' };
+  const BOUTONS = { 0: 'grenade', 2: 'arme0', 3: 'arme1', 1: 'arme2', 5: 'passer', 9: 'pause', 4: 'roulade', 7: 'roulade', 6: 'capacite' };
   function sonder() {
     let pad = null;
     try { const l = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l) if (g && g.connected) { pad = g; break; } } catch (e) { pad = null; }
@@ -5632,6 +5821,7 @@ const ZCONTROLES = (() => {
     else if (e.code === 'Digit3' || e.code === 'Numpad3') rappel('arme2');
     else if (e.code === 'KeyG' || e.code === 'KeyE') rappel('grenade');
     else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') rappel('roulade');
+    else if (e.code === 'KeyF' || e.code === 'KeyR') rappel('capacite');
     else if (e.code === 'Escape' || e.code === 'KeyP') rappel('pause');
     else if (e.code === 'Space') { rappel('passer'); if (actif) e.preventDefault(); }
   }
@@ -5722,7 +5912,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0, droneT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -5772,7 +5962,7 @@ const ZSONS = (() => {
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
         case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
-        case 'alerte': if (e.meteo === 'meteores') { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('roquette', 0.5 * k, p); } break;
+        case 'alerte': if (e.meteo === 'meteores' || e.meteo === 'artillerie') { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('roquette', 0.5 * k, p); } break;
         case 'impact': if (e.meteo === 'orage') { P.jouer('tonnerre', 0.9); P.vibrer(30); } break;
         case 'victoire': P.jouer('mancheFin', 1); jouer('serie', 1, 0, 1.2); P.vibrer([30, 60, 30, 60, 90]); break;
         case 'echec': P.jouer('defaite', 1); break;
@@ -5806,6 +5996,9 @@ const ZSONS = (() => {
         case 'frappe': { const [k, p] = ecoute(e.x, e.z, 36); jouer(e.genre === 'nova' ? 'cryo' : 'boum', 0.4 + 0.6 * k, p, e.genre === 'nova' ? 0.7 : 0.8); if (k > 0.4) P.vibrer(e.genre === 'nova' ? 30 : 45); break; }
         case 'eclipse': { const [k, p] = ecoute(e.x, e.z, 30); jouer('arc', 0.6 * k + 0.2, p, 0.6); break; }
         // le Lot 5b : la roulade, la singularité qui s'ouvre puis implose, le poison qui passe aux voisins
+        // le Lot 5c : les capacités (la frappe qui part, le soin, la furie, le drone qui décolle), les tirs du drone
+        case 'capacite': { const mien = e.id === idMoi; if (e.cap === 'artillerie') { jouer('roquette', mien ? 0.8 : 0.4, 0, 0.6); P.jouer('manche', mien ? 0.5 : 0.25); } else if (e.cap === 'soin') P.jouer('soin', mien ? 1 : 0.5); else if (e.cap === 'rage') { jouer('grogne', mien ? 1 : 0.5, 0, 1.5); jouer('serie', 0.8, 0, 0.7); } else if (e.cap === 'drone') { jouer('tesla', mien ? 0.6 : 0.3); jouer('serie', 0.6, 0, 1.6); } break; }
+        case 'drone': { const t = performance.now(); if (t - droneT > 110) { droneT = t; const p0 = e.pts && e.pts[0], [k, p] = p0 ? ecoute(p0[0], p0[1], 22) : [0, 0]; if (k > 0.05) jouer(e.arc ? 'tesla' : 'laser', 0.3 * k, p); } break; }
         case 'roule': if (e.id === idMoi) { P.jouer('glissade', 0.7); } else { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.1) P.jouer('glissade', 0.4 * k, p); } break;
         case 'trou': { const [k, p] = ecoute(e.x, e.z, 30); jouer('trou', 0.3 + 0.7 * k, p); break; }
         case 'implose': { const [k, p] = ecoute(e.x, e.z, 36); jouer('implose', 0.4 + 0.6 * k, p); if (k > 0.4) P.vibrer(40); break; }
@@ -5852,6 +6045,10 @@ const ZHUD = (() => {
     vitesse: '<svg viewBox="0 0 40 40"><path d="M8 27c6 0 9-2 12-8l3-6 7 3-2 5h5l1 6c-8 2-18 3-26 0z" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M3 14h9M2 20h7" stroke="#2B2A33" stroke-width="2.5" stroke-linecap="round"/></svg>',
     portee: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="26" height="7" rx="3" fill="#6C6F7D" stroke="#2B2A33" stroke-width="2.5"/><rect x="12" y="9" width="14" height="7" rx="3" fill="#9B6BD6" stroke="#2B2A33" stroke-width="2.5"/><path d="M30 20h7" stroke="#2B2A33" stroke-width="3"/></svg>',
     butin: '<svg viewBox="0 0 40 40"><path d="M8 16h24l-2 18H10z" fill="#B98E5A" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 16a6 6 0 0 1 12 0" stroke="#2B2A33" stroke-width="2.5" fill="none"/><path d="M20 21l5 3v6l-5 3-5-3v-6z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/></svg>',
+    cap_artillerie: '<svg viewBox="0 0 40 40"><path d="M20 4c4 4 5 9 5 14v8H15v-8c0-5 1-10 5-14z" fill="#fff" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M15 26l-3 6h16l-3-6" fill="#FFD84A" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M15 18h10" stroke="#E0703A" stroke-width="3"/></svg>',
+    cap_soin: '<svg viewBox="0 0 40 40"><path d="M15 6h10v9h9v10h-9v9H15v-9H6V15h9z" fill="#fff" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/></svg>',
+    cap_rage: '<svg viewBox="0 0 40 40"><path d="M20 4c2 6 9 8 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 2 3 3 4 5 4-1-4-1-7 0-10z" fill="#FFD84A" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 20c2 3 4 4 4 7a4 4 0 0 1-8 0c0-2 2-4 4-7z" fill="#fff"/></svg>',
+    cap_drone: '<svg viewBox="0 0 40 40"><path d="M10 12l8 8M30 12l-8 8M10 28l8-8M30 28l-8-8" stroke="#2B2A33" stroke-width="3"/><ellipse cx="10" cy="11" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="30" cy="11" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="10" cy="29" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="30" cy="29" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><rect x="14" y="15" width="12" height="10" rx="3" fill="#fff" stroke="#2B2A33" stroke-width="2.4"/><circle cx="20" cy="20" r="2.2" fill="#E5533D"/></svg>',
     roulade: '<svg viewBox="0 0 40 40"><path d="M9 27a12 12 0 1 1 20 4" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><path d="M24 30l6 2 1-7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="19" r="4.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="2"/></svg>',
     grenade: '<svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="12" fill="#5E7A3E" stroke="#2B2A33" stroke-width="2.5"/><path d="M11 20h16M11 27h16M19 13v22" stroke="#3E5228" stroke-width="2"/><rect x="15" y="7" width="9" height="6" rx="1.5" fill="#9AA0A8" stroke="#2B2A33" stroke-width="2"/><path d="M24 9c5 0 7 3 6 7" stroke="#2B2A33" stroke-width="2.5" fill="none"/><circle cx="30" cy="17" r="2.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.5"/></svg>',
     medaille: '<svg viewBox="0 0 24 24"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="#D9534F"/><circle cx="12" cy="15" r="7" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.8"/><path d="M12 11l1.2 2.5 2.7.3-2 1.8.6 2.7-2.5-1.4-2.5 1.4.6-2.7-2-1.8 2.7-.3z" fill="#E0A61E"/></svg>',
@@ -5912,7 +6109,7 @@ const ZHUD = (() => {
         </div>
         <div class="h-info" hidden></div>
       </div>
-      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button><button type="button" class="h-roulade" aria-label="Rouler"><span class="ico">${ICO.roulade}</span><span class="h-roul-voile"></span></button></div></div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button><button type="button" class="h-roulade" aria-label="Rouler"><span class="ico">${ICO.roulade}</span><span class="h-roul-voile"></span></button><button type="button" class="h-capa" aria-label="Capacité" hidden><span class="ico"></span><span class="h-capa-voile"></span></button></div></div>
       <div class="h-milieu">
         <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
@@ -5932,7 +6129,7 @@ const ZHUD = (() => {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), roul: $('.h-roulade'), roulVoile: $('.h-roul-voile'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), roul: $('.h-roulade'), roulVoile: $('.h-roul-voile'), capa: $('.h-capa'), capaIco: $('.h-capa .ico'), capaVoile: $('.h-capa-voile'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -5944,6 +6141,7 @@ const ZHUD = (() => {
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
     sur(el.roul, () => A.roulade && A.roulade());
+    sur(el.capa, () => A.capacite && A.capacite());
     // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
     sur(el.emote, () => {
       if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
@@ -6080,6 +6278,7 @@ const ZHUD = (() => {
       else if (e.t === 'bonus' && e.id === idMoi && D.BONUS[e.bonus]) toast(`${D.BONUS[e.bonus].nom} ! ${D.BONUS[e.bonus].desc}`);
       else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
       else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
+      else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) toast(`${D.CAPACITES[e.cap].nom} !`);
       else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);
       else if (e.t === 'piegeCher' && e.id === idMoi) toast(`Il faut ${e.cout} de ferraille pour allumer le piège`);
       else if (e.t === 'piege' && e.de === idMoi) toast('Piège électrique allumé !');
@@ -6101,6 +6300,13 @@ const ZHUD = (() => {
     // la roulade : pareil (la recharge), cachée là où elle n'existe pas (l'Infection)
     const rr = j.rouleCd > 0 ? j.rouleCd / D.ROULADE.recharge : 0, rk = rr > 0 ? Math.ceil(rr * 20) : 0;
     if (vu.roul !== rk) { vu.roul = rk; el.roulVoile.style.height = `${Math.min(100, rr * 100)}%`; el.roul.classList.toggle('prete', rk === 0); }
+    // la capacité (Lot 5c) : son icône, sa couleur, le voile de sa recharge ; cachée sans capacité
+    const cid = j.capacite ? j.capacite.id : '', C = cid && D.CAPACITES[cid];
+    if (vu.cap !== cid) { vu.cap = cid; el.capa.hidden = !C; if (C) { el.capaIco.innerHTML = ICO['cap_' + cid] || ''; el.capa.style.setProperty('--cc', C.couleur); el.capa.setAttribute('aria-label', C.nom); } }
+    if (C) {
+      const R = j.capR || (D.specCapacite(cid, j.capacite.t).recharge), cr = j.capT > 0 ? j.capT / R : 0, ck = cr > 0 ? Math.ceil(cr * 30) : 0, actif = j.rageT > 0 || (jeu.drones || []).some((d) => d.de === j.id);
+      if (vu.capk !== ck + (actif ? 'a' : '')) { vu.capk = ck + (actif ? 'a' : ''); el.capaVoile.style.height = `${Math.min(100, cr * 100)}%`; el.capa.classList.toggle('prete', ck === 0); el.capa.classList.toggle('active', actif); }
+    }
     // le choix d'un atout (la partie attend)
     const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {
@@ -6229,6 +6435,9 @@ const ZENLIGNE = (() => {
   const COULEURS = ['#E3B663', '#7FB3E0', '#9BD86A', '#E58FB8'];
   const r2 = (v) => Math.round(v * 100) / 100, r1 = (v) => Math.round(v * 10) / 10;
   const codeBonus = (b) => CLES_BONUS.map((k) => Math.max(0, Math.min(9, (b && b[k]) | 0))).join('');
+  const CAPS = D ? D.ORDRE_CAPACITES : [];
+  const codeCap = (c) => (c && CAPS.includes(c.id) ? String(CAPS.indexOf(c.id)) + [0, 1, 2].map((i) => (c.t && (c.t[i] === 0 || c.t[i] === 1) ? c.t[i] : 9)).join('') : '');
+  const lireCap = (s) => { s = String(s || ''); const id = CAPS[+s[0]]; return s.length >= 4 && id ? { id, t: [1, 2, 3].map((i) => (s[i] === '0' || s[i] === '1' ? +s[i] : -1)) } : null; };
   const lireBonus = (s) => { const o = {}; CLES_BONUS.forEach((k, i) => { o[k] = Math.max(0, Math.min(9, +String(s || '')[i] || 0)); }); return o; };
   const aleaId = () => 'j' + Math.random().toString(36).slice(2, 10);
 
@@ -6240,7 +6449,8 @@ const ZENLIGNE = (() => {
       s: [jeu.serie.n, r2(jeu.serie.t), jeu.serie.mult], st: [jeu.stats.tues, jeu.stats.ferraille, jeu.stats.construits],
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
-        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '', effetsCourts(p.effets), r1(p.gele || 0), r2(p.roule || 0), r1(p.rouleCd || 0), r2(p.rdx || 0), r2(p.rdz || 0)]),
+        p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '', effetsCourts(p.effets), r1(p.gele || 0), r2(p.roule || 0), r1(p.rouleCd || 0), r2(p.rdx || 0), r2(p.rdz || 0),
+        p.capacite ? p.capacite.id : '', r1(p.capT || 0), r1(p.rageT || 0), r1(p.vite || 0), p.capacite ? Math.round(D.specCapacite(p.capacite.id, p.capacite.t).recharge) : 0]), // (Lot 5c : la capacité, sa recharge, la rage, l'adrénaline)
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0,
         (z.terre ? 1 : 0) | (z.excite > 0 ? 2 : 0) | (z.bouclier > 0 ? 4 : 0) | (z.poison > 0 ? 8 : 0) | (z.etourdi > 0 ? 16 : 0), z.phase || 0]), // (le Lot 5 : sous terre, excité, le bouclier ; la phase du boss)
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
@@ -6252,8 +6462,9 @@ const ZENLIGNE = (() => {
       ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0, o.droit ? 1 : 0, o.trou ? 1 : o.petite ? 2 : 0]),
       ch: jeu.crochets.map((c) => [c.id, c.de, r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
       di: jeu.disques.map((d) => [d.id, r2(d.x), r2(d.z), r2(d.vx), r2(d.vz)]),
+      dr: (jeu.drones || []).map((d) => [d.id, r2(d.x), r2(d.z), d.de, r1(d.t)]), // (les drones)
       tr: (jeu.trous || []).map((t) => [t.id, r2(t.x), r2(t.z), r2(t.t), t.duree, t.r]), // (Lot 5b : les singularités)
-      zo: jeu.zones.map((z) => [z.id, r2(z.x), r2(z.z), r2(z.r), r1(z.vie), r1(z.duree)]),
+      zo: jeu.zones.map((z) => [z.id, r2(z.x), r2(z.z), r2(z.r), r1(z.vie), r1(z.duree), z.feu ? 1 : 0]),
     };
   }
   // ─── la copie du client, écrite par un instantané (les objets gardent leur identité : le rendu les suit par id) ───
@@ -6270,7 +6481,8 @@ const ZENLIGNE = (() => {
       p.vie = a[4]; p.vieMax = a[5]; p.vivant = !!a[6]; p.ferraille = a[7]; p.score = a[8]; p.tues = a[9]; p.niveau = a[10]; p.xp = a[11]; p.main = a[12];
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
       p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null; p.effets = a[26] || {}; p.gele = a[27] || 0;
-      if (p.id !== idMoi || !(p.roule > 0)) { p.roule = a[28] || 0; p.rdx = a[30] || 0; p.rdz = a[31] || 0; } p.rouleCd = Math.max(p.id === idMoi ? p.rouleCd || 0 : 0, a[29] || 0); // (sa propre roulade : prédite chez lui)
+      if (p.id !== idMoi || !(p.roule > 0)) { p.roule = a[28] || 0; p.rdx = a[30] || 0; p.rdz = a[31] || 0; } p.rouleCd = Math.max(p.id === idMoi ? p.rouleCd || 0 : 0, a[29] || 0);
+      p.capacite = a[32] ? { id: a[32], t: [] } : null; p.capT = a[33] || 0; p.rageT = a[34] || 0; p.vite = a[35] || 0; p.capR = a[36] || 0; // (sa propre roulade : prédite chez lui)
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -6288,10 +6500,11 @@ const ZENLIGNE = (() => {
     if (e.pi && jeu.pieges) e.pi.forEach((q, i) => { const p = jeu.pieges[i]; if (p) { p.etat = q[0] === 1 ? 'actif' : q[0] === 2 ? 'recharge' : 'pret'; p.t = q[1]; } });
     jeu.crachats.length = 0; for (const c of e.cr) jeu.crachats.push({ x: c[0], z: c[1], vx: c[2], vz: c[3] });
     jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6], droit: !!o[7], trou: o[8] === 1 ? {} : null, petite: o[8] === 2 });
+    if (e.dr && jeu.drones) garder(jeu.drones, e.dr, (l) => ({ id: l[0], x: l[1], z: l[2] }), (d, l) => { d.tx = l[1]; d.tz = l[2]; d.de = l[3]; d.t = l[4]; });
     if (e.tr && jeu.trous) garder(jeu.trous, e.tr, (l) => ({ id: l[0] }), (t, l) => { t.x = l[1]; t.z = l[2]; t.t = l[3]; t.duree = l[4]; t.r = l[5]; });
     garder(jeu.crochets, e.ch || [], (l) => ({ id: l[0] }), (c, l) => { c.de = l[1]; c.x = l[2]; c.z = l[3]; c.vx = l[4]; c.vz = l[5]; });
     garder(jeu.disques, e.di || [], (l) => ({ id: l[0], x: l[1], z: l[2] }), (d, l) => { d.x = l[1]; d.z = l[2]; d.vx = l[3]; d.vz = l[4]; });
-    garder(jeu.zones, e.zo || [], (l) => ({ id: l[0] }), (z, l) => { z.x = l[1]; z.z = l[2]; z.r = l[3]; z.vie = l[4]; z.duree = l[5]; });
+    garder(jeu.zones, e.zo || [], (l) => ({ id: l[0] }), (z, l) => { z.x = l[1]; z.z = l[2]; z.r = l[3]; z.vie = l[4]; z.duree = l[5]; z.feu = !!l[6]; });
   }
   // entre deux instantanés : zombies, copains et ferraille glissent vers leur dernière position ; les projectiles avancent
   function lisser(jeu, dt, idMoi) {
@@ -6302,6 +6515,7 @@ const ZENLIGNE = (() => {
     for (const c of jeu.crachats) { c.x += c.vx * dt; c.z += c.vz * dt; }
     for (const o of jeu.obus) o.t = Math.min(o.duree, o.t + dt);
     for (const d of jeu.disques) { d.x += d.vx * dt; d.z += d.vz * dt; }
+    for (const d of jeu.drones || []) if (d.tx != null) { d.x += (d.tx - d.x) * k; d.z += (d.tz - d.z) * k; }
     for (const c of jeu.crochets) { c.x += c.vx * dt; c.z += c.vz * dt; }
     jeu.t += dt;
   }
@@ -6310,7 +6524,7 @@ const ZENLIGNE = (() => {
     if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
     o = o || {};
     const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
-    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) + codeCap(o.capacite), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
     const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
     const Z = {
       code: s.code, idMoi, partie: null,
@@ -6324,7 +6538,7 @@ const ZENLIGNE = (() => {
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
         if (mode === 'duel' && liste.length !== 2) return 'duel-deux';
-        const debut = { mode: mode === 'cps' || mode === 'duel' ? mode : '', graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), skin: lireSkin(j.am) })) };
+        const debut = { mode: mode === 'cps' || mode === 'duel' ? mode : '', graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), capacite: lireCap(String(j.eq || '').slice(CLES_BONUS.length)), skin: lireSkin(j.am) })) };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -6336,7 +6550,7 @@ const ZENLIGNE = (() => {
     s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
 
     function demarrer(d) {
-      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, capacite: j.capacite || null, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
       const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs, mode: d.mode || '' });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
@@ -6361,6 +6575,7 @@ const ZENLIGNE = (() => {
           case 'ameliorer': return J.ameliorer(jeu, de, arg);
           case 'grenade': return J.grenade(jeu, de);
           case 'roulade': return J.roulade(jeu, de);
+          case 'capacite': return J.capacite(jeu, de);
           case 'arme': return J.changerArme(jeu, de, +arg);
           case 'atout': return J.choisirAtout(jeu, de, arg);
           case 'passer': return J.passer(jeu);
@@ -6405,7 +6620,7 @@ const ZENLIGNE = (() => {
         // la prédiction : son propre survivant bouge tout de suite (même vitesse que chez l'hôte, mêmes murs, mêmes défenses)
         if (moi && moi.vivant && entree) {
           let mx = +entree.mx || 0, mz = +entree.mz || 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
-          const v = D.JOUEUR.vitesse * (1 + (moi.atouts.vitesse || 0) * D.ATOUTS.vitesse.par) * (moi.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1);
+          const v = D.JOUEUR.vitesse * (1 + (moi.atouts.vitesse || 0) * D.ATOUTS.vitesse.par) * (moi.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (moi.vite > 0 ? 1.35 : 1);
           if (moi.gele > 0) moi.gele = Math.max(0, moi.gele - dt);
           if (moi.roule > 0) { mx = 0; mz = 0; }
           moi.vx = mx * v; moi.vz = mz * v; moi.x += moi.vx * dt; moi.z += moi.vz * dt; moi.bouge = l > 0.05 ? Math.min(1, l) : 0;
@@ -6775,7 +6990,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
+  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social'), capacites: $('#ecran-capacites') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -6785,6 +7000,7 @@ const ZENLIGNE = (() => {
   const save = lire();
   save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal' }, save.reglages || {});
   save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
+  save.capacites = Object.assign({ choisie: 'artillerie', usages: {}, talents: {} }, save.capacites || {}); // (Lot 5c : la capacité choisie, combien de fois chacune a servi, les talents gardés)
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
   function ecrire() { try { localStorage.setItem(CLE, JSON.stringify(save)); } catch (e) { /* stockage plein ou refusé : la partie continue */ } }
   const debloquee = (id) => { const k = D.ORDRE_ARENES.indexOf(id); if (k <= 0) return true; const prec = D.ORDRE_ARENES[k - 1], r = save.records[prec]; return !!(r && r.vague >= D.DEBLOCAGE[id]); };
@@ -6815,6 +7031,7 @@ const ZENLIGNE = (() => {
     else if (n === 'passer') faire('passer');
     else if (n === 'grenade') lancerGrenade();
     else if (n === 'roulade') rouler();
+    else if (n === 'capacite') lancerCapacite();
     else if (n === 'arme0' || n === 'arme1') faire('arme', +n.slice(-1));
   } });
   reglerJoy();
@@ -6827,6 +7044,7 @@ const ZENLIGNE = (() => {
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
     roulade() { rouler(); },
+    capacite() { lancerCapacite(); },
     emote(e) { if (jeu) faire('emote', e); },
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
@@ -6845,6 +7063,7 @@ const ZENLIGNE = (() => {
       case 'ameliorer': return ZJEU.ameliorer(jeu, idMoi, arg);
       case 'grenade': return ZJEU.grenade(jeu, idMoi);
       case 'roulade': return ZJEU.roulade(jeu, idMoi);
+      case 'capacite': return ZJEU.capacite(jeu, idMoi);
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
@@ -6855,6 +7074,7 @@ const ZENLIGNE = (() => {
   const moi = () => (jeu ? jeu.joueurs.find((p) => p.id === idMoi) || jeu.joueurs[0] : null);
   const monChoix = () => { const m = moi(); return m ? m.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null) : null; };
   function rouler() { if (!jeu || jeu.mode === 'infection' || (enPause && !partie)) return; const r = faire('roulade'); if (r && r.ok) PSONS.vibrer(12); }
+  function lancerCapacite() { if (!jeu || jeu.mode === 'infection' || (enPause && !partie)) return; const r = faire('capacite'); if (r && r.ok) PSONS.vibrer(20); else if (r && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
   function lancerGrenade() { if (jeu && jeu.mode === 'infection') { if (!enPause && ZINFECTION.bondir(jeu)) PSONS.vibrer(15); return; } if (!jeu || (enPause && !partie)) return; const r = faire('grenade'); if (r && !r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
   function choisir(k) { if (!jeu || (enPause && !partie) || !monChoix()) return; const r = faire('atout', k); if (r && r.ok) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
@@ -6877,7 +7097,7 @@ const ZENLIGNE = (() => {
   }
   // ─── la vitrine : dans les menus, la caméra descend en plan rapproché sur ton survivant (la démonstration), posé dans la place libre
   // du titre (à gauche) ou à gauche de la Collection ; en partie, elle remonte au-dessus de l'arène ───
-  const MENUS = new Set(['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
+  const MENUS = new Set(['titre', 'arenes', 'bunker', 'capacites', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
   function placerVitrine() {
     if (!MENUS.has(ecran) || (jeu && !jeu.fini)) { rendu.vitrine(false); return; }
     const W = window.innerWidth, H = window.innerHeight, paysage = W > H;
@@ -6900,6 +7120,7 @@ const ZENLIGNE = (() => {
     $('.jouer-arene').textContent = `${A.nom}${r && r.vague ? ` · record : vague ${r.vague}` : ''}`;
     $('.arene-choix-img').style.backgroundImage = `url(vignettes/${arene}.webp)`;
     $('.vitrine-skin').textContent = (D.SURVIVANTS[C.skin] || D.SURVIVANTS.gardien).nom;
+    { const cid = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', K = D.CAPACITES[cid]; $('.cap-nom').textContent = K.nom; $('#b-capacites .ico').innerHTML = ZHUD.ICO['cap_' + cid] || ''; $('#b-capacites').style.setProperty('--cc', K.couleur); }
     majBadges();
   }
   function majBadges() {
@@ -6908,6 +7129,7 @@ const ZENLIGNE = (() => {
     const col = Object.keys(D.SURVIVANTS).some((k) => D.SURVIVANTS[k].prix && !C.skins.includes(k) && m >= D.SURVIVANTS[k].prix) || Object.keys(D.EMOTES).some((k) => D.EMOTES[k].prix && !C.emotes.includes(k) && m >= D.EMOTES[k].prix);
     const notif = (id, on, titre) => { const i = document.querySelector(`#${id} .notif`); if (i) { i.hidden = !on; i.title = on ? titre : ''; } };
     notif('b-bunker', bunker, 'Une amélioration à ta portée'); notif('b-collection', col, 'De quoi t’offrir un survivant ou une émote'); notif('b-progression', coffrePret(), 'Le coffre du jour t’attend');
+    notif('b-capacites', !!save.capacites.neuf, 'Un palier de talents s’est ouvert');
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -7023,7 +7245,7 @@ const ZENLIGNE = (() => {
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, capacite: maCapacite(false), skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -7055,6 +7277,25 @@ const ZENLIGNE = (() => {
     xp: '<svg viewBox="0 0 40 40"><path d="M7 9c5-2 9-1 13 2v21c-4-3-8-4-13-2z" fill="#F2EBD9" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M33 9c-5-2-9-1-13 2v21c4-3 8-4 13-2z" fill="#FFF7EC" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 15h6M10 20h6M24 15h6M24 20h6" stroke="#8E5BE8" stroke-width="2" stroke-linecap="round"/></svg>',
     arme: '<svg viewBox="0 0 40 40"><rect x="5" y="13" width="30" height="20" rx="3" fill="#C99B62" stroke="#2B2A33" stroke-width="2.4"/><path d="M5 20h30M20 13v20" stroke="#5A3D22" stroke-width="2.2"/><path d="M11 9h18l2 4H9z" fill="#5E6347" stroke="#2B2A33" stroke-width="2.2" stroke-linejoin="round"/></svg>',
   };
+  // ─── l'écran des talents (Lot 5c) ───
+  const ICO_CAP = (id) => ZHUD.ICO['cap_' + id] || '';
+  function remplirCapacites() {
+    const S = save.capacites, choisie = D.CAPACITES[S.choisie] ? S.choisie : 'artillerie', C = D.CAPACITES[choisie], u = S.usages[choisie] || 0, t = S.talents[choisie] || [];
+    $('.tal-caps').innerHTML = D.ORDRE_CAPACITES.map((id) => { const K = D.CAPACITES[id], n = S.usages[id] || 0, pal = D.PALIERS_CAPACITE.filter((p) => n >= p).length;
+      return `<button type="button" class="tal-cap${id === choisie ? ' choisie' : ''}" data-cap="${id}" style="--c:${K.couleur}"><span class="ico">${ICO_CAP(id)}</span><b>${K.nom}</b><small>${id === choisie ? 'Choisie · ' : ''}palier ${pal}/3</small></button>`; }).join('');
+    const prochain = D.PALIERS_CAPACITE.find((p) => u < p), avant = [0].concat(D.PALIERS_CAPACITE).filter((p) => p <= u).pop();
+    $('.tal-arbre').style.setProperty('--c', C.couleur);
+    $('.tal-arbre').innerHTML = `<h3>${C.nom}</h3><p>${C.desc} Recharge : ${C.recharge} s.</p>
+      <p>${prochain ? `Utilisée ${u} fois · palier suivant à ${prochain}` : `Utilisée ${u} fois · tout l’arbre est ouvert`}</p><div class="tal-maitrise"><i style="width:${prochain ? Math.round((u - avant) / (prochain - avant) * 100) : 100}%"></i></div>
+      ${C.talents.map((paire, i) => { const ouvert = u >= D.PALIERS_CAPACITE[i]; return `<div class="tal-palier"><small>Palier ${i + 1}${ouvert ? '' : ` · après ${D.PALIERS_CAPACITE[i]} utilisations`}</small>${paire.map((T, k) => `<button type="button" class="tal-t${ouvert && t[i] === k ? ' pris' : ''}" data-talent="${i}:${k}" ${ouvert ? '' : 'disabled'} aria-pressed="${ouvert && t[i] === k}"><b>${T.nom}</b><span>${T.desc}</span></button>`).join('')}</div>`; }).join('')}`;
+  }
+  function ouvrirCapacites() { save.capacites.neuf = false; ecrire(); remplirCapacites(); for (const k in ecrans) ecrans[k].hidden = true; montrer('capacites'); majBadges(); }
+  $('.tal-caps').addEventListener('click', (e) => { const b = e.target.closest('[data-cap]'); if (!b) return; save.capacites.choisie = b.dataset.cap; ecrire(); remplirCapacites(); PSONS.jouer('achat', 0.4); });
+  $('.tal-arbre').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-talent]'); if (!b || b.disabled) return; const [i, k] = b.dataset.talent.split(':').map(Number), id = save.capacites.choisie;
+    const t = save.capacites.talents[id] = (save.capacites.talents[id] || [-1, -1, -1]).slice(0, 3); while (t.length < 3) t.push(-1);
+    t[i] = t[i] === k ? -1 : k; ecrire(); remplirCapacites(); PSONS.jouer('achat', 0.5);
+  });
   function remplirBunker() {
     majMedailles();
     // trois branches ; chaque amélioration : son icône dans un anneau qui se remplit cran par cran, ses crans, son prix
@@ -7128,7 +7369,7 @@ const ZENLIGNE = (() => {
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [Object.assign(moiJoueur(), { capacite: maCapacite(true) })] }); // sans les bonus du Bunker ni les talents : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -7194,7 +7435,9 @@ const ZENLIGNE = (() => {
   // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
   save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
   { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
-  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme, capacite: maCapacite(false) }; }
+  function maCapacite(sansTalents) { const id = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', t = (save.capacites.talents[id] || []).slice(0, 3); return { id, t: sansTalents ? [-1, -1, -1] : [0, 1, 2].map((i) => (palierOuvert(id, i) && (t[i] === 0 || t[i] === 1) ? t[i] : -1)) }; }
+  const palierOuvert = (id, i) => (save.capacites.usages[id] || 0) >= D.PALIERS_CAPACITE[i];
   const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
   // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
   function progres(x) {
@@ -7506,6 +7749,8 @@ const ZENLIGNE = (() => {
   clic('#b-lancer', () => { if (salon) { const r = salon.lancer(arene, modeSalon); if (r === 'duel-deux') { erreurSalon('Le duel se joue à deux exactement.'); return; } verrouiller(); } });
   clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
+  clic('#b-capacites', ouvrirCapacites);
+  clic('#b-capacites-ok', () => { montrer('titre'); majTitre(); majBadges(); });
   clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
@@ -7539,9 +7784,16 @@ const ZENLIGNE = (() => {
   function effetsTemps(l) {
     for (const e of l) {
       if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
+      else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) compterCapacite(e.cap);
       else if (e.t === 'phase') { ralentiJusque = Math.max(ralentiJusque, performance.now() + 700); PSONS.vibrer([40, 30, 80]); } // (un boss change de phase : un instant au ralenti)
       else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
     }
+  }
+  function compterCapacite(id) {
+    const u = save.capacites.usages, avant = u[id] || 0; u[id] = avant + 1;
+    const i = D.PALIERS_CAPACITE.findIndex((p) => avant < p && u[id] >= p);
+    if (i >= 0) { setTimeout(() => ZHUD.toast(`Nouveau palier de talents : ${D.CAPACITES[id].nom} (Talents, au menu)`), 1900); save.capacites.neuf = true; }
+    ecrire();
   }
   let fige = false, finVu = false;
   function boucle(t) {
@@ -7579,7 +7831,7 @@ const ZENLIGNE = (() => {
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, ouvrirCapacites, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

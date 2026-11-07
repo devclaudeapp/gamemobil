@@ -522,6 +522,33 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b'); const G = g.zombies.find((z) => z.id === 1);
     check(g.trous.length === 1 && g.trous[0].x === 2 && g.joueurs[0].roule > 0 && G.poison > 0 && G.etourdi > 0, 'à plusieurs : la singularité, la roulade du copain, le poison et l’étourdissement arrivent chez les autres'); }
 }
+// ─── le Lot 5c : les capacités et leurs arbres de talents ───
+{
+  const mk = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: 0.001, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const avec = (id, t, o) => { const jeu = J.creer(Object.assign({ arene: 'jardin', graine: 51, attente: 99, joueurs: [{ id: 'moi', capacite: { id, t: t || [-1, -1, -1] } }] }, o || {})); const j = jeu.joueurs[0]; j.xp = -1e9; j.vie = j.vieMax = 1000; return jeu; };
+  check(D.ORDRE_CAPACITES.length === 4 && D.ORDRE_CAPACITES.every((k) => D.CAPACITES[k].talents.length === 3 && D.CAPACITES[k].talents.every((p) => p.length === 2 && p.every((T) => T.nom && T.desc))) && D.PALIERS_CAPACITE.length === 3,
+    'quatre capacités (artillerie, infirmier, berserker, drone), chacune un arbre de trois paliers à deux talents');
+  { const a = D.specCapacite('artillerie', [0, -1, 0]), b = D.specCapacite('artillerie', [1, 1, 1]); check(a.obus === 8 && Math.abs(a.recharge - 21) < 1e-9 && b.degats === 120 && b.etourdit > 0 && b.oui.double && !a.oui.double, 'les talents changent la capacité : 3 obus de plus, recharge −30 %, dégâts +50 %, étourdissement, double frappe'); }
+  // l'artillerie : la frappe tombe sur le groupe, après le délai ; puis la recharge
+  { const jeu = avec('artillerie'), j = jeu.joueurs[0]; const g = [mk(1, 'trainard', j.x + 8, j.z), mk(2, 'trainard', j.x + 8.6, j.z + 0.5), mk(3, 'trainard', j.x + 8.3, j.z - 0.6), mk(4, 'trainard', j.x - 6, j.z)]; jeu.zombies.push(...g);
+    const r = J.capacite(jeu, 'moi'), al = jeu.evs.find((e) => e.t === 'alerte'), evs = avancer(jeu, 70); const r2 = J.capacite(jeu, 'moi');
+    check(r.ok && al && Math.hypot(al.x - (j.x + 8.3), al.z - j.z) < 1 && evs.filter((e) => e.t === 'boum').length === 5 && evs.filter((e) => e.t === 'boum').every((e) => Math.hypot(e.x - al.x, e.z - al.z) < 3.1) && g.slice(0, 3).every((z) => z.vie < 1e5 - 50) && !r2.ok && r2.raison === 'recharge', 'l’artillerie : cinq obus sur le groupe de trois zombies (pas sur celui d’à côté), puis la recharge'); }
+  // l'infirmier : le soin, le bouclier du talent ; un copain tombé relevé (réanimation)
+  { const jeu = avec('soin', [-1, 0, 0], { joueurs: [{ id: 'moi', capacite: { id: 'soin', t: [-1, 0, 0] } }, { id: 'b' }] }), j = jeu.joueurs[0], b = jeu.joueurs[1]; j.vie = 100; j.vieMax = 1000; b.x = j.x + 2; b.z = j.z; b.vivant = false; b.vie = 0;
+    J.capacite(jeu, 'moi'); check(j.vie === 100 + 350 && j.effets.bouclier > 0 && b.vivant && b.vie > 0, `l’infirmier : +35 % de vie, le bouclier du talent, et le copain tombé à 2 m relevé`); }
+  // le berserker : plus de dégâts le temps de la furie, la vie volée, l'explosion à la fin (talent)
+  { const jeu = avec('rage', [-1, 1, 1]), j = jeu.joueurs[0], m0 = J.multDegats(j); J.capacite(jeu, 'moi'); const m1 = J.multDegats(j); j.vie = 500; j.angle = 0; const zb = mk(5, 'costaud', j.x + 3, j.z); jeu.zombies.push(zb); J.tirer(jeu, j, D.ARMES.pistolet, zb, 'pistolet'); const vole = j.vie > 500;
+    const z2 = mk(6, 'trainard', j.x + 2, j.z + 1); jeu.zombies.push(z2); const evs = avancer(jeu, 60 * 8); check(Math.abs(m1 - m0 * 1.6) < 1e-9 && vole && j.rageT === 0 && J.multDegats(j) === m0 && evs.some((e) => e.t === 'boum' && Math.hypot(e.x - j.x, e.z - j.z) < 0.5), 'le berserker : dégâts ×1,6, la vie volée en frappant, puis la déflagration à la fin'); }
+  // le drone : il tourne autour, tire tout seul sur le plus proche, puis s'en va ; deux avec Escadrille
+  { const jeu = avec('drone', [0, -1, -1]), j = jeu.joueurs[0], zb = mk(7, 'costaud', j.x + 5, j.z); jeu.zombies.push(zb); j.x -= 0; J.capacite(jeu, 'moi'); const n = jeu.drones.length; let evs = avancer(jeu, 60 * 2);
+    const tirs = evs.filter((e) => e.t === 'drone').length; evs = avancer(jeu, 60 * 11); check(n === 2 && tirs >= 10 && zb.vie < 1e5 && jeu.drones.length === 0 && evs.some((e) => e.t === 'finDrone'), `le drone : deux avec Escadrille, ${tirs} tirs en 2 s, puis ils repartent`); }
+  // sans capacité : rien ; à plusieurs : la capacité, sa recharge, la furie et les drones arrivent chez les copains
+  { const jeu = J.creer({ arene: 'jardin', graine: 3 }); check(!J.capacite(jeu, jeu.joueurs[0].id).ok, 'sans capacité choisie, le bouton ne fait rien'); }
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'jardin', graine: 9, joueurs: [{ id: 'a', capacite: { id: 'drone', t: [0, 1, -1] } }, { id: 'b', capacite: { id: 'rage', t: [-1, -1, -1] } }] }, h = J.creer(o), g = J.creer({ arene: 'jardin', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] });
+    J.capacite(h, 'a'); J.capacite(h, 'b'); ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
+    check(g.joueurs[0].capacite.id === 'drone' && g.joueurs[0].capT > 20 && g.joueurs[1].rageT > 0 && g.drones.length === 2 && g.joueurs[0].capR === 30, 'à plusieurs : la capacité de chacun, sa recharge, la furie et les drones arrivent chez les copains'); }
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;

@@ -56,6 +56,36 @@
     grappes:       { nom: 'Lance-grappes',     famille: 'lanceur', modele: 'm', teinte: '#C86A3A', degats: 55, cadence: 0.9, portee: 11,  balles: 1,  dispersion: 0.0,  munitions: 16,  perce: 0, recul: 0,    classe: 'roquette',     couleur: '#B85A2A', rarete: 8, depuis: 9, mode: 'obus', souffle: 1.9, grappe: { n: 5, r: 2.4, souffle: 1.4, degats: 34 } },
     singularite:   { nom: 'Singularité',       famille: 'energie', modele: 'c', teinte: '#3A2A6A', degats: 95, cadence: 0.45, portee: 11, balles: 1,  dispersion: 0.0,  munitions: 8,   perce: 0, recul: 0,    classe: 'trou',         couleur: '#5A3AA8', rarete: 5, depuis: 12, mode: 'obus', trou: { r: 4.6, duree: 2.6, attire: 4.2, dps: 18, implose: 95, souffle: 3.2 } },
   };
+  // ─── les capacités (Lot 5c) : une par survivant, au choix (l'écran « Talents ») ; un bouton en partie, une longue recharge ───
+  // Chacune a son arbre : trois paliers, deux talents par palier (on en garde un). Les paliers s'ouvrent avec la maîtrise : le nombre de
+  // fois qu'on s'en est servi (PALIERS_CAPACITE). Un talent : « plus » s'ajoute, « fois » multiplie, « oui » allume une option.
+  const CAPACITES = {
+    artillerie: { nom: 'Frappe d’artillerie', desc: 'Un barrage d’obus sur le plus gros groupe de zombies autour de toi.', couleur: '#E0703A', recharge: 30, obus: 5, degats: 80, souffle: 2.2, rayon: 3, delai: 0.9, portee: 14, etourdit: 0,
+      talents: [[{ nom: 'Barrage', desc: '3 obus de plus', plus: { obus: 3 } }, { nom: 'Gros calibre', desc: 'Dégâts +50 %', fois: { degats: 1.5 } }],
+        [{ nom: 'Napalm', desc: 'Le sol brûle après la frappe', oui: ['napalm'] }, { nom: 'Onde de choc', desc: 'Les zombies touchés restent étourdis', plus: { etourdit: 1.2 } }],
+        [{ nom: 'Rappel rapide', desc: 'Recharge 30 % plus courte', fois: { recharge: 0.7 } }, { nom: 'Double frappe', desc: 'Une seconde salve, 2 s après', oui: ['double'] }]] },
+    soin: { nom: 'Infirmier', desc: 'Soigne d’un coup toi et les survivants autour de toi.', couleur: '#4FC36A', recharge: 35, soin: 0.35, rayon: 6, bouclier: 0, regen: 0, vite: 0,
+      talents: [[{ nom: 'Grand soin', desc: 'Soin +50 %', fois: { soin: 1.5 } }, { nom: 'Large rayon', desc: 'Rayon ×1,8 (pour les copains)', fois: { rayon: 1.8 } }],
+        [{ nom: 'Bouclier', desc: '2,5 s où rien ne passe', plus: { bouclier: 2.5 } }, { nom: 'Remède', desc: 'Dégèle, et soigne encore 5 s', plus: { regen: 8 } }],
+        [{ nom: 'Réanimation', desc: 'Relève aussitôt un copain tombé', oui: ['releve'] }, { nom: 'Adrénaline', desc: '+35 % de vitesse pendant 5 s', plus: { vite: 5 } }]] },
+    rage: { nom: 'Berserker', desc: 'Quelques secondes de furie : plus de dégâts, plus de cadence, et tu te soignes en frappant.', couleur: '#E5533D', recharge: 35, duree: 7, degats: 1.6, cadence: 1.3, volVie: 0.03, prolonge: 0,
+      talents: [[{ nom: 'Fureur', desc: '3 s de plus', plus: { duree: 3 } }, { nom: 'Sauvagerie', desc: 'Dégâts ×2 au lieu de ×1,6', fois: { degats: 1.25 } }],
+        [{ nom: 'Inarrêtable', desc: 'Ni ralenti, ni gelé, ni attrapé ; tu bouscules les zombies', oui: ['inarretable'] }, { nom: 'Vampire', desc: 'Trois fois plus de vie volée', fois: { volVie: 3 } }],
+        [{ nom: 'Carnage', desc: 'Chaque zombie abattu la prolonge de 0,4 s', plus: { prolonge: 0.4 } }, { nom: 'Déflagration', desc: 'Une explosion autour de toi à la fin', oui: ['explose'] }]] },
+    drone: { nom: 'Drone', desc: 'Un drone qui tourne autour de toi et tire tout seul.', couleur: '#3BB7F0', recharge: 30, duree: 12, drones: 1, cadence: 4, degats: 16, portee: 9, rebonds: 0,
+      talents: [[{ nom: 'Escadrille', desc: 'Deux drones', plus: { drones: 1 } }, { nom: 'Autonomie', desc: '8 s de plus', plus: { duree: 8 } }],
+        [{ nom: 'Incendiaire', desc: 'Ses balles enflamment', oui: ['feu'] }, { nom: 'Arc électrique', desc: 'Le tir rebondit sur 2 zombies de plus', plus: { rebonds: 2 } }],
+        [{ nom: 'Récupérateur', desc: 'Il attire la ferraille de toute l’arène', oui: ['aimant'] }, { nom: 'Kamikaze', desc: 'Il explose sur les zombies à la fin', oui: ['explose'] }]] },
+  };
+  const ORDRE_CAPACITES = ['artillerie', 'soin', 'rage', 'drone'];
+  const PALIERS_CAPACITE = [2, 8, 20]; // (le palier n s'ouvre après tant d'utilisations de la capacité)
+  // les réglages d'une capacité avec ses talents choisis (t : l'indice du talent gardé à chaque palier, −1 : aucun)
+  function specCapacite(id, t) {
+    const C = CAPACITES[id]; if (!C) return null;
+    const o = { id, oui: {} }; for (const k in C) if (typeof C[k] === 'number') o[k] = C[k];
+    (C.talents || []).forEach((p, i) => { const T = p[t && t[i] != null ? t[i] : -1]; if (!T) return; for (const k in T.plus || {}) o[k] = (o[k] || 0) + T.plus[k]; for (const k in T.fois || {}) o[k] = (o[k] || 0) * T.fois[k]; for (const k of T.oui || []) o.oui[k] = true; });
+    return o;
+  }
   // la roulade (Lot 5b) : un bond de côté, intouchable le temps qu'il dure ; la direction du pouce, ou à l'opposé de la cible à l'arrêt
   const ROULADE = { duree: 0.34, distance: 3.4, recharge: 2.4 };
   // les raretés, d'après le poids dans les caisses (l'écran de la collection et la couleur du nom à la caisse)
@@ -472,5 +502,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

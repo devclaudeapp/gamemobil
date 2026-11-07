@@ -55,7 +55,7 @@
     // le Lot 4 : un second tirage (bonus, largages, pièges : le premier reste celui d'avant, les parties à graine fixe ne changent pas),
     // les leurres posés, le ralenti en cours, le largage de la vague, les pièges de l'arène
     jeu.rndB = mulberry32(((jeu.graine ^ 0x5bd1e995) >>> 0) || 7); jeu.leurres = []; jeu.ralenti = 0; jeu.largage = null;
-    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
+    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; jeu.drones = []; jeu.frappes = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
     // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
@@ -75,6 +75,7 @@
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        capacite: j.capacite && D.CAPACITES[j.capacite.id] ? { id: j.capacite.id, t: (j.capacite.t || []).slice(0, 3).map((x) => (x === 0 || x === 1 ? x : -1)) } : null, capT: 0, rageT: 0, capN: 0,
         skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
@@ -102,12 +103,14 @@
   const ev = (jeu, e) => { jeu.evs.push(e); };
   const niveau = (j, type) => j.niveaux[type] || 0;
   const rang = (j, k) => j.atouts[k] || 0;
-  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par) * (j.effets && j.effets.rage > 0 ? D.BONUS.rage.facteur : 1);
-  const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par);
+  const multDegats = (j) => (1 + niveau(j, 'degats') * D.AMELIORATIONS.degats.par) * (1 + rang(j, 'degats') * D.ATOUTS.degats.par) * (1 + j.bonus.degats * D.BUNKER.degats.par) * (j.effets && j.effets.rage > 0 ? D.BONUS.rage.facteur : 1) * (j.rageT > 0 ? specDe(j).degats : 1);
+  const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par) * (j.rageT > 0 ? specDe(j).cadence : 1);
+  // les réglages de la capacité d'un survivant (gardés : ils ne changent pas en cours de partie)
+  const specDe = (j) => j._spec || (j._spec = j.capacite ? D.specCapacite(j.capacite.id, j.capacite.t) : {});
   const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
   const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
-  const aimant = (j) => Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
+  const aimant = (j) => j.droneAimant ? 60 : Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
   function compteDefenses(jeu, type) { let n = 0; for (const d of jeu.defenses) if (d.type === type) n++; return n; }
   const prixDefense = (jeu, type) => (D.DEFENSES[type] ? D.DEFENSES[type].prix : Infinity);
@@ -352,6 +355,7 @@
       }
     }
     zb.vie -= deg; zb.flash = 0.12;
+    if (typeof de === 'string') { const t = jeu.joueurs.find((k) => k.id === de); if (t && t.rageT > 0 && t.vivant) t.vie = Math.min(t.vieMax, t.vie + deg * specDe(t).volVie); } // (le berserker se soigne en frappant)
     zb.dernier = { px, pz, fort: !!crit || !!souffle || deg >= 60 }; // le dernier coup : d'où il vient, et s'il était fort (le rendu fait voler les morceaux)
     const Z = D.ZOMBIES[zb.type], masse = Z.boss ? 0.15 : Z.rayon > 0.6 ? 0.4 : 1;
     zb.rx += px * masse * 4; zb.rz += pz * masse * 4;
@@ -370,6 +374,7 @@
     // le tueur (un survivant, ou une défense : les points vont au plus proche des survivants)
     let j = trouverJoueur(jeu, de);
     if (!j) { let best = Infinity; for (const k of jeu.joueurs) { const d = Math.hypot(k.x - zb.x, k.z - zb.z); if (k.vivant && d < best) { best = d; j = k; } } }
+    if (j && j.rageT > 0 && specDe(j).prolonge) j.rageT = Math.min(specDe(j).duree * 2, j.rageT + specDe(j).prolonge);
     if (j) { j.score += points; j.tues++; if (Z.boss) j.boss++; gagnerXp(jeu, j, Z.points * D.XP.parPoint); }
     if (j && jeu.mode === 'duel' && !zb.envoye && (j.envois = (j.envois || 0) + 1) % 6 === 0) envoyer(jeu, j);
     jeu.stats.tues++; jeu.stats.parType[zb.type] = (jeu.stats.parType[zb.type] || 0) + 1;
@@ -579,6 +584,7 @@
     majZombies(jeu, dt);
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
+    majCapacites(jeu, dt);
     majObjets(jeu, dt);
     majEffets(jeu, dt);
     majLargage(jeu, dt);
@@ -620,6 +626,11 @@
     if (!j.vivant) return;
     if (j.invul > 0) j.invul -= dt;
     if (j.rouleCd > 0) j.rouleCd = Math.max(0, j.rouleCd - dt);
+    if (j.capT > 0) j.capT = Math.max(0, j.capT - dt);
+    if (j.rageT > 0) { j.rageT -= dt; if (j.rageT <= 0) { j.rageT = 0; ev(jeu, { t: 'finCapacite', id: j.id, cap: 'rage' }); if (specDe(j).oui.explose) explosion(jeu, j.x, j.z, 4, 120 * multDegats(j), j.id); } }
+    if (j.vite > 0) j.vite = Math.max(0, j.vite - dt);
+    if (j.regenC > 0) { j.regenC -= dt; j.vie = Math.min(j.vieMax, j.vie + (j.regenV || 0) * dt); }
+    const inarretable = j.rageT > 0 && specDe(j).oui.inarretable; if (inarretable) { j.gele = 0; j.tire = null; }
     // tiré par la chaîne d'un geôlier : il glisse vers lui (ses pas ne comptent plus le temps du tirage)
     if (j.tire) {
       const g = jeu.zombies.find((z) => z.id === j.tire.de && z.vie > 0); j.tire.t -= dt;
@@ -630,7 +641,7 @@
     const roule = j.roule > 0; // (en pleine roulade : le pouce ne compte plus, il file dans sa direction)
     let mx = e && !j.tire && !roule ? +e.mx || 0 : 0, mz = e && !j.tire && !roule ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     if (j.gele > 0) j.gele = Math.max(0, j.gele - dt);
-    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1);
+    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (j.vite > 0 ? 1.35 : 1);
     if (j.grenadeT > 0) j.grenadeT = Math.max(0, j.grenadeT - dt);
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
@@ -856,7 +867,9 @@
       }
       for (const j of vivants) {
         const ex = j.x - a.x, ez = j.z - a.z, m = a.rayon + j.rayon, d2 = ex * ex + ez * ez; if (d2 >= m * m) continue;
-        const d = Math.sqrt(d2) || 1e-4, p = (m - d) / d; j.x += ex * p * 0.35; j.z += ez * p * 0.35; a.x -= ex * p * 0.65; a.z -= ez * p * 0.65;
+        const d = Math.sqrt(d2) || 1e-4, p = (m - d) / d;
+        if (j.rageT > 0 && specDe(j).oui.inarretable && !D.ZOMBIES[a.type].boss) { a.rx -= ex / d * 6; a.rz -= ez / d * 6; a.x -= ex * p; a.z -= ez * p; continue; } // (inarrêtable : il les bouscule)
+        j.x += ex * p * 0.35; j.z += ez * p * 0.35; a.x -= ex * p * 0.65; a.z -= ez * p * 0.65;
       }
       monde.pousser(a);
     }
@@ -950,6 +963,71 @@
     }
     if (A.genre === 'onde') for (const d of jeu.defenses) if (d.type !== 'generateur' && Math.hypot(d.x - x, d.z - z) < R) { d.vie -= A.degats; d.flash = 0.15; }
     ev(jeu, { t: 'frappe', id: zb.id, genre: A.genre, x: r2j(x), z: r2j(z), r: R });
+  }
+
+  // ─── les capacités (Lot 5c) ───
+  function capacite(jeu, idJ) {
+    const j = trouverJoueur(jeu, idJ); if (!j || !j.vivant || jeu.fini || !j.capacite) return { ok: false };
+    if (j.capT > 0) return { ok: false, raison: 'recharge' };
+    const S = specDe(j), id = j.capacite.id; let x = j.x, z = j.z;
+    if (id === 'artillerie') {
+      // la cible : le zombie qui a le plus de voisins (à portée du survivant), sinon droit devant
+      let best = -1; const R2 = S.rayon * S.rayon, P2 = S.portee * S.portee;
+      for (const zb of jeu.zombies) { if (zb.vie <= 0 || zb.terre || (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2 > P2) continue; let n = 0; for (const o of jeu.zombies) if ((o.x - zb.x) ** 2 + (o.z - zb.z) ** 2 < R2) n++; if (n > best) { best = n; x = zb.x; z = zb.z; } }
+      if (best < 0) { x = j.x + Math.cos(j.angle) * 6; z = j.z + Math.sin(j.angle) * 6; }
+      const f = { x, z, t: S.delai, n: Math.round(S.obus), r: S.rayon, degats: S.degats * multDegats(j), souffle: S.souffle, de: j.id, etourdit: S.etourdit, napalm: !!S.oui.napalm };
+      jeu.frappes.push(f); ev(jeu, { t: 'alerte', x, z, r: S.rayon + S.souffle * 0.5, delai: S.delai, meteo: 'artillerie' });
+      if (S.oui.double) { jeu.frappes.push(Object.assign({}, f, { t: S.delai + 2 })); }
+    } else if (id === 'soin') {
+      for (const k of jeu.joueurs) {
+        if (k.parti || Math.hypot(k.x - j.x, k.z - j.z) > (k === j ? 0.1 : S.rayon)) continue;
+        if (!k.vivant) { if (S.oui.releve) { k.vivant = true; k.releve = 0; k.vie = Math.round(k.vieMax * 0.5); k.invul = 2; ev(jeu, { t: 'releve', id: k.id, par: j.id }); } continue; }
+        k.vie = Math.min(k.vieMax, k.vie + k.vieMax * S.soin);
+        if (S.bouclier) k.effets.bouclier = Math.max(k.effets.bouclier || 0, S.bouclier);
+        if (S.regen) { k.regenC = 5; k.gele = 0; k.regenV = S.regen; }
+        if (S.vite) k.vite = S.vite;
+      }
+    } else if (id === 'rage') { j.rageT = S.duree; }
+    else if (id === 'drone') { for (let k = 0; k < Math.round(S.drones); k++) jeu.drones.push({ id: nouvelId(jeu), de: j.id, x: j.x, z: j.z, a: k * Math.PI, t: S.duree, tir: 0.3 + k * 0.12 }); }
+    j.capT = S.recharge; j.capN = (j.capN || 0) + 1; jeu.stats.capacites = (jeu.stats.capacites || 0) + 1;
+    ev(jeu, { t: 'capacite', id: j.id, cap: id, x: r2j(x), z: r2j(z), r: S.rayon || 0 });
+    return { ok: true };
+  }
+  function majCapacites(jeu, dt) {
+    // les frappes d'artillerie : au bout du délai, les obus tombent au hasard dans le cercle (le second tirage)
+    for (let i = (jeu.frappes || []).length - 1; i >= 0; i--) {
+      const f = jeu.frappes[i]; f.t -= dt; if (f.t > 0) continue; jeu.frappes.splice(i, 1);
+      for (let k = 0; k < f.n; k++) {
+        const a = jeu.rndB() * TAU, r = Math.sqrt(jeu.rndB()) * f.r, x = f.x + Math.cos(a) * r, z = f.z + Math.sin(a) * r;
+        if (f.etourdit) for (const zb of jeu.zombies) if (zb.vie > 0 && !zb.terre && Math.hypot(zb.x - x, zb.z - z) < f.souffle + zb.rayon) zb.etourdi = Math.max(zb.etourdi || 0, D.ZOMBIES[zb.type].boss ? 0.3 : f.etourdit);
+        explosion(jeu, x, z, f.souffle, f.degats, f.de, k > 0);
+      }
+      if (f.napalm) { jeu.zones.push({ id: nouvelId(jeu), x: f.x, z: f.z, r: f.r + 0.5, dps: 40, vie: 5, duree: 5, de: f.de, tick: 0, feu: true }); ev(jeu, { t: 'acide', x: f.x, z: f.z, r: f.r + 0.5, feu: true }); }
+    }
+    // les drones : ils tournent autour de leur survivant et tirent sur le zombie le plus proche, en vue
+    for (const j of jeu.joueurs) j.droneAimant = false;
+    for (let i = (jeu.drones || []).length - 1; i >= 0; i--) {
+      const d = jeu.drones[i], j = trouverJoueur(jeu, d.de); d.t -= dt;
+      if (!j || !j.vivant || d.t <= 0) {
+        jeu.drones.splice(i, 1);
+        if (j && specDe(j).oui.explose) explosion(jeu, d.x, d.z, 3, 150 * multDegats(j), d.de);
+        ev(jeu, { t: 'finDrone', x: d.x, z: d.z }); continue;
+      }
+      const S = specDe(j); if (S.oui.aimant) j.droneAimant = true;
+      d.a += dt * 1.6; d.x = j.x + Math.cos(d.a) * 1.6; d.z = j.z + Math.sin(d.a) * 1.6;
+      d.tir -= dt; if (d.tir > 0) continue;
+      let cible = null, best = S.portee * S.portee;
+      for (const zb of jeu.zombies) { if (zb.vie <= 0 || zb.terre) continue; const d2 = (zb.x - d.x) ** 2 + (zb.z - d.z) ** 2; if (d2 < best && jeu.monde.vue(d.x, d.z, zb.x, zb.z)) { best = d2; cible = zb; } }
+      if (!cible) { d.tir = 0.1; continue; }
+      d.tir = 1 / S.cadence; const pts = [[r2j(d.x), r2j(d.z)]], deja = new Set(); let cur = cible, px = d.x, pz = d.z;
+      for (let k = 0; cur && k <= (S.rebonds || 0); k++) {
+        deja.add(cur.id); pts.push([r2j(cur.x), r2j(cur.z)]); const n = Math.hypot(cur.x - px, cur.z - pz) || 1;
+        if (S.oui.feu) { cur.feu = 2; cur.feuDps = Math.max(cur.feuDps || 0, 14 * multDegats(j)); cur.feuDe = j.id; }
+        const nx = cur.x, nz = cur.z; blesserZombie(jeu, cur, S.degats * multDegats(j) * Math.pow(0.8, k), (cur.x - px) / n * 0.2, (cur.z - pz) / n * 0.2, j.id, false);
+        px = nx; pz = nz; let b2 = 9, suivant = null; for (const o of jeu.zombies) { if (o.vie <= 0 || o.terre || deja.has(o.id)) continue; const q = (o.x - px) ** 2 + (o.z - pz) ** 2; if (q < b2) { b2 = q; suivant = o; } } cur = S.rebonds ? suivant : null;
+      }
+      ev(jeu, { t: 'drone', id: d.id, de: d.de, pts, feu: !!S.oui.feu, arc: !!S.rebonds });
+    }
   }
 
   // la roulade : la direction du pouce (sa dernière vitesse), sinon à l'opposé de la cible, sinon droit devant ; elle casse la chaîne d'un
@@ -1242,5 +1320,5 @@
     const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
