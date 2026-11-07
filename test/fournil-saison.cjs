@@ -32,11 +32,15 @@ const server = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const passe = (m) => console.log('  --   ' + m);
+// FOURNIL_CPU=n : le processeur de chaque page ralenti n fois (CDP, comme les machines de GitHub) ; sans lui, rien ne change
+const CPU = Number(process.env.FOURNIL_CPU) || 0;
 const attendre = async (fn, ms = 10000, pas = 150) => { for (let t = 0; t < ms; t += pas) { try { const r = await fn(); if (r) return r; } catch (e) { /* la page se recharge */ } await sleep(pas); } return null; };
 function telephone(o) { // avant tout script : la fausse heure (gardée d'un chargement à l'autre), la saison allumée, l'accueil si demandé
   let d = o.decal; try { const v = localStorage.getItem('test.tel'); if (v != null) d = +v; } catch (e) { /* about:blank */ }
   const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = FauxDate;
   window.__saison = true; if (o.accueil) window.__accueil = true;
+  window.__feuilles = []; // les feuilles ouvertes, dans l'ordre (leur première ligne) : l'ordre des annonces, quand il est faux
+  new MutationObserver(() => { const f = document.querySelector('#feuille'), c = document.querySelector('#feuille-contenu'), t = f && !f.hidden && c ? c.innerText.split('\n')[0].slice(0, 60) : ''; if (t && window.__feuilles[window.__feuilles.length - 1] !== t) window.__feuilles.push(t); }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
   window.__toasts = []; new MutationObserver(() => { const t = document.querySelector('.toast'); if (t && window.__toasts[window.__toasts.length - 1] !== t.textContent) window.__toasts.push(t.textContent); }).observe(document, { childList: true, subtree: true, characterData: true });
 }
 
@@ -49,6 +53,7 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
     await ctx.addInitScript(telephone, { decal, accueil: !!o.accueil });
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     const page = await ctx.newPage();
+    if (CPU > 1) { const c = await ctx.newCDPSession(page); await c.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
     page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
     page.on('console', (m) => { if (m.type() === 'error' && !/googleapis|gstatic|ERR_|supabase|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text()); });
     const ev = (fn, arg) => page.evaluate(fn, arg);
@@ -67,12 +72,22 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   console.log('── une vieille partie, le samedi 14 novembre à 11 h ──');
   let T = await ouvrir();
   await T.charger();
-  await T.ev(() => { const F = window.__fournil, st = F.st; st.lifetime = Math.max(st.lifetime, 5e9); st.tuto = 9; st.etoiles = Math.max(st.etoiles, 3); delete st.piste; delete st.pisteAnnonce; delete st.marche; F.save(); });
+  // la vieille partie préparée dans la page d'avant, puis la page figée jusqu'au rechargement : sous un processeur lent, cette page faisait
+  // encore son annonce du Marché après la préparation (lancée à son ouverture) et la sauvait en partant (pagehide) ; la page suivante, le
+  // Marché déjà annoncé, montrait alors la saison, à bon droit (7 nov., GitHub et FOURNIL_CPU=6)
+  check(await T.ev(async () => { const F = window.__fournil, K = 'fournil.v2';
+    const idb = () => new Promise((ok) => { const r = indexedDB.open('fournil', 1); r.onsuccess = () => { try { const g = r.result.transaction('sauvegarde').objectStore('sauvegarde').get(K); g.onsuccess = () => ok(g.result); g.onerror = () => ok(null); } catch (e) { ok(null); } }; r.onerror = () => ok(null); });
+    for (let k = 0; k < 20; k++) {
+      const st = F.st; st.lifetime = Math.max(st.lifetime, 5e9); st.tuto = 9; st.etoiles = Math.max(st.etoiles, 3); delete st.piste; delete st.pisteAnnonce; delete st.marche; F.save();
+      const ls = localStorage.getItem(K); let v = null; for (let j = 0; j < 40 && v !== ls; j++) { await new Promise((r) => setTimeout(r, 50)); v = await idb(); } // (la base IndexedDB écrite elle aussi)
+      const x = JSON.parse(ls); if (v === ls && !x.marche && !x.piste && !x.pisteAnnonce && x.tuto === 9) { const si = Storage.prototype.setItem, put = IDBObjectStore.prototype.put;
+        Storage.prototype.setItem = function (cle, val) { if (cle === K) return; return si.call(this, cle, val); }; IDBObjectStore.prototype.put = function (val, cle) { if (cle === K) throw new Error('figée'); return put.call(this, val, cle); }; return true; }
+    } return false; }), 'la vieille partie préparée (sans Marché, sans saison), la page figée jusqu’au rechargement');
   await T.charger();
   check(await T.ev(() => window.__fournil.piste.actif) === true, 'la saison est allumée (window.__saison)');
   check(await attendre(async () => (await T.piste()) && (await T.piste()).id === 'automne-2026', 6000), 'st.piste est créée au premier pas de la saison (pas st.saison, la recette de saison)');
   // l'annonce du Marché d'abord ; celle de la saison ensuite, jamais en même temps
-  check(await attendre(() => T.ev(() => /Marché d’automne ouvre/.test(document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText)), 12000), 'l’annonce du Marché passe d’abord');
+  check(await attendre(() => T.ev(() => /Marché d’automne ouvre/.test(document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText)), 12000), `l’annonce du Marché passe d’abord (les feuilles : ${JSON.stringify(await T.ev(() => window.__feuilles))})`);
   check(!/saison d’automne/i.test((await T.feuille()).split('\n')[0]), 'pas d’annonce de la saison en même temps');
   await T.clic('#feuille [data-a="pq-tard"]'); await sleep(300);
   const an = await attendre(async () => { const t = await T.feuille(); return /Nouveau : la saison d’automne/.test(t) ? t : null; }, 25000);
