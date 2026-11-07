@@ -23500,7 +23500,7 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   }
   const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
-    a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1;
+    (a.traine || (a.traine = [])).push(a.t); if (a.traine.length > 3) a.traine.shift(); a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1; // (a.traine : où elle était aux trois images d'avant, que le joueur a pu viser : viser)
     o.position.set(a.x0 + (a.x1 - a.x0) * u, a.haut + Math.sin(a.t * 2.2 + a.ph) * 8 * K, a.z + Math.sin(a.t * 0.9 + a.ph) * 10 * K);
     o.rotation.set(0, a.sens > 0 ? 0.5 : -0.5, Math.sin(a.t * 2.2 + a.ph) * 0.12); // tourné vers où il va, sans montrer son dos à la caméra
     if (o.userData.ailes) { const b = Math.sin(a.t * 18) * 0.9; o.userData.ailes[0].rotation.y = b; o.userData.ailes[1].rotation.y = -b; o.rotation.y = 0; }
@@ -23552,12 +23552,12 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null. Une cible qui file : le doigt vise là où il
-  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (aussi pour un toucher sur la colonne des
+  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (ou depuis trois images, 2,5 s au plus, si c'est plus long : une machine lente) (aussi pour un toucher sur la colonne des
   // activités posée sur la scène : src/hanteeactivites.js, sousDoigt)
   function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
-      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, Math.min(a.t - 0.35, Math.max(a.t - 2.5, Math.min(a.t, ...(a.traine || []))))), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
     return best;
@@ -24267,7 +24267,7 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
   const _pa = { x: 0, y: 0, z: 0 };
   const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
-    a.t += dt; const u = chemin(a, a.t, _pa), o = a.o; o.position.set(_pa.x, _pa.y, _pa.z);
+    (a.traine || (a.traine = [])).push(a.t); if (a.traine.length > 3) a.traine.shift(); a.t += dt; const u = chemin(a, a.t, _pa), o = a.o; o.position.set(_pa.x, _pa.y, _pa.z); // (a.traine : où elle était aux trois images d'avant, que le joueur a pu viser : viser)
     if (a.type === 'feuille') o.rotation.set(0.5 + Math.sin(a.t * 1.8 + a.ph) * 0.5, a.t * 1.6, Math.sin(a.t * 1.8 + a.ph) * 0.7); // elle tombe en se balançant, et tourne sur elle-même
     else if (a.type === 'chataigne') o.rotation.set(0, a.sens > 0 ? 0.4 : -0.4, -a.sens * a.t * 3.2); // elle roule, en rebondissant un peu
     else { const b = Math.abs(Math.sin(a.t * 3.4 + a.ph)); o.rotation.set(0, a.sens > 0 ? 0.5 : -0.5, Math.sin(a.t * 3.4 + a.ph) * 0.15); o.scale.set(a.ech, a.ech * (0.9 + 0.1 * b), a.ech); } // le champignon sautille
@@ -24316,11 +24316,11 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null ; une cible qui file : on mesure la distance
-  // au bout de chemin des 0,35 dernières secondes
+  // au bout de chemin des 0,35 dernières secondes (ou depuis trois images, 2,5 s au plus, si c'est plus long : à 1 image/s, la traversée au temps réel saute de 80 px par image, et le toucher arrive une ou deux images après ce que le joueur a vu)
   function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
-      const p1 = ecranApp(a, a.t), x1 = p1.x, y1 = p1.y, p0 = ecranApp(a, a.t - 0.35), vx = x1 - p0.x, vy = y1 - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const p1 = ecranApp(a, a.t), x1 = p1.x, y1 = p1.y, p0 = ecranApp(a, Math.min(a.t - 0.35, Math.max(a.t - 2.5, Math.min(a.t, ...(a.traine || []))))), vx = x1 - p0.x, vy = y1 - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
     return best;
