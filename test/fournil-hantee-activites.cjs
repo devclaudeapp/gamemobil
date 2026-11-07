@@ -260,12 +260,15 @@ function faux(d) {
       const dedans = await ev((x) => new Promise((ok) => { let vu = ''; const t0 = performance.now(), un = () => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), p = q.postes[3].prog / 12, m = document.querySelector('#ht-cartes .carte[data-i="3"]').dataset.mh || '';
         if (p >= x.debut && p < x.fin && /brille/.test(m)) vu = m;
         if (p >= x.debut + 0.02 && p < x.fin - 0.05 && vu) ok(vu); else if (p >= x.fin - 0.05 || performance.now() - t0 > 15000) ok(vu || (p >= x.debut && p < x.fin ? m || 'non' : null)); else setTimeout(un, 15); }; un(); }), w.w); // (attendue dans la page : en haute, un aller-retour de Playwright dure plus que la fenêtre)
+      // la fenêtre réussie, guettée dès le toucher (dans la page, à chaque image) : quand la fenêtre tombe tard sur la barre (66 à 85 %), la
+      // fournée finit pendant la capture qui suit, en haute, et la fenêtre verte n'était plus là pour l'attente d'après (7 nov., en local)
+      await ev((s2) => { window.__vert = false; const t0 = performance.now(), voir = () => { if (document.querySelector(s2)) { window.__vert = true; return; } if (performance.now() - t0 < 20000) requestAnimationFrame(voir); }; requestAnimationFrame(voir); }, '#ht-cartes .carte[data-i="3"] .mh-fenetre.fait');
       await ev(() => { window.__garder = true; if (!window.__rm) { const rm = window.__rm = Element.prototype.remove; Element.prototype.remove = function () { if (window.__garder && this.classList && this.classList.contains('mh-flotte')) return; return rm.call(this); }; } }); // (pour la capture : « Parfait ! ×2 » reste)
       await page.touchscreen.tap(bb.x + bb.width * 0.5, bb.y + bb.height / 2); await sleep(250);
       const r = await regles();
       if (r.stats.parfaits > pf0) { await ev(() => { for (const f of document.querySelectorAll('.mh-flotte')) { f.style.animation = 'none'; f.style.opacity = '1'; if (!/Parfait/.test(f.textContent)) f.style.display = 'none'; } }); await sleep(300); await shot(page, `${qual}-parfait`); }
       await ev(() => { window.__garder = false; for (const f of document.querySelectorAll('.mh-flotte')) f.remove(); });
-      if (r.stats.parfaits > pf0) parfait = { brille: dedans, fl: await flottes(), vert: await attendre(() => ev(() => document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre.fait') !== null), 4000, 100) };
+      if (r.stats.parfaits > pf0) parfait = { brille: dedans, fl: await flottes(), vert: await attendre(() => ev(() => window.__vert || document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre.fait') !== null), 4000, 100) };
       else console.log(`  (essai ${essai + 1} : le doigt est arrivé hors de la fenêtre, on recommence à la fournée suivante)`);
     }
     check(parfait && /brille/.test(parfait.brille), `dans la fenêtre, la carte brille (data-mh « ${parfait && parfait.brille} »)`);
