@@ -628,7 +628,7 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
     const W = VIE.W, K = VIE.K, sens = Math.random() < 0.5 ? 1 : -1, o = objetApparition(type); if (!o) return null;
     const cad = courant.vue.cadre, bas = Math.min(L.devanture.y - 20 * K, (cad.bas ? cad.bas - cad.haut : L.T) - 40 * K), y0 = L.murH + 36 * K + Math.random() * Math.max(10, bas - L.murH - 46 * K);
     const a = { id: idApp++, type, o, t: 0, duree: duree > 0 ? duree : 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'feuille' ? 52 : 26) * K, ph: Math.random() * 6, sens, ech: o.userData.hd ? 1 : K * 1.1 };
-    o.scale.setScalar(a.ech); tr.scene.add(o); APP.push(a); majApp(a, 0); return a.id;
+    o.scale.setScalar(a.ech); tr.scene.add(o); a.nait = heureApp(); APP.push(a); majApp(a, 0); return a.id;
   }
   // le chemin d'une apparition à l'instant t (sans rien bouger) : sa position monde, en p ; ce que fait majApp et ce que vise le doigt
   function chemin(a, t, p) {
@@ -639,6 +639,7 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
     return u;
   }
   const _pa = { x: 0, y: 0, z: 0 };
+  const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
     a.t += dt; const u = chemin(a, a.t, _pa), o = a.o; o.position.set(_pa.x, _pa.y, _pa.z);
     if (a.type === 'feuille') o.rotation.set(0.5 + Math.sin(a.t * 1.8 + a.ph) * 0.5, a.t * 1.6, Math.sin(a.t * 1.8 + a.ph) * 0.7); // elle tombe en se balançant, et tourne sur elle-même
@@ -737,7 +738,9 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); const g = G.tenueBoulanger(reel); if ((g ? g.cle : '') !== cleGarde) { cleGarde = g ? g.cle : ''; vue.garde = g; } } // la fenêtre suit la mise en page ; le boulanger suit sa garde-robe (la tenue d'automne, mise pendant le Marché)
         const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
-        for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]);
+        // la traversée suit le temps réel (celui des règles, qui la retirent à sa fin) : à moins de 4 images/s, le dt de ui.js, plafonné à
+        // 0,25 s, la laissait au bord de l'écran quand les règles l'effaçaient (7 nov. : à ~1 image/s, la feuille ne passait jamais le premier quart)
+        for (let k = APP.length - 1; k >= 0; k--) { const a = APP[k]; if (majApp(a, Math.max(dt, (t - a.nait) / 1000 - a.t))) retirerApp(a); }
         majExpl(dt);
       },
       equipe: () => {}, // les amis embauchés arrivent d'eux-mêmes à leur poste (les stations)
