@@ -27,7 +27,10 @@ const server = http.createServer((req, res) => {
 }).listen(PORT);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
-const attendre = async (fn, ms = 20000, pas = 150) => { for (let t = 0; t < ms; t += pas) { try { const r = await fn(); if (r) return r; } catch (e) { /* rien */ } await sleep(pas); } return null; };
+// sur les machines lentes de GitHub (rendu logiciel, la Halle en haute), chaque attente dure trois fois plus longtemps au plus : elle s'arrête
+// toujours dès que la condition est vraie, et rien de ce qui est vérifié ne change (6 nov. : deux runs rouges sur des attentes expirées)
+const LENT = Number(process.env.FOURNIL_ATTENTE) || (process.env.CI ? 3 : 1);
+const attendre = async (fn, ms = 20000, pas = 150) => { ms *= LENT; for (let t = 0; t < ms; t += pas) { try { const r = await fn(); if (r) return r; } catch (e) { /* rien */ } await sleep(pas); } return null; };
 // une fausse heure du téléphone, qu'on peut avancer (Date et performance.now ensemble : l'horloge de confiance du jeu suit)
 function faux(d) {
   let plus = 0; const D = Date, pn = performance.now.bind(performance);
