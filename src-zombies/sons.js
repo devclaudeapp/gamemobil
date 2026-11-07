@@ -72,7 +72,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0, droneT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -122,7 +122,7 @@ const ZSONS = (() => {
         case 'niveau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.6); P.vibrer([20, 40, 20]); } break;
         case 'grenade': if (e.id === idMoi) P.jouer('saut', 0.6, 0, 0.8); break;
         case 'releve': P.jouer('releve', 0.9); if (e.id === idMoi) P.vibrer([20, 40, 20]); break;
-        case 'alerte': if (e.meteo === 'meteores') { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('roquette', 0.5 * k, p); } break;
+        case 'alerte': if (e.meteo === 'meteores' || e.meteo === 'artillerie') { const [k, p] = ecoute(e.x, e.z, 26); if (k > 0.05) jouer('roquette', 0.5 * k, p); } break;
         case 'impact': if (e.meteo === 'orage') { P.jouer('tonnerre', 0.9); P.vibrer(30); } break;
         case 'victoire': P.jouer('mancheFin', 1); jouer('serie', 1, 0, 1.2); P.vibrer([30, 60, 30, 60, 90]); break;
         case 'echec': P.jouer('defaite', 1); break;
@@ -156,6 +156,9 @@ const ZSONS = (() => {
         case 'frappe': { const [k, p] = ecoute(e.x, e.z, 36); jouer(e.genre === 'nova' ? 'cryo' : 'boum', 0.4 + 0.6 * k, p, e.genre === 'nova' ? 0.7 : 0.8); if (k > 0.4) P.vibrer(e.genre === 'nova' ? 30 : 45); break; }
         case 'eclipse': { const [k, p] = ecoute(e.x, e.z, 30); jouer('arc', 0.6 * k + 0.2, p, 0.6); break; }
         // le Lot 5b : la roulade, la singularité qui s'ouvre puis implose, le poison qui passe aux voisins
+        // le Lot 5c : les capacités (la frappe qui part, le soin, la furie, le drone qui décolle), les tirs du drone
+        case 'capacite': { const mien = e.id === idMoi; if (e.cap === 'artillerie') { jouer('roquette', mien ? 0.8 : 0.4, 0, 0.6); P.jouer('manche', mien ? 0.5 : 0.25); } else if (e.cap === 'soin') P.jouer('soin', mien ? 1 : 0.5); else if (e.cap === 'rage') { jouer('grogne', mien ? 1 : 0.5, 0, 1.5); jouer('serie', 0.8, 0, 0.7); } else if (e.cap === 'drone') { jouer('tesla', mien ? 0.6 : 0.3); jouer('serie', 0.6, 0, 1.6); } break; }
+        case 'drone': { const t = performance.now(); if (t - droneT > 110) { droneT = t; const p0 = e.pts && e.pts[0], [k, p] = p0 ? ecoute(p0[0], p0[1], 22) : [0, 0]; if (k > 0.05) jouer(e.arc ? 'tesla' : 'laser', 0.3 * k, p); } break; }
         case 'roule': if (e.id === idMoi) { P.jouer('glissade', 0.7); } else { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.1) P.jouer('glissade', 0.4 * k, p); } break;
         case 'trou': { const [k, p] = ecoute(e.x, e.z, 30); jouer('trou', 0.3 + 0.7 * k, p); break; }
         case 'implose': { const [k, p] = ecoute(e.x, e.z, 36); jouer('implose', 0.4 + 0.6 * k, p); if (k > 0.4) P.vibrer(40); break; }

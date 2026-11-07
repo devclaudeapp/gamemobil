@@ -16,7 +16,8 @@
         <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
         <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
         <div class="vitrine-place" aria-hidden="true"></div>
-        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button>
+        <div class="vitrine-boutons"><button type="button" class="vitrine-nom cap-chip" id="b-capacites"><span class="ico" aria-hidden="true"></span><b class="cap-nom">Frappe d’artillerie</b><small>Capacité et talents ›</small><i class="notif" hidden></i></button>
+        <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button></div>
       </div>
       <div class="titre-droite">
         <div class="medailles" id="titre-medailles" aria-label="Médailles"></div>
@@ -174,6 +175,15 @@
       <div class="medailles" id="bunker-medailles"></div>
       <div class="bunker-liste"></div>
       <div class="pied"><button type="button" class="gros" id="b-bunker-ok">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-capacites" hidden>
+    <div class="carte-ecran talents">
+      <h2>Capacités et talents</h2>
+      <p class="resume">Une capacité par partie, sur le bouton à droite de la roulade. Plus tu t’en sers, plus son arbre s’ouvre : à chaque palier, garde un des deux talents.</p>
+      <div class="tal-corps"><div class="tal-caps"></div><div class="tal-arbre"></div></div>
+      <div class="pied"><button type="button" class="gros" id="b-capacites-ok">Retour</button></div>
     </div>
   </section>
 

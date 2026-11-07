@@ -31,6 +31,10 @@ const ZHUD = (() => {
     vitesse: '<svg viewBox="0 0 40 40"><path d="M8 27c6 0 9-2 12-8l3-6 7 3-2 5h5l1 6c-8 2-18 3-26 0z" fill="#5B8BD9" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M3 14h9M2 20h7" stroke="#2B2A33" stroke-width="2.5" stroke-linecap="round"/></svg>',
     portee: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="26" height="7" rx="3" fill="#6C6F7D" stroke="#2B2A33" stroke-width="2.5"/><rect x="12" y="9" width="14" height="7" rx="3" fill="#9B6BD6" stroke="#2B2A33" stroke-width="2.5"/><path d="M30 20h7" stroke="#2B2A33" stroke-width="3"/></svg>',
     butin: '<svg viewBox="0 0 40 40"><path d="M8 16h24l-2 18H10z" fill="#B98E5A" stroke="#2B2A33" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 16a6 6 0 0 1 12 0" stroke="#2B2A33" stroke-width="2.5" fill="none"/><path d="M20 21l5 3v6l-5 3-5-3v-6z" fill="#B8C2CC" stroke="#2B2A33" stroke-width="2"/></svg>',
+    cap_artillerie: '<svg viewBox="0 0 40 40"><path d="M20 4c4 4 5 9 5 14v8H15v-8c0-5 1-10 5-14z" fill="#fff" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M15 26l-3 6h16l-3-6" fill="#FFD84A" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M15 18h10" stroke="#E0703A" stroke-width="3"/></svg>',
+    cap_soin: '<svg viewBox="0 0 40 40"><path d="M15 6h10v9h9v10h-9v9H15v-9H6V15h9z" fill="#fff" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/></svg>',
+    cap_rage: '<svg viewBox="0 0 40 40"><path d="M20 4c2 6 9 8 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 2 3 3 4 5 4-1-4-1-7 0-10z" fill="#FFD84A" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 20c2 3 4 4 4 7a4 4 0 0 1-8 0c0-2 2-4 4-7z" fill="#fff"/></svg>',
+    cap_drone: '<svg viewBox="0 0 40 40"><path d="M10 12l8 8M30 12l-8 8M10 28l8-8M30 28l-8-8" stroke="#2B2A33" stroke-width="3"/><ellipse cx="10" cy="11" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="30" cy="11" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="10" cy="29" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><ellipse cx="30" cy="29" rx="6" ry="2.4" fill="#fff" stroke="#2B2A33" stroke-width="2"/><rect x="14" y="15" width="12" height="10" rx="3" fill="#fff" stroke="#2B2A33" stroke-width="2.4"/><circle cx="20" cy="20" r="2.2" fill="#E5533D"/></svg>',
     roulade: '<svg viewBox="0 0 40 40"><path d="M9 27a12 12 0 1 1 20 4" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><path d="M24 30l6 2 1-7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="19" r="4.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="2"/></svg>',
     grenade: '<svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="12" fill="#5E7A3E" stroke="#2B2A33" stroke-width="2.5"/><path d="M11 20h16M11 27h16M19 13v22" stroke="#3E5228" stroke-width="2"/><rect x="15" y="7" width="9" height="6" rx="1.5" fill="#9AA0A8" stroke="#2B2A33" stroke-width="2"/><path d="M24 9c5 0 7 3 6 7" stroke="#2B2A33" stroke-width="2.5" fill="none"/><circle cx="30" cy="17" r="2.5" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.5"/></svg>',
     medaille: '<svg viewBox="0 0 24 24"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="#D9534F"/><circle cx="12" cy="15" r="7" fill="#FFD84A" stroke="#2B2A33" stroke-width="1.8"/><path d="M12 11l1.2 2.5 2.7.3-2 1.8.6 2.7-2.5-1.4-2.5 1.4.6-2.7-2-1.8 2.7-.3z" fill="#E0A61E"/></svg>',
@@ -91,7 +95,7 @@ const ZHUD = (() => {
         </div>
         <div class="h-info" hidden></div>
       </div>
-      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button><button type="button" class="h-roulade" aria-label="Rouler"><span class="ico">${ICO.roulade}</span><span class="h-roul-voile"></span></button></div></div>
+      <div class="h-armes"><div class="h-arme-nom contour">PISTOLET</div><div class="h-slots"><button type="button" class="h-slot" data-i="0"></button><button type="button" class="h-slot" data-i="1"></button><button type="button" class="h-grenade" aria-label="Lancer une grenade"><span class="ico">${ICO.grenade}</span><span class="h-gren-voile"></span></button><button type="button" class="h-roulade" aria-label="Rouler"><span class="ico">${ICO.roulade}</span><span class="h-roul-voile"></span></button><button type="button" class="h-capa" aria-label="Capacité" hidden><span class="ico"></span><span class="h-capa-voile"></span></button></div></div>
       <div class="h-milieu">
         <div class="h-entre" hidden><div class="contour h-entre-t">Vague 1 dans 4</div><button type="button" class="h-lancer">Lancer la vague</button></div>
         <div class="h-annonce" hidden><b class="contour"></b><small class="contour"></small></div>
@@ -111,7 +115,7 @@ const ZHUD = (() => {
       vie: $('.h-barre i'), vieN: $('.h-vie-n'), carte: $('.h-carte'), tues: $('.h-tues b'), fer: $('.h-ferraille b'), v: $('.h-v'), rest: $('.h-rest'), serie: $('.h-serie'),
       score: $('.h-score b'), atelier: $('.h-atelier'), info: $('.h-info'), armeNom: $('.h-arme-nom'), slots: [...R.querySelectorAll('.h-slot')], entre: $('.h-entre'), entreT: $('.h-entre-t'),
       objectif: $('.h-objectif'), annonce: $('.h-annonce'), annB: $('.h-annonce b'), annS: $('.h-annonce small'), boss: $('.h-boss'), bossB: $('.h-boss i'), bossN: $('.h-boss span'), toast: $('.h-toast'), rouge: $('.h-rouge'),
-      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), roul: $('.h-roulade'), roulVoile: $('.h-roul-voile'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
+      defs: {}, ams: {}, xp: $('.h-xp-barre i'), niv: $('.h-niv'), gren: $('.h-grenade'), roul: $('.h-roulade'), roulVoile: $('.h-roul-voile'), capa: $('.h-capa'), capaIco: $('.h-capa .ico'), capaVoile: $('.h-capa-voile'), grenVoile: $('.h-gren-voile'), degats: $('.h-degats'), noms: [...R.querySelectorAll('.h-noms span')], bulles: [...R.querySelectorAll('.h-bulles span')], emote: $('.h-emote'), emotes: $('.h-emotes'), choix: $('.h-choix'), choixT: $('.h-choix-t'), cartes: $('.h-cartes'),
     };
     for (const k of DEFS) el.defs[k] = R.querySelector(`[data-def="${k}"]`);
     for (const k of AMS) el.ams[k] = R.querySelector(`[data-am="${k}"]`);
@@ -123,6 +127,7 @@ const ZHUD = (() => {
     sur($('.h-lancer'), () => A.passer && A.passer());
     sur(el.gren, () => A.grenade && A.grenade());
     sur(el.roul, () => A.roulade && A.roulade());
+    sur(el.capa, () => A.capacite && A.capacite());
     // les émotes : le bouton ouvre la rangée de celles qu'on a ; une touche l'envoie (et la referme)
     sur(el.emote, () => {
       if (!el.emotes.hidden) { el.emotes.hidden = true; return; }
@@ -259,6 +264,7 @@ const ZHUD = (() => {
       else if (e.t === 'bonus' && e.id === idMoi && D.BONUS[e.bonus]) toast(`${D.BONUS[e.bonus].nom} ! ${D.BONUS[e.bonus].desc}`);
       else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
       else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
+      else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) toast(`${D.CAPACITES[e.cap].nom} !`);
       else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);
       else if (e.t === 'piegeCher' && e.id === idMoi) toast(`Il faut ${e.cout} de ferraille pour allumer le piège`);
       else if (e.t === 'piege' && e.de === idMoi) toast('Piège électrique allumé !');
@@ -280,6 +286,13 @@ const ZHUD = (() => {
     // la roulade : pareil (la recharge), cachée là où elle n'existe pas (l'Infection)
     const rr = j.rouleCd > 0 ? j.rouleCd / D.ROULADE.recharge : 0, rk = rr > 0 ? Math.ceil(rr * 20) : 0;
     if (vu.roul !== rk) { vu.roul = rk; el.roulVoile.style.height = `${Math.min(100, rr * 100)}%`; el.roul.classList.toggle('prete', rk === 0); }
+    // la capacité (Lot 5c) : son icône, sa couleur, le voile de sa recharge ; cachée sans capacité
+    const cid = j.capacite ? j.capacite.id : '', C = cid && D.CAPACITES[cid];
+    if (vu.cap !== cid) { vu.cap = cid; el.capa.hidden = !C; if (C) { el.capaIco.innerHTML = ICO['cap_' + cid] || ''; el.capa.style.setProperty('--cc', C.couleur); el.capa.setAttribute('aria-label', C.nom); } }
+    if (C) {
+      const R = j.capR || (D.specCapacite(cid, j.capacite.t).recharge), cr = j.capT > 0 ? j.capT / R : 0, ck = cr > 0 ? Math.ceil(cr * 30) : 0, actif = j.rageT > 0 || (jeu.drones || []).some((d) => d.de === j.id);
+      if (vu.capk !== ck + (actif ? 'a' : '')) { vu.capk = ck + (actif ? 'a' : ''); el.capaVoile.style.height = `${Math.min(100, cr * 100)}%`; el.capa.classList.toggle('prete', ck === 0); el.capa.classList.toggle('active', actif); }
+    }
     // le choix d'un atout (la partie attend)
     const c = j.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null), cc = c ? c.niveau + ':' + c.options.join() : '';
     if (vu.choix !== cc) {

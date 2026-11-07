@@ -288,7 +288,7 @@ const ZRENDU = (() => {
     function majAlertes(dt) {
       for (let i = alertes.length - 1; i >= 0; i--) { const a = alertes[i]; a.t += dt; if (a.t >= a.delai) alertes.splice(i, 1); }
       anneaux.forEach((o, i) => {
-        const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && a.meteo === 'meteores'; if (!a) return;
+        const a = alertes[i]; o.m.visible = !!a; o.r.visible = !!a && (a.meteo === 'meteores' || a.meteo === 'artillerie'); if (!a) return;
         const k = a.t / a.delai; o.m.material.color.set(a.couleur || '#FF3B2F'); o.m.position.set(a.x, 0.04, a.z); o.m.scale.setScalar(a.r * (1.25 - k * 0.25)); o.m.material.opacity = 0.45 + 0.45 * Math.abs(Math.sin(a.t * 14));
         if (o.r.visible) { o.r.position.set(a.x + (1 - k) * 4, 0.3 + (1 - k) * 14, a.z - (1 - k) * 2); o.r.rotation.set(a.t * 5, a.t * 3, 0); if (Math.random() < 0.6) particule(o.r.position.x, o.r.position.y, o.r.position.z, 0, 0.5, 0, 0.5, 0.2, Math.random() < 0.5 ? '#FF8A3A' : '#8A8A8A', 0); }
       });
@@ -708,8 +708,9 @@ const ZRENDU = (() => {
       if (!s.bulle) { s.bulle = new T.Mesh(geoBulle, new T.MeshBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.2, depthWrite: false, blending: T.AdditiveBlending })); s.bulle.position.y = 1.05; s.g.add(s.bulle);
         s.aura = new T.Mesh(geoAura, new T.MeshBasicMaterial({ color: '#E5533D', transparent: true, opacity: 0.85, depthWrite: false })); s.aura.position.y = 0.05; s.g.add(s.aura); } // (accrochées au survivant : elles partent avec lui)
       const b = E.bouclier || 0; s.bulle.visible = b > 0 && j.vivant && !(b < 1.5 && Math.floor(b * 8) % 2 === 0); if (s.bulle.visible) { s.bulle.scale.setScalar(1.15 + Math.sin(t * 6) * 0.04); s.bulle.material.opacity = 0.16 + Math.sin(t * 9) * 0.05; }
-      const k = j.gele > 0 ? 'gele' : ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
-      if (k === 'gele') { s.aura.material.color.set('#A8E4FF'); s.aura.rotation.y = t * 0.6; s.aura.scale.setScalar(1.25); if (Math.random() < dt * 10) particule(j.x + (Math.random() - 0.5) * 0.9, 0.3 + Math.random(), j.z + (Math.random() - 0.5) * 0.9, 0, 0.6, 0, 0.6, 0.06, '#E8F8FF', 0); }
+      const k = j.gele > 0 ? 'gele' : j.rageT > 0 ? 'berserk' : ['rage', 'double', 'aimant'].find((x) => E[x] > 0); s.aura.visible = !!k && j.vivant;
+      if (k === 'berserk') { s.aura.material.color.set('#E5533D'); s.aura.rotation.y = t * 4; s.aura.scale.setScalar(1.3 + Math.sin(t * 12) * 0.1); if (Math.random() < dt * 20) particule(j.x + (Math.random() - 0.5) * 0.8, 0.4 + Math.random() * 1.4, j.z + (Math.random() - 0.5) * 0.8, 0, 2, 0, 0.4, 0.09, Math.random() < 0.5 ? '#FF4A2A' : '#FFB03A', 0); }
+      else if (k === 'gele') { s.aura.material.color.set('#A8E4FF'); s.aura.rotation.y = t * 0.6; s.aura.scale.setScalar(1.25); if (Math.random() < dt * 10) particule(j.x + (Math.random() - 0.5) * 0.9, 0.3 + Math.random(), j.z + (Math.random() - 0.5) * 0.9, 0, 0.6, 0, 0.6, 0.06, '#E8F8FF', 0); }
       else if (k) { s.aura.material.color.set(D.BONUS[k].couleur); s.aura.rotation.y = t * 2; s.aura.scale.setScalar((k === 'aimant' ? 1.6 : 1.1) + Math.sin(t * 7) * 0.07); if (k === 'rage' && Math.random() < dt * 14) particule(j.x + (Math.random() - 0.5) * 0.8, 0.3, j.z + (Math.random() - 0.5) * 0.8, 0, 2.5 + Math.random() * 2, 0, 0.45, 0.08, Math.random() < 0.5 ? '#FF5A3A' : '#FFB347', 0); }
     }
     // le leurre : un mannequin de bois et sa cible, un cercle rose qui pulse à ses pieds
@@ -912,7 +913,7 @@ const ZRENDU = (() => {
       let n = 0; const tps = performance.now() / 1000;
       for (const d of jeu.disques || []) { if (n >= 16) break; _q.setFromEuler(_e.set(0, tps * 25 + d.id, 0)); _v.set(d.x, 0.9, d.z); _s.set(1, 1, 1); _base.compose(_v, _q, _s); disques.setMatrixAt(n++, _base); }
       disques.count = n; disques.instanceMatrix.needsUpdate = true; n = 0;
-      for (const z of jeu.zones || []) { if (n >= 16) break; const k = z.r * Math.min(1, (z.duree - z.vie) * 5 + 0.3) * (z.vie < 0.6 ? z.vie / 0.6 : 1); _q.identity(); _v.set(z.x, 0.03, z.z); _s.set(k, 1, k); _base.compose(_v, _q, _s); zonesM.setMatrixAt(n++, _base); if (Math.random() < dt * 6) particule(z.x + (Math.random() - 0.5) * z.r, 0.1, z.z + (Math.random() - 0.5) * z.r, 0, 0.8 + Math.random(), 0, 0.6, 0.08, '#C6F56A', 0); }
+      for (const z of jeu.zones || []) { if (z.feu) { if (Math.random() < dt * 30) { const b = Math.random() * 6.28, r = Math.random() * z.r; particule(z.x + Math.cos(b) * r, 0.1, z.z + Math.sin(b) * r, 0, 1.5 + Math.random() * 1.5, 0, 0.5, 0.18, Math.random() < 0.5 ? '#FF7A1A' : '#FFC23A', 0); } continue; } if (n >= 16) break; const k = z.r * Math.min(1, (z.duree - z.vie) * 5 + 0.3) * (z.vie < 0.6 ? z.vie / 0.6 : 1); _q.identity(); _v.set(z.x, 0.03, z.z); _s.set(k, 1, k); _base.compose(_v, _q, _s); zonesM.setMatrixAt(n++, _base); if (Math.random() < dt * 6) particule(z.x + (Math.random() - 0.5) * z.r, 0.1, z.z + (Math.random() - 0.5) * z.r, 0, 0.8 + Math.random(), 0, 0.6, 0.08, '#C6F56A', 0); }
       zonesM.count = n; zonesM.instanceMatrix.needsUpdate = true;
       // les zombies qui brûlent fument, ceux qui sont gelés givrent
       for (const zb of jeu.zombies) { if (zb.feu > 0 && Math.random() < dt * 10) particule(zb.x + (Math.random() - 0.5) * 0.4, 1.2 + Math.random() * 0.6, zb.z + (Math.random() - 0.5) * 0.4, 0, 1.6, 0, 0.45, 0.14, Math.random() < 0.6 ? '#FF8A2A' : '#FFD06A', 0); else if (zb.gel > 0 && Math.random() < dt * 5) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.0 + Math.random() * 0.8, zb.z + (Math.random() - 0.5) * 0.5, 0, -0.3, 0, 0.5, 0.08, '#E6FAFF', 0); }
@@ -1002,6 +1003,21 @@ const ZRENDU = (() => {
         if (Math.random() < dt * 40) { const b = Math.random() * 6.28, r = T0.r * (0.6 + Math.random() * 0.4); particule(T0.x + Math.cos(b) * r, 0.3 + Math.random() * 1.2, T0.z + Math.sin(b) * r, -Math.cos(b) * r * 1.6 - Math.sin(b) * 2, 0.6, -Math.sin(b) * r * 1.6 + Math.cos(b) * 2, 0.55, 0.08, Math.random() < 0.5 ? '#B48CFF' : '#5A3AA8', 0); }
       }
       for (; i < reserveTrous.length; i++) reserveTrous[i].g.visible = false;
+    }
+    // les drones (Lot 5c) : un petit quadricoptère qui flotte et tourne autour du survivant, ses hélices floues
+    const reserveDrones = [];
+    function drone3d() {
+      const g = new T.Group(), F = new Fab();
+      F.add(BOITE, '#2E3440', mat(0, 0, 0, 0, 0.36, 0.14, 0.36)); F.add(BOITE, '#3BB7F0', mat(0, 0.08, 0, 0, 0.2, 0.05, 0.2)); F.add(BOITE, '#E5533D', mat(0.19, 0, 0, 0, 0.04, 0.05, 0.08));
+      F.add(BOITE, '#2E3440', mat(0, 0, 0, 0.785, 0.9, 0.05, 0.06)); F.add(BOITE, '#2E3440', mat(0, 0, 0, -0.785, 0.9, 0.05, 0.06));
+      const m = new T.Mesh(F.geo(), matVC); m.castShadow = true; g.add(m);
+      const helices = []; for (const [x, z] of [[0.32, 0.32], [-0.32, 0.32], [0.32, -0.32], [-0.32, -0.32]]) { const h = new T.Mesh(new T.CircleGeometry(0.17, 12).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#DDE6EE', transparent: true, opacity: 0.45, depthWrite: false })); h.position.set(x, 0.06, z); g.add(h); helices.push(h); }
+      g.scale.setScalar(1.15); scene.add(g); const o = { g, helices }; reserveDrones.push(o); return o;
+    }
+    function majDrones(jeu, dt) {
+      const t = performance.now() / 1000; let i = 0;
+      for (const d of jeu.drones || []) { const o = reserveDrones[i] || drone3d(); i++; o.g.visible = !(d.t < 1.2 && Math.floor(d.t * 8) % 2 === 0); o.g.position.set(d.x, 2.1 + Math.sin(t * 3 + d.id) * 0.12, d.z); o.g.rotation.y = -t * 1.6; for (const h of o.helices) h.rotation.y = t * 40; }
+      for (; i < reserveDrones.length; i++) reserveDrones[i].g.visible = false;
     }
     function majProjectiles(jeu) {
       let n = 0;
@@ -1175,7 +1191,7 @@ const ZRENDU = (() => {
           case 'invoque': for (const p of [[e.x, e.z]].concat(e.pts || [])) for (let k = 0; k < 10; k++) particule(p[0] + (Math.random() - 0.5) * 0.8, 0.1, p[1] + (Math.random() - 0.5) * 0.8, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, k % 2 ? '#B57CFF' : '#E8D8FF', 0); break;
           case 'detone': flaque(e.x, e.z, 1.4, '#3A3A30'); break;
           case 'infecte': flaque(e.x, e.z, 1.0, '#5E8C2E'); for (let k = 0; k < 18; k++) particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 5, 2 + Math.random() * 3, (Math.random() - 0.5) * 5, 0.7, 0.12, k % 2 ? '#8FD14F' : '#4F8A2E', 0.4); secousse = Math.max(secousse, 0.2); break;
-          case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo }); break;
+          case 'alerte': if (alertes.length < 8) alertes.push({ x: e.x, z: e.z, r: e.r, delai: e.delai, t: 0, meteo: e.meteo, couleur: e.meteo === 'artillerie' ? '#FF8A3A' : null }); break;
           case 'impact':
             if (e.meteo === 'orage') { let px = e.x + (Math.random() - 0.5) * 2, py = 16, pz = e.z + (Math.random() - 0.5) * 2; for (let k = 1; k <= 6; k++) { const f = k / 6, nx = e.x + (Math.random() - 0.5) * (1 - f) * 2.5, ny = 16 * (1 - f), nz = e.z + (Math.random() - 0.5) * (1 - f) * 2.5; segment(px, py, pz, nx, ny, nz, 0.16, '#E8F4FF', 0.22); px = nx; py = ny; pz = nz; } eclairT = 0.15; }
             else flaque(e.x, e.z, 1.6, '#2A2420');
@@ -1190,6 +1206,17 @@ const ZRENDU = (() => {
           case 'piege': onde(e.x, e.z, D.PIEGE.rayon * 1.3, '#7FDBFF'); break;
           case 'zap': zap(e); break;
           // le Lot 5b : la roulade, la singularité qui s'ouvre et qui implose, la contagion des toxines
+          // le Lot 5c : les capacités, les tirs des drones
+          case 'capacite': {
+            const C = D.CAPACITES[e.cap] || { couleur: '#FFF' }, j = jeu.joueurs.find((x) => x.id === e.id), x = j ? j.x : e.x, z = j ? j.z : e.z;
+            if (e.cap === 'soin') { onde(x, z, e.r || 6, '#4FC36A'); onde(x, z, 1.6, '#FFFFFF'); for (const k of jeu.joueurs) if (k.vivant && Math.hypot(k.x - x, k.z - z) <= (k.id === e.id ? 0.1 : e.r || 6)) for (let n = 0; n < 16; n++) particule(k.x + (Math.random() - 0.5) * 0.9, 0.3, k.z + (Math.random() - 0.5) * 0.9, 0, 2 + Math.random() * 2, 0, 0.8, 0.11, n % 3 ? '#7FE08A' : '#FFFFFF', 0); lumiere(x, 2, z, '#7FE08A', 25, 10, 0.3); }
+            else if (e.cap === 'rage') { onde(x, z, 3, '#E5533D'); for (let n = 0; n < 24; n++) { const b = Math.random() * 6.28, v = 2 + Math.random() * 4; particule(x, 1.0, z, Math.cos(b) * v, 1 + Math.random() * 3, Math.sin(b) * v, 0.5, 0.11, n % 2 ? '#FF4A2A' : '#FFB03A', 0.3); } lumiere(x, 2, z, '#FF5A3A', 30, 10, 0.3); secousse = Math.max(secousse, 0.2); }
+            else if (e.cap === 'drone') { for (let n = 0; n < 14; n++) particule(x, 1.6, z, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.5, 0.08, n % 2 ? '#3BB7F0' : '#FFFFFF', 0); onde(x, z, 1.8, '#3BB7F0'); }
+            else if (e.cap === 'artillerie') { fumee(x, 0.3, z, 0.8, 1.6, '#FF8A3A'); for (let n = 0; n < 8; n++) particule(x, 0.3, z, (Math.random() - 0.5) * 1.5, 3 + Math.random() * 2, (Math.random() - 0.5) * 1.5, 0.8, 0.12, '#FF6A2A', 0); }
+            break;
+          }
+          case 'drone': { const p = e.pts || [], c = e.feu ? '#FFB03A' : e.arc ? '#BFF0FF' : '#9AE6FF'; for (let k = 0; k + 1 < p.length; k++) segment(p[k][0], k ? 1.0 : 2.1, p[k][1], p[k + 1][0], 1.0, p[k + 1][1], e.arc ? 0.06 : 0.045, c, 0.08); if (p.length > 1) particule(p[1][0], 1.0, p[1][1], 0, 1, 0, 0.2, 0.07, c, 0); break; }
+          case 'finDrone': for (let n = 0; n < 8; n++) particule(e.x, 2.1, e.z, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 0.4, 0.08, '#9AA3AE', 0.4); break;
           case 'roule': for (let k = 0; k < 10; k++) { const b = (e.a || 0) + Math.PI + (Math.random() - 0.5) * 1.4, v = 1 + Math.random() * 2.5; particule(e.x, 0.15, e.z, Math.cos(b) * v, 0.8 + Math.random(), Math.sin(b) * v, 0.5, 0.14, '#C8B48A', 0); } break;
           case 'trou': onde(e.x, e.z, e.r || 4, '#8A5AFF'); lumiere(e.x, 1.5, e.z, '#8A5AFF', 20, 10, 0.3); break;
           case 'implose': boum(e.x, e.z, e.r || 3); onde(e.x, e.z, (e.r || 3) * 1.6, '#B48CFF'); onde(e.x, e.z, e.r || 3, '#FFFFFF'); lumiere(e.x, 2, e.z, '#C8A8FF', 50, 22, 0.4); secousse = Math.max(secousse, 0.5); for (let k = 0; k < 30; k++) { const b = Math.random() * 6.28, v = 3 + Math.random() * 6; particule(e.x, 1, e.z, Math.cos(b) * v, 2 + Math.random() * 4, Math.sin(b) * v, 0.7, 0.11, k % 2 ? '#B48CFF' : '#2A1A4A', 0.3); } break;
@@ -1225,6 +1252,7 @@ const ZRENDU = (() => {
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majTrous(jeu, dt);
+      majDrones(jeu, dt);
       majDisquesZones(jeu, dt);
       majChaines(jeu);
       if (MOD && MOD.arcsEnCiel.size) { const h = (performance.now() / 4000) % 1; for (const m of MOD.arcsEnCiel) { m.color.setHSL(h, 0.85, 0.55); if (m.emissive) m.emissive.setHSL(h, 0.85, 0.15); } }

@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social') };
+  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social'), capacites: $('#ecran-capacites') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -17,6 +17,7 @@
   const save = lire();
   save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal' }, save.reglages || {});
   save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
+  save.capacites = Object.assign({ choisie: 'artillerie', usages: {}, talents: {} }, save.capacites || {}); // (Lot 5c : la capacité choisie, combien de fois chacune a servi, les talents gardés)
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
   function ecrire() { try { localStorage.setItem(CLE, JSON.stringify(save)); } catch (e) { /* stockage plein ou refusé : la partie continue */ } }
   const debloquee = (id) => { const k = D.ORDRE_ARENES.indexOf(id); if (k <= 0) return true; const prec = D.ORDRE_ARENES[k - 1], r = save.records[prec]; return !!(r && r.vague >= D.DEBLOCAGE[id]); };
@@ -47,6 +48,7 @@
     else if (n === 'passer') faire('passer');
     else if (n === 'grenade') lancerGrenade();
     else if (n === 'roulade') rouler();
+    else if (n === 'capacite') lancerCapacite();
     else if (n === 'arme0' || n === 'arme1') faire('arme', +n.slice(-1));
   } });
   reglerJoy();
@@ -59,6 +61,7 @@
     passer() { if (jeu && !enPause) faire('passer'); },
     grenade() { lancerGrenade(); },
     roulade() { rouler(); },
+    capacite() { lancerCapacite(); },
     emote(e) { if (jeu) faire('emote', e); },
     emotesDispo: () => Object.keys(D.EMOTES).filter((k) => save.collection.emotes.includes(k)),
     atout(k) { choisir(k); },
@@ -77,6 +80,7 @@
       case 'ameliorer': return ZJEU.ameliorer(jeu, idMoi, arg);
       case 'grenade': return ZJEU.grenade(jeu, idMoi);
       case 'roulade': return ZJEU.roulade(jeu, idMoi);
+      case 'capacite': return ZJEU.capacite(jeu, idMoi);
       case 'arme': return { ok: ZJEU.changerArme(jeu, idMoi, arg) };
       case 'atout': return { ok: ZJEU.choisirAtout(jeu, idMoi, arg) };
       case 'passer': return { ok: ZJEU.passer(jeu) };
@@ -87,6 +91,7 @@
   const moi = () => (jeu ? jeu.joueurs.find((p) => p.id === idMoi) || jeu.joueurs[0] : null);
   const monChoix = () => { const m = moi(); return m ? m.choix || (jeu.choix && jeu.choix.id === idMoi ? jeu.choix : null) : null; };
   function rouler() { if (!jeu || jeu.mode === 'infection' || (enPause && !partie)) return; const r = faire('roulade'); if (r && r.ok) PSONS.vibrer(12); }
+  function lancerCapacite() { if (!jeu || jeu.mode === 'infection' || (enPause && !partie)) return; const r = faire('capacite'); if (r && r.ok) PSONS.vibrer(20); else if (r && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
   function lancerGrenade() { if (jeu && jeu.mode === 'infection') { if (!enPause && ZINFECTION.bondir(jeu)) PSONS.vibrer(15); return; } if (!jeu || (enPause && !partie)) return; const r = faire('grenade'); if (r && !r.ok && r.raison === 'recharge') PSONS.jouer('refus', 0.5); }
   function choisir(k) { if (!jeu || (enPause && !partie) || !monChoix()) return; const r = faire('atout', k); if (r && r.ok) { PSONS.jouer('achat', 0.9); PSONS.vibrer(15); } }
   // le son naît au premier geste (iOS, Chrome)
@@ -109,7 +114,7 @@
   }
   // ─── la vitrine : dans les menus, la caméra descend en plan rapproché sur ton survivant (la démonstration), posé dans la place libre
   // du titre (à gauche) ou à gauche de la Collection ; en partie, elle remonte au-dessus de l'arène ───
-  const MENUS = new Set(['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
+  const MENUS = new Set(['titre', 'arenes', 'bunker', 'capacites', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
   function placerVitrine() {
     if (!MENUS.has(ecran) || (jeu && !jeu.fini)) { rendu.vitrine(false); return; }
     const W = window.innerWidth, H = window.innerHeight, paysage = W > H;
@@ -132,6 +137,7 @@
     $('.jouer-arene').textContent = `${A.nom}${r && r.vague ? ` · record : vague ${r.vague}` : ''}`;
     $('.arene-choix-img').style.backgroundImage = `url(vignettes/${arene}.webp)`;
     $('.vitrine-skin').textContent = (D.SURVIVANTS[C.skin] || D.SURVIVANTS.gardien).nom;
+    { const cid = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', K = D.CAPACITES[cid]; $('.cap-nom').textContent = K.nom; $('#b-capacites .ico').innerHTML = ZHUD.ICO['cap_' + cid] || ''; $('#b-capacites').style.setProperty('--cc', K.couleur); }
     majBadges();
   }
   function majBadges() {
@@ -140,6 +146,7 @@
     const col = Object.keys(D.SURVIVANTS).some((k) => D.SURVIVANTS[k].prix && !C.skins.includes(k) && m >= D.SURVIVANTS[k].prix) || Object.keys(D.EMOTES).some((k) => D.EMOTES[k].prix && !C.emotes.includes(k) && m >= D.EMOTES[k].prix);
     const notif = (id, on, titre) => { const i = document.querySelector(`#${id} .notif`); if (i) { i.hidden = !on; i.title = on ? titre : ''; } };
     notif('b-bunker', bunker, 'Une amélioration à ta portée'); notif('b-collection', col, 'De quoi t’offrir un survivant ou une émote'); notif('b-progression', coffrePret(), 'Le coffre du jour t’attend');
+    notif('b-capacites', !!save.capacites.neuf, 'Un palier de talents s’est ouvert');
   }
   function remplirArenes() {
     const box = $('.arenes');
@@ -255,7 +262,7 @@
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, capacite: maCapacite(false), skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -287,6 +294,25 @@
     xp: '<svg viewBox="0 0 40 40"><path d="M7 9c5-2 9-1 13 2v21c-4-3-8-4-13-2z" fill="#F2EBD9" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M33 9c-5-2-9-1-13 2v21c4-3 8-4 13-2z" fill="#FFF7EC" stroke="#2B2A33" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 15h6M10 20h6M24 15h6M24 20h6" stroke="#8E5BE8" stroke-width="2" stroke-linecap="round"/></svg>',
     arme: '<svg viewBox="0 0 40 40"><rect x="5" y="13" width="30" height="20" rx="3" fill="#C99B62" stroke="#2B2A33" stroke-width="2.4"/><path d="M5 20h30M20 13v20" stroke="#5A3D22" stroke-width="2.2"/><path d="M11 9h18l2 4H9z" fill="#5E6347" stroke="#2B2A33" stroke-width="2.2" stroke-linejoin="round"/></svg>',
   };
+  // ─── l'écran des talents (Lot 5c) ───
+  const ICO_CAP = (id) => ZHUD.ICO['cap_' + id] || '';
+  function remplirCapacites() {
+    const S = save.capacites, choisie = D.CAPACITES[S.choisie] ? S.choisie : 'artillerie', C = D.CAPACITES[choisie], u = S.usages[choisie] || 0, t = S.talents[choisie] || [];
+    $('.tal-caps').innerHTML = D.ORDRE_CAPACITES.map((id) => { const K = D.CAPACITES[id], n = S.usages[id] || 0, pal = D.PALIERS_CAPACITE.filter((p) => n >= p).length;
+      return `<button type="button" class="tal-cap${id === choisie ? ' choisie' : ''}" data-cap="${id}" style="--c:${K.couleur}"><span class="ico">${ICO_CAP(id)}</span><b>${K.nom}</b><small>${id === choisie ? 'Choisie · ' : ''}palier ${pal}/3</small></button>`; }).join('');
+    const prochain = D.PALIERS_CAPACITE.find((p) => u < p), avant = [0].concat(D.PALIERS_CAPACITE).filter((p) => p <= u).pop();
+    $('.tal-arbre').style.setProperty('--c', C.couleur);
+    $('.tal-arbre').innerHTML = `<h3>${C.nom}</h3><p>${C.desc} Recharge : ${C.recharge} s.</p>
+      <p>${prochain ? `Utilisée ${u} fois · palier suivant à ${prochain}` : `Utilisée ${u} fois · tout l’arbre est ouvert`}</p><div class="tal-maitrise"><i style="width:${prochain ? Math.round((u - avant) / (prochain - avant) * 100) : 100}%"></i></div>
+      ${C.talents.map((paire, i) => { const ouvert = u >= D.PALIERS_CAPACITE[i]; return `<div class="tal-palier"><small>Palier ${i + 1}${ouvert ? '' : ` · après ${D.PALIERS_CAPACITE[i]} utilisations`}</small>${paire.map((T, k) => `<button type="button" class="tal-t${ouvert && t[i] === k ? ' pris' : ''}" data-talent="${i}:${k}" ${ouvert ? '' : 'disabled'} aria-pressed="${ouvert && t[i] === k}"><b>${T.nom}</b><span>${T.desc}</span></button>`).join('')}</div>`; }).join('')}`;
+  }
+  function ouvrirCapacites() { save.capacites.neuf = false; ecrire(); remplirCapacites(); for (const k in ecrans) ecrans[k].hidden = true; montrer('capacites'); majBadges(); }
+  $('.tal-caps').addEventListener('click', (e) => { const b = e.target.closest('[data-cap]'); if (!b) return; save.capacites.choisie = b.dataset.cap; ecrire(); remplirCapacites(); PSONS.jouer('achat', 0.4); });
+  $('.tal-arbre').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-talent]'); if (!b || b.disabled) return; const [i, k] = b.dataset.talent.split(':').map(Number), id = save.capacites.choisie;
+    const t = save.capacites.talents[id] = (save.capacites.talents[id] || [-1, -1, -1]).slice(0, 3); while (t.length < 3) t.push(-1);
+    t[i] = t[i] === k ? -1 : k; ecrire(); remplirCapacites(); PSONS.jouer('achat', 0.5);
+  });
   function remplirBunker() {
     majMedailles();
     // trois branches ; chaque amélioration : son icône dans un anneau qui se remplit cran par cran, ses crans, son prix
@@ -360,7 +386,7 @@
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [moiJoueur()] }); // sans les bonus du Bunker : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [Object.assign(moiJoueur(), { capacite: maCapacite(true) })] }); // sans les bonus du Bunker ni les talents : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -426,7 +452,9 @@
   // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
   save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
   { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
-  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme }; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme, capacite: maCapacite(false) }; }
+  function maCapacite(sansTalents) { const id = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', t = (save.capacites.talents[id] || []).slice(0, 3); return { id, t: sansTalents ? [-1, -1, -1] : [0, 1, 2].map((i) => (palierOuvert(id, i) && (t[i] === 0 || t[i] === 1) ? t[i] : -1)) }; }
+  const palierOuvert = (id, i) => (save.capacites.usages[id] || 0) >= D.PALIERS_CAPACITE[i];
   const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
   // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
   function progres(x) {
@@ -738,6 +766,8 @@
   clic('#b-lancer', () => { if (salon) { const r = salon.lancer(arene, modeSalon); if (r === 'duel-deux') { erreurSalon('Le duel se joue à deux exactement.'); return; } verrouiller(); } });
   clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
+  clic('#b-capacites', ouvrirCapacites);
+  clic('#b-capacites-ok', () => { montrer('titre'); majTitre(); majBadges(); });
   clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
@@ -771,9 +801,16 @@
   function effetsTemps(l) {
     for (const e of l) {
       if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
+      else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) compterCapacite(e.cap);
       else if (e.t === 'phase') { ralentiJusque = Math.max(ralentiJusque, performance.now() + 700); PSONS.vibrer([40, 30, 80]); } // (un boss change de phase : un instant au ralenti)
       else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
     }
+  }
+  function compterCapacite(id) {
+    const u = save.capacites.usages, avant = u[id] || 0; u[id] = avant + 1;
+    const i = D.PALIERS_CAPACITE.findIndex((p) => avant < p && u[id] >= p);
+    if (i >= 0) { setTimeout(() => ZHUD.toast(`Nouveau palier de talents : ${D.CAPACITES[id].nom} (Talents, au menu)`), 1900); save.capacites.neuf = true; }
+    ecrire();
   }
   let fige = false, finVu = false;
   function boucle(t) {
@@ -811,7 +848,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, ouvrirCapacites, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },
