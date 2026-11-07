@@ -2,10 +2,10 @@
    le doigt se pose n'importe où dans la zone de jeu (hors des boutons du HUD), la base du joystick naît sous lui, le pouce s'en écarte
    de RAYON pixels au plus ; zone morte, courbe un peu exponentielle (mêmes réglages que Poncin). Pointer Events suivis par pointerId,
    touch-action: none. Le tir est automatique (la simulation vise le zombie le plus proche) : seul le déplacement passe par ici.
-   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Maj ou C : la roulade ; Échap ou P : pause ; Espace : lancer la vague.
+   Clavier (event.code, donc ZQSD en AZERTY = WASD en QWERTY) et flèches ; 1 / 2 : l'arme (1 / 2 / 3 : l'atout, au passage d'un niveau) ; G ou E : la grenade ; Maj ou C : la roulade ; F ou R : la capacité ; Échap ou P : pause ; Espace : lancer la vague.
    Manette (PS5, Xbox… : Gamepad API, disposition standard) : stick gauche ou croix pour courir ; A / Croix : la grenade (et, dans les
    menus, le bouton principal) ; X / Carré, Y / Triangle, B / Rond : l'arme 1 / 2 (les atouts 1 / 2 / 3 au passage d'un niveau) ;
-   R1 / RB : lancer la vague ; L1 / LB ou R2 / RT : la roulade ; Start / Options : pause.
+   R1 / RB : lancer la vague ; L1 / LB ou R2 / RT : la roulade ; L2 / LT : la capacité ; Start / Options : pause.
    API : ZCONTROLES.init(zone, { surTouche(nom) }), lire() → { mx, mz } (vecteur du monde : x vers l'est, z vers le sud ; longueur ≤ 1),
          activer(bool), reinit(), get joystick() → { actif, x, y } (pour les tests). */
 const ZCONTROLES = (() => {
@@ -47,7 +47,7 @@ const ZCONTROLES = (() => {
   }
   // ─── la manette : sondée à chaque image tant qu'il y en a une ───
   let manette = false, sondeEnCours = false, px = 0, pz = 0; const avant = [];
-  const BOUTONS = { 0: 'grenade', 2: 'arme0', 3: 'arme1', 1: 'arme2', 5: 'passer', 9: 'pause', 4: 'roulade', 7: 'roulade' };
+  const BOUTONS = { 0: 'grenade', 2: 'arme0', 3: 'arme1', 1: 'arme2', 5: 'passer', 9: 'pause', 4: 'roulade', 7: 'roulade', 6: 'capacite' };
   function sonder() {
     let pad = null;
     try { const l = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l) if (g && g.connected) { pad = g; break; } } catch (e) { pad = null; }
@@ -91,6 +91,7 @@ const ZCONTROLES = (() => {
     else if (e.code === 'Digit3' || e.code === 'Numpad3') rappel('arme2');
     else if (e.code === 'KeyG' || e.code === 'KeyE') rappel('grenade');
     else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') rappel('roulade');
+    else if (e.code === 'KeyF' || e.code === 'KeyR') rappel('capacite');
     else if (e.code === 'Escape' || e.code === 'KeyP') rappel('pause');
     else if (e.code === 'Space') { rappel('passer'); if (actif) e.preventDefault(); }
   }

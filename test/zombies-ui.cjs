@@ -18,7 +18,7 @@ const out = process.env.CAPTURES || path.join(__dirname, 'shots', 'zombies-ui');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const TAILLES = (process.env.TAILLES || '667x375,740x360,844x390,932x430,1024x600').split(',').map((s) => s.split('x').map(Number));
-const ECRANS = ['titre', 'arenes', 'bunker', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon', 'pause', 'fin'];
+const ECRANS = ['titre', 'arenes', 'bunker', 'capacites', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon', 'pause', 'fin'];
 const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .prog-corps, .liste-joueurs'; // (elles défilent exprès)
 
 (async () => {
@@ -35,7 +35,7 @@ const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .pr
     await sleep(600);
     for (const e of ECRANS) {
       await page.evaluate((e) => {
-        const Z = window.__zombies, f = { collection: 'ouvrirCollection', progression: 'ouvrirProgression', modes: 'ouvrirModes', social: 'ouvrirSocial', defi: 'ouvrirDefi', ascension: 'ouvrirAscension' }[e];
+        const Z = window.__zombies, f = { capacites: 'ouvrirCapacites', collection: 'ouvrirCollection', progression: 'ouvrirProgression', modes: 'ouvrirModes', social: 'ouvrirSocial', defi: 'ouvrirDefi', ascension: 'ouvrirAscension' }[e];
         if (e === 'bunker') document.querySelector('#b-bunker').click(); else if (f) Z[f](); else Z.montrer(e);
       }, e);
       await sleep(300);
