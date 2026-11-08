@@ -12,11 +12,67 @@
 const fs = require('fs'), path = require('path');
 const ESSAI = process.argv.includes('--essai');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
-const css = read('style.css'), body = read('page.html');
+const body = read('page.html');
+// ─── l'allègement : le JS et la CSS du Fournil compressés à la construction (les sources restent telles quelles, commentées) ───
+// Le JS passe par terser, en version EXACTE 5.51.2 (pur JS, sans dépendance native), installé HORS du dépôt comme Playwright et mis dans
+// NODE_PATH (.github/workflows/pages.yml et essai.yml ; en local : npm install --prefix <dossier> terser@5.51.2, puis
+// NODE_PATH=<dossier>/node_modules). Sans lui, la construction s'arrête : jamais de page lourde publiée par mégarde.
+// FOURNIL_SANS_MINIFIER=1 (débogage seulement) assemble les sources telles quelles, comme avant.
+const TERSER_VERSION = '5.51.2';
+const SANS_MINIFIER = process.env.FOURNIL_SANS_MINIFIER === '1';
+const terser = (() => {
+  if (SANS_MINIFIER) { console.warn('FOURNIL_SANS_MINIFIER=1 : le JS et la CSS du Fournil ne sont PAS compressés (débogage seulement, à ne pas publier)'); return null; }
+  let t = null, v = '';
+  try { t = require('terser'); v = require('terser/package.json').version; } catch (e) { t = null; }
+  const aide = `  npm install --prefix /tmp/terser --no-save --no-package-lock --no-audit --no-fund terser@${TERSER_VERSION}\n  NODE_PATH=/tmp/terser/node_modules node build.js\n(ou FOURNIL_SANS_MINIFIER=1 node build.js pour une page non compressée, en débogage seulement)`;
+  if (!t || typeof t.minify_sync !== 'function') { console.error(`build.js : terser ${TERSER_VERSION} introuvable (le minifieur du Fournil, installé hors du dépôt). Par exemple :\n${aide}`); process.exit(1); }
+  if (v !== TERSER_VERSION) { console.error(`build.js : terser ${v} trouvé, ${TERSER_VERSION} attendu (version exacte : la même page, la même empreinte partout). Par exemple :\n${aide}`); process.exit(1); }
+  return t;
+})();
+// Le JS : chaque fichier de src/ à part (rien ne passe d'un fichier à l'autre ; les repères « ── fichier ── » restent, des tests les lisent).
+// Sûr avant tout : les noms globaux ne changent jamais (toplevel: false : GAME, G, SCENE, HDM, window.__fournil…, que les fichiers et les
+// tests se partagent), seulement les noms locaux ; aucune propriété renommée ; les noms de classes gardés (ceux des fonctions locales non :
+// rien ne lit fn.name, ni Function.prototype.toString, ni ne crée de worker depuis un texte ; vérifié le 8 nov. ; 86 Ko de moins) ; ni « unsafe »,
+// ni lecture de propriété supprimée (pure_getters: false : « void el.offsetWidth », qui relance une animation CSS, reste), ni typeof réécrit,
+// ni paramètre retiré (keep_fargs : fn.length). terser protège de lui-même les portées qui appellent eval, et « </script » dans les chaînes.
+// Le seul commentaire gardé : la licence MIT de ZzFX.
+const OPTIONS_TERSER = {
+  compress: { toplevel: false, pure_getters: false, typeofs: false, keep_fargs: true, keep_classnames: true, unsafe: false, passes: 1 },
+  mangle: { toplevel: false, keep_classnames: true, safari10: true },
+  format: { comments: /\(MIT, ©/, inline_script: true, safari10: true },
+  keep_classnames: true, toplevel: false, module: false,
+};
+const minJs = (f, src) => {
+  if (!terser) return src;
+  let r;
+  try { r = terser.minify_sync({ [f]: src }, OPTIONS_TERSER); } catch (e) { console.error(`build.js : terser n'a pas pu compresser src/${f} : ${e.message}${e.line ? ` (ligne ${e.line}, colonne ${e.col})` : ''}`); process.exit(1); }
+  return r.code + ';'; // (un « ; » de plus : la fin d'un fichier ne se colle jamais au début du suivant)
+};
+// La CSS : un minifieur simple, écrit ici, qui ne fait que le sûr : les commentaires retirés, les blancs repliés en un seul, et supprimés
+// seulement autour de « { } ; » et après « : » (jamais avant « : » : « .a :hover » n'est pas « .a:hover » ; jamais autour de « ( » ni de
+// « , ») ; le « ; » d'avant « } » ôté. Les chaînes ("…", '…') passent telles quelles.
+const minCss = (src) => {
+  if (!terser) return src;
+  let out = '', i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i];
+    if (c === '"' || c === "'") { let j = i + 1; while (j < n && src[j] !== c) { if (src[j] === '\\') j++; j++; } out += src.slice(i, j + 1); i = j + 1; continue; }
+    if (c === '/' && src[i + 1] === '*') { const j = src.indexOf('*/', i + 2); i = j < 0 ? n : j + 2; out += ' '; continue; }
+    if (/\s/.test(c)) { let j = i; while (j < n && /\s/.test(src[j])) j++; out += ' '; i = j; continue; }
+    out += c; i++;
+  }
+  // les blancs autour de { } ; et après : (hors chaînes : on recoupe en morceaux chaîne / pas chaîne)
+  return out.split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/).map((m, k) => (k % 2 ? m : m.replace(/ *([{};]) */g, '$1').replace(/: +/g, ':').replace(/ {2,}/g, ' ').replace(/;}/g, '}'))).join('').trim() + '\n';
+};
+const css = minCss(read('style.css'));
 // vignettes.js (la table des vignettes du carnet, générée par outils/vignettes/cuire.cjs) après icons.js, avant ce qui les montre (arriere.js, chaine-ecran.js, ui.js) ;
 // equipe3d.js (le boulanger et les apprentis en 3D) juste après clients3d.js, dont il suit la règle ; « Ma chaîne de boutiques » : chaine.js (les règles) juste après game.js, progression.js (le second, les rivales, les projets de quartier : des règles, il lit GAME) juste après chaine.js, planete.js (la petite planète) avant scene.js, chaine-ecran.js (les feuilles) avant nouveautes.js et ui.js (nouveautes.js reste juste avant ui.js : test/fournil-nouveautes.cjs) ;
 // les saisons gratuites (docs/marche-contrat.md § 7) : saison.js (le moteur) et saison-automne.js (sa fiche) juste après progression.js, des règles, avant classement.js et ui.js ; le Marché d'automne : marche.js (les règles) juste après hantee.js, boutiquemarche.js juste après boutiquehantee.js
-const js = ['game.js', 'chaine.js', 'progression.js', 'saison.js', 'saison-automne.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vignettes.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'equipe3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'marche.js', 'boutiquehantee.js', 'boutiquemarche.js', 'hanteeactivites.js', 'tiroir.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'chaine-ecran.js', 'nouveautes.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const FICHIERS_JS = ['game.js', 'chaine.js', 'progression.js', 'saison.js', 'saison-automne.js', 'blackjack.js', 'roulette.js', 'casino.js', 'horloge.js', 'classement.js', 'icons.js', 'vignettes.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'clients3d.js', 'equipe3d.js', 'planete.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'marche.js', 'boutiquehantee.js', 'boutiquemarche.js', 'hanteeactivites.js', 'tiroir.js', 'evenement.js', 'zzfx.js', 'sons.js', 'photo.js', 'chat.js', 'retours.js', 'chaine-ecran.js', 'nouveautes.js', 'ui.js'];
+// (la ligne au-dessus, telle quelle : des tests lisent l'ordre des fichiers dans build.js)
+const js = FICHIERS_JS.map((f) => `/* ── ${f} ── */\n${minJs(f, read(f))}`).join('\n');
+const lignesJs = FICHIERS_JS.reduce((n, f) => n + read(f).split('\n').length, 0); // (les lignes des sources, pour le compte rendu)
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,7 +159,7 @@ if (ESSAI) { // la version d'essai, seule : rien d'autre n'est écrit
   }
   fs.writeFileSync(path.join(dir, 'index.html'), page);
   fs.writeFileSync(path.join(dir, 'version.json'), JSON.stringify({ v: version }) + '\n');
-  console.log(`fournil-essai/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · hd/, modeles/, sons/ et img/ copiés · ${js.split('\n').length} lignes de JS`);
+  console.log(`fournil-essai/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · hd/, modeles/, sons/ et img/ copiés · ${lignesJs} lignes de JS${terser ? ` (compressé par terser ${TERSER_VERSION})` : ' (NON compressé)'}`);
   process.exit(0);
 }
 fs.mkdirSync(path.join(__dirname, 'fournil'), { recursive: true });
@@ -111,7 +167,7 @@ fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), page);
 fs.writeFileSync(path.join(__dirname, 'fournil', 'version.json'), JSON.stringify({ v: version }) + '\n');
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'artifact.html'), artifact);
-console.log(`fournil/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);
+console.log(`fournil/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${lignesJs} lignes de JS${terser ? ` (compressé par terser ${TERSER_VERSION})` : ' (NON compressé)'}`);
 
 // ─── Opération Poncin (poncin/index.html) : FPS sur la carte de Poncin ; sources dans src-poncin/, `src/modeles.js` partagé avec Le Fournil ───
 // Three.js et supabase-js sont des fichiers à part (vendor/), mis en cache par le service worker du jeu ; poncin/config.js (adresse et clé publique Supabase) s'édite à la main.

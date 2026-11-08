@@ -42,13 +42,18 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+      # le minifieur de build.js : terser, en version EXACTE 5.51.2 (la même que pages.yml), hors du dépôt ; sans lui, build.js s'arrête
+      - name: terser (hors du dépôt, le minifieur de build.js)
+        run: npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund terser@5.51.2
       - name: Le vrai jeu (celui du déploiement vert)
         run: node build.js
         env:
           TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
       - name: La version d'essai (la branche du lot, à côté du vrai jeu)
         env:
           TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: |
           trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
           git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD

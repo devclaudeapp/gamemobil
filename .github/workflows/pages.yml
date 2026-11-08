@@ -12,6 +12,8 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  # Le minifieur du Fournil : terser, en version EXACTE 5.51.2 (pur JS), installé hors du dépôt avec Playwright ($RUNNER_TEMP/pw, NODE_PATH)
+  # dans CHAQUE tâche qui lance node build.js (toutes celles-ci, deploy compris, et essai.yml) : sans lui, build.js s'arrête (page non compressée refusée).
   # Le Fournil sur la vraie page, dans Chromium : la triche au changement d'heure (téléphone avancé, hors ligne, fuseau changé,
   # réseau qui revient), les récompenses du podium, le classement en points de boulanger (Supabase simulé : rien ne part vers le
   # vrai projet ; l'icône ronde en haut à droite), l'Atelier (ses trois mini-jeux joués au doigt, records, gains et plafond du jour)
@@ -29,9 +31,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier, la garde-robe
         run: |
@@ -68,9 +70,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       # test/fournil-quartier.cjs (l'écran de la Planque) : écarté avec la Planque le 27 oct., à remettre à son retour (QUARTIER.ECARTE, src/quartier.js) ;
       # ses règles (fournil-quartier.test.js, Node) restent testées
@@ -108,9 +110,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: L'arrière-salle, la HD, les sons
         run: |
@@ -144,9 +146,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés, les idées et les votes
         run: |
@@ -183,9 +185,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Le standing des boutiques, l'aménagement libre et la batterie
         run: |
@@ -210,9 +212,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les clients 3D, les personnages, les meubles de la salle
         run: |
@@ -238,9 +240,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Ma chaîne de boutiques, la version d'essai
         run: |
@@ -263,9 +265,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Mes décos et ses vignettes, la petite planète
         run: |
@@ -289,9 +291,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les activités de la Maison hantée
         run: |
@@ -312,9 +314,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les activités du Marché d'automne
         run: |
@@ -335,9 +337,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: L'accueil des nouveaux joueurs
         run: |
@@ -359,9 +361,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Le boulanger et les apprentis en 3D
         run: |
@@ -383,9 +385,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les paliers, le second, les trophées, le concours et les chantiers
         run: |
@@ -408,9 +410,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Playwright et Chromium (hors du dépôt)
+      - name: Playwright, Chromium et terser (hors du dépôt)
         run: |
-          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 terser@5.51.2
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Les règles, puis le jeu au doigt
         run: |
@@ -447,9 +449,12 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: terser (hors du dépôt, le minifieur de build.js)
+        run: npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund terser@5.51.2
       - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-marche.test.js && node test/fournil-saison.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-roulette.test.js && node test/fournil-casino.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js && node test/fournil-progression.test.js && node test/fournil-accueil.test.js && node test/fournil-garderobe.test.js && node test/fournil-chaine.test.js && node test/fournil-chaine-sim.js --court --test && node test/fournil-vignettes.test.js && node test/zombies.test.js
         env:
           TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
       # La version d'essai : la branche du lot, construite à part (node build.js --essai n'écrit que fournil-essai/), testée, puis posée à
       # côté du vrai jeu. Le vrai jeu reste celui de master, construit et testé plus haut. Une branche d'essai cassée ne bloque jamais sa
       # mise en ligne (continue-on-error) : l'essai manque simplement à ce déploiement.
@@ -458,6 +463,7 @@ jobs:
         continue-on-error: true
         env:
           TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: |
           trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
           git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD

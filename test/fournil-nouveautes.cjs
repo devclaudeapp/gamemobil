@@ -32,7 +32,10 @@ check(NV.nonVues(ancienne).map((n) => n.id).join() === attendues.join() && atten
 const B = fs.readFileSync(path.join(root, 'build.js'), 'utf8');
 check(/'nouveautes\.js', 'ui\.js'\]/.test(B), 'build.js : nouveautes.js juste avant ui.js');
 const PAGE = fs.readFileSync(path.join(root, 'fournil', 'index.html'), 'utf8');
-check(PAGE.includes('/* ── nouveautes.js ── */') && PAGE.includes(`id: '${L[0].id}'`) && PAGE.includes('id="b-nouveautes"'), 'la page bâtie contient la liste et la pastille (node build.js)');
+// (la page bâtie est compressée par terser, build.js : « { id: '…' » y devient « {id:"…" » et le nom NOUVEAUTES y est raccourci ;
+// on cherche donc la 1re entrée, quelle que soit sa mise en forme, et l'entrée simulée se glisse juste avant elle)
+const PREMIERE = new RegExp(`\\{\\s*id:\\s*(['"])${L[0].id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\1`);
+check(PAGE.includes('/* ── nouveautes.js ── */') && PREMIERE.test(PAGE) && PAGE.includes('id="b-nouveautes"'), 'la page bâtie contient la liste et la pastille (node build.js)');
 
 // ─── 2. la vraie page ───
 const { chromium } = require('playwright');
@@ -46,7 +49,7 @@ const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   if (p === '/fournil/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify({ v: enLigne })); return; }
   if (p === '/fournil/index.html' && injecter) {
-    const html = PAGE.replace('const NOUVEAUTES = [', `const NOUVEAUTES = [${JSON.stringify(INJECTEE)},`);
+    const html = PAGE.replace(PREMIERE, (m) => `${JSON.stringify(INJECTEE)},${m}`);
     res.writeHead(200, { 'content-type': 'text/html', 'cache-control': 'no-store' }); res.end(html); return;
   }
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream', 'cache-control': 'no-store' }); res.end(d); });
