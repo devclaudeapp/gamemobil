@@ -18,7 +18,7 @@
    niveau { id, niveau }, atout { id, atout, rang }, grenade { id, x, z }. Les touches portent crit (coup critique) et de (le tireur).
    Unités : mètres, secondes. Angles : 0 vers +x, sens trigonométrique dans le plan (x, z) (a = atan2(dz, dx)). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('../src-poncin/nav.js'));
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('./nav.js'));
   else root.ZJEU = factory(root.ZDONNEES, root.ZMONDE, root.PNAV);
 })(typeof self !== 'undefined' ? self : this, function (D, M, PNAV) {
   'use strict';

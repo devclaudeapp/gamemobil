@@ -1,5 +1,5 @@
 /* DERNIER REMPART — la coop en ligne, de 2 à 4 survivants, chacun chez soi.
-   Les salons sont ceux d'Opération Poncin (src-poncin/reseau.js, PRESEAU) : un code de 4 lettres, présence et signalisation par
+   Les salons sont ceux d'Opération Poncin (src-zombies/reseau.js, PRESEAU, repris de Poncin) : un code de 4 lettres, présence et signalisation par
    Supabase Realtime, puis WebRTC de téléphone à téléphone (relais par Supabase si le direct ne s'ouvre pas) ; canaux préfixés « rempart »
    (jamais mêlés à ceux de Poncin). ?reseau=local (BroadcastChannel, entre onglets) sert aux tests.
    L'hôte fait autorité : il simule la partie avec ZJEU (tous les survivants), applique la dernière entrée reçue de chacun, exécute leurs
