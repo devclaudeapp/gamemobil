@@ -133,7 +133,8 @@ const SAISON = [['couronne-feuilles', 'm3'], ['guirlande-feuilles', 'r1'], ['lan
     check(await ev(() => BOUTIQUE_MARCHE.servir('c999999') === false && BOUTIQUE_MARCHE.client('c999999') === null), 'un client qui n\'existe pas : servir rend false, client rend null');
     // (les apparitions des règles attendent une heure : une qui passerait d'elle-même, sur une machine lente, fausserait le compte des trois de l'API)
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); if (q.manoir) q.manoir.prochaineApp = HORLOGE.maintenant() + 3600e3; for (const a of BOUTIQUE_MARCHE.apparitions()) BOUTIQUE_MARCHE.retirer(a.id); });
-    const ids = await ev(() => ['feuille', 'chataigne', 'champignon'].map((t) => BOUTIQUE_MARCHE.apparition(t)));
+    // (une traversée d'une minute : elles avancent au temps réel, et une traversée de 6 à 10 s finissait pendant la capture qui suit, en haute)
+    const ids = await ev(() => ['feuille', 'chataigne', 'champignon'].map((t) => BOUTIQUE_MARCHE.apparition(t, 60)));
     await sleep(700);
     let ap = await ev(() => BOUTIQUE_MARCHE.apparitions());
     check(ids.every((i) => typeof i === 'number') && ap.length === 3 && ap.every((a) => a.r >= 22 && Number.isFinite(a.x) && Number.isFinite(a.y)) && new Set(ap.map((a) => a.type)).size === 3, `trois apparitions : la feuille d'or, la châtaigne, le champignon (${ap.map((a) => `${a.type} ${a.x},${a.y} r${a.r}`).join(' ; ')})`);

@@ -526,10 +526,11 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
     const W = VIE.W, K = VIE.K, sens = Math.random() < 0.5 ? 1 : -1, o = objetApparition(type); if (!o) return null;
     const cad = courant.vue.cadre, bas = Math.min(L.devanture.y - 20 * K, (cad.bas ? cad.bas - cad.haut : L.T) - 40 * K), y0 = L.murH + 36 * K + Math.random() * Math.max(10, bas - L.murH - 46 * K);
     const a = { id: idApp++, type, o, t: 0, duree: duree > 0 ? duree : 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'chauve-souris' ? 60 : 30) * K, ph: Math.random() * 6, sens };
-    if (!SCENE.hd3 || type === 'chauve-souris') o.scale.setScalar(K * (type === 'chauve-souris' ? 1.4 : 1.1)); tr.scene.add(o); APP.push(a); majApp(a, 0); return a.id;
+    if (!SCENE.hd3 || type === 'chauve-souris') o.scale.setScalar(K * (type === 'chauve-souris' ? 1.4 : 1.1)); tr.scene.add(o); a.nait = heureApp(); APP.push(a); majApp(a, 0); return a.id;
   }
+  const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
-    a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1;
+    (a.traine || (a.traine = [])).push(a.t); if (a.traine.length > 3) a.traine.shift(); a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1; // (a.traine : où elle était aux trois images d'avant, que le joueur a pu viser : viser)
     o.position.set(a.x0 + (a.x1 - a.x0) * u, a.haut + Math.sin(a.t * 2.2 + a.ph) * 8 * K, a.z + Math.sin(a.t * 0.9 + a.ph) * 10 * K);
     o.rotation.set(0, a.sens > 0 ? 0.5 : -0.5, Math.sin(a.t * 2.2 + a.ph) * 0.12); // tourné vers où il va, sans montrer son dos à la caméra
     if (o.userData.ailes) { const b = Math.sin(a.t * 18) * 0.9; o.userData.ailes[0].rotation.y = b; o.userData.ailes[1].rotation.y = -b; o.rotation.y = 0; }
@@ -581,12 +582,12 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null. Une cible qui file : le doigt vise là où il
-  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (aussi pour un toucher sur la colonne des
+  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (ou depuis trois images, 2,5 s au plus, si c'est plus long : une machine lente) (aussi pour un toucher sur la colonne des
   // activités posée sur la scène : src/hanteeactivites.js, sousDoigt)
   function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
-      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, Math.min(a.t - 0.35, Math.max(a.t - 2.5, Math.min(a.t, ...(a.traine || []))))), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
     return best;
@@ -630,7 +631,9 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); } // la fenêtre suit la mise en page (le tiroir des activités, une rotation)
         const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
-        for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]); // une apparition qui a fini sa traversée s'en va
+        // la traversée suit le temps réel (celui des règles, qui la retirent à sa fin) : à moins de 4 images/s, le dt de ui.js, plafonné à
+        // 0,25 s, la laissait au bord de l'écran quand les règles l'effaçaient (7 nov. : à ~1 image/s, la feuille ne passait jamais le premier quart)
+        for (let k = APP.length - 1; k >= 0; k--) { const a = APP[k]; if (majApp(a, Math.max(dt, (t - a.nait) / 1000 - a.t))) retirerApp(a); }
         majExpl(dt);
       },
       equipe: () => {}, // les monstres embauchés arrivent d'eux-mêmes à leur poste (les stations)

@@ -138,7 +138,8 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     check(await ev(() => BOUTIQUE_HANTEE.servir('c999999') === false && BOUTIQUE_HANTEE.client('c999999') === null), 'un client qui n\'existe pas : servir rend false, client rend null');
     // (les apparitions des règles attendent une heure : une qui passerait d'elle-même, sur une machine lente, fausserait le compte des trois de l'API)
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); if (q.manoir) q.manoir.prochaineApp = HORLOGE.maintenant() + 3600e3; for (const a of BOUTIQUE_HANTEE.apparitions()) BOUTIQUE_HANTEE.retirer(a.id); });
-    const ids = await ev(() => ['fantome', 'citrouille', 'chauve-souris'].map((t) => BOUTIQUE_HANTEE.apparition(t)));
+    // (une traversée d'une minute : elles avancent au temps réel, et une traversée de 6 à 10 s finissait pendant la capture qui suit, en haute)
+    const ids = await ev(() => ['fantome', 'citrouille', 'chauve-souris'].map((t) => BOUTIQUE_HANTEE.apparition(t, 60)));
     await sleep(700);
     let ap = await ev(() => BOUTIQUE_HANTEE.apparitions());
     check(ids.every((i) => typeof i === 'number') && ap.length === 3 && ap.every((a) => a.r >= 22 && Number.isFinite(a.x) && Number.isFinite(a.y)) && new Set(ap.map((a) => a.type)).size === 3, `trois apparitions (${ap.map((a) => `${a.type} ${a.x},${a.y} r${a.r}`).join(' ; ')})`);

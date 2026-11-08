@@ -2941,7 +2941,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'dd7d42f3a7a1';</script>
+<script>window.FOURNIL_VERSION = '06c9c945cefc';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -14675,14 +14675,15 @@ const EQUIPE3D = (() => {
     if (v === 'or') parts.push(yield* drapeGen(pr, { yH: yK + ourlet + 0.016 * u, yB: yK + ourlet + 0.008 * u, pas: 0.01 * u, colonnes: 12, e: e + 0.002 * u, largeur: (y) => largeur(y) * 0.995, role: () => 'bijou' }));
     yield;
     // la bride du cou : des coins de la bavette au col (elle passe dessous)
-    const wH = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/);
+    const wH = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/); yield; // (les poids du corps d'un côté, les tubes de l'autre : un pas de moins de 30 ms sous un processeur ×4)
     for (const s of [1, -1]) {
       const x0 = cx + s * lH * 0.92, x1 = cx + s * 0.104 * u, y1 = yH + 0.034 * u;
       parts.push(pc(tube([new T.Vector3(x0, yH - 0.01 * u, f.zA(x0, yH - 0.01 * u) + e), new T.Vector3(x0 + s * 0.004 * u, yH + 0.012 * u, f.zA(x0, yH + 0.012 * u) + e * 0.8), new T.Vector3(x1, y1, f.zA(x1, y1) + 0.003 * u), new T.Vector3(cx + s * 0.13 * u, m.foulard.max.y - 0.045 * u, m.busteZ + 0.015 * u)], 0.0058 * u, 4, 9), 'tissu', null, wH));
     }
     yield;
     // les cordons, de la taille au dos, et leur boucle
-    const C = contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'), yL = yT + 0.014 * u, wB = poidsCorps(pr, /^(Torso|Abdomen|Hips|Body)/), cz = C.cz, rL = (th) => C.r(th, yL) + e * 1.15 + 0.004 * u;
+    const C = contour(pr, /^(Torso|Abdomen|Hips|Body)/, 'taille'); yield;
+    const yL = yT + 0.014 * u, wB = poidsCorps(pr, /^(Torso|Abdomen|Hips|Body)/), cz = C.cz, rL = (th) => C.r(th, yL) + e * 1.15 + 0.004 * u; yield;
     const a0 = Math.atan2(lT * 0.96, f.zA(cx + lT, yL) - cz);
     for (const s of [1, -1]) { const pts = []; for (let k = 0; k <= 8; k++) { const th = s * (a0 + (Math.PI - 0.16 - a0) * k / 8); pts.push(new T.Vector3(cx + Math.sin(th) * rL(th), yL, cz + Math.cos(th) * rL(th))); } parts.push(pc(fourreau(pts, pts.map(() => [0.011 * u, 0.0036 * u]), 6, { n0: new T.Vector3(0, 1, 0), debut: true, bout: true }), 'tissu', null, wB)); }
     const zb = cz - rL(Math.PI) - 0.006 * u, B = new T.Vector3(cx, yL, zb);
@@ -15536,6 +15537,7 @@ const EQUIPE3D = (() => {
   function rhabiller(a, rang, garde, nom) { const g = rhabillerGen(a, rang, garde, nom); let x; do x = g.next(); while (!x.done); return x.value; }
   function* rhabillerGen(a, rang, garde, nom) {
     const h = habitBoulanger(rang, garde, nom), cles = kitsDe(h).map((k) => k[1] + '|' + k[0]).join(';'); if (a.cleHabit === h.cle0 && a.clesKits === cles && a.habit) return false;
+    yield; // (l'habit et ses kits d'un côté, le début de la géométrie de l'autre : un seul pas faisait ~31 ms sous un processeur ×4)
     const x = yield* geometrieGen(a.pr, h); yield;
     const vieux = a.S.geometry; a.S.geometry = x.geo; if (vieux && !vieux.userData.partagee && vieux !== x.geo) vieux.dispose();
     teindre(x.geo, x.R, x.C0, x.MU, palette(h));
@@ -23512,10 +23514,11 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
     const W = VIE.W, K = VIE.K, sens = Math.random() < 0.5 ? 1 : -1, o = objetApparition(type); if (!o) return null;
     const cad = courant.vue.cadre, bas = Math.min(L.devanture.y - 20 * K, (cad.bas ? cad.bas - cad.haut : L.T) - 40 * K), y0 = L.murH + 36 * K + Math.random() * Math.max(10, bas - L.murH - 46 * K);
     const a = { id: idApp++, type, o, t: 0, duree: duree > 0 ? duree : 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'chauve-souris' ? 60 : 30) * K, ph: Math.random() * 6, sens };
-    if (!SCENE.hd3 || type === 'chauve-souris') o.scale.setScalar(K * (type === 'chauve-souris' ? 1.4 : 1.1)); tr.scene.add(o); APP.push(a); majApp(a, 0); return a.id;
+    if (!SCENE.hd3 || type === 'chauve-souris') o.scale.setScalar(K * (type === 'chauve-souris' ? 1.4 : 1.1)); tr.scene.add(o); a.nait = heureApp(); APP.push(a); majApp(a, 0); return a.id;
   }
+  const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
-    a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1;
+    (a.traine || (a.traine = [])).push(a.t); if (a.traine.length > 3) a.traine.shift(); a.t += dt; const u = Math.min(1, a.t / a.duree), o = a.o, K = VIE.K || 1; // (a.traine : où elle était aux trois images d'avant, que le joueur a pu viser : viser)
     o.position.set(a.x0 + (a.x1 - a.x0) * u, a.haut + Math.sin(a.t * 2.2 + a.ph) * 8 * K, a.z + Math.sin(a.t * 0.9 + a.ph) * 10 * K);
     o.rotation.set(0, a.sens > 0 ? 0.5 : -0.5, Math.sin(a.t * 2.2 + a.ph) * 0.12); // tourné vers où il va, sans montrer son dos à la caméra
     if (o.userData.ailes) { const b = Math.sin(a.t * 18) * 0.9; o.userData.ailes[0].rotation.y = b; o.userData.ailes[1].rotation.y = -b; o.rotation.y = 0; }
@@ -23567,12 +23570,12 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null. Une cible qui file : le doigt vise là où il
-  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (aussi pour un toucher sur la colonne des
+  // l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes (ou depuis trois images, 2,5 s au plus, si c'est plus long : une machine lente) (aussi pour un toucher sur la colonne des
   // activités posée sur la scène : src/hanteeactivites.js, sousDoigt)
   function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
-      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, Math.min(a.t - 0.35, Math.max(a.t - 2.5, Math.min(a.t, ...(a.traine || []))))), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
     return best;
@@ -23616,7 +23619,9 @@ html:has(body.ht-boutique), body.ht-boutique { overflow: hidden; overscroll-beha
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); } // la fenêtre suit la mise en page (le tiroir des activités, une rotation)
         const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
-        for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]); // une apparition qui a fini sa traversée s'en va
+        // la traversée suit le temps réel (celui des règles, qui la retirent à sa fin) : à moins de 4 images/s, le dt de ui.js, plafonné à
+        // 0,25 s, la laissait au bord de l'écran quand les règles l'effaçaient (7 nov. : à ~1 image/s, la feuille ne passait jamais le premier quart)
+        for (let k = APP.length - 1; k >= 0; k--) { const a = APP[k]; if (majApp(a, Math.max(dt, (t - a.nait) / 1000 - a.t))) retirerApp(a); }
         majExpl(dt);
       },
       equipe: () => {}, // les monstres embauchés arrivent d'eux-mêmes à leur poste (les stations)
@@ -24267,7 +24272,7 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
     const W = VIE.W, K = VIE.K, sens = Math.random() < 0.5 ? 1 : -1, o = objetApparition(type); if (!o) return null;
     const cad = courant.vue.cadre, bas = Math.min(L.devanture.y - 20 * K, (cad.bas ? cad.bas - cad.haut : L.T) - 40 * K), y0 = L.murH + 36 * K + Math.random() * Math.max(10, bas - L.murH - 46 * K);
     const a = { id: idApp++, type, o, t: 0, duree: duree > 0 ? duree : 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'feuille' ? 52 : 26) * K, ph: Math.random() * 6, sens, ech: o.userData.hd ? 1 : K * 1.1 };
-    o.scale.setScalar(a.ech); tr.scene.add(o); APP.push(a); majApp(a, 0); return a.id;
+    o.scale.setScalar(a.ech); tr.scene.add(o); a.nait = heureApp(); APP.push(a); majApp(a, 0); return a.id;
   }
   // le chemin d'une apparition à l'instant t (sans rien bouger) : sa position monde, en p ; ce que fait majApp et ce que vise le doigt
   function chemin(a, t, p) {
@@ -24278,8 +24283,9 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
     return u;
   }
   const _pa = { x: 0, y: 0, z: 0 };
+  const heureApp = () => (typeof HORLOGE !== 'undefined' && HORLOGE.maintenant ? HORLOGE.maintenant() : Date.now()); // l'heure de sa naissance : celle des règles (qq.now)
   function majApp(a, dt) {
-    a.t += dt; const u = chemin(a, a.t, _pa), o = a.o; o.position.set(_pa.x, _pa.y, _pa.z);
+    (a.traine || (a.traine = [])).push(a.t); if (a.traine.length > 3) a.traine.shift(); a.t += dt; const u = chemin(a, a.t, _pa), o = a.o; o.position.set(_pa.x, _pa.y, _pa.z); // (a.traine : où elle était aux trois images d'avant, que le joueur a pu viser : viser)
     if (a.type === 'feuille') o.rotation.set(0.5 + Math.sin(a.t * 1.8 + a.ph) * 0.5, a.t * 1.6, Math.sin(a.t * 1.8 + a.ph) * 0.7); // elle tombe en se balançant, et tourne sur elle-même
     else if (a.type === 'chataigne') o.rotation.set(0, a.sens > 0 ? 0.4 : -0.4, -a.sens * a.t * 3.2); // elle roule, en rebondissant un peu
     else { const b = Math.abs(Math.sin(a.t * 3.4 + a.ph)); o.rotation.set(0, a.sens > 0 ? 0.5 : -0.5, Math.sin(a.t * 3.4 + a.ph) * 0.15); o.scale.set(a.ech, a.ech * (0.9 + 0.1 * b), a.ech); } // le champignon sautille
@@ -24328,11 +24334,11 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   // l'apparition visée par un doigt en x, y (la plus proche, rayon d'au moins 32 px), ou null ; une cible qui file : on mesure la distance
-  // au bout de chemin des 0,35 dernières secondes
+  // au bout de chemin des 0,35 dernières secondes (ou depuis trois images, 2,5 s au plus, si c'est plus long : à 1 image/s, la traversée au temps réel saute de 80 px par image, et le toucher arrive une ou deux images après ce que le joueur a vu)
   function viser(x, y) {
     let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
     if (SCENE.trois) for (const a of APP) {
-      const p1 = ecranApp(a, a.t), x1 = p1.x, y1 = p1.y, p0 = ecranApp(a, a.t - 0.35), vx = x1 - p0.x, vy = y1 - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const p1 = ecranApp(a, a.t), x1 = p1.x, y1 = p1.y, p0 = ecranApp(a, Math.min(a.t - 0.35, Math.max(a.t - 2.5, Math.min(a.t, ...(a.traine || []))))), vx = x1 - p0.x, vy = y1 - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
       const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
     }
     return best;
@@ -24376,7 +24382,9 @@ html:has(body.mc-boutique), body.mc-boutique { overflow: hidden; overscroll-beha
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); const g = G.tenueBoulanger(reel); if ((g ? g.cle : '') !== cleGarde) { cleGarde = g ? g.cle : ''; vue.garde = g; } } // la fenêtre suit la mise en page ; le boulanger suit sa garde-robe (la tenue d'automne, mise pendant le Marché)
         const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
-        for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]);
+        // la traversée suit le temps réel (celui des règles, qui la retirent à sa fin) : à moins de 4 images/s, le dt de ui.js, plafonné à
+        // 0,25 s, la laissait au bord de l'écran quand les règles l'effaçaient (7 nov. : à ~1 image/s, la feuille ne passait jamais le premier quart)
+        for (let k = APP.length - 1; k >= 0; k--) { const a = APP[k]; if (majApp(a, Math.max(dt, (t - a.nait) / 1000 - a.t))) retirerApp(a); }
         majExpl(dt);
       },
       equipe: () => {}, // les amis embauchés arrivent d'eux-mêmes à leur poste (les stations)
