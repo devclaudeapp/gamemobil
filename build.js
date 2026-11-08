@@ -86,7 +86,10 @@ const headInner = (essai) => `<title>${essai ? 'Le Fournil — essai' : 'Le Four
 const script = `<script>\n${js}\n</script>`;
 // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement (pas dans l'essai)
 const bodyInner = (essai) => `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n<script src="../vendor/fournil-hd.min.js"></script>\n<script src="../vendor/confetti.min.js"></script>\n${essai ? '' : '<script src="config.js"></script>\n'}${script}`;
-const artifact = `${prelude(false)}\n${headInner(false)}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
+// (le « <meta charset> » en tête : servi seul, sans charset dans l'en-tête HTTP, un fragment se lit au hasard du détecteur d'encodage du
+// navigateur ; avant la compression, les commentaires en français du début suffisaient à le faire lire en UTF-8, la CSS compressée n'a plus
+// un seul accent dans ses 64 premiers Ko : on le dit donc en clair. Dans une page qui l'enveloppe, déjà en UTF-8, il ne change rien)
+const artifact = `<meta charset="utf-8">\n${prelude(false)}\n${headInner(false)}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
 // la page complète ; essai : la version d'essai (fournil-essai/) : ni installation (manifeste, écran d'accueil), ni service worker, ni config.js, pas indexée
 const gabarit = (essai) => `<!doctype html>
 <html lang="fr">
