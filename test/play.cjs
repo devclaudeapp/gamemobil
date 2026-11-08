@@ -27,8 +27,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const versSupabase = []; context.on('request', (r) => { if (/supabase\.co/.test(r.url())) versSupabase.push(r.url()); }); // le classement en ligne : rien ne part tant qu'on ne l'a pas rejoint
   // l'écran d'accueil du dépôt : la liste des jeux ; Le Fournil s'ouvre depuis sa carte
   await page.goto(`http://localhost:${PORT}/`); await sleep(600);
-  const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', poncin: (document.querySelector('[data-jeu="poncin"]') || {}).innerText || '', zombies: (document.querySelector('[data-jeu="zombies"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
-  check(accueil.titre === 'Salle de jeux' && accueil.jeux === 3 && accueil.bientot === 0 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && /Opération Poncin/.test(accueil.poncin) && /Dernier Rempart/.test(accueil.zombies) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie), Opération Poncin et Dernier Rempart');
+  const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', zombies: (document.querySelector('[data-jeu="zombies"]') || {}).innerText || '', poncin: /Poncin/.test(document.body.innerText), large: document.documentElement.scrollWidth <= innerWidth + 1 }));
+  check(accueil.titre === 'Salle de jeux' && accueil.jeux === 2 && accueil.bientot === 0 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && /Dernier Rempart/.test(accueil.zombies) && !accueil.poncin && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie) et Dernier Rempart, sans Opération Poncin');
   await page.screenshot({ path: out + '/00-accueil.png' });
   await page.tap('[data-jeu="fournil"]'); await page.waitForURL(/\/fournil\/$/); await sleep(1200);
   check(await page.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 16 && [...document.querySelectorAll('.carte[data-i]')].filter((c) => !c.hidden).length === 9), 'toucher sa carte ouvre Le Fournil (/fournil/) : les huit recettes et, verrouillée, celle de la boutique n°2');
@@ -454,7 +454,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     check(/Continuer/.test(await p5.evaluate(() => document.querySelector('[data-jeu="fournil"]').innerText)), 'localStorage vidé : l’accueil retrouve la partie dans IndexedDB');
     // l'accueil enregistre son service worker et celui du jeu (qui marche donc hors ligne même jamais ouvert)
     const portees = await p5.evaluate(async () => { await navigator.serviceWorker.ready; await new Promise((r) => setTimeout(r, 300)); return (await navigator.serviceWorker.getRegistrations()).map((g) => new URL(g.scope).pathname).sort().join(' '); });
-    check(portees === '/ /fournil/ /poncin/', 'l’accueil enregistre son service worker et ceux de ses jeux : ' + portees);
+    check(portees === '/ /fournil/ /zombies/', 'l’accueil enregistre son service worker et ceux de ses jeux : ' + portees);
     check(!err5.length, 'aucune erreur dans ces parcours' + (err5.length ? ' — ' + err5[0] : ''));
     await c5.close();
     // les vieilles copies en cache (sans service worker ici, pour que la route de test réponde) : pas de boucle, et le jeu rentre chez lui
@@ -481,6 +481,21 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     const horsLigne = await p7.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 16).catch(() => false);
     check(pret && horsLigne, 'hors ligne, Le Fournil s’ouvre depuis l’accueil sans avoir jamais été ouvert');
     await c7.setOffline(false); await c7.close();
+    // Opération Poncin a quitté la salle (8 nov. 2026) : un téléphone qui l'avait installé (son ancien service worker et ses caches)
+    // reçoit poncin/sw.js, qui efface les caches poncin-jeu-… et se désinscrit ; poncin/ renvoie à l'accueil
+    const c8 = await browser.newContext(iphone), p8 = await c8.newPage();
+    const ancienSw = "self.addEventListener('install', (e) => { e.waitUntil(caches.open('poncin-jeu-v4').then((c) => c.put('./vieux', new Response('vieux jeu'))).then(() => self.skipWaiting())); }); self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', () => {});";
+    const swPoncin = (u) => u.pathname === '/poncin/sw.js';
+    await c8.route(swPoncin, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: ancienSw }));
+    await p8.goto(`http://localhost:${PORT}/icons/icon.svg`); // une page du site sans service worker (pour enregistrer l’ancien)
+    const installe = await p8.evaluate(async () => { const r = await navigator.serviceWorker.register('/poncin/sw.js', { scope: '/poncin/' }); for (let k = 0; k < 50 && !r.active; k++) await new Promise((x) => setTimeout(x, 100)); return !!r.active && (await caches.keys()).includes('poncin-jeu-v4'); });
+    await c8.unroute(swPoncin);
+    // la mise à jour que le navigateur fait à l'ouverture : le nouveau poncin/sw.js fait le ménage tout seul
+    const menage = await p8.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration('/poncin/'); if (!r) return false; await r.update().catch(() => {}); for (let k = 0; k < 50; k++) { const rs = (await navigator.serviceWorker.getRegistrations()).filter((x) => /\/poncin\/$/.test(x.scope)); const ks = (await caches.keys()).filter((n) => n.startsWith('poncin-jeu-')); if (!rs.length && !ks.length) return true; await new Promise((x) => setTimeout(x, 100)); } return false; });
+    await p8.goto(`http://localhost:${PORT}/poncin/`); await p8.waitForURL(/\/\?app=accueil$/, { timeout: 5000 }).catch(() => {});
+    const ici = new URL(p8.url());
+    check(installe && menage && ici.pathname === '/' && ici.search === '?app=accueil' && (await p8.title()) === 'Salle de jeux', `l’ancien Poncin installé : poncin/sw.js efface ses caches et se désinscrit (${installe}, ${menage}) ; poncin/ renvoie à l’accueil (${ici.pathname}${ici.search})`);
+    await c8.close();
   }
   check(versSupabase.length === 0, 'aucun appel au classement en ligne sans l’avoir rejoint' + (versSupabase.length ? ' : ' + versSupabase.slice(0, 3).join(', ') : ''));
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
