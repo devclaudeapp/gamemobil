@@ -16,5 +16,5 @@ Plusieurs conversations Claude travaillent en même temps sur ce dépôt :
 - On ne modifie pas le code de l'autre jeu. Si la CI échoue seulement sur l'autre jeu, on le signale au joueur.
 
 ## Sécurité
-- Seulement la clé **publique** Supabase (dans `poncin/config.js`), jamais de clé secrète.
+- Seulement la clé **publique** Supabase (dans `fournil/config.js` et `zombies/config.js`), jamais de clé secrète.
 - Le SQL est collé par le joueur dans Supabase ; aucun secret ne passe par le dépôt.

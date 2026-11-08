@@ -1,8 +1,8 @@
-# Brancher Supabase (Opération Poncin)
+# Brancher Supabase (la Salle de jeux)
 
-Supabase sert au jeu en ligne d'Opération Poncin : comptes sans e-mail, salons entre copains, coffre et classements. Les parties elles-mêmes passent directement d'un téléphone à l'autre (WebRTC) ; Supabase ne sert qu'à se retrouver et à garder les scores, ce qui tient largement dans l'offre gratuite.
+Supabase sert au classement du Fournil (et à ses copains, son chat, ses notifications) et au jeu en ligne de Dernier Rempart : salons entre copains, défi du jour, classement mondial et amis. Les parties à plusieurs passent directement d'un téléphone à l'autre (WebRTC) ; Supabase ne sert qu'à se retrouver et à garder les scores, ce qui tient largement dans l'offre gratuite.
 
-Le jeu marche sans Supabase : solo contre les bots, et à plusieurs onglets sur le même appareil.
+Les jeux marchent sans Supabase : le Fournil sans classement, Dernier Rempart en solo.
 
 ## Créer le projet (une dizaine de minutes)
 
@@ -16,9 +16,9 @@ Le jeu marche sans Supabase : solo contre les bots, et à plusieurs onglets sur 
    - l'**URL du projet** (`https://xxxx.supabase.co`) ;
    - la **clé publique** : `anon` ou `sb_publishable_…`.
    
-   Ces deux valeurs sont faites pour être dans la page du jeu : envoie-les à Claude, ou mets-les dans `poncin/config.js`.
-   **Jamais** la clé `service_role` / `sb_secret_…` : elle donne tous les droits sur la base et ne doit apparaître nulle part dans le dépôt.
-4. Plus tard (comptes et classements) : **SQL Editor → New query**, colle le contenu de `supabase/schema.sql`, puis **Run**. Le fichier sera fourni prêt.
+   Ces deux valeurs sont faites pour être dans la page du jeu : envoie-les à Claude, ou mets-les dans `fournil/config.js` et `zombies/config.js`.
+   **Jamais** la clé `service_role` / `sb_secret_…` : elle donne tous les droits sur la base et ne doit apparaître nulle part dans le dépôt (`test/securite.test.js` le vérifie à chaque mise en ligne).
+4. Les classements : **SQL Editor → New query**, colle le fichier SQL du jeu (plus bas), puis **Run**.
 5. Dans les réglages de l'environnement Claude (menu de l'environnement → Modifier → Accès réseau → Domaines autorisés), ajoute `*.supabase.co` et `supabase.com`, pour que Claude puisse tester le jeu en ligne.
 
 ## À savoir
@@ -26,32 +26,28 @@ Le jeu marche sans Supabase : solo contre les bots, et à plusieurs onglets sur 
 - Un projet gratuit **se met en pause après 7 jours sans activité** : on le réveille depuis le tableau de bord. Le solo marche toujours.
 - L'offre gratuite limite le temps réel à environ 100 messages par seconde et 200 connexions simultanées : c'est pour ça que les parties passent de téléphone à téléphone et pas par Supabase.
 
-## Le jeu en ligne : par où passent les messages
+## Le jeu en ligne de Dernier Rempart : par où passent les messages
 
-- **Se retrouver** : chaque salon est un canal Realtime public `poncin:CODE` (le code de 4 lettres). La **présence** de Supabase donne la liste des joueurs (pseudo, couleur, prêt, ancienneté) ; l'**hôte** est le plus ancien arrivé (le créateur du salon). Aucune table, aucun compte : la clé publique suffit.
+Le code des salons (`src-zombies/reseau.js`) vient d'Opération Poncin.
+
+- **Se retrouver** : chaque salon est un canal Realtime public `rempart:CODE` (le code de 4 lettres). La **présence** de Supabase donne la liste des joueurs ; l'**hôte** est le plus ancien arrivé (le créateur du salon). Aucune table, aucun compte : la clé publique suffit.
 - **Jouer** : les téléphones se relient ensuite **directement** (WebRTC, en étoile autour de l'hôte). Le canal Supabase ne sert qu'à échanger l'offre et la réponse WebRTC (deux messages par joueur).
 - **Repli « relais »** : si le direct ne s'ouvre pas en ~8 s (certains réseaux 4G l'empêchent), les messages passent par le canal Supabase, bridés à **5 envois par seconde** par joueur (le dernier état de chaque type, et tous les messages fiables, groupés). Le jeu reste jouable, un peu moins fluide ; le direct est retenté de temps en temps.
 - **Budget** (offre gratuite : ~100 messages Realtime par seconde pour tout le projet, chaque message compte une fois par destinataire) : une partie en direct coûte presque rien (présence, pings de signalisation) ; une partie à 4 entièrement en relais coûte de l'ordre de 40 à 60 messages par seconde. Une ou deux parties relayées à la fois tiennent dans l'offre gratuite.
 - **Pas de serveur TURN** : il n'y en a pas de gratuit et fiable ; le relais Supabase en tient lieu.
+- **Le tester** sans Supabase : `node test/zombies-coop.cjs` (deux joueurs sur deux pages, salon local, entre onglets).
 
-## Le tester
+## Opération Poncin : retirer ses tables et ses fonctions
 
-- Dans le conteneur de Claude (sans Supabase) : `NODE_PATH=/opt/node22/lib/node_modules node test/poncin-reseau.cjs` éprouve le même code WebRTC entre trois pages (voies `local` et `webrtc-local`, relais forcé, coupures, départ de l'hôte).
-- Pour de vrai : le workflow **En ligne** (`.github/workflows/en-ligne.yml`) tourne à chaque push sur la branche `en-ligne-test` (ou à la main, onglet Actions) : trois navigateurs séparés rejoignent un salon par Supabase, se relient en WebRTC, échangent, puis recommencent en relais forcé ; le résumé (débits, latences, pings) s'affiche dans la page du workflow.
-- Dans le jeu : `poncin/?relais=1` empêche le pair-à-pair (pour essayer le relais entre copains) ; `poncin/?reseau=local` joue entre onglets du même navigateur, sans Supabase.
-- Si plus rien ne se connecte : le projet s'est peut-être **mis en pause** (7 jours sans activité) ; le réveiller depuis le tableau de bord Supabase, puis relancer le workflow En ligne.
-
-## Le classement du butin (Opération Poncin, mode Extraction)
-
-Après chaque partie d'Extraction, le jeu publie la ligne du joueur ; le classement montre, entre amis, **cette semaine** (les pièces extraites, comptées comme au coffre personnel, bonus de la zone de la semaine compris ; les parties et les extractions réussies) et les **records** (le meilleur score d'une partie, le total depuis l'arrivée), avec la pastille « en ligne ». Le serveur, c'est `supabase/poncin-butin.sql` : à coller **tel quel** dans **SQL Editor** → **New query** → **Run** (une fois ; il se recolle sans rien perdre, ne touche à rien du Fournil et n'en a pas besoin). Il borne ce que le téléphone peut prétendre (une partie : 3 040 pièces de valeur et 5 750 de primes au plus, une partie comptée toutes les 2 minutes, 60 par jour ; le détail et le calcul sont en tête du fichier et dans `src-poncin/ARCHITECTURE.md`, « Classement du butin »). Le tester sans Supabase :
+Opération Poncin a quitté la Salle de jeux le 8 novembre 2026. Son classement du butin (les tables `poncin_joueurs` et `poncin_portes`, les fonctions `poncin_…`) reste sur le serveur tant qu'on ne l'enlève pas : `supabase/poncin-suppression.sql` retire **seulement** les objets `poncin_` (rien du Fournil ni de Dernier Rempart, aucune `cascade` : si un objet d'un autre jeu en dépendait, Postgres refuserait et rien ne serait effacé). À coller **tel quel** dans **SQL Editor** → **New query** → **Run** ; il se recolle sans risque. Sa dernière ligne compte les objets `poncin_` restants : le résultat doit être **0**. Le tester sans Supabase (le Fournil, Poncin et Dernier Rempart collés, puis le patch deux fois) :
 ```sh
 npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglite@0.5.8
-TZ=Europe/Paris node test/poncin-butin-sql.cjs /tmp/pglite
+node test/poncin-suppression-sql.cjs /tmp/pglite
 ```
 
 ## Le classement du défi du jour (Dernier Rempart)
 
-Après chaque partie de défi du jour, le jeu publie { jour, score, vague, zombies tués } ; le classement garde le **meilleur score de chacun pour chaque jour** et montre **aujourd'hui** et **cette semaine** (la somme des meilleurs scores de chaque jour, du lundi au dimanche, heure de Paris). Le serveur, c'est `supabase/zombies-defi.sql` : à coller **tel quel** dans **SQL Editor** → **New query** → **Run** (une fois ; il se recolle sans rien perdre et ne touche ni au Fournil ni à Poncin). Tant qu'il n'est pas collé, le jeu affiche « Le classement n'est pas encore ouvert » et garde les scores sur le téléphone ; ils partent tout seuls une fois le SQL installé. Il borne ce que le téléphone peut prétendre (le jour : aujourd'hui ou hier ; un score plafonné selon la vague atteinte ; une partie toutes les 15 s, 150 par jour ; les limites d'inscription par adresse) — le détail est en tête du fichier. Le tester sans Supabase :
+Après chaque partie de défi du jour, le jeu publie { jour, score, vague, zombies tués } ; le classement garde le **meilleur score de chacun pour chaque jour** et montre **aujourd'hui** et **cette semaine** (la somme des meilleurs scores de chaque jour, du lundi au dimanche, heure de Paris). Le serveur, c'est `supabase/zombies-defi.sql` : à coller **tel quel** dans **SQL Editor** → **New query** → **Run** (une fois ; il se recolle sans rien perdre et ne touche pas au Fournil). Tant qu'il n'est pas collé, le jeu affiche « Le classement n'est pas encore ouvert » et garde les scores sur le téléphone ; ils partent tout seuls une fois le SQL installé. Il borne ce que le téléphone peut prétendre (le jour : aujourd'hui ou hier ; un score plafonné selon la vague atteinte ; une partie toutes les 15 s, 150 par jour ; les limites d'inscription par adresse) — le détail est en tête du fichier. Le tester sans Supabase :
 ```sh
 npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglite@0.5.8
 node test/zombies-defi-sql.cjs /tmp/pglite
@@ -82,7 +78,7 @@ Deux onglets :
 
 L'argent gagné (depuis lundi, depuis l'arrivée) s'affiche en petit à côté, pour information ; il ne classe plus. Chacun y apparaît sous un pseudo choisi en rejoignant.
 
-**Les points ne se gonflent pas.** Le serveur ne compte que les points de **sa** semaine (le téléphone envoie aussi le lundi de ses points) et jamais au-delà du barème : 137 × (jours commencés depuis lundi, à l'horloge du serveur) + 50, et 989 au plus sur la semaine (le maximum du jeu ; version 6.6 et avant : 60 × jours + 100, 510 au plus), la série en plus. Un tricheur qui bricole ses points depuis la console ne fait donc jamais mieux que le meilleur joueur possible : au mieux ex æquo avec lui, à 1 019. Un joueur honnête n'y perd rien : le téléphone renvoie chaque fois son total de la semaine, et ce qui dépasserait un plafond se compte dès qu'il a grandi. Il passe par le même projet Supabase que Poncin (`jklbitrlkfrktmnarejc`) et sa clé publique, déjà dans `fournil/config.js`.
+**Les points ne se gonflent pas.** Le serveur ne compte que les points de **sa** semaine (le téléphone envoie aussi le lundi de ses points) et jamais au-delà du barème : 137 × (jours commencés depuis lundi, à l'horloge du serveur) + 50, et 989 au plus sur la semaine (le maximum du jeu ; version 6.6 et avant : 60 × jours + 100, 510 au plus), la série en plus. Un tricheur qui bricole ses points depuis la console ne fait donc jamais mieux que le meilleur joueur possible : au mieux ex æquo avec lui, à 1 019. Un joueur honnête n'y perd rien : le téléphone renvoie chaque fois son total de la semaine, et ce qui dépasserait un plafond se compte dès qu'il a grandi. Il passe par le même projet Supabase que Dernier Rempart (`jklbitrlkfrktmnarejc`) et sa clé publique, déjà dans `fournil/config.js`.
 
 **Pour l'argent affiché, seuls les gains plausibles comptent.** Le téléphone envoie aussi sa fortune totale ; le serveur ne compte que ce qui dépasse la plus haute fortune déjà envoyée, et **pas plus que ce que le temps réel écoulé permet de gagner** (mesuré à l'horloge du serveur, pas à celle du téléphone). Le surplus n'est pas refusé : l'envoi est accepté, le compte est plafonné, et ce surplus est perdu pour toujours. Avancer l'heure du téléphone, bricoler sa sauvegarde ou envoyer une fortune inventée ne rapporte donc rien de plus que ce qu'un boulanger hors norme aurait gagné pendant ce temps-là. Les limites ont été tirées de l'économie du jeu (des joueurs simulés de 17 minutes à près de 24 heures par jour, pendant 60 à 120 jours, gains d'absence, coups de feu, critiques, commandes et marché du samedi compris) avec une marge d'au moins ×3,9 sur le plus acharné d'entre eux : un joueur honnête n'est jamais plafonné. Les chiffres et leur justification sont en tête de la partie 3 du fichier SQL.
 
@@ -152,7 +148,7 @@ Rien, et de très loin :
 - **Requêtes** : leur nombre n'est pas limité dans l'offre gratuite. Un téléphone envoie ses points et sa fortune toutes les 5 minutes quand le jeu est ouvert (environ 1 Ko), lit le classement quand on ouvre la feuille (environ 5 Ko), et demande de temps en temps l'heure ou ses récompenses (quelques centaines d'octets). Vingt amis qui jouent une heure par jour, c'est quelques dizaines de Mo de trafic par mois, sur les 5 Go inclus.
 - **Les copains et les notifications (version 6)** : une photo de 2 Ko par joueur, quelques lignes de pourboires (30 jours) et de notifications (7 jours), une ligne d'objectif par semaine. La fonction d'envoi tourne toutes les 5 minutes (environ 8 600 appels par mois sur les 500 000 de l'offre gratuite), et pg_cron garde son historique 3 jours.
 - **Ni temps réel, ni comptes, ni fichiers** : le classement n'utilise que la base, par ses fonctions. Le battement « en ligne » (`fournil_vu`, une centaine d'octets toutes les 2 minutes, seulement quand le jeu est à l'écran) reste négligeable : vingt amis une heure par jour, quelques Mo par mois.
-- Comme pour Poncin, un projet sans activité pendant 7 jours **se met en pause** : le jeu continue normalement, le classement attend qu'on réveille le projet depuis le tableau de bord. Le palmarès d'une semaine pendant laquelle le projet dormait est figé au réveil.
+- Comme tout projet gratuit, un projet sans activité pendant 7 jours **se met en pause** : le jeu continue normalement, le classement attend qu'on réveille le projet depuis le tableau de bord. Le palmarès d'une semaine pendant laquelle le projet dormait est figé au réveil.
 
 ### Comment il est protégé
 

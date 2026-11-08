@@ -1,14 +1,15 @@
 // Service worker de l'écran d'accueil (portée : la racine du dépôt) : l'accueil s'ouvre hors ligne.
 // Il ne s'occupe que de l'accueil : les jeux ont chacun leur service worker dans leur dossier (fournil/sw.js, enregistré aussi par l'accueil), et leurs caches ne sont jamais effacés ici.
 // Il remplace l'ancien service worker du Fournil, qui vivait à la racine : ses caches « fournil-v1 » à « fournil-v13 » sont retirés.
+// Opération Poncin a quitté la Salle de jeux (8 nov. 2026) : accueil-v4 oublie son icône, et les caches qu'il a laissés (« poncin-jeu-… ») sont retirés.
 // Changer un fichier de SHELL (une icône de jeu ajoutée, par exemple) : l'ajouter ici et passer CACHE à la version suivante.
-const CACHE = 'accueil-v3';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/accueil.svg', './icons/accueil-180.png', './icons/accueil-192.png', './icons/accueil-512.png', './icons/accueil-maskable-512.png', './icons/icon.svg', './icons/poncin.svg', './icons/zombies.svg'];
+const CACHE = 'accueil-v4';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/accueil.svg', './icons/accueil-180.png', './icons/accueil-192.png', './icons/accueil-512.png', './icons/accueil-maskable-512.png', './icons/icon.svg', './icons/zombies.svg'];
 const base = new URL('./', self.location).pathname; // le chemin de l'accueil (/gamemobil/ sur GitHub Pages)
 const enCache = (req, res) => { if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; };
 // à l'installation, contourner le cache HTTP (GitHub Pages le garde 10 min) pour ne pas figer une vieille copie
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
-self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => (k.startsWith('accueil-') && k !== CACHE) || /^fournil-v\d+$/.test(k)).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => (k.startsWith('accueil-') && k !== CACHE) || /^fournil-v\d+$/.test(k) || k.startsWith('poncin-jeu-')).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;

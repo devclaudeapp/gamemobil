@@ -2,8 +2,7 @@
 # « SQL » : supabase/fournil-classement.sql collé dans un vrai Postgres local (PGlite, Postgres en WebAssembly, installé à part,
 #           jamais dans le dépôt), puis chaque fonction jouée en tant qu'anon, avec le temps simulé (semaines, heure d'été / d'hiver,
 #           gains plafonnés, palmarès, récompenses) ; des joueurs honnêtes de test/longevite.js y sont rejoués (heure de Paris,
-#           comme le test de longévité de pages.yml) ; puis supabase/poncin-butin.sql (Opération Poncin, le classement du butin)
-#           collé par-dessus, deux fois, et joué de même (test/poncin-butin-sql.cjs). Les cadeaux et le chat (supabase/fournil-cadeaux.sql,
+#           comme le test de longévité de pages.yml). Les cadeaux et le chat (supabase/fournil-cadeaux.sql,
 #           supabase/fournil-chat.sql) et les idées, bugs et votes (supabase/fournil-retours.sql) y sont collés aussi, par-dessus la v6, et joués de même.
 # « Supabase réel » : les fonctions installées sur le projet Supabase du jeu, appelées comme le fait le téléphone (clé PUBLIQUE de
 #           fournil/config.js) : la bonne version installée, l’heure du serveur, les tables fermées ; trois joueurs de test
@@ -39,10 +38,6 @@ jobs:
         run: node test/fournil-classement-sql.cjs "$RUNNER_TEMP/pglite"
         env:
           TZ: Europe/Paris
-      - name: Opération Poncin, le SQL du classement du butin (par-dessus celui du Fournil), en tant qu'anon
-        run: node test/poncin-butin-sql.cjs "$RUNNER_TEMP/pglite"
-        env:
-          TZ: Europe/Paris
       - name: Le Fournil, la fonction d'envoi des notifications (faux web-push, faux Supabase)
         run: node test/fournil-notifier.test.cjs
   supabase:
@@ -64,6 +59,3 @@ jobs:
       - name: Le classement sur le projet Supabase du jeu (joueurs de test, tous retirés à la fin)
         if: always()
         run: node test/fournil-classement-ci.cjs
-      - name: Opération Poncin, le classement du butin sur le projet Supabase du jeu (deux joueurs de test, retirés à la fin)
-        if: always()
-        run: node test/poncin-butin-ci.cjs
