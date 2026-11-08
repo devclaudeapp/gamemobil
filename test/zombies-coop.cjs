@@ -82,8 +82,11 @@ const URL0 = `http://localhost:${PORT}/zombies/?reseau=local`;
   check(/Bob/.test(await PA(() => [...document.querySelectorAll('.h-noms span:not([hidden])')].map((s) => s.textContent).join())), 'Alice voit le pseudo de Bob au-dessus de lui');
   await B.screenshot({ path: out + '/coop-1-bob.png' });
   // un niveau passé ne met pas la partie en pause à plusieurs
-  await PA(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = 9999; for (const z of j.zombies.slice(0, 3)) { z.x = p.x + 2.5; z.z = p.z; z.vie = 1; } });
-  await A.waitForFunction(() => window.__zombies.jeu.joueurs[0].choix, null, { timeout: 15000 }).catch(() => {});
+  // (l'expérience au bord du niveau, et des zombies à un coup juste devant Alice ; jusqu'à trois essais, si un autre les abat avant elle)
+  for (let essai = 0; essai < 3 && !(await PA(() => !!window.__zombies.jeu.joueurs[0].choix)); essai++) {
+    await PA(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = Math.max(p.xp, 9999); for (const z of j.zombies.slice(0, 3)) { z.x = p.x + 2.5; z.z = p.z; z.vie = 1; z.terre = false; } });
+    await A.waitForFunction(() => window.__zombies.jeu.joueurs[0].choix, null, { timeout: 6000 }).catch(() => {});
+  }
   const t0 = await PA(() => window.__zombies.jeu.t); await sleep(700);
   const choix = await PA(() => ({ choix: !!window.__zombies.jeu.joueurs[0].choix, global: window.__zombies.jeu.choix, t: window.__zombies.jeu.t, modal: !document.querySelector('.h-choix').hidden }));
   check(choix.choix && !choix.global && choix.t > t0 + 0.2 && choix.modal, 'à plusieurs, un niveau passé ouvre les atouts d’Alice sans arrêter la partie');

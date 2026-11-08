@@ -5,7 +5,7 @@
    sont dans jeu.joueurs (avec leurs armes : leurs tirs font des traçantes), toi et tes infectés dans jeu.zombies ; jeu.camera : toi.
    Module pur (Node) : ZINFECTION.creer({ arene, graine, survivants }), pas(jeu, entree, dt) → événements, bondir(jeu). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('../src-poncin/nav.js'), require('./jeu.js'));
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('./nav.js'), require('./jeu.js'));
   else root.ZINFECTION = factory(root.ZDONNEES, root.ZMONDE, root.PNAV, root.ZJEU);
 })(typeof self !== 'undefined' ? self : this, function (D, M, PNAV, J) {
   'use strict';

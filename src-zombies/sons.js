@@ -1,5 +1,5 @@
 /* DERNIER REMPART — les sons. Les coups de feu, impacts, ramassages, achats, gong et fanfare viennent tels quels d'Opération Poncin
-   (src-poncin/sons.js, PSONS : tout synthétisé en Web Audio, aucun fichier) ; ce module ajoute ce qui manque aux zombies, synthétisé de
+   (src-zombies/psons.js, PSONS, repris de Poncin : tout synthétisé en Web Audio, aucun fichier) ; ce module ajoute ce qui manque aux zombies, synthétisé de
    même sur le contexte audio de PSONS : le grognement (dents de scie filtrées, vibrato lent), l'éclaboussure, l'explosion, le crachat,
    le marteau qui monte une défense, le bois qui casse. ZSONS.evenements(evs, jeu, idMoi) traduit les événements d'un pas de simulation.
    Les sons lointains s'atténuent et se placent à gauche ou à droite, depuis le survivant. */
