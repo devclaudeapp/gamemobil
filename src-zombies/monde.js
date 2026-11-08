@@ -1,5 +1,5 @@
 /* DERNIER REMPART — le monde d'une arène : ses obstacles (rectangles alignés sur les axes et cercles), les collisions des corps ronds,
-   les lignes de vue et le trajet des balles. Il a la forme qu'attend la navigation d'Opération Poncin (src-poncin/nav.js, A* et JPS, réutilisé
+   les lignes de vue et le trajet des balles. Il a la forme qu'attend la navigation d'Opération Poncin (src-zombies/nav.js, A* et JPS, réutilisé
    tel quel) : { L, limite, bloque(x, z, r), passe(ax, az, bx, bz, r) }.
    - bloque(x, z, r) : un cercle de rayon r posé là touche un obstacle ou sort de l'arène ;
    - passe(ax, az, bx, bz, r) : la capsule (le segment épaissi de r) ne touche aucun obstacle (les obstacles bas comptent : on ne les enjambe pas) ;

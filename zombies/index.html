@@ -994,7 +994,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 <script src="../vendor/supabase.min.js"></script>
 <script src="config.js"></script>
 <script>
-/* ── src-poncin/nav.js ── */
+/* ── src-zombies/nav.js ── */
+/* Repris d'Opération Poncin (src-poncin/nav.js) le 8 novembre 2026, quand Poncin a quitté le dépôt : Dernier Rempart garde sa copie, telle quelle. */
 /* OPÉRATION PONCIN — la navigation des bots. Une grille (pas de 1,5 m par défaut) des cases où tient un cercle de rayon « marge »
    (monde.bloque), puis, pour chaque requête : A* à 8 voisins sans couper les coins, accéléré par JPS (Jump Point Search : on ne pose
    dans le tas que les cases où le chemin peut tourner ; les sauts droits lisent des rangées de bits), en tableaux typés avec un tas
@@ -1011,7 +1012,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
    un lien entre deux cases doit leur laisser RL + w, et un tronc planté au milieu de quatre cases libres ferme les diagonales du carré.
    Module pur (aucun DOM, aucun THREE). Voir src-poncin/ARCHITECTURE.md. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./monde.js'));
+  if (typeof module === 'object' && module.exports) module.exports = factory(); // (la grille ne lit que le monde qu'on lui donne)
   else root.PNAV = factory(root.PMONDE);
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
@@ -1362,7 +1363,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   return { creer };
 });
 
-/* ── src-poncin/sons.js ── */
+/* ── src-zombies/psons.js ── */
+/* Repris d'Opération Poncin (src-poncin/sons.js) le 8 novembre 2026, quand Poncin a quitté le dépôt : Dernier Rempart garde sa copie, telle quelle. */
 /* OPÉRATION PONCIN — les sons, tous synthétisés en Web Audio (aucun fichier) comme ceux du Fournil. Les vraies armes : un coup de feu
    par classe (fusil, mitraillette, pompe, sniper, pistolet), fait de trois couches — le claquement (bruit très bref, aigu), le corps
    (bruit filtré qui s'éteint vite + un « boum » grave qui descend) et la queue (l'écho du bourg, longue et sourde) ; de loin, le
@@ -1707,7 +1709,8 @@ const PSONS = (() => {
   return { debloquer, regler, suspendre, jouer, vibrer, evenements, compte, ui, mesurer, ambiance, classe: classeDe, CLASSES, noms: Object.keys(SONS), get pret() { return pret(); }, get contexte() { return ctx; } };
 })();
 
-/* ── src-poncin/reseau.js ── */
+/* ── src-zombies/reseau.js ── */
+/* Repris d'Opération Poncin (src-poncin/reseau.js) le 8 novembre 2026, quand Poncin a quitté le dépôt : Dernier Rempart garde sa copie, telle quelle. */
 /* OPÉRATION PONCIN — les salons entre copains : se retrouver par un code de 4 lettres, puis échanger les messages de la partie.
    Topologie en étoile autour de l'hôte (le plus ancien arrivé, donc le créateur du salon) : les clients parlent à l'hôte, l'hôte parle à un client ou à tous.
    Trois voies (« via ») derrière la même API :
@@ -2729,7 +2732,7 @@ const PRESEAU = (() => {
 
 /* ── src-zombies/monde.js ── */
 /* DERNIER REMPART — le monde d'une arène : ses obstacles (rectangles alignés sur les axes et cercles), les collisions des corps ronds,
-   les lignes de vue et le trajet des balles. Il a la forme qu'attend la navigation d'Opération Poncin (src-poncin/nav.js, A* et JPS, réutilisé
+   les lignes de vue et le trajet des balles. Il a la forme qu'attend la navigation d'Opération Poncin (src-zombies/nav.js, A* et JPS, réutilisé
    tel quel) : { L, limite, bloque(x, z, r), passe(ax, az, bx, bz, r) }.
    - bloque(x, z, r) : un cercle de rayon r posé là touche un obstacle ou sort de l'arène ;
    - passe(ax, az, bx, bz, r) : la capsule (le segment épaissi de r) ne touche aucun obstacle (les obstacles bas comptent : on ne les enjambe pas) ;
@@ -2865,7 +2868,7 @@ const PRESEAU = (() => {
    niveau { id, niveau }, atout { id, atout, rang }, grenade { id, x, z }. Les touches portent crit (coup critique) et de (le tireur).
    Unités : mètres, secondes. Angles : 0 vers +x, sens trigonométrique dans le plan (x, z) (a = atan2(dz, dx)). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('../src-poncin/nav.js'));
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('./nav.js'));
   else root.ZJEU = factory(root.ZDONNEES, root.ZMONDE, root.PNAV);
 })(typeof self !== 'undefined' ? self : this, function (D, M, PNAV) {
   'use strict';
@@ -5839,7 +5842,7 @@ const ZCONTROLES = (() => {
 
 /* ── src-zombies/sons.js ── */
 /* DERNIER REMPART — les sons. Les coups de feu, impacts, ramassages, achats, gong et fanfare viennent tels quels d'Opération Poncin
-   (src-poncin/sons.js, PSONS : tout synthétisé en Web Audio, aucun fichier) ; ce module ajoute ce qui manque aux zombies, synthétisé de
+   (src-zombies/psons.js, PSONS, repris de Poncin : tout synthétisé en Web Audio, aucun fichier) ; ce module ajoute ce qui manque aux zombies, synthétisé de
    même sur le contexte audio de PSONS : le grognement (dents de scie filtrées, vibrato lent), l'éclaboussure, l'explosion, le crachat,
    le marteau qui monte une défense, le bois qui casse. ZSONS.evenements(evs, jeu, idMoi) traduit les événements d'un pas de simulation.
    Les sons lointains s'atténuent et se placent à gauche ou à droite, depuis le survivant. */
@@ -6406,7 +6409,7 @@ const ZHUD = (() => {
 
 /* ── src-zombies/enligne.js ── */
 /* DERNIER REMPART — la coop en ligne, de 2 à 4 survivants, chacun chez soi.
-   Les salons sont ceux d'Opération Poncin (src-poncin/reseau.js, PRESEAU) : un code de 4 lettres, présence et signalisation par
+   Les salons sont ceux d'Opération Poncin (src-zombies/reseau.js, PRESEAU, repris de Poncin) : un code de 4 lettres, présence et signalisation par
    Supabase Realtime, puis WebRTC de téléphone à téléphone (relais par Supabase si le direct ne s'ouvre pas) ; canaux préfixés « rempart »
    (jamais mêlés à ceux de Poncin). ?reseau=local (BroadcastChannel, entre onglets) sert aux tests.
    L'hôte fait autorité : il simule la partie avec ZJEU (tous les survivants), applique la dernière entrée reçue de chacun, exécute leurs
@@ -6857,7 +6860,7 @@ const ZENLIGNE = (() => {
    sont dans jeu.joueurs (avec leurs armes : leurs tirs font des traçantes), toi et tes infectés dans jeu.zombies ; jeu.camera : toi.
    Module pur (Node) : ZINFECTION.creer({ arene, graine, survivants }), pas(jeu, entree, dt) → événements, bondir(jeu). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('../src-poncin/nav.js'), require('./jeu.js'));
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./donnees.js'), require('./monde.js'), require('./nav.js'), require('./jeu.js'));
   else root.ZINFECTION = factory(root.ZDONNEES, root.ZMONDE, root.PNAV, root.ZJEU);
 })(typeof self !== 'undefined' ? self : this, function (D, M, PNAV, J) {
   'use strict';

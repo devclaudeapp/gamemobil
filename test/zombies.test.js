@@ -70,7 +70,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(Math.abs(b.x) <= 9.6 && Math.abs(b.z) <= 9.6, 'pousser : on reste dans l’arène');
 }
 
-// ─── la navigation (src-poncin/nav.js, réutilisé tel quel) ───
+// ─── la navigation (src-zombies/nav.js, reprise d'Opération Poncin) ───
 {
   const jeu = J.creer({ arene: 'jardin', graine: 1 });
   const ch = jeu.nav.chemin(-15, -3, -8, -3); // de l'autre côté du muret de gauche (x = -12, de z = -11 à 5)
