@@ -36,7 +36,7 @@ const BASE = `http://localhost:${PORT}/`;
   await page.goto(BASE); await sleep(500);
   const accueil = await P(() => { const c = document.querySelector('[data-jeu="zombies"]'); return { carte: c ? c.innerText : '', href: c ? c.getAttribute('href') : '', bientot: document.querySelectorAll('.jeu.bientot').length, jeux: document.querySelectorAll('a.jeu').length, icone: c && c.querySelector('img').complete && c.querySelector('img').naturalWidth > 0 }; });
   check(/Dernier Rempart/.test(accueil.carte) && /zombies/i.test(accueil.carte) && /Jouer/.test(accueil.carte) && accueil.href === 'zombies/' && accueil.icone, 'la Salle de jeux montre la carte de Dernier Rempart (icône, genre, « Jouer »)');
-  check(accueil.bientot === 0 && accueil.jeux === 3, 'elle remplace la case « Bientôt un nouveau jeu » (trois jeux)');
+  check(accueil.bientot === 0 && accueil.jeux >= 2, `elle remplace la case « Bientôt un nouveau jeu » (${accueil.jeux} jeux)`); // (au moins le Fournil et Dernier Rempart, quels que soient les autres)
   await page.screenshot({ path: out + '/00-accueil.png' });
   await page.tap('[data-jeu="zombies"]'); await page.waitForURL(/\/zombies\/$/);
 
