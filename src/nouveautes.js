@@ -15,6 +15,15 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const NOUVEAUTES = [
+    { // (à re-dater le jour de la mise en ligne : test/fournil-nouveautes.cjs refuse une date d'avance)
+      id: '2026-11-09-a', date: '2026-11-09', titre: 'Décembre au Fournil : le calendrier de l’Avent et la saison d’hiver',
+      points: [
+        'Dès le 1er décembre, une case par jour : une friandise, des étoiles, des décos de Noël, une tenue de Noël et un petit renne.',
+        'Une case oubliée ? Tu peux en rattraper une par jour, jusqu’au 31 décembre.',
+        'La saison d’hiver : une nouvelle piste gratuite jusqu’au 3 janvier. Le calendrier, les objectifs du jour, le défi de la semaine, ta série et le Marché de Noël la font avancer.',
+        'Tout ce que tu reçois reste à vie.',
+      ],
+    },
     {
       id: '2026-11-06-a', date: '2026-11-06', titre: 'Le Marché d’automne et la saison d’automne',
       points: [
