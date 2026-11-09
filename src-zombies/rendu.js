@@ -160,6 +160,31 @@ const ZRENDU = (() => {
         case 'parpaings': for (let i = 0; i < 3; i++) F.add(BOITE, i % 2 ? '#A8A8A0' : '#B8B8B0', mat(x, h * (i + 0.5) / 3, z, i * 0.08, w * 0.95, h / 3 * 0.92, d * 0.95), 0.06, g + i); break;
         case 'comptoir': F.add(BOITE, '#E8E8E8', mat(x, h / 2, z, 0, w, h, d), 0.04, g); F.add(BOITE, '#3A3F4A', mat(x, h + 0.03, z, 0, w * 1.02, 0.06, d * 1.02)); F.add(BOITE, '#2ECC71', mat(x + w * 0.3, h + 0.3, z, 0, 0.3, 0.5, 0.2)); break;
         case 'rondins': for (let i = 0; i < 3; i++) { const lx = w >= d; F.add(cyl(0.3, 0.3, (lx ? w : d) * 0.95, 8), '#8A6040', mat(x + (lx ? 0 : (i - 1) * 0.36), 0.3 + (i === 1 ? 0.45 : 0), z + (lx ? (i - 1) * 0.36 : 0), 0, 1, 1, 1, lx ? 0 : Math.PI / 2, lx ? Math.PI / 2 : 0), 0.06, g + i); } break;
+        // le Lot 5d : le Métro (escalier, distributeur, portique), l'Hôpital (cloison, lit, brancard, armoire), la Base (hangar, char, sacs, tente)
+        case 'escalier': { // l'escalier mécanique : une rampe de marches, ses deux rampes noires, la bouche claire au sommet
+          const lx = w >= d, L = lx ? w : d, l = lx ? d : w, n = 9;
+          for (let i = 0; i < n; i++) { const t = -L / 2 + L * (i + 0.5) / n, hh = h * (i + 1) / n; F.add(BOITE, i % 2 ? '#8A9098' : '#9AA0A8', mat(x + (lx ? t : 0), hh / 2, z + (lx ? 0 : t), 0, lx ? L / n : l * 0.8, hh, lx ? l * 0.8 : L / n), 0.03, g + i); }
+          for (const sg of [-1, 1]) F.add(BOITE, '#2A2E36', mat(x + (lx ? 0 : sg * l * 0.45), h * 0.6, z + (lx ? sg * l * 0.45 : 0), 0, lx ? L : 0.12, h * 1.2, lx ? 0.12 : L));
+          F.add(BOITE, '#E8C547', mat(x, h + 0.02, z, 0, lx ? 0.3 : l * 0.8, 0.04, lx ? l * 0.8 : 0.3)); break;
+        }
+        case 'distributeur': F.add(BOITE, o.couleur || '#D9534F', mat(x, h / 2, z, 0, w, h, d), 0.04, g); F.add(BOITE, '#BFE8FF', mat(x - w * 0.15, h * 0.62, z + d / 2 + 0.01, 0, w * 0.55, h * 0.5, 0.04)); F.add(BOITE, '#2A2E36', mat(x + w * 0.3, h * 0.45, z + d / 2 + 0.01, 0, w * 0.18, h * 0.3, 0.04)); break;
+        case 'portique': { const lx = w >= d, L = lx ? w : d, n = Math.max(2, Math.round(L / 1.2)); for (let i = 0; i <= n; i++) { const t = -L / 2 + L * i / n; F.add(BOITE, '#B8BEC6', mat(x + (lx ? t : 0), h / 2, z + (lx ? 0 : t), 0, lx ? 0.25 : w, h, lx ? d : 0.25), 0.04, g + i); } F.add(BOITE, '#E5533D', mat(x, h * 0.75, z, 0, lx ? L : 0.06, 0.08, lx ? 0.06 : L)); break; }
+        case 'cloison': F.add(BOITE, '#EEF2F2', mat(x, h / 2, z, 0, w, h, d), 0.03, g); F.add(BOITE, '#7FB8C8', mat(x, 0.5, z, 0, w * 1.01, 0.2, d * 1.01)); F.add(BOITE, '#C8D2D4', mat(x, h + 0.04, z, 0, w * 1.02, 0.08, d * 1.02)); break;
+        case 'lit': { const lx = w >= d; F.add(BOITE, '#B8C2CC', mat(x, 0.35, z, 0, w, 0.3, d)); F.add(BOITE, '#F4F6F6', mat(x, 0.6, z, 0, w * 0.96, 0.22, d * 0.94), 0.04, g); F.add(BOITE, '#8FC8E8', mat(x + (lx ? w * 0.12 : 0), 0.73, z + (lx ? 0 : d * 0.12), 0, lx ? w * 0.66 : d * 0.9, 0.06, lx ? d * 0.9 : d * 0.66)); F.add(BOITE, '#FFFFFF', mat(x - (lx ? w * 0.38 : 0), 0.76, z - (lx ? 0 : d * 0.38), 0, lx ? w * 0.18 : d * 0.6, 0.1, lx ? d * 0.6 : d * 0.18)); F.add(BOITE, '#7A8494', mat(x - (lx ? w / 2 : 0), 0.65, z - (lx ? 0 : d / 2), 0, lx ? 0.08 : w, 0.7, lx ? d : 0.08)); break; }
+        case 'brancard': F.add(BOITE, '#E8ECEE', mat(x, h * 0.8, z, 0, w, 0.12, d), 0.04, g); F.add(BOITE, '#8FC8E8', mat(x, h * 0.85 + 0.04, z, 0, w * 0.9, 0.04, d * 0.9)); for (const [a, b] of [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]]) F.add(BOITE, '#7A8494', mat(x + a * w, h * 0.4, z + b * d, 0, 0.06, h * 0.8, 0.06)); break;
+        case 'armoire': F.add(BOITE, '#F4F6F6', mat(x, h / 2, z, 0, w, h, d), 0.03, g); F.add(BOITE, '#2E9446', mat(x, h * 0.72, z + d / 2 + 0.02, 0, 0.5, 0.14, 0.04)); F.add(BOITE, '#2E9446', mat(x, h * 0.72, z + d / 2 + 0.02, 0, 0.14, 0.5, 0.04)); F.add(BOITE, '#C8D2D4', mat(x, h * 0.35, z + d / 2 + 0.01, 0, w * 0.9, 0.04, 0.03)); break;
+        case 'hangar': { // le hangar kaki, son toit arrondi, la grande porte
+          F.add(BOITE, '#6E7350', mat(x, h * 0.4, z, 0, w, h * 0.8, d), 0.04, g);
+          F.add(cyl(1, 1, 1, 12), '#5E6345', mat(x, h * 0.8, z, Math.PI / 2, d * 0.5, w, d * 0.5, 0, Math.PI / 2), 0.03, g + 1);
+          F.add(BOITE, '#3A3E2E', mat(x, h * 0.35, z + d / 2 + 0.02, 0, w * 0.5, h * 0.7, 0.06)); F.add(BOITE, '#E8C547', mat(x, h * 0.73, z + d / 2 + 0.04, 0, w * 0.5, 0.1, 0.04)); break;
+        }
+        case 'char': { // le char : la caisse, la tourelle, le canon, les chenilles
+          const lx = w > d, ry = lx ? Math.PI / 2 : 0, L = lx ? w : d, l = lx ? d : w;
+          F.add(BOITE, '#5E6A3A', mat(x, 0.9, z, ry, l * 0.86, 0.8, L), 0.04, g); for (const sg of [-1, 1]) F.add(BOITE, '#2E322A', mat(x + (lx ? 0 : sg * l * 0.42), 0.45, z + (lx ? sg * l * 0.42 : 0), ry, l * 0.22, 0.9, L * 1.02));
+          F.add(BOITE, '#6A763F', mat(x, 1.65, z, ry, l * 0.6, 0.6, L * 0.45), 0.04, g + 1); F.add(cyl(0.13, 0.15, L * 0.75, 8), '#4A5230', mat(x + (lx ? L * 0.38 : 0), 1.7, z + (lx ? 0 : L * 0.38), 0, 1, 1, 1, lx ? 0 : Math.PI / 2, lx ? Math.PI / 2 : 0)); break;
+        }
+        case 'sacs': { const lx = w >= d, L = lx ? w : d, n = Math.max(2, Math.round(L / 0.7)); for (let r2 = 0; r2 < 2; r2++) for (let i = 0; i < n - r2; i++) { const t = -L / 2 + L * (i + 0.5 + r2 * 0.5) / n; F.add(BOITE, (i + r2) % 2 ? '#B8A878' : '#C8B888', mat(x + (lx ? t : 0), 0.22 + r2 * 0.42, z + (lx ? 0 : t), 0, lx ? L / n * 0.95 : w, 0.4, lx ? d : L / n * 0.95), 0.08, g + i * 3 + r2); } break; }
+        case 'tente': F.add(new T.CylinderGeometry(1, 1, 1, 3, 1), '#6E7350', mat(x, h / 2, z, w > d ? 0 : Math.PI / 2, (w > d ? d : w) * 0.6, w > d ? w : d, h * 0.62, 0, Math.PI / 2), 0.05, g); F.add(BOITE, '#3A3E2E', mat(x + (w > d ? w / 2 : 0), h * 0.3, z + (w > d ? 0 : d / 2), 0, w > d ? 0.04 : 0.8, h * 0.6, w > d ? 0.8 : 0.04)); break;
         default: F.add(BOITE, o.couleur || '#9C8E7A', mat(x, h / 2, z, 0, w, h, d), 0.06, g);
       }
     } else if (o.c) {
@@ -196,6 +221,9 @@ const ZRENDU = (() => {
         case 'kiosque': F.add(cyl(r, r, 0.5, 8), '#E8E2D4', mat(x, 0.25, z), 0.04, g); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; F.add(cyl(0.08, 0.08, 2.6, 6), '#4A6A5A', mat(x + Math.cos(a) * r * 0.9, 1.8, z + Math.sin(a) * r * 0.9)); } F.add(cyl(0.1, r * 1.2, 1.2, 8), '#4A6A5A', mat(x, 3.6, z), 0.04, g + 1); break;
         case 'parasol': F.add(cyl(0.05, 0.05, 2.3, 6), '#E8E2D4', mat(x, 1.15, z)); F.add(cyl(0.05, 1.5, 0.5, 8), ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71'][g % 4], mat(x, 2.35, z), 0.04, g); F.add(BOITE, '#F2EDE4', mat(x + 1, 0.12, z + 0.4, 0.4, 0.7, 0.08, 1.6)); break;
         case 'betonniere': F.add(cyl(r * 0.8, r * 0.5, r * 1.6, 9), '#E8A33A', mat(x, r * 1.2, z, 0, 1, 1, 1, 0.6), 0.05, g); F.add(BOITE, '#5A5F68', mat(x, 0.35, z, 0, r * 1.6, 0.4, r)); F.add(cyl(0.3, 0.3, 0.15, 8), '#2A2A2A', mat(x - r * 0.7, 0.3, z, 0, 1, 1, 1, Math.PI / 2)); break;
+        case 'pilier': F.add(cyl(r, r * 1.05, 4.2, 10), '#C8CDD2', mat(x, 2.1, z), 0.04, g); F.add(BOITE, '#2E6EB0', mat(x, 2.4, z, 0, r * 2.1, 0.5, 0.06)); F.add(cyl(r * 1.25, r * 1.25, 0.2, 10), '#8A9098', mat(x, 0.1, z)); break;
+        case 'plante': F.add(cyl(r * 0.6, r * 0.45, 0.6, 8), '#C86A3A', mat(x, 0.3, z)); F.add(rocheGeo(r * 1.1, g), '#4F9A34', mat(x, 1.0, z, k), 0.12, g); break;
+        case 'mirador': { F.add(BOITE, '#7A6A4A', mat(x, 4.2, z, 0, r * 2, 0.2, r * 2), 0.05, g); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) F.add(BOITE, '#6A5A3A', mat(x + a * r * 0.75, 2.1, z + b * r * 0.75, 0, 0.16, 4.2, 0.16)); for (const [a, b, w2, d2] of [[0, -1, 2, 0.08], [0, 1, 2, 0.08], [-1, 0, 0.08, 2], [1, 0, 0.08, 2]]) F.add(BOITE, '#8A7A5A', mat(x + a * r, 4.75, z + b * r, 0, w2 * r, 0.9, d2 * r + 0.06)); F.add(new T.ConeGeometry(r * 1.6, 1.0, 4), '#5E6345', mat(x, 5.7, z, Math.PI / 4), 0.04, g + 1); break; }
         case 'neon': // un poteau et son enseigne qui brille (couleur de l'obstacle ; matériau à part, plus bas)
           F.add(cyl(0.08, 0.1, 3.4, 6), '#2A2E36', mat(x, 1.7, z)); break;
         case 'roche': F.add(rocheGeo(r * 1.2, g), '#2E2826', mat(x, r * 0.6, z, k), 0.1, g); F.add(rocheGeo(r * 0.6, g + 3), '#3A3230', mat(x + r * 0.6, r * 0.3, z - r * 0.4, k), 0.1, g + 3); break;
@@ -1066,7 +1094,7 @@ const ZRENDU = (() => {
       let g2 = 4242; const alea = () => { g2 = (g2 * 16807) % 2147483647; return g2 / 2147483647; };
       const autour = AUTOUR[A.id || jeu.arene] || 'arbres';
       for (let i = 0; i < 70; i++) { // le paysage autour de l'arène (arbres et rochers, sapins, immeubles, roches noires… ou de l'eau)
-        if (autour === 'eau') break;
+        if (autour === 'eau' || autour === 'tunnel') break;
         const a = alea() * Math.PI * 2, r = demi + 4 + alea() * 18, x = Math.cos(a) * r, z = Math.sin(a) * r;
         if (Math.abs(x) < demi + 2 && Math.abs(z) < demi + 2) continue;
         const o = autour === 'sapins' ? { type: 'sapin', c: [x, z, 0.9 + alea() * 0.4] } : autour === 'immeubles' ? { type: 'immeuble', r: [x, z, 5 + alea() * 4, 5 + alea() * 4, 5 + alea() * 9], couleur: ['#3A3F5A', '#4A3A5A', '#2E4A5A'][i % 3] } : autour === 'roches' ? { type: 'roche', c: [x, z, 1 + alea() * 1.6] } : autour === 'murs' ? (i % 3 ? null : { type: 'immeuble', r: [x, z, 6, 6, 3 + alea() * 2], couleur: '#B8BEC6' }) : alea() < 0.7 ? { type: 'arbre', c: [x, z, 0.9 + alea() * 0.6] } : { type: 'rocher', c: [x, z, 0.8 + alea() * 1.2] };
@@ -1100,7 +1128,53 @@ const ZRENDU = (() => {
         });
         const m = new T.Mesh(fusionner(objs), new T.MeshLambertMaterial({ map: premierMap(MOD.M.voitures[0].scene) })); m.castShadow = true; m.receiveShadow = true; scene.add(m); enArene.push(m);
       }
+      decor5d(jeu, A, demi);
       cam.init = false;
+    }
+    // ─── le Lot 5d : les voies et le train du Métro, les murs du tunnel ; les armoires de l'Hôpital ; les barbelés de la Base ───
+    let train3d = null, feux = [], pharmas3d = [];
+    function decor5d(jeu, A, demi) {
+      train3d = null; feux = []; pharmas3d = [];
+      const F = new Fab(); let rien = true;
+      for (const V of A.voies || []) { // le ballast, les traverses, deux rails ; la ligne jaune du bord des quais ; la voie file dans les tunnels
+        rien = false; const L = A.taille + 40;
+        F.add(BOITE, '#4A3E36', mat(0, 0.015, V.z, 0, L, 0.03, V.largeur), 0.05, 31);
+        for (let x = -L / 2; x <= L / 2; x += 0.9) F.add(BOITE, '#6A4E36', mat(x, 0.05, V.z, 0, 0.32, 0.06, V.largeur * 0.82));
+        for (const sg of [-0.28, 0.28]) F.add(BOITE, '#B8BEC6', mat(0, 0.12, V.z + sg * V.largeur, 0, L, 0.1, 0.1));
+        for (const sg of [-1, 1]) F.add(BOITE, '#F2C230', mat(0, 0.02, V.z + sg * (V.largeur / 2 + 0.25), 0, A.taille, 0.03, 0.22));
+        for (const sx of [-1, 1]) { const tx = sx * (demi + 1.6); F.add(BOITE, '#1A1D22', mat(tx, 2.2, V.z, 0, 0.3, 4.4, V.largeur + 1.4)); } // la bouche du tunnel, noire
+        for (let i = 0; i < 6; i++) { const m = new T.Mesh(new T.SphereGeometry(0.16, 8, 6), new T.MeshBasicMaterial({ color: '#5A1A1A' })); m.position.set(-demi + 4 + i * (A.taille - 8) / 5, 0.25, V.z + V.largeur / 2 + 0.55); scene.add(m); enArene.push(m); feux.push({ m, voie: A.voies.indexOf(V) }); }
+      }
+      if (A.voies) { // les murs carrelés autour de la station, ouverts sur les tunnels
+        for (const sz of [-1, 1]) F.add(BOITE, '#5A606A', mat(0, 3, sz * (demi + 2), 0, A.taille + 8, 6, 1.2), 0.04, 33);
+        for (const sx of [-1, 1]) for (const [z0, z1] of [[-demi - 2, A.voies[0].z - 2.6], [A.voies[0].z + 2.6, A.voies[1].z - 2.6], [A.voies[1].z + 2.6, demi + 2]]) F.add(BOITE, '#5A606A', mat(sx * (demi + 2), 3, (z0 + z1) / 2, 0, 1.2, 6, z1 - z0), 0.04, 34);
+        const T3 = new Fab(), L = D.TRAIN.longueur; T3.add(BOITE, '#D8DEE4', mat(0, 1.4, 0, 0, L, 2.6, 2.9), 0.03, 40); T3.add(BOITE, '#2E6EB0', mat(0, 0.6, 0, 0, L * 1.01, 0.35, 2.95));
+        for (let i = 0; i < 7; i++) for (const sg of [-1, 1]) T3.add(BOITE, '#3A4A5A', mat(-L / 2 + 1.4 + i * 2.2, 1.8, sg * 1.46, 0, 1.4, 0.9, 0.04));
+        T3.add(BOITE, '#FFF2B8', mat(L / 2 + 0.02, 1.0, 0.9, 0, 0.04, 0.3, 0.4)); T3.add(BOITE, '#FFF2B8', mat(L / 2 + 0.02, 1.0, -0.9, 0, 0.04, 0.3, 0.4)); T3.add(BOITE, '#2A3440', mat(L / 2 + 0.01, 1.9, 0, 0, 0.04, 1.0, 2.4));
+        train3d = new T.Mesh(T3.geo(), matVC); train3d.castShadow = true; train3d.visible = false; scene.add(train3d); enArene.push(train3d);
+      }
+      if (A.pharmacies) { rien = false; for (let t = -demi + 2; t < demi; t += 2) { F.add(BOITE, '#C2CCCF', mat(t, 0.012, 0, 0, 0.06, 0.02, A.taille)); F.add(BOITE, '#C2CCCF', mat(0, 0.012, t, 0, A.taille, 0.02, 0.06)); } } // (le carrelage de l'Hôpital)
+      for (const [x, z, w, d] of A.barbeles || []) { // les barbelés : des piquets et des spirales de fil
+        rien = false; const lx = w >= d, L = lx ? w : d, n = Math.max(3, Math.round(L / 0.55));
+        for (let i = 0; i <= Math.round(L / 2); i++) { const t = -L / 2 + i * L / Math.round(L / 2); F.add(BOITE, '#6A5A3A', mat(x + (lx ? t : 0), 0.45, z + (lx ? 0 : t), 0, 0.08, 0.9, 0.08)); }
+        for (let i = 0; i < n; i++) { const t = -L / 2 + L * (i + 0.5) / n; F.add(new T.TorusGeometry(0.34, 0.025, 4, 10), '#9AA0A8', mat(x + (lx ? t : 0), 0.4, z + (lx ? 0 : t), lx ? Math.PI / 2 : 0, 1, 1, 1, 0.25)); }
+      }
+      if (!rien || A.voies) { const m = new T.Mesh(F.geo(), matVC); m.castShadow = true; m.receiveShadow = true; scene.add(m); enArene.push(m); }
+      for (const p of jeu.pharmas || []) { // la croix verte qui luit au-dessus de l'armoire, son cercle au sol
+        const croix = new T.Group(), mc = new T.MeshBasicMaterial({ color: '#4FE07A' }); for (const [a, b] of [[0.7, 0.22], [0.22, 0.7]]) { const m = new T.Mesh(new T.BoxGeometry(a, b, 0.08), mc); croix.add(m); }
+        croix.position.set(p.x, 2.7, p.z - 0.9); scene.add(croix); enArene.push(croix);
+        const anneau = new T.Mesh(new T.RingGeometry(D.PHARMACIE.rayon - 0.12, D.PHARMACIE.rayon, 32).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#4FC36A', transparent: true, opacity: 0.55, depthWrite: false }));
+        anneau.position.set(p.x, 0.04, p.z); scene.add(anneau); enArene.push(anneau); pharmas3d.push({ croix, mc, anneau });
+      }
+    }
+    function majArene5d(jeu, dt) {
+      const T0 = jeu.train, t = performance.now() / 1000;
+      if (train3d && T0) {
+        const passe = T0.phase === 'passe', V = jeu.A.voies[T0.voie]; train3d.visible = passe;
+        if (passe && typeof ZJEU !== 'undefined' && ZJEU.trainX) { const xt = ZJEU.trainX(jeu), L = D.TRAIN.longueur; train3d.position.set(xt - T0.sens * L / 2, 0, V.z); train3d.rotation.y = T0.sens > 0 ? 0 : Math.PI; if (Math.random() < dt * 30) particule(xt, 0.3, V.z + (Math.random() - 0.5) * 2, -T0.sens * 4, 1, (Math.random() - 0.5) * 2, 0.4, 0.12, '#8A8070', 0); }
+        const clign = T0.phase !== 'attente' && Math.floor(t * 6) % 2 === 0; for (const f of feux) f.m.material.color.set(clign && f.voie === T0.voie ? '#FF3A2A' : '#5A1A1A');
+      }
+      (jeu.pharmas || []).forEach((p, i) => { const o = pharmas3d[i]; if (!o) return; const pret = !(p.recharge > 0); o.mc.color.set(pret ? '#4FE07A' : '#6A6F78'); o.croix.rotation.y = pret ? t * 1.2 : 0; o.anneau.visible = pret; o.anneau.material.opacity = 0.35 + 0.25 * (p.stock / D.PHARMACIE.stock) + Math.sin(t * 4) * 0.08; });
     }
 
     // ─── la caméra : au-dessus, inclinée, elle suit le survivant (avec un peu d'avance dans le sens de la marche) ───
@@ -1122,8 +1196,8 @@ const ZRENDU = (() => {
       for (let i = 0; i < 2200; i++) { const v = (200 + rnd() * 55) | 0, x = rnd() * n, y = rnd() * n, r = 0.8 + rnd() * 2.6, e = 0.4 + rnd() * 0.6, a = rnd() * 3; g.fillStyle = `rgb(${v},${v},${v})`; partout((dx, dy) => { g.beginPath(); g.ellipse(x + dx, y + dy, r, r * e, a, 0, 7); g.fill(); }); }
       const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
     })();
-    const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins' };
-    const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret']);
+    const AUTOUR = { foret: 'sapins', neon: 'immeubles', volcan: 'roches', supermarche: 'murs', port: 'eau', plage: 'eau', cimetiere: 'sapins', metro: 'tunnel', hopital: 'murs', base: 'sapins' };
+    const HERBE = new Set(['jardin', 'ferme', 'cimetiere', 'foret', 'base']);
     const matLave = new T.MeshBasicMaterial({ color: '#FF6A1A' });
     function majCamera(jeu, idMoi, dt) {
       const j = jeu.camera || jeu.joueurs.find((k) => k.id === idMoi) || jeu.joueurs[0]; if (!j) return; // (l'Infection : la caméra suit ton zombie)
@@ -1217,6 +1291,9 @@ const ZRENDU = (() => {
           }
           case 'drone': { const p = e.pts || [], c = e.feu ? '#FFB03A' : e.arc ? '#BFF0FF' : '#9AE6FF'; for (let k = 0; k + 1 < p.length; k++) segment(p[k][0], k ? 1.0 : 2.1, p[k][1], p[k + 1][0], 1.0, p[k + 1][1], e.arc ? 0.06 : 0.045, c, 0.08); if (p.length > 1) particule(p[1][0], 1.0, p[1][1], 0, 1, 0, 0.2, 0.07, c, 0); break; }
           case 'finDrone': for (let n = 0; n < 8; n++) particule(e.x, 2.1, e.z, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 0.4, 0.08, '#9AA3AE', 0.4); break;
+          case 'train': secousse = Math.max(secousse, 0.35); break;
+          case 'renverse': secousse = Math.max(secousse, 0.6); for (let n = 0; n < 12; n++) particule(e.x, 1, e.z, (Math.random() - 0.5) * 5, 2 + Math.random() * 2, (Math.random() - 0.5) * 5, 0.5, 0.1, '#FFE07A', 0.3); break;
+          case 'soigne': for (let n = 0; n < 3; n++) particule(e.x + (Math.random() - 0.5) * 0.7, 0.4, e.z + (Math.random() - 0.5) * 0.7, 0, 2, 0, 0.7, 0.1, n % 2 ? '#7FE08A' : '#FFFFFF', 0); break;
           case 'roule': for (let k = 0; k < 10; k++) { const b = (e.a || 0) + Math.PI + (Math.random() - 0.5) * 1.4, v = 1 + Math.random() * 2.5; particule(e.x, 0.15, e.z, Math.cos(b) * v, 0.8 + Math.random(), Math.sin(b) * v, 0.5, 0.14, '#C8B48A', 0); } break;
           case 'trou': onde(e.x, e.z, e.r || 4, '#8A5AFF'); lumiere(e.x, 1.5, e.z, '#8A5AFF', 20, 10, 0.3); break;
           case 'implose': boum(e.x, e.z, e.r || 3); onde(e.x, e.z, (e.r || 3) * 1.6, '#B48CFF'); onde(e.x, e.z, e.r || 3, '#FFFFFF'); lumiere(e.x, 2, e.z, '#C8A8FF', 50, 22, 0.4); secousse = Math.max(secousse, 0.5); for (let k = 0; k < 30; k++) { const b = Math.random() * 6.28, v = 3 + Math.random() * 6; particule(e.x, 1, e.z, Math.cos(b) * v, 2 + Math.random() * 4, Math.sin(b) * v, 0.7, 0.11, k % 2 ? '#B48CFF' : '#2A1A4A', 0.3); } break;
@@ -1251,6 +1328,7 @@ const ZRENDU = (() => {
       { const tps = performance.now() / 1000; for (const j of jeu.joueurs) { const s = survivants.get(j.id); if (s) auras(s, j, tps, dt); } majLeurres(jeu, tps); majLargage(jeu, tps, dt); majPieges(jeu, tps); }
       majDefenses(jeu, dt);
       majProjectiles(jeu);
+      majArene5d(jeu, dt);
       majTrous(jeu, dt);
       majDrones(jeu, dt);
       majDisquesZones(jeu, dt);

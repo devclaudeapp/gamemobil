@@ -55,7 +55,10 @@
     // le Lot 4 : un second tirage (bonus, largages, pièges : le premier reste celui d'avant, les parties à graine fixe ne changent pas),
     // les leurres posés, le ralenti en cours, le largage de la vague, les pièges de l'arène
     jeu.rndB = mulberry32(((jeu.graine ^ 0x5bd1e995) >>> 0) || 7); jeu.leurres = []; jeu.ralenti = 0; jeu.largage = null;
-    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; jeu.drones = []; jeu.frappes = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
+    jeu.vus = {}; jeu.pontes = []; jeu.trous = []; jeu.drones = []; jeu.frappes = [];
+    // le Lot 5d : le train du Métro (attente → alerte → passe), les armoires à pharmacie de l'Hôpital
+    jeu.train = A.voies ? { phase: 'attente', t: D.TRAIN.periode[0] * 0.6, voie: 0, sens: 1, n: 0 } : null;
+    jeu.pharmas = (A.pharmacies || []).map(([x, z]) => ({ x, z, stock: D.PHARMACIE.stock, recharge: 0, soin: 0 })); // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
     // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
@@ -479,6 +482,45 @@
   // ─── l'Ascension : les chutes (foudre, météores), l'objectif de l'échelon ───
   // les rivières de lave (le Volcan) : elles brûlent qui s'y tient
   const dansLave = (A, x, z, r) => !!A.laves && A.laves.some(([lx, lz, w, d]) => Math.abs(x - lx) < w / 2 + r * 0.3 && Math.abs(z - lz) < d / 2 + r * 0.3);
+  // ─── les arènes du Lot 5d ───
+  const dansRect = (l, x, z, r) => !!l && l.some(([lx, lz, w, d]) => Math.abs(x - lx) < w / 2 + r * 0.5 && Math.abs(z - lz) < d / 2 + r * 0.5);
+  const dansBarbeles = (A, x, z, r) => dansRect(A.barbeles, x, z, r);
+  // où est le train : son avant, d'un bout à l'autre de la voie le temps du passage
+  function trainX(jeu) { const T = jeu.train, L = D.TRAIN.longueur, demi = jeu.A.taille / 2, k = Math.min(1, Math.max(0, T.t / D.TRAIN.duree)); return T.sens * (-(demi + L) + 2 * (demi + L) * k); }
+  function majArene(jeu, dt) {
+    const A = jeu.A, T = jeu.train;
+    if (T) {
+      if (T.phase === 'attente') { T.t -= dt; if (T.t <= 0) { T.phase = 'alerte'; T.t = D.TRAIN.alerte; T.voie = Math.floor(jeu.rndB() * A.voies.length) % A.voies.length; T.sens = jeu.rndB() < 0.5 ? 1 : -1; ev(jeu, { t: 'trainAlerte', voie: T.voie, z: A.voies[T.voie].z, sens: T.sens }); } }
+      else if (T.phase === 'alerte') { T.t -= dt; if (T.t <= 0) { T.phase = 'passe'; T.t = 0; T.n++; ev(jeu, { t: 'train', voie: T.voie, z: A.voies[T.voie].z, sens: T.sens }); } }
+      else {
+        T.t += dt; const V = A.voies[T.voie], xt = trainX(jeu), L = D.TRAIN.longueur;
+        const sur = (o, r) => Math.abs(o.z - V.z) < V.largeur / 2 + r * 0.6 && (T.sens > 0 ? o.x < xt + r && o.x > xt - L - r : o.x > xt - r && o.x < xt + L + r);
+        for (const zb of jeu.zombies) {
+          if (zb.vie <= 0 || zb.terre || zb.trainN === T.n || !sur(zb, zb.rayon)) continue;
+          zb.trainN = T.n; const boss = D.ZOMBIES[zb.type].boss; zb.dernier = { px: T.sens * 3, pz: 0, fort: true };
+          blesserZombie(jeu, zb, boss ? D.TRAIN.boss : zb.vie + 1, T.sens * 3, 0, 'train', false, true);
+        }
+        for (const j of jeu.joueurs) {
+          if (!j.vivant || j.trainN === T.n || !sur(j, j.rayon)) continue;
+          j.trainN = T.n; const avant = j.vie; blesserJoueur(jeu, j, D.TRAIN.degats);
+          if (j.vie < avant) { j.z = V.z + Math.sign(j.z - V.z || 1) * (V.largeur / 2 + j.rayon + 0.4); jeu.monde.pousser(j); ev(jeu, { t: 'renverse', id: j.id, x: j.x, z: j.z }); } // (renversé : projeté hors des rails)
+        }
+        if (T.t >= D.TRAIN.duree) { T.phase = 'attente'; const P = D.TRAIN.periode; T.t = P[0] + jeu.rndB() * (P[1] - P[0]); }
+      }
+    }
+    // les armoires à pharmacie : elles soignent qui se tient devant, jusqu'à leur stock, puis se rechargent
+    for (const p of jeu.pharmas || []) {
+      if (p.recharge > 0) { p.recharge -= dt; if (p.recharge <= 0) { p.recharge = 0; p.stock = D.PHARMACIE.stock; ev(jeu, { t: 'pharmaPrete', x: p.x, z: p.z }); } continue; }
+      for (const j of jeu.joueurs) {
+        if (!j.vivant || j.vie >= j.vieMax || p.stock <= 0 || Math.hypot(j.x - p.x, j.z - p.z) > D.PHARMACIE.rayon) continue;
+        const v = Math.min(D.PHARMACIE.debit * dt, p.stock, j.vieMax - j.vie); j.vie += v; p.stock -= v; p.soin -= dt;
+        if (p.soin <= 0) { p.soin = 0.5; ev(jeu, { t: 'soigne', id: j.id, x: j.x, z: j.z }); }
+        if (p.stock <= 0.01) { p.stock = 0; p.recharge = D.PHARMACIE.recharge; ev(jeu, { t: 'pharmaVide', x: p.x, z: p.z }); }
+      }
+    }
+    // les barbelés écorchent les zombies qui s'y prennent (un peu, tous les quarts de seconde)
+    if (A.barbeles) { jeu.barbT = (jeu.barbT || 0) - dt; if (jeu.barbT <= 0) { jeu.barbT = 0.25; for (const zb of jeu.zombies) if (zb.vie > 0 && !zb.terre && dansBarbeles(A, zb.x, zb.z, zb.rayon) && !D.ZOMBIES[zb.type].boss) blesserZombie(jeu, zb, D.BARBELES.dps * 0.25, 0, 0, 'barbeles', false, false, true); } }
+  }
   function majLave(jeu, dt) {
     const A = jeu.A; if (!A.laves) return;
     jeu.laveT = (jeu.laveT || 0) - dt; if (jeu.laveT > 0) return; jeu.laveT = 0.25;
@@ -591,6 +633,7 @@
     majPieges(jeu, dt);
     majChutes(jeu, dt);
     majLave(jeu, dt);
+    majArene(jeu, dt);
     majObjectif(jeu, dt);
     if (jeu.fini) return jeu.evs;
     // chacun pour soi, duel : le dernier debout gagne (personne debout : le meilleur score)
@@ -641,7 +684,7 @@
     const roule = j.roule > 0; // (en pleine roulade : le pouce ne compte plus, il file dans sa direction)
     let mx = e && !j.tire && !roule ? +e.mx || 0 : 0, mz = e && !j.tire && !roule ? +e.mz || 0 : 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     if (j.gele > 0) j.gele = Math.max(0, j.gele - dt);
-    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (j.vite > 0 ? 1.35 : 1);
+    const v = D.JOUEUR.vitesse * (1 + rang(j, 'vitesse') * D.ATOUTS.vitesse.par) * (j.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (j.vite > 0 ? 1.35 : 1) * (jeu.A.barbeles && !(j.rageT > 0 && specDe(j).oui.inarretable) && dansBarbeles(jeu.A, j.x, j.z, j.rayon) ? D.BARBELES.joueur : 1);
     if (j.grenadeT > 0) j.grenadeT = Math.max(0, j.grenadeT - dt);
     if (rang(j, 'regen') && j.vie < j.vieMax) { j.regenR += rang(j, 'regen') * D.ATOUTS.regen.par * dt; if (j.regenR >= 1) { const g = Math.floor(j.regenR); j.regenR -= g; j.vie = Math.min(j.vieMax, j.vie + g); } }
     j.vx = mx * v; j.vz = mz * v; j.x += j.vx * dt; j.z += j.vz * dt;
@@ -725,7 +768,7 @@
         zb.etourdi -= dt; zb.bouge = 0; zb.x += zb.rx * dt; zb.z += zb.rz * dt; const am = Math.exp(-6 * dt); zb.rx *= am; zb.rz *= am; zb.coinceT = 0; continue;
       }
       if (zb.excite > 0) zb.excite -= dt; // (le hurlement d'un hurleur : plus vite, plus fort)
-      const lent = (zb.gel > 0 ? (zb.gel -= dt, D.ARMES.cryo.gel.ralenti) : 1) * (jeu.ralenti > 0 ? D.BONUS.ralenti.facteur : 1) * (zb.excite > 0 ? H.vitesse : 1);
+      const lent = (zb.gel > 0 ? (zb.gel -= dt, D.ARMES.cryo.gel.ralenti) : 1) * (jeu.ralenti > 0 ? D.BONUS.ralenti.facteur : 1) * (zb.excite > 0 ? H.vitesse : 1) * (jeu.A.barbeles && dansBarbeles(jeu.A, zb.x, zb.z, zb.rayon) ? D.BARBELES.zombie : 1);
       // la proie : le survivant le plus proche, ou un épouvantail tout près
       let cx = 0, cz = 0, proie = null, best = Infinity;
       for (const j of vivants) { const d = (j.x - zb.x) ** 2 + (j.z - zb.z) ** 2; if (d < best) { best = d; proie = j; } }
@@ -1221,6 +1264,7 @@
     for (let e = 0; e < 120 && l.length < P.nombre; e++) {
       const a = r() * TAU, d = 7 + r() * Math.max(1, demi - 7), x = Math.cos(a) * d, z = Math.sin(a) * d;
       if (Math.abs(x) > demi || Math.abs(z) > demi || !libre(x, z, P.rayon) || l.some((p) => Math.hypot(p.x - x, p.z - z) < 11)) continue;
+      if ((jeu.A.voies || []).some((V) => Math.abs(z - V.z) < V.largeur / 2 + P.rayon + 1) || dansRect(jeu.A.barbeles, x, z, P.rayon * 2 + 2)) continue; // (pas sur les voies du Métro, ni dans les barbelés)
       const as = r() * TAU, sx = x + Math.cos(as) * (P.rayon + 1.5), sz = z + Math.sin(as) * (P.rayon + 1.5);
       if (Math.abs(sx) > demi || Math.abs(sz) > demi || m.bloque(sx, sz, 0.7)) continue;
       l.push({ id: l.length, x, z, sx, sz, etat: 'pret', t: 0, tic: 0, cher: 0 });
@@ -1320,5 +1364,5 @@
     const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  return { dansBarbeles, trainX, capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });
