@@ -58,7 +58,9 @@
     jeu.vus = {}; jeu.pontes = []; jeu.trous = []; jeu.drones = []; jeu.frappes = [];
     // le Lot 5d : le train du Métro (attente → alerte → passe), les armoires à pharmacie de l'Hôpital
     jeu.train = A.voies ? { phase: 'attente', t: D.TRAIN.periode[0] * 0.6, voie: 0, sens: 1, n: 0 } : null;
-    jeu.pharmas = (A.pharmacies || []).map(([x, z]) => ({ x, z, stock: D.PHARMACIE.stock, recharge: 0, soin: 0 })); // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
+    jeu.pharmas = (A.pharmacies || []).map(([x, z]) => ({ x, z, stock: D.PHARMACIE.stock, recharge: 0, soin: 0 }));
+    // le Lot 5e : Noël (o.noel : la neige, les bonnets, les flocons et les cadeaux) ; les compagnons, créés avec les survivants (plus bas)
+    jeu.noel = !!o.noel && o.mode !== 'cps' && o.mode !== 'duel'; jeu.compagnons = []; // (le Lot 5 : les types déjà sortis dans la partie, les couvées à faire éclore au pas suivant)
     if (o.vagueDepart > 1) jeu.vague = Math.min(40, o.vagueDepart) - 1;
     // les modes à plusieurs : « cps » (chacun pour soi : la même arme pour tous, pas de caisses, pas de relève, le dernier debout gagne) ;
     // « duel » (à deux : tes zombies abattus en envoient à l'autre, un atout offert à chaque vague, le dernier debout gagne)
@@ -78,10 +80,12 @@
         xp: 0, niveau: 1, choixAttente: 0, atouts: {}, grenadeT: 0, regenR: 0, boss: 0,
         bonus: Object.assign({ vie: 0, ferraille: 0, degats: 0, xp: 0, grenade: 0, arme: 0 }, o.bonus || {}, j.bonus || {}),
         choix: null, releve: 0, mGrenade: 1, chauffe: 0, salve: 0, salveT: 0,
+        compagnon: j.compagnon && D.COMPAGNONS[j.compagnon] ? j.compagnon : null, flocons: 0,
         capacite: j.capacite && D.CAPACITES[j.capacite.id] ? { id: j.capacite.id, t: (j.capacite.t || []).slice(0, 3).map((x) => (x === 0 || x === 1 ? x : -1)) } : null, capT: 0, rageT: 0, capN: 0,
         skin: j.skin && D.SURVIVANTS[j.skin] ? j.skin : 'gardien', finitions: Object.assign({}, j.finitions || {}), emote: null, emoteCd: 0,
       });
     });
+    for (const j of jeu.joueurs) if (j.compagnon) jeu.compagnons.push({ id: jeu.prochainId++, de: j.id, type: j.compagnon, x: j.x - 1.2, z: j.z + 0.6, a: 0, t: 0, cible: 0, bouge: 0, attaque: 0 });
     // le Bunker : de la vie et de la ferraille en plus au départ, parfois une arme
     for (const j of jeu.joueurs) {
       if (jeu.mod.unPV) { j.vieMax = 1; j.vie = 1; continue; } // (le Bunker ne sauve personne ici)
@@ -110,10 +114,10 @@
   const multCadence = (j) => (1 + niveau(j, 'cadence') * D.AMELIORATIONS.cadence.par) * (1 + rang(j, 'cadence') * D.ATOUTS.cadence.par) * (j.rageT > 0 ? specDe(j).cadence : 1);
   // les réglages de la capacité d'un survivant (gardés : ils ne changent pas en cours de partie)
   const specDe = (j) => j._spec || (j._spec = j.capacite ? D.specCapacite(j.capacite.id, j.capacite.t) : {});
-  const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par;
+  const chanceCritique = (j) => D.CRITIQUE.chance + rang(j, 'critique') * D.ATOUTS.critique.par + (j.compagnon && D.COMPAGNONS[j.compagnon].porteBonheur ? D.COMPAGNONS[j.compagnon].porteBonheur.critique : 0);
   const rechargeGrenade = (j) => D.GRENADE.recharge * (1 - rang(j, 'grenade') * 0.15) * (1 - j.bonus.grenade * D.BUNKER.grenade.par) * (j.mGrenade || 1);
   const multDefense = (jeu) => { let m = 0; for (const j of jeu.joueurs) m = Math.max(m, niveau(j, 'defense')); return 1 + m * D.AMELIORATIONS.defense.par; };
-  const aimant = (j) => j.droneAimant ? 60 : Math.max(D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
+  const aimant = (j) => j.droneAimant ? 60 : Math.max(j.compagnon && D.COMPAGNONS[j.compagnon].aimant ? D.COMPAGNONS[j.compagnon].aimant : 0, D.JOUEUR.aimant + niveau(j, 'aimant') * D.AMELIORATIONS.aimant.par + rang(j, 'aimant') * D.ATOUTS.aimant.par, j.effets && j.effets.aimant > 0 ? D.BONUS.aimant.rayon : 0);
   function maxDefenses(jeu, type) { const d = D.DEFENSES[type]; if (!d || Math.max(1, jeu.vague) < d.depuis) return 0; return d.max + Math.floor(Math.max(0, jeu.vague - 1) / d.plus); }
   function compteDefenses(jeu, type) { let n = 0; for (const d of jeu.defenses) if (d.type === type) n++; return n; }
   const prixDefense = (jeu, type) => (D.DEFENSES[type] ? D.DEFENSES[type].prix : Infinity);
@@ -397,7 +401,13 @@
       jeu.objets.push({ id: nouvelId(jeu), type: 'ferraille', x: zb.x + Math.cos(a) * r, z: zb.z + Math.sin(a) * r, valeur: v, age: 0, vole: false });
     }
     if (rnd() < (Z.boss ? 1 : 0.035) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'soin', x: zb.x + 0.4, z: zb.z, valeur: 30, age: 0, vole: false });
-    if (!Z.boss && !jeu.mode && jeu.rndB() < (zb.elite ? D.BONUS_CHANCE.elite : D.BONUS_CHANCE.zombie) && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'bonus', bonus: tirerBonus(jeu), x: zb.x - 0.3, z: zb.z + 0.2, valeur: 0, age: 0, vole: false });
+    if (jeu.noel && jeu.objets.length < MAX_OBJETS) { // Noël : un flocon parfois (trois pour une élite ou un boss), un cadeau plus rarement
+      const n = Z.boss || zb.elite ? D.NOEL.elite : jeu.rndB() < D.NOEL.flocon ? 1 : 0;
+      for (let k = 0; k < n; k++) jeu.objets.push({ id: nouvelId(jeu), type: 'flocon', x: zb.x + (k - 1) * 0.4, z: zb.z - 0.3, valeur: 1, age: 0, vole: false });
+      if (!Z.petit && jeu.rndB() < D.NOEL.cadeau) jeu.objets.push({ id: nouvelId(jeu), type: 'cadeau', x: zb.x + 0.3, z: zb.z + 0.3, valeur: 0, age: 0, vole: false });
+    }
+    const chat = j && j.compagnon && D.COMPAGNONS[j.compagnon].porteBonheur ? D.COMPAGNONS[j.compagnon].porteBonheur.bonus : 1;
+    if (!Z.boss && !jeu.mode && jeu.rndB() < (zb.elite ? D.BONUS_CHANCE.elite : D.BONUS_CHANCE.zombie) * chat && jeu.objets.length < MAX_OBJETS) jeu.objets.push({ id: nouvelId(jeu), type: 'bonus', bonus: tirerBonus(jeu), x: zb.x - 0.3, z: zb.z + 0.2, valeur: 0, age: 0, vole: false });
     if (Z.boss) poserCaisse(jeu);
     const dc = zb.dernier || { px: 0, pz: 0, fort: false };
     ev(jeu, { t: 'mort', id: zb.id, type: zb.type, x: zb.x, z: zb.z, a: zb.angle, points, par: de, boss: !!Z.boss, kx: Math.round(dc.px * 100) / 100, kz: Math.round(dc.pz * 100) / 100, fort: dc.fort });
@@ -627,6 +637,7 @@
     majDefenses(jeu, dt);
     majProjectiles(jeu, dt);
     majCapacites(jeu, dt);
+    majCompagnons(jeu, dt);
     majObjets(jeu, dt);
     majEffets(jeu, dt);
     majLargage(jeu, dt);
@@ -1209,12 +1220,12 @@
   function majObjets(jeu, dt) {
     for (let i = jeu.objets.length - 1; i >= 0; i--) {
       const o = jeu.objets[i]; o.age += dt;
-      if ((o.type === 'ferraille' && o.age > DUREE_FERRAILLE) || (o.type === 'bonus' && o.age > D.BONUS_CHANCE.dure)) { jeu.objets.splice(i, 1); continue; }
+      if (((o.type === 'ferraille' || o.type === 'flocon') && o.age > DUREE_FERRAILLE) || (o.type === 'bonus' && o.age > D.BONUS_CHANCE.dure)) { jeu.objets.splice(i, 1); continue; }
       let pris = null;
       for (const j of jeu.joueurs) {
         if (!j.vivant) continue;
         const dx = j.x - o.x, dz = j.z - o.z, d = Math.hypot(dx, dz);
-        if (o.type === 'ferraille') {
+        if (o.type === 'ferraille' || o.type === 'flocon') {
           if (d < aimant(j) || o.vole) { o.vole = true; const v = Math.min(d, (8 + o.age * 4) * dt); if (d > 1e-4) { o.x += dx / d * v; o.z += dz / d * v; } }
           if (d < 0.55) { pris = j; break; }
         } else if (o.type === 'soin') { if (d < 0.9 && j.vie < j.vieMax) { pris = j; break; } }
@@ -1224,8 +1235,47 @@
       jeu.objets.splice(i, 1);
       if (o.type === 'ferraille') { const v = o.valeur * (pris.effets && pris.effets.double > 0 ? 2 : 1); pris.ferraille += v; jeu.stats.ferraille += v; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: v, x: o.x, z: o.z }); }
       else if (o.type === 'bonus') appliquerBonus(jeu, pris, o.bonus, o.x, o.z);
+      else if (o.type === 'flocon') { pris.flocons = (pris.flocons || 0) + o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'flocon', valeur: o.valeur, x: o.x, z: o.z }); }
+      else if (o.type === 'cadeau') ouvrirCadeau(jeu, pris, o.x, o.z);
       else if (o.type === 'soin') { pris.vie = Math.min(pris.vieMax, pris.vie + o.valeur); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'soin', valeur: o.valeur }); }
       else if (o.type === 'caisse') { jeu.stats.caisses++; const a = ouvrirCaisse(jeu, pris, o.rare); ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'caisse', arme: a, rare: !!o.rare }); if (o.rare && o.valeur) { pris.ferraille += o.valeur; jeu.stats.ferraille += o.valeur; ev(jeu, { t: 'ramasse', id: pris.id, quoi: 'ferraille', valeur: o.valeur, x: o.x, z: o.z }); } }
+    }
+  }
+  // un cadeau de Noël : de la ferraille, un bonus ou des flocons (le second tirage)
+  function ouvrirCadeau(jeu, j, x, z) {
+    const L = D.NOEL.cadeaux; let r = jeu.rndB() * L.reduce((a, c) => a + c.poids, 0), C = L[0]; for (const c of L) { r -= c.poids; if (r <= 0) { C = c; break; } }
+    if (C.ferraille) { j.ferraille += C.ferraille; jeu.stats.ferraille += C.ferraille; }
+    if (C.flocons) j.flocons = (j.flocons || 0) + C.flocons;
+    ev(jeu, { t: 'cadeau', id: j.id, x, z, ferraille: C.ferraille || 0, flocons: C.flocons || 0, bonus: !!C.bonus });
+    if (C.bonus) appliquerBonus(jeu, j, tirerBonus(jeu), x, z);
+  }
+  // ─── les compagnons (Lot 5e) : ils suivent leur survivant (derrière lui), et l'aident à leur façon ───
+  function majCompagnons(jeu, dt) {
+    const fort = 1 + Math.max(0, jeu.vague - 1) * 0.08; // (leurs coups suivent la vague)
+    for (const c of jeu.compagnons || []) {
+      const j = trouverJoueur(jeu, c.de), C = D.COMPAGNONS[c.type]; if (!j || !C) continue;
+      c.t = Math.max(0, c.t - dt); c.attaque = Math.max(0, c.attaque - dt);
+      const hx = j.x - Math.cos(j.angle) * 1.3 + Math.cos(j.angle + Math.PI / 2) * 0.7, hz = j.z - Math.sin(j.angle) * 1.3 + Math.sin(j.angle + Math.PI / 2) * 0.7; // (sa place : derrière, un peu à côté)
+      const A = C.mord || C.picore || C.tire, vole = !!C.picore;
+      // sa cible : le zombie le plus proche de son survivant, à portée (en vue pour qui tire)
+      let cible = null;
+      if (A && j.vivant) { let best = A.portee * A.portee; for (const zb of jeu.zombies) { if (zb.vie <= 0 || zb.terre) continue; const d2 = (zb.x - j.x) ** 2 + (zb.z - j.z) ** 2; if (d2 < best && (!C.tire || jeu.monde.vue(c.x, c.z, zb.x, zb.z))) { best = d2; cible = zb; } } }
+      c.cible = cible ? cible.id : 0;
+      let tx = hx, tz = hz, v = C.mord ? C.mord.vitesse : 6;
+      if (cible && !C.tire) { tx = cible.x; tz = cible.z; }
+      const dx = tx - c.x, dz = tz - c.z, d = Math.hypot(dx, dz), portee = cible && !C.tire ? cible.rayon + 0.7 : 0.25;
+      if (d > 14) { c.x = hx; c.z = hz; } // (trop loin, coincé : il revient d'un coup près de son survivant)
+      else if (d > portee) { const k = Math.min(d - portee, v * dt) / d; c.x += dx * k; c.z += dz * k; c.bouge = 1; } else c.bouge = 0;
+      if (d > 0.05) c.a = Math.atan2(cible && C.tire ? cible.z - c.z : dz, cible && C.tire ? cible.x - c.x : dx);
+      if (!vole) { c.rayon = 0.3; jeu.monde.pousser(c); }
+      if (!cible || c.t > 0) continue;
+      const dc = Math.hypot(cible.x - c.x, cible.z - c.z);
+      if (C.tire ? dc < A.portee + 1 : dc < cible.rayon + 0.9) {
+        c.t = 1 / A.cadence; c.attaque = 0.25; const n = dc || 1;
+        if (C.givre) cible.gel = Math.max(cible.gel || 0, C.givre);
+        blesserZombie(jeu, cible, A.degats * fort, (cible.x - c.x) / n * (C.mord ? 0.6 : 0.15), (cible.z - c.z) / n * (C.mord ? 0.6 : 0.15), j.id, false);
+        ev(jeu, { t: 'compagnon', id: c.id, type: c.type, x: r2j(c.x), z: r2j(c.z), cx: r2j(cible.x), cz: r2j(cible.z) });
+      }
     }
   }
   // ─── le Lot 4 : les bonus, les leurres, le largage, les pièges ───

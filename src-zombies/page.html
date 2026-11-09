@@ -16,7 +16,7 @@
         <div class="logo"><span class="logo-1">DERNIER</span><span class="logo-2">REMPART</span></div>
         <p class="accroche">Tiens bon face aux vagues de zombies. Ramasse la ferraille, pose tes tourelles, et tire !</p>
         <div class="vitrine-place" aria-hidden="true"></div>
-        <div class="vitrine-boutons"><button type="button" class="vitrine-nom cap-chip" id="b-capacites"><span class="ico" aria-hidden="true"></span><b class="cap-nom">Frappe d’artillerie</b><small>Capacité et talents ›</small><i class="notif" hidden></i></button>
+        <div class="vitrine-boutons"><button type="button" class="vitrine-nom noel-chip" id="b-noel" hidden><span class="ico" aria-hidden="true">❄</span><b>Noël</b><small>la piste ›</small></button><button type="button" class="vitrine-nom cap-chip" id="b-capacites"><span class="ico" aria-hidden="true"></span><b class="cap-nom">Frappe d’artillerie</b><small>Capacité et talents ›</small><i class="notif" hidden></i></button>
         <button type="button" class="vitrine-nom" id="b-vitrine"><b class="vitrine-skin">Le Gardien</b><small>Changer de survivant ›</small></button></div>
       </div>
       <div class="titre-droite">
@@ -68,6 +68,7 @@
       <h2 class="fin-titre">Submergé !</h2>
       <p class="fin-record" hidden>Nouveau record !</p>
       <p class="fin-medailles"></p>
+      <p class="fin-noel" hidden></p>
       <div class="fin-pass" hidden><span class="fin-pass-t"></span><div class="prog-barre"><i></i></div></div>
       <p class="fin-defi" hidden></p>
       <p class="fin-attente" hidden>L’hôte peut relancer une partie : elle démarrera ici.</p>
@@ -132,7 +133,7 @@
   <section class="ecran collection-ecran" id="ecran-collection" hidden>
     <div class="carte-ecran collection">
       <div class="col-tete"><h2>Collection</h2><div class="medailles" id="col-medailles"></div></div>
-      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Armes</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
+      <div class="onglets col-onglets" role="tablist"><button type="button" role="tab" data-onglet="survivants">Survivants</button><button type="button" role="tab" data-onglet="finitions">Armes</button><button type="button" role="tab" data-onglet="compagnons">Compagnons</button><button type="button" role="tab" data-onglet="emotes">Émotes</button></div>
       <label class="champ col-armes" hidden><span>L’arme</span><select></select></label>
       <div class="col-liste"></div>
       <div class="pied"><button type="button" class="moyen" id="b-col-retour">Retour</button></div>
@@ -184,6 +185,17 @@
       <p class="resume">Une capacité par partie, sur le bouton à droite de la roulade. Plus tu t’en sers, plus son arbre s’ouvre : à chaque palier, garde un des deux talents.</p>
       <div class="tal-corps"><div class="tal-caps"></div><div class="tal-arbre"></div></div>
       <div class="pied"><button type="button" class="gros" id="b-capacites-ok">Retour</button></div>
+    </div>
+  </section>
+
+  <section class="ecran voile" id="ecran-noel" hidden>
+    <div class="carte-ecran noel">
+      <h2>Noël</h2>
+      <p class="resume noel-etat"></p>
+      <p class="noel-flocons"></p>
+      <div class="noel-barre"><i></i></div>
+      <ol class="noel-piste"></ol>
+      <div class="pied"><button type="button" class="gros" id="b-noel-ok">Retour</button></div>
     </div>
   </section>
 

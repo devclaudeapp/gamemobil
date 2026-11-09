@@ -270,6 +270,7 @@ const ZHUD = (() => {
       else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
       else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
       else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) toast(`${D.CAPACITES[e.cap].nom} !`);
+      else if (e.t === 'cadeau' && e.id === idMoi) toast(`Cadeau ! ${e.ferraille ? `+${e.ferraille} de ferraille` : e.flocons ? `+${e.flocons} flocons de Noël` : 'Un bonus'}`);
       else if (e.t === 'trainAlerte') annonce('TRAIN !', 'Dégage les voies', 2.2);
       else if (e.t === 'renverse' && e.id === idMoi) toast('Renversé par le train !');
       else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);

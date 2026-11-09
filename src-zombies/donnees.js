@@ -522,10 +522,43 @@
     camouflage: { nom: 'Camouflage', couleur: '#6B7A3A' }, rubis: { nom: 'Rubis', couleur: '#E0115F', lueur: 0.12 }, cuivre: { nom: 'Cuivre', couleur: '#C77B3A' },
     neon: { nom: 'Néon', couleur: '#39FF14', lueur: 0.5 }, ivoire: { nom: 'Ivoire', couleur: '#F2EBD9' }, emeraude: { nom: 'Émeraude', couleur: '#1FAA59', lueur: 0.12 },
     lave: { nom: 'Lave', couleur: '#FF5A1A', lueur: 0.45 }, spectre: { nom: 'Spectre', couleur: '#8FF0FF', lueur: 0.3, translucide: true }, arcenciel: { nom: 'Arc-en-ciel', couleur: '#FF0000', lueur: 0.25, arcenciel: true },
+    // (Noël, Lot 5e : hors de l'Ascension, gagnées sur la piste de Noël)
+    sucre: { nom: 'Sucre d’orge', couleur: '#E8344A', lueur: 0.1, noel: true }, guirlande: { nom: 'Guirlande', couleur: '#2EB85C', lueur: 0.4, noel: true },
   };
   const ORDRE_FINITIONS = ['or', 'onyx', 'givre', 'camouflage', 'rubis', 'cuivre', 'neon', 'ivoire', 'emeraude', 'lave', 'spectre', 'arcenciel'];
+  // ─── les compagnons (Lot 5e) : un animal (ou un robot) qui suit le survivant et l'aide, à prendre dans la Collection (médailles) ; intouchables.
+  // mord : il court mordre le zombie le plus proche (portee, degats par morsure, cadence) ; picore : il vole picorer, et rapporte la ferraille
+  // (aimant) ; tire : il tire sur le plus proche ; porteBonheur : des critiques en plus et des bonus qui tombent plus souvent ; givre : il gèle
+  // ce qu'il touche (le renne, la récompense de Noël)
+  const COMPAGNONS = {
+    chien:   { nom: 'Le Chien', desc: 'Il court mordre le zombie le plus proche.', prix: 30, couleur: '#B07A45', mord: { portee: 7, degats: 22, cadence: 1.4, vitesse: 6.5 } },
+    corbeau: { nom: 'Le Corbeau', desc: 'Il picore les zombies et te rapporte la ferraille de loin.', prix: 50, couleur: '#2E2E36', picore: { portee: 8, degats: 9, cadence: 2.2 }, aimant: 9 },
+    robot:   { nom: 'Le Petit robot', desc: 'Il flotte à côté de toi et tire sur le plus proche.', prix: 80, couleur: '#7FA8C8', tire: { portee: 9, degats: 11, cadence: 2.5 } },
+    chat:    { nom: 'Le Chat porte-bonheur', desc: 'Plus de coups critiques, et des bonus qui tombent plus souvent.', prix: 60, couleur: '#F2A65A', porteBonheur: { critique: 0.06, bonus: 1.8 } },
+    renne:   { nom: 'Le Renne de Noël', desc: 'Il charge les zombies et les gèle. La récompense de Noël.', noel: 250, couleur: '#A0703A', mord: { portee: 7, degats: 18, cadence: 1.2, vitesse: 7 }, givre: 1.5 },
+  };
+  const ORDRE_COMPAGNONS = ['chien', 'corbeau', 'chat', 'robot', 'renne'];
+  // ─── Noël (Lot 5e) : du 1er décembre au 6 janvier (heure de Paris). La neige tombe, les zombies portent un bonnet, ils lâchent des flocons et
+  // parfois un cadeau (de la ferraille, un bonus, des flocons) ; les flocons ouvrent la piste de Noël (paliers : flocons à cumuler)
+  const NOEL = {
+    debut: [12, 1], fin: [1, 6], flocon: 0.12, elite: 3, cadeau: 0.025,
+    cadeaux: [{ ferraille: 20, poids: 4 }, { bonus: true, poids: 3 }, { flocons: 8, poids: 3 }],
+    piste: [
+      { flocons: 40, finition: 'sucre', texte: 'La finition Sucre d’orge (toutes les armes)' },
+      { flocons: 100, emote: 'hohoho', texte: 'L’émote « Ho ho ho ! »' },
+      { flocons: 170, medailles: 60, texte: '60 médailles' },
+      { flocons: 250, compagnon: 'renne', texte: 'Le Renne de Noël, compagnon' },
+      { flocons: 400, finition: 'guirlande', texte: 'La finition Guirlande (toutes les armes)' },
+    ],
+  };
+  // Noël est-il là ? (une date, son mois et son jour à Paris)
+  function noelActif(date) {
+    let m, j; try { const p = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', month: 'numeric', day: 'numeric' }).formatToParts(date || new Date()); m = +p.find((x) => x.type === 'month').value; j = +p.find((x) => x.type === 'day').value; } catch (e) { const d = date || new Date(); m = d.getMonth() + 1; j = d.getDate(); }
+    return m === 12 || (m === 1 && j <= NOEL.fin[1]);
+  }
   // les émotes (une bulle au-dessus du survivant, vue des copains en coop) ; prix : au Vestiaire (sans prix : dès le départ)
   const EMOTES = {
+    hohoho: { nom: 'Ho ho ho !', signe: '🎅', noel: 100 },
     pouce: { nom: 'Bien joué', signe: '👍' }, rire: { nom: 'Mort de rire', signe: '😂' }, parici: { nom: 'Par ici !', signe: '📍' }, aide: { nom: 'À l’aide !', signe: '🆘' },
     peur: { nom: 'Au secours', signe: '😱', prix: 15 },
     fete: { nom: 'La fête', signe: '🎉', pass: 25 }, fantome: { nom: 'Bouh !', signe: '👻', pass: 50 }, zombie: { nom: 'Grrr', signe: '🧟', pass: 75 }, coupe: { nom: 'Champion', signe: '🏆', pass: 100 }, feu: { nom: 'En feu', signe: '🔥', prix: 15 }, crane: { nom: 'Trop facile', signe: '💀', prix: 25 }, coeur: { nom: 'Merci', signe: '❤️', prix: 25 },
@@ -555,5 +588,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { TRAIN, PHARMACIE, BARBELES, CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { COMPAGNONS, ORDRE_COMPAGNONS, NOEL, noelActif, TRAIN, PHARMACIE, BARBELES, CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });

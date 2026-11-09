@@ -151,7 +151,7 @@ const FAUX = `window.supabase = { createClient: function () { return { rpc: asyn
   const fins = await P(() => [...document.querySelectorAll('[data-fin]')].map((b) => b.querySelector('.nom').textContent));
   await page.tap('[data-fin="onyx"]'); await sleep(200); await page.tap('[data-fin="givre"]'); await sleep(200);
   const c2 = await P(() => window.__zombies.save.collection.parArme);
-  check(fins.includes('Or') && fins.includes('Onyx') && fins.filter((f) => f === '???').length === 10 && c2.revolver === 'onyx', `les finitions : 2 gagnées à l’Ascension, 10 secrètes ; Onyx sur le revolver (${JSON.stringify(c2)})`);
+  check(fins.includes('Or') && fins.includes('Onyx') && fins.filter((f) => f === '???').length === 12 && c2.revolver === 'onyx', `les finitions : 2 gagnées à l’Ascension, 12 secrètes (dont les 2 de Noël) ; Onyx sur le revolver (${JSON.stringify(c2)})`);
   await page.tap('[data-onglet="emotes"]'); await sleep(200); await page.tap('[data-emo="feu"]'); await sleep(200);
   check(await P(() => window.__zombies.save.collection.emotes.includes('feu') && window.__zombies.save.meta.medailles === 65), 'acheter l’émote « En feu » (15 médailles)');
   await page.tap('#b-col-retour'); await sleep(300);

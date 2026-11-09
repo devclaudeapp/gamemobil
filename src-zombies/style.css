@@ -759,3 +759,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cap-chip .notif { left: auto; right: -4px; top: -4px; }
 @media (orientation: landscape) and (max-height: 400px) { .cap-chip .ico { width: 28px; height: 28px; } .cap-chip .ico svg { width: 20px; height: 20px; } .cap-chip { padding: 3px 10px 3px 4px; } }
 @media (orientation: landscape) and (max-height: 430px) { .talents .resume { display: none; } .talents h2 { margin-bottom: 2px; } }
+/* ─── Lot 5e : Noël (la pastille du titre, l'écran de la piste, la ligne de fin), les compagnons de la Collection ─── */
+.noel-chip { position: relative; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; padding: 4px 12px 4px 5px; background: linear-gradient(#FFF6F0, #FBE4DC); }
+.noel-chip .ico { grid-row: 1 / span 2; width: 32px; height: 32px; border-radius: 50%; background: #D8283A; color: #fff; display: grid; place-items: center; font-size: 18px; border: 2px solid var(--encre); }
+.noel-chip b { font-size: 14px; color: #B81E30; } .noel-chip small { font-size: 11px; }
+.noel { width: min(620px, 100%); }
+.noel h2 { color: #B81E30; }
+.noel-flocons { margin: 0; font: 700 15px/1.2 var(--titre); text-align: center; }
+.noel-barre { height: 10px; border-radius: 5px; background: #E2DED4; overflow: hidden; } .noel-barre i { display: block; height: 100%; background: linear-gradient(90deg, #2EB85C, #D8283A); }
+.noel-piste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.noel-piste li { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: rgba(31, 37, 51, .06); }
+.noel-piste b { font: 700 16px/1 var(--titre); text-align: center; color: #5A5F6B; } .noel-piste span { font: 600 13px/1.25 var(--texte); } .noel-piste small { font: 700 11px/1 var(--texte); color: #8A8F9A; white-space: nowrap; }
+.noel-piste li.recu { background: #E6F5EA; } .noel-piste li.recu b, .noel-piste li.recu small { color: #2E9446; }
+.fin-noel { margin: 0; font: 700 13px/1.25 var(--texte); color: #B81E30; text-align: center; }
+.col-carte .comp-desc { font-size: 10.5px; line-height: 1.2; color: #6A6F7A; }
+@media (orientation: landscape) and (max-height: 430px) { .noel .resume { display: none; } .noel-piste li { padding: 4px 8px; } }
+.noel-piste span { text-align: left; }
