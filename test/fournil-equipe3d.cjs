@@ -342,9 +342,12 @@ function mesurerAura() {
       return { base, out, n: Object.keys(O).length };
     });
     const nonBase = P.out.filter((x) => !x.base), sigs = new Set(nonBase.map((x) => x.sig));
-    check(P.n === 59 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
+    check(P.n === 63 && P.out.every((x) => x.forme), `les ${P.n} pièces : chacune son kit, de sa forme (${P.out.filter((x) => !x.forme).map((x) => `${x.id} → ${x.kit}`).join(', ') || 'toutes'})`);
     check(nonBase.every((x) => x.sig !== P.base.sig) && sigs.size === nonBase.length && P.out.filter((x) => x.base).every((x) => x.sig === P.base.sig), `chaque pièce portée change le maillage : ${nonBase.length} maillages tous différents, et de la tenue de base (les trois pièces de base la redonnent)`);
     console.log(`        les kits : ${P.out.map((x) => `${x.id} ${x.kit} (${x.tris})`).join(' · ')}`);
+    { // le point 7 : la tenue de Noël du calendrier de l'Avent, ses kits à elle (le pull aux flocons, l'écharpe rayée, les chaussons de feutre ; le bonnet du Marché, recoloré)
+      const k = (id) => (P.out.find((x) => x.id === id) || { kit: '' }).kit;
+      check(k('avent-bonnet') === 'T|bonnet' && k('avent-pull') === 'H|sweat|flocons' && k('avent-chaussons') === 'P|pieds|chaussons' && k('avent-echarpe') === 'A|foulard|rayee', `la tenue de Noël : ${['avent-bonnet', 'avent-pull', 'avent-chaussons', 'avent-echarpe'].map((id) => `${id} → ${k(id)}`).join(', ')}`); }
     // la tenue de la chaîne : la palette TENUES.chaine (celle des chibis aussi), la veste de patron (pas un tablier), le trousseau à la ceinture
     const C = await ev(() => { const h = EQUIPE3D.habitBoulanger(2, { cle: 'chaine-toque|chaine-veste|chaine-souliers|chaine-cles' }, 'Au Fournil du Village'), pal = EQUIPE3D.palette(h), R = EQUIPE3D.ROLES, c = new THREE.Color(PERSOS.TENUES.chaine.tissu), egal = (x) => !!x && Math.abs(x[0] - c.r) + Math.abs(x[1] - c.g) + Math.abs(x[2] - c.b) < 1e-4; return { veste: egal(pal.couleurs[R.indexOf('veste')]), toque: egal(pal.couleurs[R.indexOf('T.tissu')]), haut: h.haut, acc: h.acc, pieds: h.pieds, chibi: PERSOS.TENUES.chaine.tissu, icone: typeof ICONS !== 'undefined' && ICONS.TENUES ? (ICONS.TENUES.chaine || [])[0] : PERSOS.TENUES.chaine.tissu, kits: EQUIPE3D.kitsDe(h).map((k) => k[1] + '|' + k[0]) }; });
     check(C.veste && C.toque && C.haut === 'veste' && C.acc === 'cles' && C.pieds === 'souliers' && C.icone === C.chibi && C.kits.includes('H|veste') && C.kits.includes('A|cles') && C.kits.some((k) => k.startsWith('T|toque|chaine|')), `la tenue de la chaîne : la palette TENUES.chaine (${C.chibi}, la même pour les chibis et les icônes), la toque à galon, la veste de patron, les souliers vernis, le trousseau (${C.kits.join(', ')})`);
@@ -354,7 +357,7 @@ function mesurerAura() {
     const ids = await ev(() => Object.values(window.__fournil.G.GARDEROBE.objets).map((v) => [v.id, v.piece, v.collection]));
     const parPiece = (p) => ids.filter((x) => x[1] === p).map((x) => x[0]), BASE = ['toque-blanche', 'tablier-blanc', 'sabots', ''], liste = [];
     for (const [id, p] of ids) { const t = BASE.slice(); t[['tete', 'haut', 'pieds', 'accessoire'].indexOf(p)] = id; liste.push([...t, 5]); }
-    const ENSEMBLES = ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine', 'marche', 'marche-or', 'automne'];
+    const ENSEMBLES = ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or', 'parcours', 'chaine', 'marche', 'marche-or', 'automne', 'avent'];
     for (const c of ENSEMBLES) liste.push([...['tete', 'haut', 'pieds', 'accessoire'].map((p) => (ids.find((x) => x[2] === c && x[1] === p) || [''])[0]), 5]);
     let graine = 20261027; const hasard = (n) => { graine = (Math.imul(graine, 1664525) + 1013904223) >>> 0; return Math.floor(graine / 4294967296 * n); };
     for (let k = 0; k < 30; k++) { const t = ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const l = parPiece(p).concat(p === 'accessoire' ? [''] : []); return l[hasard(l.length)]; }); liste.push([...t, hasard(6)]); }

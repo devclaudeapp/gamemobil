@@ -24,7 +24,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const PAYANTS = ['poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon'];
 const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'chauve-souris'].concat(PAYANTS);
-const PALIERS = ['paon', 'renard']; // les compagnons rares des paliers au-delà de la n°30 (lot « progression » : GAME.COMPAGNONS, palier k), sans bonus
+const PALIERS = ['paon', 'renard'];
+const AVENT_C = ['renne']; // le petit renne « Grelot » (le calendrier de l'Avent, la case du 6 décembre : AVENT.possede), point 7 // les compagnons rares des paliers au-delà de la n°30 (lot « progression » : GAME.COMPAGNONS, palier k), sans bonus
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
@@ -51,8 +52,9 @@ const PALIERS = ['paon', 'renard']; // les compagnons rares des paliers au-delà
   let f = await feuille();
   const cartes = await ev(() => [...document.querySelectorAll('#feuille-contenu [data-cp]')].map((c) => ({ id: c.dataset.cp, txt: c.innerText, svg: !!c.querySelector('.cp-ico svg'), acheter: !!c.querySelector('[data-cp-acheter]'), choisir: !!c.querySelector('[data-cp-choisir]'), non: !!c.querySelector('[data-cp-acheter].non') })));
   // (le pigeon voyageur, « Ma chaîne de boutiques » : une carte de plus, verrouillée, gagnée en jetons de chaîne ; il n'est pas de la ronde ci-dessous)
-  check(/Les compagnons/.test(f) && cartes.length === TOUS.length + PALIERS.length + 1 && cartes.every((c) => c.svg), `la grille : ${cartes.length} compagnons, chacun sa vignette, son nom et sa phrase (le pigeon de la chaîne, les deux des paliers et l’écureuil du Marché d’automne en plus ; le chien du quartier, pas gagné, n’y est pas : le Quartier est écarté)`);
+  check(/Les compagnons/.test(f) && cartes.length === TOUS.length + PALIERS.length + AVENT_C.length + 1 && cartes.every((c) => c.svg), `la grille : ${cartes.length} compagnons, chacun sa vignette, son nom et sa phrase (le pigeon de la chaîne, les deux des paliers, le renne de l’Avent et l’écureuil du Marché d’automne en plus ; le chien du quartier, pas gagné, n’y est pas : le Quartier est écarté)`);
   const carte = (id) => cartes.find((c) => c.id === id) || { txt: '' };
+  check(/Petit renne/.test(carte('renne').txt) && /Gagné au calendrier de l’Avent/.test(carte('renne').txt) && /La case du 6 décembre/.test(carte('renne').txt) && !carte('renne').choisir && !carte('renne').acheter, 'le petit renne : « Gagné au calendrier de l’Avent », verrouillé (« La case du 6 décembre »), ni à vendre ni à choisir');
   check(/Ma chaîne/.test(carte('pigeon').txt) && /jetons de chaîne/.test(carte('pigeon').txt) && !carte('pigeon').choisir && !carte('pigeon').acheter, 'le pigeon voyageur : « Gagné dans « Ma chaîne » », 120 jetons de chaîne, pas encore à soi (ni Choisir, ni Acheter)');
   check(['chat-roux', 'chien', 'lapin'].every((id) => /Gratuit/.test(carte(id).txt) && carte(id).choisir) && /Gagné à la Maison hantée/.test(carte('chat-noir').txt) && !carte('chat-noir').choisir && !cartes.some((c) => c.id === 'chien-quartier') && !/Quartier/.test(f) && /Gagnée au bestiaire du Manoir/.test(carte('chauve-souris').txt) && /Les neuf monstres du bestiaire/.test(carte('chauve-souris').txt) && !carte('chauve-souris').choisir && !carte('chauve-souris').acheter,
     '« Gratuit » (Choisir) pour le chat roux, le chien et le lapin ; « Gagné à la Maison hantée » pour le chat noir, pas de chien du quartier à gagner (le Quartier écarté), « Gagnée au bestiaire du Manoir » (les neuf monstres) pour la chauve-souris, pas encore à soi');
@@ -101,8 +103,9 @@ const PALIERS = ['paon', 'renard']; // les compagnons rares des paliers au-delà
   await ev(() => { const F = window.__fournil, q = F.Q.etat(F.st, HORLOGE.maintenant()); F.Q.gagner(q, F.Q.PALIERS[10].total); for (const p of F.Q.paliersDus(q)) F.Q.marquerPalier(q, p.n); F.save(); }); // le palier 11 du Quartier : le chien du quartier
   await ev(() => { const F = window.__fournil, q = F.HT.etat(F.st, HORLOGE.maintenant()); for (const k of F.HT.SORTES) q.bestiaire[k] = 10; F.HT.bestiaireDus(q); F.HT.verserBestiaire(q); F.save(); }); // le bestiaire du Manoir complet : la chauve-souris
   await ev(() => { const f = window.__fournil; for (let k = 1; k <= 6; k++) f.G.donnerPalier(f.st, k); f.save(); }); // les paliers 1 à 6 (n°40 à 90) : le paon et le renard argenté
-  const RONDE = TOUS.concat(PALIERS);
-  check(await ev((ids) => ids.every((id) => window.__fournil.G.aCompagnon(window.__fournil.st, id)), RONDE), `les ${RONDE.length} à soi (le chat noir, le chien du quartier et la chauve-souris gagnés, les payants achetés, le paon et le renard gagnés aux paliers)`);
+  await ev(() => { const f = window.__fournil; f.st.avent = { v: 1, id: 'avent-2026', o: 2 ** 5, r: '' }; f.save(); }); // la case du 6 ouverte : le renne (lu sur le masque, à vie)
+  const RONDE = TOUS.concat(PALIERS, AVENT_C);
+  check(await ev((ids) => ids.every((id) => window.__fournil.G.aCompagnon(window.__fournil.st, id)), RONDE), `les ${RONDE.length} à soi (le chat noir, le chien du quartier et la chauve-souris gagnés, les payants achetés, le paon et le renard gagnés aux paliers, le renne à la case du 6 décembre)`);
   await ev(() => window.__fournil.scene({ chat: 'assis' }));
   const tour = async () => { const res = []; for (const id of RONDE) { await ev((i) => window.__fournil.choisirCompagnon(i), id); await sleep(260); res.push(await vu()); } return res; };
   const vus1 = await tour(), st1 = await ev(() => window.__fournil.stats()), cache1 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length); // seulement les géométries des animaux (les clients qui passent en ajoutent d'autres)
@@ -115,7 +118,7 @@ const PALIERS = ['paon', 'renard']; // les compagnons rares des paliers au-delà
   check(st2.calls <= 160, `le budget d’appels de dessin de la boutique tient (${st2.calls})`);
   { // l'animation n'alloue rien : le profileur d'allocations de Chromium, objets ramassés compris, sur 18 animaux × 5 états
     const cdp = await ctx.newCDPSession(page);
-    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'chauve-souris', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon', 'pigeon', 'paon', 'renard'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % cs.length]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(60000); });
+    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'chauve-souris', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon', 'pigeon', 'paon', 'renard', 'renne'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % cs.length]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(60000); });
     await cdp.send('HeapProfiler.enable');
     // jusqu'à cinq mesures (dix-huit animaux, une machine chargée : l'optimiseur peut tarder), la plus basse compte : une allocation par appel se verrait à chaque fois (65 000 appels × quelques octets = des
     // centaines de Ko), alors qu'un coût unique du moteur (une fonction réoptimisée, ses vecteurs de rétroaction) ne tombe que dans une mesure

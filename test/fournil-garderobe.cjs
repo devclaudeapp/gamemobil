@@ -149,7 +149,10 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
     ['le mélange relu de la sauvegarde (toque de bronze, sweat du quartier, lunettes)', null, 'bronze', { tete: 'toque', haut: 'sweat', pieds: 'baskets', acc: null, lunettes: true }, '09b-3d-equipe-melange'],
     ['la tenue d’or', 'or', 'or', { tete: 'toque', haut: 'tablier', pieds: 'chaussures', acc: 'foulard', lunettes: false }, '09c-3d-equipe-tenue-or'],
     ['la tenue du quartier', 'quartier', null, { tete: 'casquette', haut: 'sweat', pieds: 'baskets', acc: 'chaine', lunettes: false }, '09d-3d-equipe-tenue-quartier'],
+    // le point 7 : la tenue de Noël du calendrier de l'Avent (cosmétique : le bonnet rouge, le pull aux flocons, les chaussons, l'écharpe rayée) et l'aura des flocons
+    ['la tenue de Noël (le calendrier de l’Avent) et l’aura des flocons', 'avent', null, { tete: 'bonnet', haut: 'sweat', pieds: 'chaussures', acc: 'foulard', lunettes: false }, '09e-3d-equipe-tenue-noel'],
   ]) {
+    if (coll === 'avent') await p.evaluate(() => { const f = window.__fournil; f.G.donnerCollection(f.st, 'avent'); f.G.donnerAura(f.st, 'flocons'); f.G.porterAura(f.st, 'flocons'); });
     if (coll) await p.evaluate((c) => { const f = window.__fournil; f.G.equiperCollection(f.st, c); f.rafraichir(); }, coll);
     let r = await b3d(); await attendre(async () => { r = await b3d(); return r.en3d && r.tenue.endsWith('|' + r.cle); });
     check(r.en3d && r.tenue.endsWith('|' + r.cle) && JSON.stringify(r.formes) === JSON.stringify(formes) && r.vue === metal && r.mailles === 1 + (r.aura ? 1 : 0) && r.m === r.mailles, `le boulanger 3D, ${nom} : la tenue de la garde-robe (${r.tenue}), ses formes (${r.formes ? [r.formes.tete, r.formes.haut, r.formes.pieds, r.formes.acc, r.formes.lunettes ? 'lunettes' : ''].filter(Boolean).join(', ') : 'aucune'}), la toque vue des autres : ${r.vue || 'aucune de podium'} ; ${r.m} maillage(s) (un appel de dessin${r.aura ? ', plus l’aura' : ''})`);
