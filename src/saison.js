@@ -82,7 +82,7 @@
   // ─── l'état ───
   const entier = (x) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
   const objet = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
-  const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0, a: 0 }); // a : les ouvertures d'un lecteur du jour (l'Avent)
+  const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0, a: 0 }); // a : ce que les lecteurs de la fiche ont compté aujourd'hui (une fiche n'en a qu'un : l'Avent, ses cases ouvertes)
   function neuve(id, passees) { return { v: 1, id: id || '', xp: 0, recus: 0, titre: 0, j: jVide(''), sem: '', veille: '', ev: {}, passees: passees || {}, dus: null }; }
   // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé comptera au premier pas, la même règle pour tous (j vide :
   // les objectifs du jour ; ev à 0 : les paliers reçus ; sem vide : le défi de cette semaine, comme outils/marche/saison.js, qui a réglé la

@@ -65,7 +65,7 @@ check(new Set(bits).size === bits.length && bits.every((b, k) => b === k) && A.T
 { const s = neuf(); s.lifetime = 1e9; s.boutiques = 3; s.etoiles = 5; s.xp = 1e6; s.stations[0].niv = 10;
   for (const t of [0, 1, 2, 3]) { s.tuto = t; if (G.deblocagesDus(s).length) check(false, `tuto ${t} : rien ne s'ouvre`); }
   check(G.deblocagesDus(s).length === 0, 'deblocagesDus vide tant que tuto < 4');
-  s.tuto = 4; const d = G.deblocagesDus(s, { chaine: 1 }); check(d.join() === ids.filter((x) => x !== 'garderobe').join(), `tuto 4 : tout ce qui est atteint, dans l’ordre (${d.join()})`);
+  s.tuto = 4; const d = G.deblocagesDus(s, { chaine: 1 }); check(d.join() === ids.filter((x) => x !== 'garderobe' && x !== 'avent').join(), `tuto 4 : tout ce qui est atteint, dans l’ordre (${d.join()} ; l’Avent attend sa fenêtre, du 1er au 31 décembre)`);
   check(G.marquerDeblocage(s, 'atelier') && !G.marquerDeblocage(s, 'atelier') && !G.deblocagesDus(s).includes('atelier') && G.accueilOuvert(s, 'atelier') && !G.accueilOuvert(s, 'classement'), 'marquerDeblocage pose le bit une fois ; accueilOuvert le lit');
   s.accueil.t = 1; check(G.deblocagesDus(s).length === 0 && G.accueilOuvert(s, 'classement'), 't 1 : rien de dû, tout ouvert'); }
 { const s = neuf(); s.tuto = 4; check(G.deblocagesDus(s).join() === 'defis', 'premiers pas finis : seulement les Défis');

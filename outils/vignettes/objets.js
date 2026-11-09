@@ -95,7 +95,7 @@ const VIG = (() => {
 
   // ═══ le catalogue : les familles du carnet (src/chaine.js, avec celles de l'arrière-salle), ce qui a une vignette, et comment la bâtir ═══
   const FAB = {
-    quartier: deco, hantee: deco, podium: deco, chaine: deco, palier: deco, marche: deco, 'piste-automne': deco, compagnons: compagnon, saison, tenues: tenue, // (palier : les décos rares des paliers, lot « progression » ; marche, piste-automne : le Marché d'automne et sa saison)
+    quartier: deco, hantee: deco, podium: deco, chaine: deco, palier: deco, marche: deco, 'piste-automne': deco, avent: deco, 'piste-hiver': deco, compagnons: compagnon, saison, tenues: tenue, // (palier : les décos rares des paliers, lot « progression » ; marche, piste-automne : le Marché d'automne et sa saison ; avent, piste-hiver : le calendrier de l'Avent et la saison d'hiver)
     trophees: (id) => OBJ.trophee(id), 'casino-trophees': (id) => OBJ.tropheeCasino(id), 'casino-skins': (id) => OBJ.skin(id),
   };
   const SANS = { titres: 'pas d’objet 3D : l’icône des titres', cartes: 'pas d’objet 3D : l’icône des cartes postales' };

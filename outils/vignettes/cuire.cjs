@@ -4,7 +4,7 @@
 // 512 × 512, réduit à 256 × 256 et écrit en webp dans fournil/img/carnet/<famille>/<id>.webp. Puis src/vignettes.js (la table du jeu : chaque
 // vignette et l'empreinte de son fichier), et une planche de contrôle (toutes les vignettes par famille, en grand, à 64 px et à 44 px).
 // usage : NODE_PATH=…/node_modules node outils/vignettes/cuire.cjs [--port 9711] [--seulement "quartier/neon,compagnons/*"] [--brut dossier]
-//         [--planche fichier.png] [--qualite 70] [--sans-planche]
+//         [--planche fichier.png] [--qualite 50] [--alpha 65] [--sans-planche]
 // Il faut Playwright et son Chromium, et sharp (NODE_PATH, ou --modules dossier/node_modules) : voir outils/vignettes/README.md.
 // Relançable : la même entrée donne les mêmes fichiers, octet pour octet (le rendu logiciel SwiftShader, aucun hasard, aucune horloge).
 'use strict';
@@ -17,12 +17,12 @@ const ROOT = path.resolve(__dirname, '../..'), PORT = +val('--port', 9711);
 const SORTIE = path.join(ROOT, 'fournil', 'img', 'carnet'), TABLE = path.join(ROOT, 'src', 'vignettes.js');
 const BRUT = path.resolve(val('--brut', path.join(os.tmpdir(), 'vignettes-brut'))); fs.mkdirSync(BRUT, { recursive: true });
 const PLANCHE = path.resolve(val('--planche', path.join(BRUT, 'planche.png')));
-const COTE = 256, QUALITE = +val('--qualite', 70), QUALITE_ALPHA = 80; // (le côté final ; la qualité webp, réglée pour la lisibilité à 44 et 64 px : voir le README)
-// le budget de 1,5 Mo (test/fournil-vignettes.test.js) : les vignettes arrivées avec le Marché d'automne et sa saison (ses deux familles, ses
-// treize pièces, l'aura des feuilles d'or, l'écureuil) sont cuites à la qualité 55, l'alpha à 72 (sans différence visible à 44 et 64 px), les
-// autres gardent les leurs (leurs fichiers ne changent pas) ; --qualite force la même qualité pour toutes
-const MARCHE_AUTOMNE = (fam, id) => fam === 'marche' || fam === 'piste-automne' || (fam === 'tenues' && /^(marche-|automne-|aura-feuilles$)/.test(id)) || (fam === 'compagnons' && id === 'ecureuil');
-const qualiteDe = (fam, id) => (val('--qualite') ? QUALITE : MARCHE_AUTOMNE(fam, id) ? 55 : QUALITE), alphaDe = (fam, id) => (!val('--qualite') && MARCHE_AUTOMNE(fam, id) ? 72 : QUALITE_ALPHA);
+// le côté final ; la qualité webp, réglée pour la lisibilité à 44 et 64 px (voir le README). Le budget de 1,5 Mo (test/fournil-vignettes.test.js)
+// devant les objets de Noël (docs/noel-contrat.md § 9.3, choix du joueur du 9 novembre) : TOUT le carnet recuit à la qualité 50, l'alpha à 65
+// (≈ 5,4 Ko la vignette au lieu de 8,2 en 70/80 ; sans différence visible à 44 et 64 px, vérifié sur la planche), les nouvelles pareil.
+// (Avant : 70/80, et 55/72 pour celles du Marché d'automne et de sa saison.) --qualite q [--alpha a] force d'autres réglages pour toutes
+const COTE = 256, QUALITE = +val('--qualite', 50), QUALITE_ALPHA = +val('--alpha', 65);
+const qualiteDe = () => QUALITE, alphaDe = () => QUALITE_ALPHA;
 const PLAFOND = 12 * 1024; // (12 Ko par vignette au plus : au-delà, l'alpha descend d'un cran à la fois, puis la qualité, jusqu'au premier réglage qui tient)
 const encoder = (png, q, a) => sharp(png).resize(COTE, COTE, { kernel: 'lanczos3' }).webp({ quality: q, alphaQuality: a, effort: 6, smartSubsample: true }).toBuffer();
 const filtre = val('--seulement') ? val('--seulement').split(',').map((s) => s.trim()).filter(Boolean) : null;
@@ -59,7 +59,7 @@ const empreinte = (buf) => crypto.createHash('sha1').update(buf).digest('hex').s
     fs.writeFileSync(path.join(BRUT, x.famille, x.id + '.png'), png);
     // (une lueur, une toile fine : c'est l'alpha qui pèse ; quelques crans de moins ne se voient pas, même à 256 px)
     const q0 = qualiteDe(x.famille, x.id), a0 = alphaDe(x.famille, x.id); let q = q0, a = a0, webp = await encoder(png, q, a);
-    while (webp.length > PLAFOND && (a > 60 || q > 50)) { if (a > 60) a--; else q--; webp = await encoder(png, q, a); }
+    while (webp.length > PLAFOND && (a > 50 || q > 40)) { if (a > 50) a--; else q--; webp = await encoder(png, q, a); }
     if (webp.length > PLAFOND) erreurs.push(`${x.famille}/${x.id} : ${webp.length} octets, plus de 12 Ko même à la qualité ${q}, alpha ${a}`);
     fs.writeFileSync(path.join(dir, x.id + '.webp'), webp);
     mesures.push({ famille: x.famille, id: x.id, octets: webp.length, qualite: q, alpha: a, cadre: r.cadre });

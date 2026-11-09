@@ -36,6 +36,16 @@ const AUTOMNE = [
   [['cagettes', 's1'], ['lampions', 'r1'], ['feuilles', 's3'], ['album', 'm4'], ['toque-feuille', 'm3'], ['arbre-or', 's2']],
   [['tonneau', 's2'], ['lampions', 'r2'], ['album', 'm1'], ['lanterne-automne', 'c2'], ['couronne-feuilles', 'm2']],
 ];
+// le point 7 (docs/noel-contrat.md § 7.1) : les cinq décos du calendrier de l'Avent et les sept de la saison d'hiver (posées seulement), en cinq
+// dispositions (chacune à une place de son type ; une seule sur le comptoir de la capitale)
+const NOEL_L1 = [
+  [['couronne-avent', 'c2'], ['chaussettes', 'r1'], ['bonhomme-neige', 's1'], ['cheminee', 'm1'], ['patins', 'm3'], ['guirlande-givre', 'r2']],
+  [['village-noel', 'c2'], ['luge', 's3'], ['traineau', 's1'], ['patins', 'm4'], ['cheminee', 'm2'], ['chaussettes', 'r2']],
+  [['boule-neige', 'c2'], ['bonhomme-neige', 's2'], ['guirlande-givre', 'r1'], ['patins', 'm1']],
+  [['lanterne-givre', 'c2'], ['traineau', 's3'], ['cheminee', 'm3'], ['luge', 's1']],
+  [['trophee-hiver-2026', 'c2'], ['bonhomme-neige', 's3'], ['chaussettes', 'r1'], ['patins', 'm2'], ['cheminee', 'm4']],
+];
+const LUEURS_NOEL = ['couronne-avent', 'village-noel', 'lanterne-givre', 'guirlande-givre', 'cheminee']; // (celles qui ont une lueur : 2 appels posées seules)
 // les 15 décos neuves, en cinq dispositions (chacune à une place de son type ; une seule sur le comptoir : la capitale y a ses fleurs, en c1)
 const NEUVES = [
   [['souvenir-village', 'c2'], ['souvenir-paris', 's1'], ['souvenir-mer', 'r1'], ['souvenir-montagne', 'm1'], ['souvenir-ville', 'r2'], ['souvenir-gare', 'm4']],
@@ -209,6 +219,24 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     }
     await ev(() => window.__fournil.scene({ heure: 18.5, saison: [] })); await poser(ev, AUTOMNE[0]); await sleep(800); await capture(page, 'automne-1-eco-390-soir.png'); await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
 
+    console.log('── les douze décos de l’Avent et de la saison d’hiver, posées ──');
+    const triN = await ev((ids) => ids.map((id) => { const x = MEUBLES.DECOS[id], d = x.faire({ LAY: VIE.LAY, K: VIE.K, W: VIE.LAY.W, wz: (y) => y, wy: (y) => y, wd: (y) => y }, VIE.LAY.decos.find((p) => p.type === x.type), {}), n = (p) => (p ? (p.geo.index ? p.geo.index.count : p.geo.attributes.position.count) / 3 : 0); let t = 0; for (const p of d.fixe) t += n(p); for (const v of d.vifs) for (const p of v.pr) t += n(p); return [id, Math.round(t), d.vifs.length, d.vifs.filter((v) => v.emi).length]; }), [...new Set(NOEL_L1.flat().map((x) => x[0]))]);
+    check(triN.length === 12 && triN.every(([id, t, v, e]) => t > 0 && t <= 3000 && v <= 1 && (e === 1) === LUEURS_NOEL.includes(id)) && (await ev(() => Object.keys(MEUBLES.DECOS_AVENT).length + Object.keys(MEUBLES.DECOS_HIVER).length)) === 12, `12 décos procédurales (≤ 3 000 triangles ; une part vive, la lueur, pour ${LUEURS_NOEL.join(', ')} ; aucune pour les autres) : ${triN.map(([id, t, v]) => `${id} ${t}${v ? ' (lueur)' : ''}`).join(', ')} triangles`);
+    { const seules = []; // chacune seule, à une place de son type : fondue dans les deux maillages des petits décors (aucun appel de plus), dans sa place
+      for (const id of triN.map((x) => x[0])) { const pl = NOEL_L1.flat().find((x) => x[0] === id)[1]; await poser(ev, [[id, pl]]); const a1 = await appels(ev), ko1 = await enPlace(ev); if (a1.decos > 2 || ko1.length) seules.push(`${id}@${pl} : ${a1.decos} appels ${ko1.join(' | ')}`); }
+      check(!seules.length, `chacune posée seule : fusionnée avec les petits décors (2 appels en tout, petits et lueurs), dans sa place ${seules.join(' ; ')}`); }
+    for (let k = 0; k < NOEL_L1.length; k++) {
+      await poser(ev, NOEL_L1[k]); const ko = await enPlace(ev), p = await ev(() => window.__fournil.SCENE.decosPosees), a = await appels(ev);
+      check(p.length === NOEL_L1[k].length && NOEL_L1[k].every((x) => p.some((y) => y[0] === x[0] && y[1] === x[1])) && !ko.length && a.decos <= 3 && a.decor <= 72, `Noël ${k + 1} : ${p.map((x) => x.join('@')).join(' ')} — chacune dans sa place, sur son appui, dans l’écran ${ko.join(' | ')} ; ${a.decos} appels pour les décos, ${a.decor} pour le décor (≤ 72)`);
+      await capture(page, `noel-l1-${k + 1}-eco-390.png`);
+    }
+    for (const h of [11, 18.5]) { // une date de décembre (le sapin et la guirlande d'office, le tag « noel ») : les budgets avec eux
+      await ev((h) => window.__fournil.scene({ heure: h, saison: ['noel'] }), h); await poser(ev, NOEL_L1[0]); await sleep(800); const a = await appels(ev), ko = await enPlace(ev);
+      check(a.decor <= 78 && a.decos <= 3 && !ko.length, `décembre (le sapin et la guirlande de Noël d’office), ${h} h, six décos de Noël posées : ${a.decor} appels pour le décor (≤ 78), ${a.decos} pour les décos ${ko.join(' | ')}`);
+      await capture(page, `noel-l1-decembre-${h < 12 ? 'jour' : 'soir'}-eco-390.png`);
+    }
+    await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
+
     console.log('── la photo d’un copain (champ dc) ; la mémoire ; la chaîne ; les règles ──');
     if (chaine) {
       const dc = await ev(() => { const l = [['souvenir-gare', 'm2'], ['chaudron', 's3'], ['souvenir-ile', 'c2'], ['toiles', 'r2']], code = CHAINE.codeDecos(l), r = CHAINE.decosDepuisCode(code); window.__fournil.SCENE.decos(r); return { code, r }; });
@@ -260,7 +288,7 @@ const capture = async (page, nom) => { const f = path.join(out, nom); await page
     console.log('── éco, 360 × 640 ──');
     const { ctx, page, erreurs, ev } = await ouvrir('eco', { width: 360, height: 640 });
     await palier(ev, 1, false); await ev(() => window.__fournil.scene({ heure: 11, saison: [] }));
-    for (const [nom, l] of [['lourdes', LOURDES], ...NEUVES.map((l, k) => [`neuves-${k + 1}`, l]), ...AUTOMNE.map((l, k) => [`automne-${k + 1}`, l])]) {
+    for (const [nom, l] of [['lourdes', LOURDES], ...NEUVES.map((l, k) => [`neuves-${k + 1}`, l]), ...AUTOMNE.map((l, k) => [`automne-${k + 1}`, l]), ...NOEL_L1.map((l, k) => [`noel-l1-${k + 1}`, l])]) {
       await poser(ev, l); const ko = await enPlace(ev), a = await appels(ev);
       check(!ko.length && a.decor <= 72, `360 × 640, ${nom} : chacune dans sa place, sur son appui, dans l’écran ${ko.join(' | ')} ; ${a.decor} appels (≤ 72)`);
       await capture(page, `${nom}-eco-360.png`);
