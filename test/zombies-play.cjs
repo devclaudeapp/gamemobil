@@ -76,11 +76,12 @@ const BASE = `http://localhost:${PORT}/`;
   check(vague.calls > 0 && vague.calls <= 60, `${vague.calls} appels de dessin avec ${vague.z} zombies à l’écran (≤ 60 : les zombies sont instanciés)`);
   await page.screenshot({ path: out + '/02-vague.png' });
   // l'atelier : une tourelle
-  await P(() => { window.__zombies.jeu.joueurs[0].ferraille = 40; });
+  // la ferraille ramassée pendant ce temps (un zombie abattu qui en lâche) est retirée du compte
+  const ramasse0 = await P(() => { window.__zombies.jeu.joueurs[0].ferraille = 40; return window.__zombies.jeu.stats.ferraille; });
   await sleep(150);
   await page.tap('[data-def="tourelle"]'); await sleep(300);
-  const atelier = await P(() => ({ defs: window.__zombies.jeu.defenses.map((d) => d.type), fer: window.__zombies.jeu.joueurs[0].ferraille, nb: document.querySelector('[data-def="tourelle"] .nb').textContent, etat: document.querySelector('[data-def="tourelle"]').dataset.etat, info: document.querySelector('.h-info').innerText }));
-  check(atelier.defs.join() === 'tourelle' && atelier.fer === 25 && atelier.nb === '1/1' && atelier.etat === 'max' && /Tourelle/.test(atelier.info), `toucher la tourelle la pose (15 de ferraille, « ${atelier.nb} », la fiche s’affiche)`);
+  const atelier = await P((r0) => ({ defs: window.__zombies.jeu.defenses.map((d) => d.type), fer: window.__zombies.jeu.joueurs[0].ferraille - (window.__zombies.jeu.stats.ferraille - r0), nb: document.querySelector('[data-def="tourelle"] .nb').textContent, etat: document.querySelector('[data-def="tourelle"]').dataset.etat, info: document.querySelector('.h-info').innerText }), ramasse0);
+  check(atelier.defs.join() === 'tourelle' && atelier.fer === 25 && atelier.nb === '1/1' && atelier.etat === 'max' && /Tourelle/.test(atelier.info), `toucher la tourelle la pose (15 de ferraille, « ${atelier.nb} », la fiche s’affiche) [${atelier.defs.join()}, ${atelier.fer}, ${atelier.etat}, ${atelier.info.slice(0,40)}]`);
   await page.tap('[data-def="tourelle"]'); await sleep(200);
   check(/maximum/.test(await P(() => document.querySelector('.h-toast').textContent)), 'une deuxième tourelle à la vague 1 : refusée, avec un message');
   await page.tap('.h-poignee'); await sleep(350);
