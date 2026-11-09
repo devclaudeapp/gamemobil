@@ -780,21 +780,24 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       q1: () => [M.part(M.sphere(3, 10), '#C8662B', { y: 3.4, sx: 0.8, sy: 1.5 })], q2: () => [M.part(M.sphere(3.4, 10), '#D97A3A', { y: 2.8, sx: 0.85, sy: 1.35 }), M.part(M.sphere(2.1, 8), '#E8945A', { y: 6.2, sx: 0.8 })],
       patte: () => pattePendue(1.15, 4.4, '#C8662B', '#7B4A2A', { rp: 1.25 }),
     },
-    // le petit renne « Grelot » (gagné à la case du 6 décembre du calendrier de l'Avent, la Saint-Nicolas) : la robe brun chaud, le ventre, le
-    // poitrail et le bout de la queue crème, de longues pattes fines aux sabots sombres, les bois de velours clair (deux branches et leurs
-    // andouillers), le gros nez rouge, les oreilles en feuille, le collier rouge et son grelot doré sous le menton (il tinte : son cri)
+    // le petit renne « Grelot » (gagné à la case du 6 décembre du calendrier de l'Avent, la Saint-Nicolas) : un renne chibi comme l'écureuil,
+    // debout sur ses quatre pattes : le corps court et rond (robe brun chaud, ventre et poitrail crème), le cou relevé, une grosse tête haute
+    // (le museau clair, le gros nez rouge, les oreilles en feuille à l'horizontale), les bois de velours clair (deux merrains et leurs
+    // andouillers), de courtes pattes aux sabots sombres, la petite queue au dessous crème, et au cou le collier rouge et son grelot doré, bien
+    // devant le poitrail (il tinte : son cri). (Avant : un long corps de chien couché en sphinx, la tête au bout : on aurait dit une bûche.)
     renne: {
-      lp: 8.4, py: -3, hanches: [[-2.4, 6.4], [2.4, 6.4], [-2.4, -6.4], [2.4, -6.4]], tp: [6.2, 11.6], queue: [2.6, -10.2, -0.6], lq1: 2.6, q2r: 0.3, R: 4.8, D: 10.8, demiH: 4.2, assis: 'couche', dort: 'couche',
-      corps: () => { const robe = '#9A6A42', creme = '#F4E3C6'; return [M.part(M.capsule(4.8, 11.6, 12), robe, { rx: HP }), M.part(arcCyl(4.92, 11.6, 1.9, 0), creme, { rx: HP }), M.part(patchS(5, 2.0, 1.3, 1.5), creme, { z: 6.4 }),
-        M.part(M.tore(3.3, 0.75, TAU, 6, 14), '#C8102E', { y: 3.6, z: 8.6, rx: 0.9 }), M.part(M.sphere(1.35, 10), '#E8B33A', { y: 1.5, z: 10.6 }), M.part(M.cylindre(0.5, 0.5, 0.3, 6), '#7A5A1A', { y: 1.1, z: 11.85, rx: HP })]; }, // (le collier rouge et son grelot)
-      tete: (f) => { const robe = '#9A6A42', bois = '#E2CBA0', p = [M.part(M.sphere(4.1, 14), robe, { sx: 1.02, sy: 0.98 }), M.part(M.sphere(2.6, 10), '#B98457', { y: -1.4, z: 3.4, sx: 1.05, sy: 0.8, sz: 1.15 }), M.part(M.sphere(1.45, 10), '#E0302E', { y: -0.9, z: 6.1 }), M.part(M.sphere(0.45, 6), '#FFB3A8', { x: -0.5, y: -0.4, z: 7.1 })];
+      lp: 5.4, py: -2.2, hanches: [[-2.2, 3.3], [2.2, 3.3], [-2.3, -3.3], [2.3, -3.3]], tp: [8.4, 6.6], queue: [1.6, -5.6, -0.8], lq1: 1.4, q2r: 0.3, R: 4.4, D: 5.8, demiH: 4, assis: 'debout', dort: 'couche',
+      corps: () => { const robe = '#9A6A42', creme = '#F4E3C6'; return [M.part(M.sphere(4.4, 14), robe, { sy: 0.92, sz: 1.32 }), M.part(M.sphere(3.3, 10), creme, { y: -1.5, z: 0.8, sx: 0.9, sy: 0.75, sz: 1.3 }), // le corps court et rond, le ventre crème
+        M.part(M.capsule(2.3, 3.6, 10), robe, { y: 4.2, z: 4.9, rx: 0.42 }), M.part(M.sphere(2.4, 10), creme, { y: 2, z: 5.6, sx: 0.95, sy: 1.15, sz: 0.7, rx: 0.4 }), // le cou relevé, le poitrail crème
+        M.part(M.tore(2.45, 0.6, TAU, 6, 16), '#C8102E', { y: 3.65, z: 5.4, rx: 0.42 - HP }), M.part(M.sphere(1.25, 10), '#E8B33A', { y: 1.85, z: 7.9 }), M.part(M.cylindre(0.45, 0.45, 0.3, 6), '#7A5A1A', { y: 1.5, z: 8.95, rx: HP }), M.part(M.tore(0.5, 0.18, TAU, 4, 8), '#E8B33A', { y: 3.15, z: 7.7, rx: 0.3 })]; }, // le collier rouge, son grelot doré et son anneau
+      tete: (f) => { const robe = '#9A6A42', bois = '#E2CBA0', p = [M.part(M.sphere(4.2, 14), robe, { sx: 1.04, sy: 0.98 }), M.part(M.sphere(2.4, 10), '#C9976A', { y: -1.5, z: 3.1, sx: 1.12, sy: 0.82, sz: 1.05 }), M.part(M.sphere(1.35, 10), '#E0302E', { y: -0.9, z: 5.3 }), M.part(M.sphere(0.42, 6), '#FFB3A8', { x: -0.45, y: -0.4, z: 6.4 })]; // la tête ronde, le museau clair, le gros nez rouge (et son reflet)
         for (const sx of [-1, 1]) {
-          p.push(M.part(M.sphere(1.9, 8), robe, { x: sx * 3.9, y: 1.6, z: -0.6, sx: 0.4, sy: 1.25, sz: 0.85, rz: sx * 1.1 }), M.part(M.sphere(1.05, 6), '#F4E3C6', { x: sx * 3.95, y: 1.6, z: -0.3, sx: 0.25, sy: 0.9, sz: 0.6, rz: sx * 1.1 })); // les oreilles en feuille
-          p.push(M.part(M.capsule(0.5, 5.4, 5), bois, { x: sx * 2.2, y: 5.6, z: -0.6, rz: -sx * 0.32, rx: -0.15 }), M.part(M.capsule(0.42, 2.6, 5), bois, { x: sx * 3.9, y: 8.8, z: -1.2, rz: -sx * 0.9 }), M.part(M.capsule(0.42, 2.2, 5), bois, { x: sx * 2.5, y: 7.1, z: 0.6, rz: -sx * 0.1, rx: 0.8 }), M.part(M.capsule(0.38, 1.8, 5), bois, { x: sx * 3.6, y: 10.2, z: -1.2, rz: sx * 0.15 })); // les bois et leurs andouillers
+          p.push(M.part(M.sphere(1.8, 8), robe, { x: sx * 4.3, y: 1.2, z: -0.4, sx: 0.42, sy: 1.25, sz: 0.8, rz: sx * 1.2 }), M.part(M.sphere(1, 6), '#F4E3C6', { x: sx * 4.4, y: 1.25, z: -0.1, sx: 0.25, sy: 0.9, sz: 0.55, rz: sx * 1.2 })); // les oreilles en feuille, à l'horizontale
+          p.push(M.part(M.capsule(0.5, 4.2, 5), bois, { x: sx * 2.1, y: 5.4, z: -0.5, rz: -sx * 0.38, rx: -0.12 }), M.part(M.capsule(0.42, 2.4, 5), bois, { x: sx * 3.9, y: 7.6, z: -0.8, rz: -sx * 1.05 }), M.part(M.capsule(0.4, 1.8, 5), bois, { x: sx * 2.5, y: 6, z: 0.5, rz: -sx * 0.15, rx: 0.85 }), M.part(M.capsule(0.38, 1.8, 5), bois, { x: sx * 3.05, y: 8.3, z: -0.8, rz: sx * 0.12 })); // les bois et leurs andouillers
         }
-        yeux(p, 1.7, 0.7, 3.65, 0.8, f); joues(p, 2.9, -0.8, 3.1, 0.75); return p; },
-      q1: () => [M.part(M.sphere(1.5, 8), '#9A6A42', { y: 1.2, sy: 1.2 })], q2: () => [M.part(M.sphere(1.25, 8), '#F4E3C6', { y: 0.6, sy: 1.1 })], // la petite queue, son dessous crème
-      patte: () => pattePendue(1.15, 7.4, '#9A6A42', '#4A3328', { court: 1.2, rp: 1.25 }),
+        yeux(p, 1.65, 0.8, 3.7, 0.82, f); joues(p, 2.8, -0.7, 3.1, 0.75); return p; },
+      q1: () => [M.part(M.sphere(1.25, 8), '#9A6A42', { y: 0.9, sy: 1.2 })], q2: () => [M.part(M.sphere(1, 8), '#F4E3C6', { y: 0.3, sy: 1.1 })], // la petite queue, son dessous crème
+      patte: () => pattePendue(1.2, 5.4, '#9A6A42', '#4A3328', { court: 1.1, rp: 1.3 }),
     },
   };
   const AILES_P = [0, 4, 1.5]; // la place des ailes sur la racine (le mini-dragon ; la chauve-souris a la sienne, ailesP)
