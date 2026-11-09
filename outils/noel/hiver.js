@@ -21,54 +21,55 @@ const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? proces
 
 // ─── la fiche d'hiver (la copie du contrat, § 3.3) ───
 const M30 = 1800, H1 = 3600;
-const CRANS_HIVER = [ // 46 crans de 45 XP (2 070 XP), le titre « Flocon d'or 2026 » à +250 (2 320 XP)
-  { boost: { mult: 2, secs: M30 } },               // 1
-  { etoiles: 1 },                                  // 2
-  { deco: 'couronne-givre' },                      // 3 : la couronne de givre (la porte)
-  { etoiles: 1 },                                  // 4
-  { },                                             // 5 : (une carte d'hiver : la carte postale enneigée, cosmétique)
-  { etoiles: 1 },                                  // 6
-  { boost: { mult: 2, secs: M30 } },               // 7
-  { etoiles: 1 },                                  // 8
-  { deco: 'luge' },                                // 9 : la luge en bois (le sol)
-  { etoiles: 1 },                                  // 10
-  { },                                             // 11 : (cosmétique)
-  { etoiles: 1 },                                  // 12
-  { boost: { mult: 2, secs: M30 } },               // 13
-  { etoiles: 1 },                                  // 14
-  { deco: 'lanterne-givre' },                      // 15 : la lanterne givrée (le comptoir, une lueur)
-  { etoiles: 1 },                                  // 16
-  { },                                             // 17
-  { etoiles: 1 },                                  // 18
-  { boost: { mult: 3, secs: M30 } },               // 19
-  { etoiles: 1 },                                  // 20
-  { deco: 'guirlande-givre' },                     // 21 : la guirlande de flocons (le rebord, une lueur)
-  { etoiles: 1 },                                  // 22
-  { },                                             // 23
-  { etoiles: 2 },                                  // 24
-  { boost: { mult: 2, secs: H1 } },                // 25
-  { etoiles: 1 },                                  // 26
-  { deco: 'traineau' },                            // 27 : le traîneau chargé de paquets (le sol)
-  { etoiles: 1 },                                  // 28
-  { },                                             // 29
-  { etoiles: 1 },                                  // 30
-  { boost: { mult: 3, secs: M30 } },               // 31
-  { etoiles: 1 },                                  // 32
-  { deco: 'ours-polaire' },                        // 33 : l'ours polaire en peluche (le sol)
-  { etoiles: 1 },                                  // 34
-  { },                                             // 35
-  { etoiles: 2 },                                  // 36
-  { boost: { mult: 2, secs: H1 } },                // 37
-  { etoiles: 1 },                                  // 38
-  { deco: 'cheminee' },                            // 39 : la cheminée et ses bûches (le mur, une lueur)
-  { etoiles: 1 },                                  // 40
-  { },                                             // 41
-  { etoiles: 1 },                                  // 42
-  { boost: { mult: 3, secs: H1 } },                // 43
-  { etoiles: 2 },                                  // 44
-  { },                                             // 45
-  { deco: 'trophee-hiver-2026', trophee: 'trophee-hiver-2026', etoiles: 2 }, // 46 : le trophée de fin de saison
+const CRANS_HIVER = [ // 46 crans de 45 XP (2 070 XP), le titre « Flocon d'or 2026 » à +250 (2 320 XP) ; « flocon » : un flocon unique pour la collection (cosmétique, dessiné)
+  { boost: { mult: 2, secs: M30 } }, // 1
+  { etoiles: 1 }, // 2
+  { flocon: 3 }, // 3
+  { flocon: 4 }, // 4
+  { deco: 'luge' }, // 5
+  { etoiles: 1 }, // 6
+  { flocon: 7 }, // 7
+  { flocon: 8 }, // 8
+  { flocon: 9 }, // 9
+  { etoiles: 1 }, // 10
+  { deco: 'lanterne-givre' }, // 11
+  { flocon: 12 }, // 12
+  { boost: { mult: 2, secs: M30 } }, // 13
+  { etoiles: 1 }, // 14
+  { flocon: 15 }, // 15
+  { flocon: 16 }, // 16
+  { deco: 'guirlande-givre' }, // 17
+  { etoiles: 1 }, // 18
+  { flocon: 19 }, // 19
+  { flocon: 20 }, // 20
+  { flocon: 21 }, // 21
+  { etoiles: 1 }, // 22
+  { deco: 'traineau' }, // 23
+  { flocon: 24 }, // 24
+  { boost: { mult: 2, secs: H1 } }, // 25
+  { etoiles: 1 }, // 26
+  { flocon: 27 }, // 27
+  { flocon: 28 }, // 28
+  { deco: 'cheminee' }, // 29
+  { etoiles: 1 }, // 30
+  { flocon: 31 }, // 31
+  { flocon: 32 }, // 32
+  { flocon: 33 }, // 33
+  { etoiles: 1 }, // 34
+  { deco: 'patins' }, // 35
+  { flocon: 36 }, // 36
+  { boost: { mult: 3, secs: M30 } }, // 37
+  { etoiles: 1 }, // 38
+  { flocon: 39 }, // 39
+  { flocon: 40 }, // 40
+  { flocon: 41 }, // 41
+  { etoiles: 1 }, // 42
+  { flocon: 43 }, // 43
+  { flocon: 44 }, // 44
+  { flocon: 45 }, // 45
+  { deco: 'trophee-hiver-2026', trophee: 'trophee-hiver-2026', etoiles: 2 }, // 46
 ];
+// (v1 du 9 nov., écartée : 27 ★ et 8 boosts ; docs/noel-contrat.md § 8.3)
 function ficheHiver(n, titreXp) {
   const crans = CRANS_HIVER.slice(0, n); while (crans.length < n) crans.push({ etoiles: 1 });
   return { id: 'hiver-2026', nom: 'La saison d’hiver', debut: SAISONS.parisMs(2026, 12, 1, 0), fin: SAISONS.parisMs(2027, 1, 4, 0), crans, xpCran: 45,
@@ -76,6 +77,9 @@ function ficheHiver(n, titreXp) {
     sources: Object.assign({}, SAISONS.SOURCES, { avent: { xp: 10, nom: 'Calendrier de l’Avent', txt: 'une case du calendrier ouverte' } }),
     lecteurs: { avent: (st) => (st.avent ? AV.nOuvertes(st.avent) : 0) } };
 }
+// (réglage) --lots-avent f.json / --lots-hiver f.json : d'autres lots (les mêmes clés que AV.LOTS / CRANS_HIVER), pour comparer
+if (arg('--lots-avent')) { const l = JSON.parse(fs.readFileSync(arg('--lots-avent'), 'utf8')); AV.LOTS.splice(0, AV.LOTS.length, ...l.map((x, k) => Object.assign({ n: k + 1 }, x))); }
+if (arg('--lots-hiver')) { const l = JSON.parse(fs.readFileSync(arg('--lots-hiver'), 'utf8')); CRANS_HIVER.splice(0, CRANS_HIVER.length, ...l); }
 const NCRANS = +arg('--crans', CRANS_HIVER.length), TITRE = +arg('--titre', 250);
 const HIVER = SAISONS.ajouter(ficheHiver(NCRANS, TITRE));
 const FIN_SIM = HIVER.fin;
@@ -104,7 +108,7 @@ function simuler(nom, o) {
   const avent = { ouvertes: [], parJour: {}, etoiles: 0, boosts: 0, le24: 0, le31: 0 };
   const derniere = P.sessions[P.sessions.length - 1][0]; let bruitFait = false, vuJour = '';
   const R = L.simuler(cle, jours, {
-    t0,
+    t0, seed: o.seed || 11,
     chaqueSeconde(st, now, s) {
       if (o.bruitJour && !bruitFait && now >= SAISONS.parisMs(2026, 12, o.bruitJour, 0)) { st.etoiles += 1; bruitFait = true; }
       if (now < AUTOMNE.debut - 864e5 || now >= FIN_SIM) return;
@@ -148,16 +152,23 @@ function simuler(nom, o) {
 const CIBLES = (() => { const t = fs.readFileSync(path.join(__dirname, '..', '..', 'test', 'longevite.js'), 'utf8'), m = /const CIBLES = (\{[\s\S]*?\n\});/.exec(t); return m ? Function(`return (${m[1]});`)() : null; })();
 const PROFILS_LONG = { occasionnel: { casino: 0, ev: 'occasionnel' }, regulier: { casino: 1, ev: 'quotidien' }, assidu: { casino: 2, ev: 'assidu' } };
 const DEPARTS_LONG = { '5 oct.': 91, '1er nov.': 60, '1er déc.': 60 }; // (le 5 oct. sur 91 jours, jusqu'au 4 janv. : ses garde-fous de fin de partie, réglés pour 60 jours, ne s'y lisent pas)
-const VARIANTES = ['sans', 'avent', 'tout', 2, 8, 14, 20];
+const VARIANTES = arg('--variantes') ? arg('--variantes').split(',').map((v) => (/^\d+$/.test(v) ? +v : v)) : ['sans', 'avent', 'tout', 2, 8, 14, 20];
+// --graines 11,3,5,7 : chaque partie rejouée avec plusieurs graines du hasard de test/longevite.js (les mystères, les critiques, les pannes…),
+// et les résumés MOYENNÉS avant la comparaison : le joueur simulé ouvre ses boutiques sur des seuils, une partie seule est chaotique
+const GRAINES = (arg('--graines') || '11').split(',').map(Number);
+if (arg('--profils')) for (const k of Object.keys(PROFILS_LONG)) if (!arg('--profils').split(',').includes(k)) delete PROFILS_LONG[k];
+if (arg('--departs')) for (const k of Object.keys(DEPARTS_LONG)) if (!arg('--departs').split(',').includes(k)) delete DEPARTS_LONG[k];
 const resumer = (nom, R) => { const r = L.resume(nom, R), d = R.M.prestiges.slice(1).map((x) => x.duree); return { premiere: r.premierPrestige ? r.premierPrestige.jour : null, boutiques: R.st.boutiques, plusLongue: d.length ? Math.max(...d) : 0, franchise: r.franchise, piece: r.piece, etoilesJ30: r.etoiles.j30, etoilesFin: r.etoiles.fin, niveau: r.niveau.fin, attente: r.attente }; };
-function partieLongevite(quand, nom, v) {
-  const base = { profil: Object.assign({ sessions: L.PROFILS[nom].sessions }, PROFILS_LONG[nom]), depart: L.DEPARTS[quand], jours: DEPARTS_LONG[quand] };
+function partieLongevite(quand, nom, v, seed) {
+  const base = { profil: Object.assign({ sessions: L.PROFILS[nom].sessions }, PROFILS_LONG[nom]), depart: L.DEPARTS[quand], jours: DEPARTS_LONG[quand], seed: seed || 11 };
   const o = Object.assign({}, base, typeof v === 'number' ? { recompenses: 'automne', bruitJour: v } : { recompenses: v === 'sans' ? 'automne' : v });
   const s = simuler(nom, o);
   return { resume: resumer(nom, s.R), hiver: s.hiver.crans, etoiles: s.hiver.etoiles + s.avent.etoiles, boostsH: s.hiver.boosts, avent: s.avent.n, etoilesAvent: s.avent.etoiles };
 }
 function juger(taches, res) {
-  const R = {}; taches.forEach((t, k) => { R[`${t.quand}|${t.nom}|${t.v}`] = res[k]; });
+  const G0 = {}; taches.forEach((t, k) => { (G0[`${t.quand}|${t.nom}|${t.v}`] = G0[`${t.quand}|${t.nom}|${t.v}`] || []).push(res[k]); });
+  const moy = (l, f) => l.reduce((a, x) => a + (f(x) || 0), 0) / l.length;
+  const R = {}; for (const [c, l] of Object.entries(G0)) { const r0 = l[0]; R[c] = Object.assign({}, r0, { resume: Object.fromEntries(Object.keys(r0.resume).map((k) => [k, typeof r0.resume[k] === 'number' ? +moy(l, (x) => x.resume[k]).toFixed(k === 'boutiques' || k === 'premiere' || k === 'franchise' ? 1 : 0) : r0.resume[k]])) }); }
   let pire = { etoiles: 0, boutiques: 0, premiere: 0, franchise: 0, etoilesAvent: 0 }, horsCibles = 0; const lignes = [];
   const entre = (v, c) => !c || (v != null && v >= c[0] && v <= c[1]);
   for (const quand of Object.keys(DEPARTS_LONG)) for (const nom of Object.keys(PROFILS_LONG)) {
@@ -167,7 +178,7 @@ function juger(taches, res) {
     const pc = (x, y) => `${((y / x - 1) * 100).toFixed(1)} %`;
     lignes.push(`${nom.padEnd(11)} départ ${quand.padEnd(8)} (${DEPARTS_LONG[quand]} j) Avent ${tt.avent}/24 (+${tt.etoilesAvent} ★), hiver ${tt.hiver} crans (+${tt.etoiles - tt.etoilesAvent} ★, ${tt.boostsH} boosts) : boutiques ${a.boutiques} → ${av.resume.boutiques} → ${b.boutiques} · 1re j${a.premiere} → j${b.premiere} · franchise j${a.franchise} → j${av.resume.franchise} → j${b.franchise} · étoiles j30 ${a.etoilesJ30} → ${av.resume.etoilesJ30} → ${b.etoilesJ30} (${pc(a.etoilesJ30, b.etoilesJ30)}), fin ${a.etoilesFin} → ${av.resume.etoilesFin} → ${b.etoilesFin} (Avent seul ${pc(a.etoilesFin, av.resume.etoilesFin)}, tout ${pc(a.etoilesFin, b.etoilesFin)}) · bruit d’une étoile ${(bruitE * 100).toFixed(1)} %, franchise ${bruitF} j, boutiques ${bruitB}`);
     const c = CIBLES && CIBLES[nom], fin60 = DEPARTS_LONG[quand] === 60;
-    const cib = !c ? 'CIBLES illisibles' : [['premiere', 'premierPrestige'], ['franchise', 'franchise'], ['etoilesJ30', 'etoilesJ30'], ['piece', 'piece']].concat(fin60 ? [['niveau', 'niveauFin']] : []).filter(([k, kc]) => !entre(b[k], c[kc])).map(([k]) => k).concat(b.plusLongue > (c.dureeMax || 99) ? ['plusLongue'] : []).join(', ');
+    const cib = !c ? 'CIBLES illisibles' : [['premiere', 'premierPrestige'], ['franchise', 'franchise'], ['etoilesJ30', 'etoilesJ30'], ['piece', 'piece']].concat(fin60 ? [['niveau', 'niveauFin']] : []).filter(([k, kc]) => !entre(b[k], c[kc]) && entre(a[k], c[kc])).map(([k]) => k).concat(fin60 && b.plusLongue > (c.dureeMax || 99) && !(a.plusLongue > (c.dureeMax || 99)) ? ['plusLongue'] : []).join(', '); // (seulement ce que la partie sans tenait : la faute de l'hiver)
     if (cib) { horsCibles++; lignes.push(`      hors des garde-fous de test/longevite.js : ${cib}`); }
     for (const [y, k] of [[b, 'etoiles'], [av.resume, 'etoilesAvent']]) pire[k] = Math.max(pire[k], Math.max(ecart(a.etoilesFin, y.etoilesFin), ecart(a.etoilesJ30, y.etoilesJ30)) - Math.max(0.05, 1.5 * bruitE) + 0.05);
     pire.boutiques = Math.max(pire.boutiques, Math.abs(b.boutiques - a.boutiques) - Math.max(1, bruitB) + 1); pire.premiere = Math.max(pire.premiere, Math.abs((b.premiere || 0) - (a.premiere || 0)));
@@ -195,7 +206,7 @@ module.exports = { simuler, PROFILS, HIVER, AUTOMNE, SAISONS, CRANS_HIVER, fiche
 if (!isMainThread && workerData && workerData.travailleur) {
   parentPort.on('message', ({ k, t }) => {
     if (t.type === 'piste') { const o = Object.assign({}, t.o); if (t.o.departParis) { o.depart = SAISONS.parisMs(...t.o.departParis); o.arrivee = o.depart; } parentPort.postMessage({ k, r: resumePiste(simuler(t.nom, o)) }); }
-    else parentPort.postMessage({ k, r: partieLongevite(t.quand, t.nom, t.v) });
+    else parentPort.postMessage({ k, r: partieLongevite(t.quand, t.nom, t.v, t.seed) });
   });
 } else if (isMainThread && require.main === module) {
   (async () => {
@@ -212,9 +223,9 @@ if (!isMainThread && workerData && workerData.travailleur) {
         out.pistes[t.nouveau ? `${t.nom}-nouveau${t.nouveau}` : t.nom] = { hiver: Object.assign({}, r.hiver), avent: r.avent, automne: { xp: r.automne.xp, crans: r.automne.crans, fini: r.automne.fini } }; });
     }
     if (tout || process.argv.includes('--longevite')) {
-      const t1 = Date.now(), taches = []; for (const quand of Object.keys(DEPARTS_LONG)) for (const nom of Object.keys(PROFILS_LONG)) for (const v of VARIANTES) taches.push({ type: 'long', quand, nom, v });
+      const t1 = Date.now(), taches = []; for (const seed of GRAINES) for (const quand of Object.keys(DEPARTS_LONG)) for (const nom of Object.keys(PROFILS_LONG)) for (const v of VARIANTES) taches.push({ type: 'long', quand, nom, v, seed });
       const res = await lancer(taches), J = juger(taches, res);
-      console.log(`── l'Avent et la saison d'hiver et le rythme des boutiques (test/longevite.js ; sans → avec l'Avent → avec tout ; ${((Date.now() - t1) / 1000).toFixed(0)} s) ──`);
+      console.log(`── l'Avent et la saison d'hiver et le rythme des boutiques (test/longevite.js ; sans → avec l'Avent → avec tout ; graines ${GRAINES.join(', ')}, résumés moyennés ; ${((Date.now() - t1) / 1000).toFixed(0)} s) ──`);
       for (const l of J.lignes) console.log('  ' + l);
       console.log(`  le plus grand écart, une fois ôté le bruit d’une seule étoile : étoiles ${(J.pire.etoiles * 100).toFixed(1)} % avec tout (6 % au plus), ${(J.pire.etoilesAvent * 100).toFixed(1)} % avec l’Avent seul ; boutiques ${J.pire.boutiques} (1) ; première boutique ${J.pire.premiere} j (1) ; franchise ${J.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${J.horsCibles ? J.horsCibles + ' cas hors' : 'tous tenus'} : ${J.ok ? 'aucun effet notable' : 'À REVOIR'}`);
       out.longevite = { pire: J.pire, horsCibles: J.horsCibles, ok: J.ok, lignes: J.lignes };

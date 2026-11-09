@@ -1,0 +1,4 @@
+# TZ=Europe/Paris node outils/noel/hiver.js --longevite --departs "1er déc." --profils occasionnel --graines 11,3,5,7,13,17,19,23   (9 nov., les lots du contrat)
+── l'Avent et la saison d'hiver et le rythme des boutiques (test/longevite.js ; sans → avec l'Avent → avec tout ; graines 11, 3, 5, 7, 13, 17, 19, 23, résumés moyennés ; 58 s) ──
+  occasionnel départ 1er déc. (60 j) Avent 24/24 (+8 ★), hiver 28 crans (+7 ★, 3 boosts) : boutiques 17.3 → 16.8 → 16.8 · 1re j4 → j4 · franchise j24.5 → j23.1 → j23.3 · étoiles j30 1251 → 1440 → 1462 (16.9 %), fin 8144 → 8143 → 8174 (Avent seul -0.0 %, tout 0.4 %) · bruit d’une étoile 4.2 %, franchise 0.3999999999999986 j, boutiques 0.1999999999999993
+  le plus grand écart, une fois ôté le bruit d’une seule étoile : étoiles 15.5 % avec tout (6 % au plus), 13.8 % avec l’Avent seul ; boutiques 0.5 (1) ; première boutique 0 j (1) ; franchise 1.1999999999999993 j (2) ; garde-fous de test/longevite.js : tous tenus : À REVOIR

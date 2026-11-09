@@ -1,0 +1,42 @@
+Le patch v7.0 dans PostgreSQL 18.3 (PGlite 0.5.8)
+── un Postgres comme Supabase, la v6.9 en ligne (le fichier complet) ──
+  ok   supabase/fournil-classement.sql (v6.9, sans le Marché de Noël) se colle
+  ok   un joueur envoie ses bonbons pendant la Maison hantée ({"ok":true,"evt":"hantee"})
+  ok   la Maison hantée figée : ses quinze premiers (15)
+  ok   sous la v6.9 : le Marché d'automne figé (ses quinze premiers), et le 18 déc. à 13 h des pains d'épices envoyés sont ignorés (evt null) : rien ne casse
+── le patch v7.0, collé deux fois ──
+  ok   il se colle (une fois)
+  ok   la requête de contrôle (le 18 déc. à 9 h) : {"evenements":"hantee, marche, noel","valeurs":31,"borne":0,"fin":"18.17","titre":"le Marché de Noël"}
+  ok   aucune donnée ne bouge (joueurs, scores, podiums, annonces…)
+  ok   aucune autre fonction ne change (définitions et droits comparés)
+  ok   fournil_evts et fournil_evt_titre gardent leurs droits (internes)
+  ok   il se colle (deux fois)
+  ok   aucune donnée ne bouge (joueurs, scores, podiums, annonces…)
+  ok   aucune autre fonction ne change (définitions et droits comparés)
+  ok   fournil_evts et fournil_evt_titre gardent leurs droits (internes)
+  ok   les lignes « hantee » et « marche » sont identiques à celles de la v6.9 ; une seule ligne de plus
+  ok   la fenêtre du Marché de Noël : 2026-12-18T11:00:00.000Z → 2026-12-25T19:00:00.000Z, un pas de 6 h (le vendredi 18 à midi au vendredi 25 à 20 h, heure de Paris)
+  ok   sa table est celle de la simulation (outils/noel/rythme-resultats.json), croissante, jamais sous celle du Marché d'automne : {11.65,16.05,16.05,16.3,16.5,16.65,16.75,16.85,16.95,17,17.05,17.1,17.15,17.2,17.2,17.3,17.35,17.4,17.5,17.55,17.65,17.75,17.8,17.85,17.95,18,18.05,18.1,18.15,18.15,18.2}
+  ok   anon ne peut appeler ni fournil_evts ni fournil_evt_titre (internes)
+  ok   authenticated ne peut appeler ni fournil_evts ni fournil_evt_titre (internes)
+  ok   le titre des notifications : « le Marché de Noël » (la Maison hantée et le Marché d'automne inchangés)
+── le Marché de Noël joué, en tant qu’anon ──
+  ok   avant le vendredi 18 à midi : la borne vaut 0
+  ok   la borne SQL est son miroir JavaScript (interpolation du log10), de l'ouverture à après la fin (écart 0.0e+0)
+  ok   les bornes de la Maison hantée et du Marché d’automne, après leur fin : constantes, inchangées
+  ok   avant l'ouverture : accepté, rien n'est compté ({"evt":"noel","score":null})
+  ok   le 18 à 18 h, 3e12 pains d'épices (sous la borne 1.12e+16) : comptés tels quels
+  ok   1e19 une minute plus tard : ramené à la borne (1.12e+16, plafonné)
+  ok   le classement du Marché d'automne ne voit pas le Marché de Noël (16 lignes, toutes du Marché d'automne, inchangées)
+── le marathon du prototype, envoyé toutes les 10 minutes : jamais plafonné ──
+  ok   1056 envois (graine 7, Astuces offertes, 661 Bd à la fin) : 0 plafonné
+── la fin : le podium jusqu’au 15e, les récompenses, la Maison hantée et le Marché d’automne intacts ──
+  ok   à 20 h 30 (dans l’heure de grâce) : pas encore figé
+  ok   à 21 h : figé, les quinze premiers ex æquo compris (16 lignes, deux 2e, deux 15e), 19 joueurs classés (les 17, Pain d'épices et le marathon)
+  ok   le classement du Marché de Noël montre la médaille du podium final
+  ok   fournil_recompenses : evenements.noel = {"rang":14,"joueurs":19,"podium":3} (le 14e reçoit sa place ; le podium rendu à trois)
+  ok   il n’était ni à la Maison hantée ni au Marché d’automne : pas de place pour eux
+  ok   le podium du Marché d’automne n’a pas bougé (15 lignes) ; celui de la Maison hantée est parti avec ses joueurs, inactifs depuis le 1er nov. (le ménage habituel des comptes oubliés, déjà là en v6.9 : rien à voir avec le patch)
+  ok   les annonces du Marché de Noël : son ouverture (le 18 à midi) et sa fin (le 25 à 20 h) : noel:fin, noel:ouverture
+
+Tout passe (34 vérifications).
