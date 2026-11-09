@@ -1199,12 +1199,12 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function decoBouleNeige() { // la boule à neige : le socle de bois et son liseré d'or, le verre bleu pâle, un sapin, un petit chalet et des flocons dedans, un reflet
     const D = nouvelle('boule-neige'), pr = D.fixe, r = 6.6;
     pr.push(P(M.cylindre(5.2, 6.2, 3.6, 12), NOEL.bois), P(M.tore(5.3, 0.45, TAU, 4, 16), NOEL.or, { y: 3.6, rx: HP }), P(M.cylindre(4.6, 4.8, 0.8, 12), NOEL.neige, { y: 3.6 }));
-    pr.push(P(M.sphere(r, 14), '#D6E9F7', { y: 3.6 + r * 0.92 }));
-    const y0 = 3.6 + r * 0.92;
-    sapinet(pr, -1.6, y0 - 4.6, 4.2, 7.4, NOEL.sapin, true); // (devant, à demi sorti du verre : il se lit)
-    pr.push(P(bo(3.4, 2.6, 1.6, 0.3), '#F2C79A', { x: 2.4, y: y0 - 4.2, z: 5 }), P(toit4(2.6, 1.8), NOEL.rougeF, { x: 2.4, y: y0 - 1.6, z: 5, sz: 0.5 }));
-    for (const [a, b] of [[0.5, 0.4], [1.3, 0.8], [2.2, 0.3], [2.8, 1.1], [3.6, 0.6], [4.6, 1.2], [5.3, 0.2], [0.1, 1.3]]) pr.push(P(M.sphere(0.42, 4), '#FFFFFF', { x: Math.cos(a) * r * 0.8 * Math.cos(b * 0.6), y: y0 + Math.sin(a) * r * 0.8 * Math.cos(b * 0.6), z: r * Math.sin(b * 0.6 + 0.55) }));
-    pr.push(P(M.sphere(1.2, 6), '#FFFFFF', { x: -2.8, y: y0 + 3, z: r * 0.62, sz: 0.3 }));
+    const y0 = 3.6 + r * 0.92, e = 0.86; // (e : le verre un peu aplati en profondeur, la petite scène devant lui se lit)
+    pr.push(P(M.sphere(r, 14), '#C4DEF4', { y: y0, sz: e }), P(M.cylindre(r * 0.72, r * 0.72, 0.8, 12), NOEL.neige, { y: 3.8, sz: e }));
+    sapinet(pr, -1.6, y0 - 4.8, r * e * 0.74, 7, NOEL.sapin, true);
+    pr.push(P(bo(3.4, 2.8, 1.8, 0.3), '#F2C79A', { x: 2.5, y: y0 - 4.6, z: r * e * 0.7 }), P(toit4(2.6, 1.9), NOEL.rougeF, { x: 2.5, y: y0 - 1.8, z: r * e * 0.7, sz: 0.6 }), P(M.boiteSimple(0.9, 0.9, 0.3), '#FFD98A', { x: 3, y: y0 - 3.8, z: r * e * 0.7 + 0.9 }));
+    for (const [a, b] of [[0.5, 0.4], [1.3, 0.8], [2.2, 0.3], [2.8, 1.1], [3.6, 0.6], [4.6, 1.2], [5.3, 0.2], [0.1, 1.3], [1.9, 0.9], [4.1, 0.5]]) pr.push(P(M.sphere(0.45, 4), '#FFFFFF', { x: Math.cos(a) * r * 0.82 * Math.cos(b * 0.6), y: y0 + Math.sin(a) * r * 0.82 * Math.cos(b * 0.6), z: r * e * Math.sin(b * 0.6 + 0.55) }));
+    pr.push(P(M.sphere(1.3, 6), '#FFFFFF', { x: -3, y: y0 + 3.2, z: r * e * 0.66, sz: 0.3 }));
     return D;
   }
   function decoLuge() { // la luge de bois : deux patins recourbés devant, les quatre montants, trois lattes, la corde rouge
@@ -1228,11 +1228,11 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     for (const sx of [-1, 1]) pr.push(P(M.cone(1.6, 4.2, 6), NOEL.sapin, { x: sx * 7.6, y: 0, z: 1.5 }), P(M.sphere(0.7, 5), NOEL.rouge, { x: sx * 7.4, y: 1, z: 2.8 })); // (sur les côtés du socle, jamais plus profond que lui)
     return D;
   }
-  function decoGuirlandeGivre() { // la guirlande de flocons : deux piquets, une ficelle d'argent drapée, sept flocons qui luisent doucement le soir
+  function decoGuirlandeGivre() { // la guirlande de flocons : deux piquets, une ficelle d'argent drapée, cinq flocons qui luisent doucement le soir
     const D = nouvelle('guirlande-givre'), pr = D.fixe, lp = [], w = 34, h = 21;
     for (const sx of [-1, 1]) pr.push(P(M.cylindre(0.7, 0.8, h + 1, 5), NOEL.acier, { x: sx * w / 2 }), P(M.sphere(1, 6), NOEL.givre, { x: sx * w / 2, y: h + 1 }));
     for (let k = 0; k <= 14; k++) { const u = k / 14, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.2; pr.push(P(M.sphere(0.32, 4), NOEL.acier, { x, y })); }
-    for (let i = 0; i < 7; i++) { const u = (i + 0.5) / 7, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.2 - 3.2, r = i % 2 ? 2.1 : 2.6; pr.push(P(M.cylindre(0.1, 0.1, 1.2, 3), NOEL.acier, { x, y: y + r - 0.2 })); lp.push(P(flocon6(r, 0.55), i % 2 ? '#FFFFFF' : '#CFE6FF', { x, y })); }
+    for (let i = 0; i < 5; i++) { const u = (i + 0.5) / 5, x = -w / 2 + w * u, r = i % 2 ? 3 : 3.6, y = h - Math.sin(u * Math.PI) * 4.2 - r - 0.8; pr.push(P(M.cylindre(0.12, 0.12, 1.2, 3), NOEL.acier, { x, y: y + r - 0.2 })); lp.push(P(flocon6(r, 0.75), i % 2 ? '#FFFFFF' : '#CFE6FF', { x, y })); }
     D.vifs.push({ pr: lp, emi: '#BFDFFF', k: (E) => 0.2 + 0.75 * E.lampes + 0.05 * Math.sin(E.t * 2), m: null });
     return D;
   }
@@ -1261,7 +1261,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(M.cylindre(0.5, 0.5, 2, 5), NOEL.acier, { y: 8, z: 0, rx: HP }), P(M.sphere(0.8, 5), NOEL.acier, { y: 8, z: 2 }));
     for (const [sx, zz] of [[-1, 2], [1, 4.4]]) {
       const x = sx * 4.4;
-      pr.push(P(M.cylindre(0.22, 0.22, 9.4, 3), NOEL.rouge, { x: x * 0.5, y: 3.4, z: zz - 0.6, rz: sx * 0.42 }));
+      pr.push(P(M.cylindre(0.22, 0.22, 8.3, 3), NOEL.rouge, { x, y: 0.8, z: zz * 0.5, rz: sx * 0.56 })); // le lacet, du haut de la bottine au clou
       pr.push(P(bo(4, 7.4, 3.4, 0.6), '#F4F1EC', { x, y: -6.4, z: zz }), P(bo(7, 2.8, 3.4, 0.6), '#F4F1EC', { x: x + 1.6, y: -8.4, z: zz }), P(M.boiteSimple(4.2, 1, 3.6), NOEL.rouge, { x, y: 0.2, z: zz }));
       pr.push(P(M.boiteSimple(1.2, 1.6, 0.8), NOEL.acier, { x: x - 1, y: -10, z: zz }), P(M.boiteSimple(1.2, 1.6, 0.8), NOEL.acier, { x: x + 3.6, y: -10, z: zz }), P(M.boiteSimple(9, 0.6, 0.6), '#DDE5EE', { x: x + 1.4, y: -10.6, z: zz }));
       for (let k = 0; k < 3; k++) pr.push(P(M.boiteSimple(2.6, 0.35, 0.4), NOEL.rouge, { x, y: -4.6 + k * 1.6, z: zz + 1.7 }));
