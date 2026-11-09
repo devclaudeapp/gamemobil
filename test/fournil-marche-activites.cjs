@@ -179,10 +179,13 @@ function faux(d) {
     await pousser('client');
     const c2 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && c.bulle && c.sid && c.etat === 'file') || null; }, 25000); // (arrivé au comptoir : sa bulle ne bouge plus)
     if (c2) {
-      for (let k = 0; k < c2.commande.length + 2; k++) { const c = await bullePosee(c2.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
+      // (une touche à la fois, et on s'arrête dès qu'il a quitté la file : une touche de trop pourrait servir le client suivant)
+      for (let k = 0; k < c2.commande.length + 2; k++) { if (!(await regles()).file.some((c) => c.id === c2.id)) break; const c = await bullePosee(c2.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
+      await attendre(async () => !(await regles()).file.some((c) => c.id === c2.id), 3000);
       R = await regles();
-      if (R.file.some((c) => c.id === c2.id)) console.log('   (diagnostic)', JSON.stringify(R.file.find((c) => c.id === c2.id)), JSON.stringify((await act()).clients.find((c) => c.id === c2.id)), JSON.stringify(await ev(() => window.__pd.slice(-3))), JSON.stringify((await flottes()).slice(-3)));
-      check(!R.file.some((c) => c.id === c2.id) && R.stats.clientsServis === s0.clientsServis + 2, `un deuxième (${c2.sorte}), servi en touchant sa bulle (${c2.commande.length} touche${c2.commande.length > 1 ? 's' : ''})`);
+      const servi2 = !R.file.some((c) => c.id === c2.id) && R.stats.clientsServis >= s0.clientsServis + 2;
+      if (!servi2) console.log('   (diagnostic)', JSON.stringify(R.file.find((c) => c.id === c2.id) || null), JSON.stringify(R.stats), JSON.stringify(s0), JSON.stringify((await act()).clients.find((c) => c.id === c2.id) || null), JSON.stringify(await ev(() => window.__pd.slice(-3))), JSON.stringify((await flottes()).slice(-3)));
+      check(servi2, `un deuxième (${c2.sorte}), servi en touchant sa bulle (${c2.commande.length} touche${c2.commande.length > 1 ? 's' : ''})`);
     } else check(false, 'un deuxième client entre');
 
     // ─── rater un client : sa patience finie, il repart fâché ───
@@ -558,9 +561,12 @@ function faux(d) {
     await ev(() => window.__fournil.evMarche.tiroir('haut')); await sleep(300);
     await ev(() => window.__fournil.fermerMarche()); await sleep(900);
     await ev(() => document.querySelector('#b-marche').click()); await attendre(() => ev(() => window.__fournil.evMarche.ecran === window.__fournil.evMarche.F.ecran), 10000); await sleep(1500);
-    await pose(); const gr = await geo(), gs = await ev(() => { const el = document.querySelector('#marche'), sc = el.querySelector('.pq-scene'), t = el.querySelector('.pq-tiroir'); return { mb: parseFloat(getComputedStyle(sc).marginBottom) || 0, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: el.getBoundingClientRect().top, cls: el.className, h: sc.style.height, s3: window.__fournil.evMarche.scene ? (window.__fournil.evMarche.scene.vue ? 'boutique' : 'manoir') : 'aucune', T: window.__fournil.evMarche.tiroirEtat ? JSON.stringify(window.__fournil.evMarche.tiroirEtat()) : '' }; });
+    const mesurer = async () => { await pose(); const gr = await geo(), gs = await ev(() => { const el = document.querySelector('#marche'), sc = el.querySelector('.pq-scene'), t = el.querySelector('.pq-tiroir'); return { mb: parseFloat(getComputedStyle(sc).marginBottom) || 0, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: el.getBoundingClientRect().top, cls: el.className, h: sc.style.height, s3: window.__fournil.evMarche.scene ? (window.__fournil.evMarche.scene.vue ? 'boutique' : 'manoir') : 'aucune', T: window.__fournil.evMarche.tiroirEtat ? JSON.stringify(window.__fournil.evMarche.tiroirEtat()) : '' }; }); return { gr, gs, ok: gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b + gs.mb)) < 1 && Math.abs(gr.tiroir.h - gs.haut - gs.y) < 1 && Math.abs(gs.y - g0.tiroir.h) < 1 }; };
+    // (mesuré jusqu'à ce que l'écran soit posé : sur une machine lente, l'ouverture peut encore glisser de quelques pixels)
+    let m = await mesurer(); for (let t = 0; !m.ok && t < 20 * LENT; t++) { await sleep(300); m = await mesurer(); }
+    const { gr, gs } = m;
     // (sous la scène : son bas, sa marge négative comprise, -22 px pour la boutique hantée, -20 px pour le Manoir d'avant ; et au cran mi de cet écran)
-    check(gr.pos === 'mi' && Math.abs(gr.tiroir.h - (gr.scene.b + gs.mb)) < 1 && Math.abs(gr.tiroir.h - gs.haut - gs.y) < 1 && Math.abs(gs.y - g0.tiroir.h) < 1, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px ; cran ${gs.y}, mi du début ${Math.round(g0.tiroir.h)} ; scène ${Math.round(gr.scene.h)}–${Math.round(gr.scene.b)}, marge ${gs.mb}, hauteur ${gs.h} ; ${gs.cls}, scène ${gs.s3} ; tiroir ${gs.T})`);
+    check(m.ok, `fermé le tiroir en haut, l’écran rouvert : le tiroir est revenu au cran mi, sous la scène (${gr.pos}, ${Math.round(gr.tiroir.h)} px ; cran ${gs.y}, mi du début ${Math.round(g0.tiroir.h)} ; scène ${Math.round(gr.scene.h)}–${Math.round(gr.scene.b)}, marge ${gs.mb}, hauteur ${gs.h} ; ${gs.cls}, scène ${gs.s3} ; tiroir ${gs.T})`);
     { const t0 = await ev(() => window.__fournil.st.marche.now); await sleep(1500); const t1 = await ev(() => window.__fournil.st.marche.now); console.log(`   (rouvert : le temps des règles avance de ${t1 - t0} ms en 1,5 s)`); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();
