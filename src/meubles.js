@@ -1123,6 +1123,160 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(feuille(0, 22, 0.5, 6, '#F2C14A', { rz: 0.15 }), P(M.cylindre(0.4, 0.5, 4, 4), or, { y: 15.6 }));
     return D;
   }
+  // ─── les décos du point 7 (docs/noel-contrat.md § 4.7, § 7.1) : celles du calendrier de l'Avent (src/avent.js : les cases 2, 8, 12, 15, 18 ;
+  //     AVENT.possede) et celles de la saison d'hiver (src/saison-hiver.js : les crans 5, 11, 17, 23, 29, 35, 46 ; SAISONS.possede), posées
+  //     seulement (comme celles de la saison d'automne). Chacune fusionnée : 1 appel de dessin, 2 avec sa part vive (une lueur). Aucune pièce
+  //     tournée d'un angle qui ne soit pas un quart de tour, sauf les petites et symétriques (la boîte, calculée sur les boîtes des pièces, ne gonfle
+  //     pas : la leçon de la lanterne d'automne) ; ce qui doit l'être l'est dans sa géométrie (toit4, flocon6) ───
+  const NOEL = { sapin: '#2E6B3A', sapinC: '#3E8A4C', rouge: '#C8102E', rougeF: '#9A0E24', neige: '#F4F8FC', neigeO: '#DCE7F2', or: '#E8B33A', orC: '#FFD45A', bois: '#8B5A3C', boisF: '#5E3A24', givre: '#DCEBFA', acier: '#B8C4D0', nuit: '#2B4C7E' };
+  const GEOS_NOEL = new Map();
+  const geoNoel = (k, fab) => { let g = GEOS_NOEL.get(k); if (!g) { g = fab(); g.computeBoundingBox(); g.userData.cache = true; GEOS_NOEL.set(k, g); } return g; };
+  const toit4 = (r, h) => geoNoel(`toit4|${r}|${h}`, () => M.cone(r, h, 4).clone().rotateY(Math.PI / 4)); // un toit à quatre pans, d'équerre (tourné dans sa géométrie)
+  // un flocon à six branches, plat dans le plan XY (centré) : trois barres et leurs petites branches, fusionnées dans une géométrie (tournée dedans)
+  const flocon6 = (r, e) => geoNoel(`flocon6|${r}|${e}`, () => {
+    const l = [];
+    for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; l.push(new THREE.BoxGeometry(e, 2 * r, e).rotateZ(a)); }
+    for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; for (const s of [-1, 1]) { const g = new THREE.BoxGeometry(e * 0.8, r * 0.42, e * 0.8).rotateZ(s * 0.75).translate(0, r * 0.62, 0).rotateZ(a); l.push(g); } }
+    return fusionGeos(l);
+  });
+  function fusionGeos(l) { // les positions et les normales mises bout à bout (une géométrie, non indexée)
+    const gs = l.map((x) => (x.index ? x.toNonIndexed() : x)), n = gs.reduce((a, g) => a + g.attributes.position.count, 0), pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+    let o = 0; for (const g of gs) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); return g;
+  }
+  const sapinet = (pr, x, y, z, h, col, neige) => { // un petit sapin : trois cônes étagés, la neige au bout des branches, le tronc
+    pr.push(P(M.cylindre(h * 0.07, h * 0.08, h * 0.16, 5), NOEL.boisF, { x, y, z }));
+    for (let k = 0; k < 3; k++) { const r = h * (0.36 - k * 0.09), y0 = y + h * (0.12 + k * 0.24); pr.push(P(M.cone(r, h * 0.42, 7), col || NOEL.sapin, { x, y: y0, z })); if (neige) pr.push(P(M.cylindre(r * 0.55, r * 0.8, h * 0.05, 7), NOEL.neige, { x, y: y0 + h * 0.06, z })); }
+  };
+  function decoCouronneAvent() { // la couronne de l'Avent : l'anneau de sapin couché sur le comptoir (ovale : elle tient dans la profondeur du comptoir), ses baies,
+    // les quatre bougies dont les flammes luisent
+    const D = nouvelle('couronne-avent'), pr = D.fixe, fl = [], R = 7.4, E = 0.62; // (E : l'anneau aplati en profondeur)
+    pr.push(P(M.tore(R, 2.3, TAU, 6, 18), NOEL.sapin, { y: 2, rx: HP, sy: E, sz: 0.75 }));
+    for (let k = 0; k < 12; k++) { const a = k / 12 * TAU + 0.26; pr.push(P(M.sphere(1.6, 6), k % 2 ? NOEL.sapinC : NOEL.sapin, { x: Math.cos(a) * R, y: 3.1, z: Math.sin(a) * R * E, sy: 0.7 })); }
+    for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + 0.6; pr.push(P(M.sphere(0.85, 5), k % 3 === 2 ? NOEL.or : NOEL.rouge, { x: Math.cos(a) * (R + 1.2), y: 3.3, z: Math.sin(a) * (R + 1.2) * E })); }
+    const cols = [NOEL.rouge, NOEL.rouge, '#F2E6D0', NOEL.rouge];
+    for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + Math.PI / 4, x = Math.cos(a) * R, z = Math.sin(a) * R * E; pr.push(P(M.cylindre(1.15, 1.2, 8, 8), cols[k], { x, y: 3.4, z }), P(M.cylindre(0.15, 0.15, 0.8, 3), L, { x, y: 11.4, z })); fl.push(P(M.cone(0.75, 2.2, 6), '#FFD66B', { x, y: 12, z }), P(M.sphere(0.45, 5), '#FFF3C4', { x, y: 12.4, z })); }
+    D.vifs.push({ pr: fl, emi: '#FFB84A', k: (E) => 0.55 + 0.45 * E.lampes + 0.07 * Math.sin(E.t * 11) + 0.04 * Math.sin(E.t * 27), m: null });
+    return D;
+  }
+  function decoChaussettes() { // la guirlande de chaussettes : deux piquets, une ficelle drapée, quatre chaussettes de laine à revers blanc, suspendues
+    const D = nouvelle('chaussettes'), pr = D.fixe, w = 34, h = 21, bs2 = M.boiteSimple;
+    for (const sx of [-1, 1]) pr.push(P(M.cylindre(0.7, 0.8, h + 1, 5), NOEL.boisF, { x: sx * w / 2 }), P(M.sphere(1, 6), NOEL.or, { x: sx * w / 2, y: h + 1 }));
+    for (let k = 0; k <= 12; k++) { const u = k / 12, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 3.2; pr.push(P(M.sphere(0.35, 4), '#E8DCC8', { x, y })); }
+    const cols = [NOEL.rouge, NOEL.sapinC, NOEL.rouge, '#2B5BD7'];
+    for (let i = 0; i < 4; i++) {
+      const u = (i + 0.5) / 4, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 3.2, c = cols[i];
+      pr.push(P(M.cylindre(0.12, 0.12, 1.2, 3), '#E8DCC8', { x, y: y - 1.2 }), P(bo(4.2, 2, 2.2, 0.5, 1), NOEL.neige, { x, y: y - 3.2 }), P(bs2(3.6, 6.6, 1.9), c, { x, y: y - 9.6 }), P(bs2(5.4, 2.8, 1.9), c, { x: x + 0.9, y: y - 11.6 }));
+      pr.push(P(M.cylindre(1.4, 1.4, 1.9, 8), c, { x: x + 3.6, y: y - 10.2, z: -0.95, rx: HP }), P(bs2(3.7, 0.7, 2), i % 2 ? NOEL.rouge : NOEL.neige, { x, y: y - 7 }), P(M.sphere(0.9, 5), i % 2 ? NOEL.rouge : NOEL.neige, { x: x - 1.4, y: y - 10.6, z: 0.7, sy: 0.9 })); // le bout arrondi, une rayure, le talon
+    }
+    return D;
+  }
+  function decoVillageNoel() { // le village de Noël miniature : un tapis de neige, trois maisonnettes aux toits enneigés dont les fenêtres s'allument, deux sapins
+    const D = nouvelle('village-noel'), pr = D.fixe, lp = [];
+    pr.push(P(bo(24, 1.4, 11, 0.6), NOEL.neige), P(bo(22, 0.6, 9.4, 0.3), NOEL.neigeO, { y: 1.2 }));
+    const maison = (x, z, w, h, c) => {
+      pr.push(P(bo(w, h, w * 0.85, 0.3), c, { x, y: 1.4, z }), P(toit4(w * 0.78, h * 0.62), NOEL.rougeF, { x, y: 1.4 + h, z, sz: 0.85 }), P(toit4(w * 0.56, h * 0.42), NOEL.neige, { x, y: 1.6 + h + h * 0.2, z, sz: 0.85 }));
+      pr.push(P(M.boiteSimple(w * 0.24, h * 0.42, 0.4), NOEL.boisF, { x: x - w * 0.18, y: 1.4, z: z + w * 0.43 })); // la porte
+      lp.push(P(M.boiteSimple(w * 0.22, w * 0.22, 0.4), '#FFD98A', { x: x + w * 0.2, y: 1.4 + h * 0.45, z: z + w * 0.43 })); // la fenêtre
+      pr.push(P(M.boiteSimple(w * 0.2, h * 0.5, w * 0.2), '#B5553A', { x: x + w * 0.22, y: 1.4 + h * 0.9, z: z - w * 0.1 })); // la cheminée
+    };
+    maison(-6.5, -0.6, 6.5, 6, '#F2C79A'); maison(1.2, -1.2, 7.5, 7.4, '#C7D8EE'); maison(8, 0.4, 5.6, 5.2, '#F4D7DC');
+    sapinet(pr, -10.2, 1.4, 2.8, 6.4, NOEL.sapin, true); sapinet(pr, 4.4, 1.4, 3.4, 4.6, NOEL.sapinC, true);
+    D.vifs.push({ pr: lp, emi: '#FFC45A', k: (E) => 0.35 + 0.75 * E.lampes, m: null });
+    return D;
+  }
+  function decoBonhommeNeige() { // le bonhomme de neige : trois boules, le nez-carotte, les yeux et les boutons de charbon, le chapeau, l'écharpe rouge, deux bras de bois
+    const D = nouvelle('bonhomme-neige'), pr = D.fixe;
+    pr.push(P(M.sphere(7, 12), NOEL.neige, { y: 6.2, sy: 0.9 }), P(M.sphere(5.2, 12), NOEL.neige, { y: 15.4 }), P(M.sphere(3.8, 10), NOEL.neige, { y: 22.6 }), P(M.cylindre(7.6, 8, 0.8, 12), NOEL.neigeO));
+    pr.push(P(M.cone(0.7, 3.6, 6), '#F08A2A', { y: 22.6, z: 3.4, rx: HP }));
+    for (const sx of [-1, 1]) pr.push(P(M.sphere(0.55, 5), '#2A2630', { x: sx * 1.3, y: 23.6, z: 3.3 }));
+    for (const [y, z] of [[17.6, 4.7], [15.2, 5.1], [12.8, 4.8], [8.2, 6.4]]) pr.push(P(M.sphere(0.6, 5), '#2A2630', { y, z }));
+    pr.push(P(M.tore(3.6, 0.9, TAU, 5, 14), NOEL.rouge, { y: 19.4, rx: HP }), P(bo(1.8, 5, 0.9, 0.3), NOEL.rouge, { x: 2, y: 14.6, z: 3.6 }), P(M.boiteSimple(1.9, 0.6, 1), NOEL.neige, { x: 2, y: 15.6, z: 3.7 }));
+    pr.push(P(M.cylindre(4.4, 4.4, 0.7, 12), '#2A2630', { y: 25.4 }), P(M.cylindre(2.7, 2.8, 4.4, 12), '#2A2630', { y: 25.9 }), P(M.cylindre(2.85, 2.85, 0.9, 12), NOEL.rouge, { y: 26.4 }));
+    for (const sx of [-1, 1]) pr.push(P(M.cylindre(0.35, 0.45, 8, 4), NOEL.boisF, { x: sx * 4.6, y: 16.4, rz: -sx * 1.05 }), P(M.cylindre(0.25, 0.3, 2.4, 3), NOEL.boisF, { x: sx * 9.2, y: 19, rz: -sx * 0.3 }));
+    return D;
+  }
+  function decoBouleNeige() { // la boule à neige : le socle de bois et son liseré d'or, le verre bleu pâle, un sapin, un petit chalet et des flocons dedans, un reflet
+    const D = nouvelle('boule-neige'), pr = D.fixe, r = 6.6;
+    pr.push(P(M.cylindre(5.2, 6.2, 3.6, 12), NOEL.bois), P(M.tore(5.3, 0.45, TAU, 4, 16), NOEL.or, { y: 3.6, rx: HP }), P(M.cylindre(4.6, 4.8, 0.8, 12), NOEL.neige, { y: 3.6 }));
+    pr.push(P(M.sphere(r, 14), '#D6E9F7', { y: 3.6 + r * 0.92 }));
+    const y0 = 3.6 + r * 0.92;
+    sapinet(pr, -1.6, y0 - 4.6, 4.2, 7.4, NOEL.sapin, true); // (devant, à demi sorti du verre : il se lit)
+    pr.push(P(bo(3.4, 2.6, 1.6, 0.3), '#F2C79A', { x: 2.4, y: y0 - 4.2, z: 5 }), P(toit4(2.6, 1.8), NOEL.rougeF, { x: 2.4, y: y0 - 1.6, z: 5, sz: 0.5 }));
+    for (const [a, b] of [[0.5, 0.4], [1.3, 0.8], [2.2, 0.3], [2.8, 1.1], [3.6, 0.6], [4.6, 1.2], [5.3, 0.2], [0.1, 1.3]]) pr.push(P(M.sphere(0.42, 4), '#FFFFFF', { x: Math.cos(a) * r * 0.8 * Math.cos(b * 0.6), y: y0 + Math.sin(a) * r * 0.8 * Math.cos(b * 0.6), z: r * Math.sin(b * 0.6 + 0.55) }));
+    pr.push(P(M.sphere(1.2, 6), '#FFFFFF', { x: -2.8, y: y0 + 3, z: r * 0.62, sz: 0.3 }));
+    return D;
+  }
+  function decoLuge() { // la luge de bois : deux patins recourbés devant, les quatre montants, trois lattes, la corde rouge
+    const D = nouvelle('luge'), pr = D.fixe, z = 4.2;
+    for (const s of [-1, 1]) {
+      pr.push(P(M.boiteSimple(20, 1, 1.2), NOEL.boisF, { x: -1, y: 0, z: s * z }), P(M.tore(2.6, 0.55, Math.PI, 4, 8), NOEL.boisF, { x: 9, y: 2.6, z: s * z, rz: -HP }));
+      for (const x of [-7, 3]) pr.push(P(M.boiteSimple(1.2, 3.2, 1.2), NOEL.bois, { x, y: 1, z: s * z }));
+    }
+    for (const x of [-7.5, -2.5, 2.5]) pr.push(P(bo(4.2, 1, 10.6, 0.3), '#B07A4A', { x, y: 4.2 }));
+    pr.push(P(bo(16, 0.8, 2, 0.3), NOEL.bois, { x: -2.5, y: 3.6, z: z - 0.4 }), P(bo(16, 0.8, 2, 0.3), NOEL.bois, { x: -2.5, y: 3.6, z: -z + 0.4 }));
+    pr.push(P(M.tore(3.6, 0.35, Math.PI, 3, 10), NOEL.rouge, { x: 11.4, y: 4.6, rx: HP, rz: -HP }));
+    return D;
+  }
+  function decoLanterneGivre() { // la lanterne givrée : le socle et le toit d'argent couverts de neige, quatre montants, la bougie qui luit derrière le verre givré, un brin de sapin au pied
+    const D = nouvelle('lanterne-givre', { sx: 0.9, sy: 0.9, sz: 0.9 }), pr = D.fixe, ar = '#9FB4C8', lp = [];
+    pr.push(P(bo(12, 1.6, 12, 0.5), ar), P(bo(11, 1.2, 11, 0.4), ar, { y: 15 }), P(toitLanterne(), ar, { y: 16.2 }), P(toit4(6.4, 3.6), NOEL.neige, { y: 17.4 }), P(M.tore(1.6, 0.45, TAU, 4, 8), ar, { y: 22.4 }));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.boiteSimple(1.1, 13.6, 1.1), M.assombrir(ar, 0.25), { x: sx * 4.9, y: 1.4, z: sz * 4.9 }));
+    pr.push(P(M.cylindre(2, 2, 5.6, 10), '#FFF6E2', { y: 1.6 }), P(bo(12.6, 0.8, 12.6, 0.3), NOEL.neige, { y: 1.4 }));
+    lp.push(P(M.boiteSimple(9.2, 12.6, 9.2), '#E6F0FA', { y: 1.8 }), P(M.sphere(1.1, 6), '#FFE9A0', { y: 8.6, sy: 1.7 }));
+    D.vifs.push({ pr: lp, emi: '#FFD9A0', k: (E) => 0.3 + 0.6 * E.lampes + 0.05 * Math.sin(E.t * 9) + 0.03 * Math.sin(E.t * 23), m: null });
+    for (const sx of [-1, 1]) pr.push(P(M.cone(1.6, 4.2, 6), NOEL.sapin, { x: sx * 7.6, y: 0, z: 1.5 }), P(M.sphere(0.7, 5), NOEL.rouge, { x: sx * 7.4, y: 1, z: 2.8 })); // (sur les côtés du socle, jamais plus profond que lui)
+    return D;
+  }
+  function decoGuirlandeGivre() { // la guirlande de flocons : deux piquets, une ficelle d'argent drapée, sept flocons qui luisent doucement le soir
+    const D = nouvelle('guirlande-givre'), pr = D.fixe, lp = [], w = 34, h = 21;
+    for (const sx of [-1, 1]) pr.push(P(M.cylindre(0.7, 0.8, h + 1, 5), NOEL.acier, { x: sx * w / 2 }), P(M.sphere(1, 6), NOEL.givre, { x: sx * w / 2, y: h + 1 }));
+    for (let k = 0; k <= 14; k++) { const u = k / 14, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.2; pr.push(P(M.sphere(0.32, 4), NOEL.acier, { x, y })); }
+    for (let i = 0; i < 7; i++) { const u = (i + 0.5) / 7, x = -w / 2 + w * u, y = h - Math.sin(u * Math.PI) * 4.2 - 3.2, r = i % 2 ? 2.1 : 2.6; pr.push(P(M.cylindre(0.1, 0.1, 1.2, 3), NOEL.acier, { x, y: y + r - 0.2 })); lp.push(P(flocon6(r, 0.55), i % 2 ? '#FFFFFF' : '#CFE6FF', { x, y })); }
+    D.vifs.push({ pr: lp, emi: '#BFDFFF', k: (E) => 0.2 + 0.75 * E.lampes + 0.05 * Math.sin(E.t * 2), m: null });
+    return D;
+  }
+  function decoTraineau() { // le traîneau chargé de paquets : la caisse rouge et son dossier, le liseré d'or, les patins d'or recourbés, quatre paquets enrubannés
+    const D = nouvelle('traineau'), pr = D.fixe, z = 4.6;
+    for (const s of [-1, 1]) pr.push(P(M.boiteSimple(22, 1, 1.2), NOEL.or, { y: 0, z: s * z }), P(M.tore(2.8, 0.6, Math.PI, 4, 8), NOEL.or, { x: 11, y: 2.8, z: s * z, rz: -HP }), P(M.boiteSimple(1.2, 3, 1.2), NOEL.or, { x: -7, y: 1, z: s * z }), P(M.boiteSimple(1.2, 3, 1.2), NOEL.or, { x: 6, y: 1, z: s * z }));
+    pr.push(P(bo(20, 5.6, 11, 0.8), NOEL.rouge, { x: -0.5, y: 3.6 }), P(bo(4, 8, 11, 0.8), NOEL.rouge, { x: -8.5, y: 8.6 }), P(bo(20.4, 0.8, 11.4, 0.3), NOEL.or, { x: -0.5, y: 8.8 }), P(bo(4.4, 0.8, 11.4, 0.3), NOEL.or, { x: -8.5, y: 16.2 }));
+    pr.push(P(M.boiteSimple(14, 1.4, 0.4), NOEL.or, { x: 0, y: 5.6, z: 5.7 }));
+    const paquet = (x, y, zz, w, h, d, c, rb) => { pr.push(P(bo(w, h, d, 0.3), c, { x, y, z: zz }), P(M.boiteSimple(w + 0.2, h + 0.1, 1), rb, { x, y, z: zz }), P(M.boiteSimple(1, h + 0.1, d + 0.2), rb, { x, y, z: zz }), P(M.sphere(1, 6), rb, { x, y: y + h + 0.4, z: zz, sx: 1.6, sz: 0.8 })); };
+    paquet(-2.5, 9.2, -1.5, 6, 5, 6, NOEL.sapinC, NOEL.or); paquet(4, 9.2, 1, 5, 4, 5, '#2B5BD7', NOEL.neige); paquet(0.5, 14.6, -0.5, 4.4, 3.6, 4.4, NOEL.or, NOEL.rouge); paquet(-4.5, 9.2, 3, 3.6, 3, 3.4, '#F4D7DC', NOEL.rouge);
+    return D;
+  }
+  function decoCheminee() { // la cheminée et ses bûches : deux jambages de brique, le manteau de bois et sa guirlande de houx, le foyer noir, deux bûches, le feu qui danse
+    const D = nouvelle('cheminee'), pr = D.fixe, fl = [], br = '#B5553A';
+    pr.push(P(bo(26, 2.6, 8, 0.6), NOEL.bois, { y: 9 }), P(bo(24, 1.2, 7, 0.3), NOEL.boisF, { y: 8 }));
+    for (const sx of [-1, 1]) pr.push(P(bo(5, 18, 6, 0.4), br, { x: sx * 9.5, y: -10 }), P(M.boiteSimple(5.2, 0.5, 6.2), '#D9826A', { x: sx * 9.5, y: -4 }), P(M.boiteSimple(5.2, 0.5, 6.2), '#D9826A', { x: sx * 9.5, y: 2 }));
+    pr.push(P(M.boiteSimple(14, 12, 1), '#2A1E1A', { y: -10, z: 0.5 }), P(bo(14, 1.6, 5.6, 0.3), '#6B6058', { y: -10, z: 2.8 }), P(M.boiteSimple(14, 5, 1), br, { y: 3, z: 3 }));
+    pr.push(P(M.cylindre(1.3, 1.3, 11, 7), '#7B4A2A', { y: -8, z: 3.4, rz: HP, x: 5.5 }), P(M.cylindre(1.2, 1.2, 10, 7), '#6B4026', { y: -6, z: 2.6, rz: HP, x: 5 }));
+    for (let k = 0; k < 9; k++) { const x = -11 + k * 2.75; pr.push(P(M.sphere(1.1, 5), k % 2 ? NOEL.sapin : NOEL.sapinC, { x, y: 11.6, z: 4.4, sy: 0.8 })); if (k % 2) pr.push(P(M.sphere(0.55, 4), NOEL.rouge, { x, y: 12.2, z: 5.3 })); }
+    fl.push(P(M.cone(2.4, 6, 7), '#FF8A2A', { x: -2.2, y: -8, z: 3 }), P(M.cone(2.8, 7.4, 7), '#FF6A1A', { x: 0.6, y: -8, z: 2.6 }), P(M.cone(1.6, 4.6, 6), '#FFC44A', { x: 2.8, y: -8, z: 3.4 }), P(M.cone(1.3, 3.6, 6), '#FFE58A', { x: -0.4, y: -8, z: 3.8 }));
+    D.vifs.push({ pr: fl, emi: '#FF8A2A', k: (E) => 0.65 + 0.3 * E.lampes + 0.12 * Math.sin(E.t * 7) + 0.08 * Math.sin(E.t * 17), m: null });
+    return D;
+  }
+  function decoPatins() { // les patins à glace : deux bottines blanches à lames d'acier, pendues à un clou par leurs lacets rouges, l'un un peu devant l'autre
+    const D = nouvelle('patins'), pr = D.fixe;
+    pr.push(P(M.cylindre(0.5, 0.5, 2, 5), NOEL.acier, { y: 8, z: 0, rx: HP }), P(M.sphere(0.8, 5), NOEL.acier, { y: 8, z: 2 }));
+    for (const [sx, zz] of [[-1, 2], [1, 4.4]]) {
+      const x = sx * 4.4;
+      pr.push(P(M.cylindre(0.22, 0.22, 9.4, 3), NOEL.rouge, { x: x * 0.5, y: 3.4, z: zz - 0.6, rz: sx * 0.42 }));
+      pr.push(P(bo(4, 7.4, 3.4, 0.6), '#F4F1EC', { x, y: -6.4, z: zz }), P(bo(7, 2.8, 3.4, 0.6), '#F4F1EC', { x: x + 1.6, y: -8.4, z: zz }), P(M.boiteSimple(4.2, 1, 3.6), NOEL.rouge, { x, y: 0.2, z: zz }));
+      pr.push(P(M.boiteSimple(1.2, 1.6, 0.8), NOEL.acier, { x: x - 1, y: -10, z: zz }), P(M.boiteSimple(1.2, 1.6, 0.8), NOEL.acier, { x: x + 3.6, y: -10, z: zz }), P(M.boiteSimple(9, 0.6, 0.6), '#DDE5EE', { x: x + 1.4, y: -10.6, z: zz }));
+      for (let k = 0; k < 3; k++) pr.push(P(M.boiteSimple(2.6, 0.35, 0.4), NOEL.rouge, { x, y: -4.6 + k * 1.6, z: zz + 1.7 }));
+    }
+    return D;
+  }
+  function decoTropheeHiver() { // le trophée de la saison d'hiver 2026 : le socle bleu nuit, sa plaque « 2026 », la coupe d'or, un grand flocon d'or dressé
+    const D = nouvelle('trophee-hiver-2026'), pr = D.fixe;
+    pr.push(P(bo(15, 5, 11, 1), NOEL.nuit), P(bo(13, 1.6, 9.4, 0.5), '#3A5C92', { y: 5 }), P(M.boiteSimple(10, 3.4, 0.4), '#E6F0FA', { y: 0.8, z: 5.6 }));
+    let x = -3.9; for (const n of [2, 0, 2, 6]) { chiffre(pr, n, x, 1.1, 5.9, 2.6, NOEL.nuit); x += 2.6; }
+    pr.push(P(M.cylindre(1.4, 2.6, 3, 10), NOEL.or, { y: 6.6 }), P(M.cylindre(4.6, 1.4, 6, 12), NOEL.or, { y: 9.6 }), P(M.tore(4.4, 0.7, TAU, 4, 14), NOEL.orC, { y: 15.6, rx: HP }));
+    for (const sx of [-1, 1]) pr.push(P(M.tore(2, 0.5, Math.PI, 4, 8), NOEL.or, { x: sx * 5.4, y: 12.4, rz: sx * HP }));
+    pr.push(P(M.cylindre(0.4, 0.5, 3, 4), NOEL.or, { y: 15.6 }), P(flocon6(5.6, 1), NOEL.orC, { y: 23.4, z: 0.4 }), P(M.sphere(1.2, 6), '#FFFFFF', { y: 23.4, z: 1, sz: 0.5 }));
+    return D;
+  }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
   //     Tout est fusionné en un maillage (1 appel de dessin, le soir compris : la lueur des lanternes est dans le même, lueurVerre).
@@ -1693,17 +1847,25 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     'toque-feuille': { type: 'mur', faire: (c, place, o) => decoToque(c, 'feuille', !place && o ? o.rang || 0 : 0) },
     // la saison d'automne (la piste, SAISONS.possede) : posées seulement (DECOS_SAISON, comme les neuves)
     'couronne-feuilles': { type: 'mur' }, 'guirlande-feuilles': { type: 'rebord' }, 'lanterne-automne': { type: 'comptoir' }, epouvantail: { type: 'sol' }, 'trophee-automne-2026': { type: 'comptoir' },
+    // le calendrier de l'Avent (AVENT.possede) et la saison d'hiver (SAISONS.possede) : posées seulement (DECOS_AVENT, DECOS_HIVER)
+    'couronne-avent': { type: 'comptoir' }, chaussettes: { type: 'rebord' }, 'village-noel': { type: 'comptoir' }, 'bonhomme-neige': { type: 'sol' }, 'boule-neige': { type: 'comptoir' },
+    luge: { type: 'sol' }, 'lanterne-givre': { type: 'comptoir' }, 'guirlande-givre': { type: 'rebord' }, traineau: { type: 'sol' }, cheminee: { type: 'mur' }, patins: { type: 'mur' }, 'trophee-hiver-2026': { type: 'comptoir' },
   };
   // les décos de la saison d'automne (src/saison-automne.js, la piste) : à part des neuves de « Ma chaîne » (NEUVES) et des rares des paliers,
   // comme elles sans place d'origine
   const DECOS_SAISON = { 'couronne-feuilles': decoCouronneFeuilles, 'guirlande-feuilles': decoGuirlandeFeuilles, 'lanterne-automne': decoLanterneAutomne, epouvantail: decoEpouvantail, 'trophee-automne-2026': decoTropheeAutomne };
   for (const [id, f] of Object.entries(NEUVES)) DECOS[id].faire = f;
   for (const [id, f] of Object.entries(DECOS_SAISON)) DECOS[id].faire = f;
+  // les décos du point 7 (docs/noel-contrat.md § 7.1) : celles du calendrier de l'Avent et celles de la saison d'hiver, à part comme DECOS_SAISON
+  const DECOS_AVENT = { 'couronne-avent': decoCouronneAvent, chaussettes: decoChaussettes, 'village-noel': decoVillageNoel, 'bonhomme-neige': decoBonhommeNeige, 'boule-neige': decoBouleNeige };
+  const DECOS_HIVER = { luge: decoLuge, 'lanterne-givre': decoLanterneGivre, 'guirlande-givre': decoGuirlandeGivre, traineau: decoTraineau, cheminee: decoCheminee, patins: decoPatins, 'trophee-hiver-2026': decoTropheeHiver };
+  for (const [id, f] of Object.entries(DECOS_AVENT)) DECOS[id].faire = f;
+  for (const [id, f] of Object.entries(DECOS_HIVER)) DECOS[id].faire = f;
   // une déco en parties, bâtie à sa place : place = null (sa place d'origine, celle d'aujourd'hui ; une déco neuve n'en a pas : null) ou une
   // place typée de LAY.decos → { d, place: Matrix4 | null }, avec la planchette d'un rebord en plus
   function decoParties(id, c, place, o) {
     const x = DECOS[id]; if (!x || !x.faire) return null;
-    if (!place) return NEUVES[id] || DECOS_PALIER[id] || DECOS_SAISON[id] ? null : [{ d: x.faire(c, null, o), place: null }];
+    if (!place) return NEUVES[id] || DECOS_PALIER[id] || DECOS_SAISON[id] || DECOS_AVENT[id] || DECOS_HIVER[id] ? null : [{ d: x.faire(c, null, o), place: null }];
     if (x.type !== place.type) return null;
     const d = x.faire(c, place, o), out = [{ d, place: x.enPlace ? null : placer(d, place, c) }];
     if (place.type === 'rebord' && !x.enPlace) out.push({ d: planchette(place, c), place: null }); // (la toile se tend dans la vitre : pas de planchette)
@@ -1729,6 +1891,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, fantome, hantee, standing, coinsStanding, dehors, PROJETS3D, // (dehors, PROJETS3D : les chantiers du quartier, lot « progression »)
     marche, MC, erable, partsCagette, partsCourge, partsPomme, partsBotte, // (la Halle du Marché d'automne, en éco ; ses accessoires, repris par src/boutiquemarche.js)
     // « Mes décos » : les petits décors et les décos en parties typées, leur fusion, leurs places
-    DECOS, NEUVES, DECOS_PALIER, DECOS_SAISON, MAX_VIFS, decoParties, decoCadre, decoHorloge, decoDiplome, decoPlante, decoFleurs, decoPaillasson, decoLampe, decoPlan, decoArdoise, fusion, placerGroupe, boiteDe, atlas };
+    DECOS, NEUVES, DECOS_PALIER, DECOS_SAISON, DECOS_AVENT, DECOS_HIVER, MAX_VIFS, decoParties, decoCadre, decoHorloge, decoDiplome, decoPlante, decoFleurs, decoPaillasson, decoLampe, decoPlan, decoArdoise, fusion, placerGroupe, boiteDe, atlas };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
