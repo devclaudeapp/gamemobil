@@ -784,7 +784,7 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
     cases (état 'ouverte' | 'du' | 'rattrapage' | 'fermee' | 'future' | 'rangee', friandise, teinte, lot, speciale, ouvrable, raison), ordre,
     ouvertes, friandises, du, rattrapage, rattrapageLibre, pastille, restant }` ; la fiche d'hiver porte `flocons` (les 24 numéros) et
     `textes.flocons(k)`.
-  - Les 12 décos (§ 7.1) : procédurales, ≤ 3 000 triangles (la plus lourde, la guirlande de chaussettes, ≈ 2 500), une seule part vive (la lueur)
+  - Les 12 décos (§ 7.1) : procédurales, ≤ 3 000 triangles (de 876 pour la lanterne givrée à 2 004 pour le traîneau ; `test/fournil-decos.cjs` vert, 283 s : posées seules, en cinq dispositions en 390 × 844 et 360 × 640, en décembre avec le sapin et la guirlande d'office : 66 appels pour le décor, ≤ 78), une seule part vive (la lueur)
     pour les cinq qui en ont une, aucune pour les autres ; la boule à neige a un verre opaque bleu pâle (la fusion n'a pas de transparence) :
     sa petite scène (sapin, chalet, flocons) est posée devant. Le flocon à six branches et le toit à quatre pans sont tournés dans leur géométrie.
   - `test/fournil-saison-sim.js` : `simulerHiver` (la logique de `outils/noel/hiver.js` sur le vrai moteur) rend **exactement** les chiffres de la
