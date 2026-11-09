@@ -1080,7 +1080,7 @@ const UI = (() => {
       cases.push({ n, etat, ouverte: ouv, friandise: f.id, teinte: f.teinte, lot, speciale: !!lot.speciale });
     }
     const restant = D ? 32 - D : 0; // (les jours pour rattraper, celui-ci compris)
-    return { id: AV_ID(), jour: D, du: o.du || 0, rattrapage: ratt.slice(), ouvertes, total: N, cases, retard: Dtel > D, fini: now >= AVA.FIN_CASES, range: now >= AVA.FIN, restant, dedans, ouvrables: (o.du ? 1 : 0) + ratt.length };
+    return { id: AV_ID(), jour: D, du: o.du || 0, rattrapage: ratt.slice(), ouvertes, total: N, cases, retard: Dtel > D || !!o.recul, fini: now >= AVA.FIN_CASES, range: now >= AVA.FIN, restant, dedans, ouvrables: (o.du ? 1 : 0) + ratt.length };
   }
   // la carte du tiroir : « Calendrier de l'Avent · 7/24 », « la case du jour t'attend » ; la pastille quand une case peut s'ouvrir
   function majAvent(force) {
@@ -1107,7 +1107,7 @@ const UI = (() => {
         : `<span class="av-num">${c.n}</span>${c.etat === 'rattrapage' ? `<span class="av-ruban">${esc(TX_AV('ruban') || 'À rattraper')}</span>` : ''}`;
       return `<button type="button" class="av-case ${c.etat}${c.speciale ? ' speciale' : ''}${vient ? ' vient' : ''}" data-av="${c.n}" aria-label="${esc(lab)}"${lecture ? ' disabled' : ''}>${dedans}</button>`;
     }).join('');
-    const boite = TX_AV('boite', v.ouvertes) || `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? (v.restant <= 1 ? 'le calendrier se range ce soir à minuit' : 'plus de case du jour') : v.jour >= v.total ? (v.ouvertes >= v.total ? 'tout est ouvert : joyeux Noël !' : 'une case oubliée à rattraper demain') : 'reviens demain'}`;
+    const boite = TX_AV('boite', v.ouvertes) || `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.retard && !v.du ? 'ton téléphone retrouve l’heure…' : v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? (v.restant <= 1 ? 'le calendrier se range ce soir à minuit' : 'plus de case du jour') : v.jour >= v.total ? (v.ouvertes >= v.total ? 'tout est ouvert : joyeux Noël !' : 'une case oubliée à rattraper demain') : 'reviens demain'}`;
     const msg = avMsg || (v.retard ? TX_AV('heure') || 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.' : '');
     openSheet(`<div class="av-feuille" id="av-feuille" data-avent="1"><div class="av-tete"><span class="pic">${ICONS.UI.avent || ''}</span><div><h2>Calendrier de l’Avent</h2><p class="sous">${esc(sous)}</p></div></div>
       <div class="av-carte"><div class="av-fond" aria-hidden="true">${ICONS.AVENT.fond}</div><i class="av-neige" aria-hidden="true"></i><div class="av-grille" role="list" aria-label="Les 24 cases">${cases}</div></div>

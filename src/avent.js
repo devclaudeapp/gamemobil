@@ -12,7 +12,9 @@
      · le jour se lit sur l'heure SÛRE quand elle est connue (sure = HORLOGE.etat().sure : t = min(now, sure), comme MARCHE.fenetreSure) :
        avancer l'heure du téléphone hors ligne n'ouvre pas la case de demain ; sans heure sûre (l'artefact Claude), le « maintenant » du jeu.
    L'état : st.avent = { v: 1, id: 'avent-2026', o: 0, r: '' } (o : le masque des cases ouvertes, bit n − 1 = case n, en arithmétique ;
-   r : le dernier jour de Paris, 'AAAA-MM-JJ', d'un RATTRAPAGE) ; l'annonce vue : st.aventAnnonce (hors de st.avent, comme st.pisteAnnonce).
+   r : le dernier jour de Paris, 'AAAA-MM-JJ', d'un RATTRAPAGE ; j, posé à la première ouverture : le plus haut jour de Paris où une case
+   s'est ouverte, qui ne baisse jamais : une horloge du jeu qui se recale EN ARRIÈRE (HORLOGE (e)) n'ouvre plus rien avant d'y revenir, la
+   case du jour d'un jour revenu en arrière ne s'ouvre pas en plus ; une sauvegarde sans j reste valide) ; l'annonce vue : st.aventAnnonce (hors de st.avent, comme st.pisteAnnonce).
    Chaque case : une friandise (un dessin, FRIANDISES, aucun état) et 10 XP de saison (la fiche d'hiver lit nOuvertes : src/saison-hiver.js) ;
    en plus le lot de LOTS : 8 ★, 3 boosts, 5 décos, 4 pièces de la tenue de Noël (sans bonus), le renne « Grelot », l'aura des flocons. */
 (function (root, factory) {
@@ -94,14 +96,18 @@
     a.v = 1; if (a.id !== ID) { if (typeof a.id === 'string' && a.id) { st.avent = neuf(); return st.avent; } a.id = ID; } // (un autre id : une version future, neuf)
     if (!(Number.isSafeInteger(a.o) && a.o >= 0 && a.o < 2 ** CASES)) a.o = 0;
     if (!(typeof a.r === 'string' && (a.r === '' || JOUR_OK.test(a.r)))) a.r = Number.isFinite(now) ? SA.dayKey(now) : ''; // (abîmé : pas de rattrapage avant demain ; jamais deux le même jour)
+    if ('j' in a && !(typeof a.j === 'string' && (a.j === '' || JOUR_OK.test(a.j)))) { if (Number.isFinite(now)) a.j = SA.dayKey(now); else delete a.j; } // (abîmé : rien avant aujourd'hui ; absent : rien à réparer)
     return a;
   }
   // rien n'est créé hors de la fenêtre (avant le 1er déc., à partir du 1er janv.) ; dedans, st.avent créé au premier appel ; null : pas d'Avent
   function etat(st, now) { if (!st || typeof st !== 'object') return null; if (st.avent === undefined && !ouvert(now)) return null; return reparer(st, now); }
-  // ce qui peut s'ouvrir maintenant : { jour, du: n ou 0 (la case du jour), rattrapage: [k…] (les cases oubliées, si le rattrapage du jour est libre) }
+  const recul = (A, auj) => typeof A.j === 'string' && A.j !== '' && auj < A.j; // le jour lu est AVANT le plus haut jour d'une ouverture (l'horloge a reculé)
+  // ce qui peut s'ouvrir maintenant : { jour, du: n ou 0 (la case du jour), rattrapage: [k…] (les cases oubliées, si le rattrapage du jour est libre) } ;
+  // recul: true (et rien d'ouvrable) quand l'horloge est revenue avant le dernier jour d'une ouverture
   function ouvrables(st, now, sure) {
     const D = jour(now, sure), a = st && objet(st.avent) ? st.avent : null, o = { jour: D, du: 0, rattrapage: [] };
     if (!D) return o; const A = a || neuf(), auj = SA.dayKey(tSur(now, sure));
+    if (recul(A, auj)) { o.recul = true; return o; }
     if (D <= CASES && !ouverte(A, D)) o.du = D;
     if (!(typeof A.r === 'string' && A.r && A.r >= auj)) for (let k = 1; k <= Math.min(D - 1, CASES); k++) if (!ouverte(A, k)) o.rattrapage.push(k);
     return o;
@@ -114,8 +120,10 @@
     if (ouverte(a, n)) return { ok: false, raison: 'deja' };
     if (n > D) return { ok: false, raison: 'future' };
     const auj = SA.dayKey(tSur(now, sure));
-    if (n !== D) { if (a.r && a.r >= auj) return { ok: false, raison: 'rattrapage' }; a.r = auj; }
-    a.o += 2 ** (n - 1);
+    if (n !== D && a.r && a.r >= auj) return { ok: false, raison: 'rattrapage' };
+    if (recul(a, auj)) return { ok: false, raison: 'heure' }; // (une horloge revenue en arrière : rien avant d'y revenir)
+    if (n !== D) a.r = auj;
+    a.o += 2 ** (n - 1); if (!(typeof a.j === 'string' && a.j >= auj)) a.j = auj; // (j ne baisse jamais)
     return { ok: true, lot: lotDe(n), rattrapage: n !== D };
   }
   const lotDe = (n) => { const l = LOTS[n - 1]; return l ? Object.assign({}, l, l.boost ? { boost: Object.assign({}, l.boost) } : {}) : null; };
@@ -163,15 +171,15 @@
   function vue(st, now, sure) {
     if (!st || typeof st !== 'object') return null;
     const a = ouvert(now) ? etat(st, now) : objet(st.avent) && st.avent.id === ID ? st.avent : null; if (!a) return null;
-    const D = jour(now, sure), Dj = jour(now), ou = ouvrables(st, now, sure), actif = ouvert(now), libre = !!D && !(a.r && a.r >= SA.dayKey(tSur(now, sure)));
+    const D = jour(now, sure), Dj = jour(now), ou = ouvrables(st, now, sure), actif = ouvert(now), rec = !!ou.recul, libre = !!D && !rec && !(a.r && a.r >= SA.dayKey(tSur(now, sure)));
     const cases = LOTS.map((l) => {
       const n = l.n, f = friandise(n), o = ouverte(a, n);
       const e = o ? 'ouverte' : !actif ? 'rangee' : !D ? 'future' : n === ou.du ? 'du' : n > D ? 'future' : libre ? 'rattrapage' : 'fermee';
-      const raison = o ? 'deja' : !D ? 'ferme' : n > D ? 'future' : e === 'fermee' ? 'rattrapage' : null;
+      const raison = o ? 'deja' : !D ? 'ferme' : n > D ? 'future' : e === 'fermee' ? (rec ? 'heure' : 'rattrapage') : null;
       return { n, etat: e, friandise: f.id, teinte: f.teinte, lot: lotDe(n), speciale: !!l.speciale, ouvrable: e === 'du' || e === 'rattrapage', raison };
     });
     const k = nOuvertes(a);
-    return { id: ID, jour: D, jourJeu: Dj, attendHeure: Dj > D, actif, cases, ordre: ORDRE_CASES.slice(), ouvertes: k, friandises: k, total: CASES, du: ou.du, rattrapage: ou.rattrapage.slice(),
+    return { id: ID, jour: D, jourJeu: Dj, attendHeure: Dj > D || rec, actif, cases, ordre: ORDRE_CASES.slice(), ouvertes: k, friandises: k, total: CASES, du: ou.du, rattrapage: ou.rattrapage.slice(),
       rattrapageLibre: libre, pastille: !!(ou.du || ou.rattrapage.length), restant: D ? 32 - D : 0, fin: FIN, finCases: FIN_CASES };
   }
   return { ID, ANNEE, DEBUT, FIN_CASES, FIN, CASES, XP_CASE, LOTS, FRIANDISES, ORDRE_CASES, NOMS, TEXTES, DECOS, VETEMENTS,

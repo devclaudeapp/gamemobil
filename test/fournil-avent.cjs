@@ -11,7 +11,7 @@
 // · le 6 : le renne (la feuille du lot, Les compagnons) ; l'heure sûre en retard (le message, la case attend) ; aVerser (une pièce perdue
 //   redonnée au lancement) ; le 25 : un rattrapage, pas deux ; le 1er janvier : la carte disparaît, la feuille reste lisible (Mes récompenses),
 //   Mes décos (famille Avent) ; le 24 au soir (une oubliée : « à rattraper demain », tout ouvert : « joyeux Noël ») et le 31 au soir (« se range
-//   ce soir à minuit ») : la carte et le sous-titre de la feuille ;
+//   ce soir à minuit ») : la carte et le sous-titre de la feuille ; l'horloge du jeu revenue en arrière (st.avent.j) : rien d'ouvrable, le refus ;
 // · un nouveau joueur (window.__accueil = true) : la carte cachée, puis la bulle au déblocage « avent » (sa piste ouverte en automne :
 //   elle dit aussi la saison d’hiver, st.pisteAnnonce posé avec). Aucune erreur de page.
 // Captures dans test/shots/avent/ (et dans SHOTS_AVENT s'il est donné).
@@ -227,6 +227,16 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
       if (F.tiroir) F.tiroir('mi'); F.avent.carte(); const carte = document.querySelector('#avent').innerText.replace(/\s+/g, ' ').trim();
       F.avent.feuille(); await new Promise((ok) => setTimeout(ok, 300)); const s = document.querySelector('#feuille-contenu .av-tete .sous'); const sous = s ? s.textContent : ''; const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); return { carte, sous }; });
     T = await ouvrir({ quand: P(24, 18) }); await T.charger();
+    // l'horloge du jeu recalée en arrière (HORLOGE (e)) : une case ouverte « le 25 » par un jeu en avance, puis le jeu revenu au 24 (st.avent.j)
+    await T.ev(() => { const F = window.__fournil, st = F.st; st.tuto = 9; st.lifetime = Math.max(st.lifetime, 5e9); st.aventAnnonce = 'avent-2026'; st.pisteAnnonce = 'hiver-2026'; st.avent = { v: 1, id: 'avent-2026', o: 2 ** 22, r: '2026-12-25', j: '2026-12-25' }; F.save(); });
+    const rc = await T.ev(async () => { const F = window.__fournil, f = document.querySelector('#feuille'); if (!f.hidden) { const b = f.querySelector('[data-a="close"], [data-a="pq-tard"], [data-a="pq-ok"]'); if (b) b.click(); }
+      if (F.tiroir) F.tiroir('mi'); F.avent.carte(); const c = document.querySelector('#avent'), carte = c.innerText.replace(/\s+/g, ' ').trim(), pret = c.classList.contains('pret');
+      const o = F.avent.vue(); F.avent.feuille(); await new Promise((ok) => setTimeout(ok, 300)); const msg0 = document.querySelector('#av-msg').textContent, sous = document.querySelector('#feuille-contenu .av-tete .sous').textContent;
+      document.querySelector('#feuille [data-av="24"]').click(); await new Promise((ok) => setTimeout(ok, 300));
+      const r = { carte, pret, sous, ouvrables: o.cases.filter((x) => x.ouvrable).length, msg0, msg: document.querySelector('#av-msg').textContent, o: F.st.avent.o, j: F.st.avent.j }; return r; });
+    check(/retrouve l’heure/.test(rc.carte) && /retrouve l’heure/.test(rc.sous) && !rc.pret && rc.ouvrables === 0 && rc.msg0 === AVENT.TEXTES.heure && rc.msg === AVENT.TEXTES.heure && rc.o === 2 ** 22 && rc.j === '2026-12-25', `l’horloge du jeu revenue en arrière (une case ouverte « le 25 ») : la carte « ${rc.carte} » sans pastille, la feuille « ${rc.sous} », aucune case ouvrable ; la case 24 touchée : « ${rc.msg} », rien d’ouvert`);
+    await T.shot('12a-horloge-revenue');
+    await T.fermer();
     await preparer(T, sauf([9, 10, 24]), '');
     const r24 = await T.ev(() => [24, 9].map((n) => { const x = window.__fournil.avent.ouvrir(n); return x && x.ok; }));
     await sleep(400); let x = await lireFin(T);

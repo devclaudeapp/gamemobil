@@ -2,7 +2,8 @@
 // Le calendrier de l'Avent 2026 (src/avent.js ; docs/noel-contrat.md § 2) : la règle (« Chaque jour, ouvre la case du jour. Tu en as oublié ?
 // Tu peux en rattraper une par jour, jusqu'au 31 décembre. »), jouée sur les scénarios de la référence (outils/noel/avent.js) : fermé le
 // 30 nov. à 23 h 59, ouvert le 1er à 0 h, jamais deux fois la même case, jamais une future, la case du jour et une oubliée mais pas deux,
-// l'heure sûre en retard (fermé, la case attend), une horloge qui recule (pas de rattrapage de plus), du 25 au 31 un rattrapage par jour,
+// l'heure sûre en retard (fermé, la case attend), une horloge qui recule (pas de rattrapage de plus ; l'horloge du jeu recalée en
+// arrière : rien ne s'ouvre avant de revenir au plus haut jour d'une ouverture, st.avent.j), du 25 au 31 un rattrapage par jour,
 // rangé le 1er janvier ; les 24 lots du contrat (§ 2.3 : 8 ★, 3 boosts, les spéciales 6, 12, 18, 24) ; la réparation (null, [], 'x',
 // { o: -1, r: 3 }, une version future) ; verser dans la boulangerie (étoiles, boost en réserve, pièce de la garde-robe, aura ; le renne et les
 // décos par possede) ; aVerser (un écran tombé entre ouvrir et verser) ; la vue de l'écran ; le déblocage « avent » de l'accueil (bit 16, la
@@ -69,6 +70,28 @@ console.log('── ouvrables, la vue ──');
   A.ouvrir(st, 5, P(5, 11)); v = A.vue(st, P(5, 11)); check(!v.pastille && v.du === 0 && v.ouvertes === 4 && v.friandises === 4, 'tout ouvert pour aujourd’hui : plus de pastille ; 4 friandises dans la boîte');
   v = A.vue(st, P(28, 9)); check(v.du === 0 && v.rattrapage.length === 20 && v.restant === 4 && v.cases.every((c) => c.etat !== 'du' && c.etat !== 'future'), 'le 28 : plus de case du jour, 20 oubliées, encore 4 j (28, 29, 30, 31)');
   v = A.vue(st, P(2, 9, 0, 1, 2027)); check(v && !v.actif && v.ouvertes === 4 && v.cases.every((c) => !c.ouvrable && (c.etat === 'ouverte' || c.etat === 'rangee')) && !v.pastille && !('avent' in {}) , 'le 2 janvier : rangé (la feuille lisible depuis Mes récompenses : 4/24), rien d’ouvrable'); }
+
+console.log('── l’horloge du jeu qui se recale en arrière (HORLOGE (e)) : pas de case de plus ──');
+{ // la sonde de la revue : le compteur monotone d'un iPhone 1,5 × trop rapide ; le jeu croit le 10 à 0 h 30 quand il est le 9 à 23 h (Paris)
+  const H = require('../src/horloge.js'); let vrai = SA.parisMs(2026, 12, 9, 20), perfV = 0;
+  const m = H.creer({ tel: () => vrai, perf: () => perfV, avanceMax: () => 8 * 3600e3 }); m.noterHeureSure(vrai, perfV, 'page'); m.demarrer();
+  vrai += 3 * 3600e3; perfV += 4.5 * 3600e3;
+  const st = {}; let now = m.maintenant(), sure = m.etat().sure; const r10 = A.ouvrir(st, 10, now, sure), r3 = A.ouvrir(st, 3, now, sure);
+  check(A.jour(now, sure) === 10 && r10.ok && r3.ok && st.avent.j === '2026-12-10', `le jeu en avance (le 10 à 0 h 30 au lieu du 9 à 23 h) : la case 10 et un rattrapage ; j « ${st.avent.j} »`);
+  m.noterHeureSure(vrai, perfV, 'page'); now = m.maintenant(); sure = m.etat().sure; // (une heure sûre fraîche : le jeu revient au 9)
+  const r9 = A.ouvrir(st, 9, now, sure), o = A.ouvrables(st, now, sure), v = A.vue(st, now, sure);
+  check(A.jour(now, sure) === 9 && !r9.ok && r9.raison === 'heure' && A.nOuvertes(st.avent) === 2, `revenu au 9 : la case 9 ne s’ouvre pas (« ${r9.raison} ») : 2 cases ce jour-là, pas 3`);
+  check(o.recul === true && o.du === 0 && o.rattrapage.length === 0 && !v.pastille && v.attendHeure && !v.rattrapageLibre && v.cases[8].etat === 'fermee' && v.cases[8].raison === 'heure' && v.cases.every((c) => !c.ouvrable), 'ouvrables : rien (recul) ; la vue : aucune case ouvrable, la 9 « fermée » (raison « heure »), pas de pastille, l’écran attend l’heure');
+  check(A.TEXTES.heure && /retrouvé l’heure/.test(A.TEXTES.heure), 'le refus se dit par le texte de l’heure sûre (TEXTES.heure)');
+  vrai += 3600e3; perfV += 3600e3; m.noterHeureSure(vrai, perfV, 'page'); now = m.maintenant(); sure = m.etat().sure; // (le 10 à 0 h pour de vrai)
+  const r10b = A.ouvrir(st, 10, now, sure), r9b = A.ouvrir(st, 9, now, sure), r1 = A.ouvrir(st, 1, now, sure);
+  check(A.jour(now, sure) === 10 && r10b.raison === 'deja' && r9b.raison === 'rattrapage' && r1.raison === 'rattrapage' && st.avent.j === '2026-12-10' && A.ouvrir(st, 9, SA.parisMs(2026, 12, 11, 9)).ok, 'le vrai 10 décembre : la 10 déjà ouverte, le rattrapage du jour déjà pris (la 3, à 0 h 31) ; j reste le 10 ; le 11, la 9 se rattrape'); }
+{ const st = {}; A.ouvrir(st, 12, P(12, 9)); A.ouvrir(st, 5, P(12, 9, 1));
+  const r = [A.ouvrir(st, 11, P(11, 22)), A.ouvrir(st, 6, P(11, 22, 1)), A.ouvrir(st, 8, P(8, 9))];
+  check(r[0].raison === 'heure' && r[1].raison === 'rattrapage' && r[2].raison === 'heure' && st.avent.j === '2026-12-12' && A.nOuvertes(st.avent) === 2, `une horloge revenue au 11, puis au 8 : rien ne s’ouvre (${r.map((x) => x.raison).join(', ')}), j ne baisse jamais (« ${st.avent.j} »)`);
+  check(A.ouvrir(st, 13, P(13, 9)).ok && st.avent.j === '2026-12-13', 'le 13 : la case du jour, j monte');
+  const sans = { avent: { v: 1, id: A.ID, o: 2 ** 9, r: '' } }; A.etat(sans, P(10, 9)); check(!('j' in sans.avent) && A.ouvrir(sans, 9, P(10, 9, 1)).ok && sans.avent.j === '2026-12-10', 'une sauvegarde sans j reste valide (rien n’est ajouté) ; j posé à la première ouverture');
+  const abime = { avent: { v: 1, id: A.ID, o: 0, r: '', j: 7 } }; A.etat(abime, P(10, 9)); check(abime.avent.j === '2026-12-10' && A.ouvrir(abime, 9, P(9, 9)).raison === 'heure' && A.ouvrir(abime, 10, P(10, 10)).ok, 'j abîmé : le jour de maintenant (rien avant aujourd’hui ; la case du jour s’ouvre)'); }
 
 console.log('── verser, possede, aVerser ──');
 { const t = P(6, 10), s = G.newState(t); s.now = t; const e0 = s.etoiles;

@@ -817,6 +817,13 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
   piste vide) reprend `p.veille` comme le défi de la semaine ; un objectif le 30 nov. puis le 1er déc. donne la série du 1er déc. à l'hiver
   (10 XP, une fois). Le joueur simulé là depuis le 1er nov. passe de 2 245 à **2 255 XP** (série 330 → 340), sans autre changement (46/46 le
   31 déc.) ; les chiffres de conception (§ 8.2, `outils/noel/hiver.js`) perdaient ce jour-là, comme le moteur.
+  (2) L'horloge du jeu recalée en arrière (HORLOGE cas (e)) : `st.avent.j`, le plus haut jour de Paris d'une ouverture (posé à la première,
+  il ne baisse jamais ; réparé s'il est abîmé, absent d'une vieille sauvegarde sans dommage) ; un jour lu avant `j` n'ouvre rien (raison
+  `heure`, le texte de l'heure sûre ; `ouvrables` rend `recul: true` et rien d'ouvrable, l'écran attend l'heure). Un rattrapage déjà pris
+  garde sa raison `rattrapage`. La référence `outils/noel/avent.js` fait de même (1 000 tirages égaux). (3) La carte et la feuille le 24 au
+  soir (« une case oubliée à rattraper demain », « tout est ouvert : joyeux Noël ! ») et le 31 au soir (« le calendrier se range ce soir à
+  minuit »). (4) Le renne Grelot redessiné (corps court, debout sur ses quatre pattes, cou relevé, grosse tête) : couché en sphinx sur un
+  corps de chien, sa vignette montrait une bûche ; vignette recuite (50/65).
 
 ## 15. Les questions pour le joueur (avec la recommandation)
 1. **Le coup de pouce du nouveau joueur occasionnel de décembre.** Avec les lots allégés (Avent : 8 ★ et 3 boosts ; hiver : 13 ★ et 4

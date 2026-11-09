@@ -13,7 +13,8 @@
 //   · le jour D se lit sur l'heure SÛRE quand elle est connue (HORLOGE.etat().sure : comme MARCHE.fenetreSure) : avancer l'heure du
 //     téléphone hors ligne n'ouvre pas la case de demain ; sans heure sûre (l'artefact Claude), sur le « maintenant » du jeu.
 // L'état : st.avent = { v: 1, id: 'avent-2026', o: 0, r: '' } (o : le masque des cases ouvertes, bit n − 1 = case n ; r : le dernier jour
-// de Paris où une case a été RATTRAPÉE, 'AAAA-MM-JJ').
+// de Paris où une case a été RATTRAPÉE, 'AAAA-MM-JJ' ; j, posé à la première ouverture : le plus haut jour de Paris où une case s'est ouverte,
+// qui ne baisse jamais : une horloge qui recule n'ouvre plus rien avant d'y revenir, raison « heure » ; une sauvegarde sans j reste valide).
 'use strict';
 const SA = require('../../src/saison.js'); // (l'heure de Paris : parisMs, dayKey, paris)
 const ID = 'avent-2026', DEBUT = SA.parisMs(2026, 12, 1, 0), FIN_CASES = SA.parisMs(2026, 12, 25, 0), FIN = SA.parisMs(2027, 1, 1, 0), CASES = 24;
@@ -68,6 +69,7 @@ function reparer(st, now) { // jamais d'exception ; un état abîmé : ce qui se
   a.v = 1; if (a.id !== ID) { if (typeof a.id === 'string' && a.id && a.id !== ID) { st.avent = neuf(); return st.avent; } a.id = ID; }
   if (!(Number.isSafeInteger(a.o) && a.o >= 0 && a.o < 2 ** CASES)) a.o = 0;
   if (!(typeof a.r === 'string' && (a.r === '' || JOUR_OK.test(a.r)))) a.r = Number.isFinite(now) ? SA.dayKey(now) : ''; // (abîmé : pas de rattrapage avant demain ; jamais deux le même jour)
+  if ('j' in a && !(typeof a.j === 'string' && (a.j === '' || JOUR_OK.test(a.j)))) { if (Number.isFinite(now)) a.j = SA.dayKey(now); else delete a.j; } // (abîmé : rien avant aujourd'hui)
   return a;
 }
 function etat(st, now) { if (!st || typeof st !== 'object') return null; if (st.avent === undefined && !(now >= DEBUT && now < FIN)) return null; return reparer(st, now); }
@@ -75,6 +77,7 @@ function etat(st, now) { if (!st || typeof st !== 'object') return null; if (st.
 function ouvrables(st, now, sure) {
   const D = jour(now, sure), a = st && objet(st.avent) ? st.avent : null, o = { jour: D, du: 0, rattrapage: [] };
   if (!D) return o; const A = a || neuf(), auj = SA.dayKey(Number.isFinite(sure) && sure > 0 ? Math.min(now, sure) : now);
+  if (typeof A.j === 'string' && A.j !== '' && auj < A.j) { o.recul = true; return o; } // (l'horloge revenue avant le dernier jour d'une ouverture : rien)
   if (D <= CASES && !ouverte(A, D)) o.du = D;
   if (!(A.r && A.r >= auj)) for (let k = 1; k <= Math.min(D - 1, CASES); k++) if (!ouverte(A, k)) o.rattrapage.push(k);
   return o;
@@ -87,8 +90,10 @@ function ouvrir(st, n, now, sure) {
   if (ouverte(a, n)) return { ok: false, raison: 'deja' };
   if (n > D) return { ok: false, raison: 'future' };
   const auj = SA.dayKey(Number.isFinite(sure) && sure > 0 ? Math.min(now, sure) : now);
-  if (n !== D) { if (a.r && a.r >= auj) return { ok: false, raison: 'rattrapage' }; a.r = auj; }
-  a.o += 2 ** (n - 1);
+  if (n !== D && a.r && a.r >= auj) return { ok: false, raison: 'rattrapage' };
+  if (typeof a.j === 'string' && a.j !== '' && auj < a.j) return { ok: false, raison: 'heure' }; // (une horloge qui recule : rien avant d'y revenir)
+  if (n !== D) a.r = auj;
+  a.o += 2 ** (n - 1); if (!(typeof a.j === 'string' && a.j >= auj)) a.j = auj;
   return { ok: true, lot: Object.assign({}, LOTS[n - 1]), rattrapage: n !== D };
 }
 // verser un lot dans la boulangerie (G : GAME) : étoiles, boost dans la réserve, vêtement ; la déco, le compagnon et l'aura se lisent sur st.avent (possede)
@@ -115,6 +120,8 @@ if (require.main === module) { // les scénarios de la règle (les mêmes que te
     const st2 = {}; ouvrir(st2, 5, P(5, 9)); const r2 = ouvrir(st2, 6, P(6, 1), P(5, 21)); check(r2.raison === 'future', 'le 6 à 1 h au téléphone, l’heure sûre dit le 5 à 21 h : la case 6 (le renne) attend'); }
   { const st = {}; ouvrir(st, 10, P(10, 9)); ouvrir(st, 1, P(10, 9, 5)); const r = ouvrir(st, 2, P(9, 23, 0)); // (une horloge qui recule : un jour d'avant le dernier rattrapage)
     check(r.raison === 'rattrapage', 'une horloge qui recule au 9 après un rattrapage le 10 : pas de rattrapage de plus'); }
+  { const st = {}; ouvrir(st, 10, P(10, 0, 30)); ouvrir(st, 3, P(10, 0, 31)); const r = ouvrir(st, 9, P(9, 23, 0)), o = ouvrables(st, P(9, 23, 1));
+    check(r.raison === 'heure' && o.recul && !o.du && !o.rattrapage.length && nOuvertes(st.avent) === 2 && st.avent.j === '2026-12-10', 'l’horloge du jeu recalée en arrière (le 10 à 0 h 30, puis le 9 à 23 h) : la case 9 ne s’ouvre pas en plus (rien d’ouvrable avant de revenir au 10)'); }
   { const st = {}; for (let d = 25; d <= 31; d++) ouvrir(st, d - 24, P(d, 12)); check(nOuvertes(st.avent) === 7 && ouvrir(st, 8, P(31, 13)).raison === 'rattrapage' && ouvrir(st, 8, P(1, 0, 0, 1, 2027)).raison === 'ferme', 'du 25 au 31 : un rattrapage par jour (7 cases) ; le 1er janvier, le calendrier est rangé'); }
   { const st = { avent: 'abîmé' }; reparer(st); check(st.avent.o === 0 && st.avent.id === ID, 'abîmé (pas un objet) : neuf'); const s2 = { avent: { v: 1, id: ID, o: 5, r: 3 } }; reparer(s2, P(4, 8)); check(s2.avent.o === 5 && ouvrir(s2, 2, P(4, 9)).raison === 'rattrapage' && ouvrir(s2, 4, P(4, 9)).ok && ouvrir(s2, 2, P(5, 9)).ok, 'r abîmé (le 4) : les cases gardées, pas de rattrapage ce jour-là, la case du jour oui ; le rattrapage revient le lendemain'); }
   { const tot = LOTS.reduce((a, l) => a + (l.etoiles || 0), 0), b = LOTS.filter((l) => l.boost).length; check(LOTS.length === 24 && LOTS.every((l, k) => l.n === k + 1) && tot === 8 && b === 3 && ORDRE_CASES.slice().sort((x, y) => x - y).join() === LOTS.map((l) => l.n).join() && LOTS.filter((l) => l.speciale).map((l) => l.n).join() === '6,12,18,24', `24 cases, ${tot} ★, ${b} boosts, spéciales 6, 12, 18, 24`); }
