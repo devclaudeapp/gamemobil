@@ -1402,8 +1402,12 @@ const UI = (() => {
     casino: () => 'Psst… on entend battre des cartes derrière la petite porte du fond.',
     chaine: () => 'Nouveau : Ma chaîne ! Tes anciennes boutiques revivent sur ta petite planète.',
     piste: () => { const f = saiFiche(); return f ? `Nouveau : ${f.nom.replace(/^La /, 'la ')}, une piste de récompenses gratuites jusqu’au ${dateFinSaison(f)} !` : ''; },
-    avent: () => 'Nouveau : le calendrier de l’Avent ! Une case à ouvrir chaque jour, et les cases oubliées se rattrapent.',
+    avent: () => (aventHiver ? `Nouveau : le calendrier de l’Avent, une case par jour, et ${aventHiver.nom.replace(/^La /, 'la ')}, une nouvelle piste jusqu’au ${dateFinSaison(aventHiver)} !` : 'Nouveau : le calendrier de l’Avent ! Une case à ouvrir chaque jour, et les cases oubliées se rattrapent.'),
   };
+  // la saison en cours que la bulle « avent » dit aussi (l'annonce de décembre d'un nouveau joueur, § 2.6) : sa piste déjà ouverte (sa bulle
+  // « piste » passée, en automne) et cette saison-ci pas encore annoncée ; posée par apresDeblocage('avent'), juste avant le texte
+  let aventHiver = null;
+  const hiverAvecAvent = () => { const f = SAI && st && AVA && avFenetre(maintenantAv()) ? SAI.active(maintenantSai()) : null; return f && ouvertA('piste') && st.pisteAnnonce !== f.id ? f : null; };
   const zoneRect = (z) => { const r = $('#scene').getBoundingClientRect(); return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) }; };
   // la cible d'une annonce ({ el, ou, defile }), ou null si elle ne peut pas se montrer maintenant (elle attend sans bloquer les suivantes)
   function cibleAnnonce(id) {
@@ -1437,7 +1441,7 @@ const UI = (() => {
   function apresDeblocage(id) {
     if (id === 'nouveautes' && NVS) st.nouveautesVues = NVS.derniere(); // (l'historique des mises à jour n'intéresse pas un nouveau : pas de point)
     if (id === 'piste') { const f = saiFiche(); if (f) st.pisteAnnonce = f.id; lastPiste = ''; majPiste(true); }
-    if (id === 'avent') { st.aventAnnonce = AV_ID(); lastAvent = ''; majAvent(true); } // (la bulle tient lieu d'annonce) // (la bulle tient lieu d'annonce : pas de feuille en plus)
+    if (id === 'avent') { st.aventAnnonce = AV_ID(); aventHiver = hiverAvecAvent(); if (aventHiver) { st.pisteAnnonce = aventHiver.id; lastPiste = ''; majPiste(true); } lastAvent = ''; majAvent(true); } // (la bulle tient lieu d'annonce de décembre, la saison d'hiver comprise : pas de feuille en plus)
     lastHud = ''; lastObj = ''; cleCoinChaine = ''; derniereCleCoin = '';
     majAccueil(); majCoin(); renderCards(true); hud(); renderObjectifs();
     if (pageActive !== 'boutique') { lastPage = ''; renderPage(true); }

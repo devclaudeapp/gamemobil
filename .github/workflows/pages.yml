@@ -351,6 +351,27 @@ jobs:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_AVENT: '8898'
+  # La longévité de l'Avent et de la saison d'hiver (test/fournil-saison.test.js en entier : 4 graines moyennées, 252 parties, ≈ 16 min sur
+  # 4 cœurs, ≈ 30 sur une machine chargée) : à part, en parallèle ; la ligne Node du déploiement la saute (FOURNIL_SAISON_GRAINES vide) et
+  # garde les autres vérifications. (fournil15 reste aux activités du Marché de Noël, Livraison 2.)
+  fournil16:
+    name: Le Fournil, la longévité de l'hiver (Node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: terser (hors du dépôt, le minifieur de build.js)
+        run: npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund terser@5.51.2
+      - name: La saison d'automne et d'hiver, avec la longévité sur 4 graines
+        run: |
+          node build.js
+          node test/fournil-saison.test.js
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
   # L'accueil des nouveaux joueurs (docs/accueil-contrat.md) : les premiers pas guidés, la carte « Ton premier jour » et sa récompense, les
   # déblocages et leurs annonces, une vieille sauvegarde qui garde tout, l'interrupteur, le 360 × 640 (seul : fournil4 est près de sa limite)
   fournil12:
@@ -458,7 +479,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/pglite" --no-save --no-package-lock --no-audit --no-fund @electric-sql/pglite@0.5.8
           node test/zombies-defi-sql.cjs "$RUNNER_TEMP/pglite"
   deploy:
-    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, fournil12, fournil13, fournil14, zombies]
+    needs: [fournil, fournil2, fournil3, fournil4, fournil5, fournil6, fournil7, fournil8, fournil9, fournil10, fournil11, fournil12, fournil13, fournil14, fournil16, zombies]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -480,6 +501,7 @@ jobs:
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          FOURNIL_SAISON_GRAINES: '' # la longévité de l'hiver (≈ 14 min) tourne à part, dans fournil16
       # La version d'essai : la branche du lot, construite à part (node build.js --essai n'écrit que fournil-essai/), testée, puis posée à
       # côté du vrai jeu. Le vrai jeu reste celui de master, construit et testé plus haut. Une branche d'essai cassée ne bloque jamais sa
       # mise en ligne (continue-on-error) : l'essai manque simplement à ce déploiement.
@@ -489,6 +511,7 @@ jobs:
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          FOURNIL_SAISON_GRAINES: '' # (la longévité de l'hiver : fournil16, sur la branche du déploiement)
         run: |
           trap 'git worktree remove --force _essai 2>/dev/null; rm -rf _essai' EXIT
           git fetch --depth 1 origin "$ESSAI_BRANCHE" && git worktree add _essai FETCH_HEAD

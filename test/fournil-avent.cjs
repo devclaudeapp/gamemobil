@@ -11,7 +11,8 @@
 // · le 6 : le renne (la feuille du lot, Les compagnons) ; l'heure sûre en retard (le message, la case attend) ; aVerser (une pièce perdue
 //   redonnée au lancement) ; le 25 : un rattrapage, pas deux ; le 1er janvier : la carte disparaît, la feuille reste lisible (Mes récompenses),
 //   Mes décos (famille Avent) ;
-// · un nouveau joueur (window.__accueil = true) : la carte cachée, puis la bulle au déblocage « avent ». Aucune erreur de page.
+// · un nouveau joueur (window.__accueil = true) : la carte cachée, puis la bulle au déblocage « avent » (sa piste ouverte en automne :
+//   elle dit aussi la saison d’hiver, st.pisteAnnonce posé avec). Aucune erreur de page.
 // Captures dans test/shots/avent/ (et dans SHOTS_AVENT s'il est donné).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-avent.cjs
 'use strict';
@@ -224,14 +225,15 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   await sleep(1500);
   c = await T.carte();
   check(DEB && !c.vu, 'la carte reste cachée tant que l’Avent n’est pas débloqué');
-  await T.ev(() => { window.__accueilEcart = 400; const F = window.__fournil, st = F.st; for (const x of F.G.ACCUEIL.deblocages) if (x.id !== 'avent') F.G.marquerDeblocage(st, x.id); st.tuto = 9; st.lifetime = 3e7; F.save(); });
+  await T.ev(() => { window.__accueilEcart = 400; const F = window.__fournil, st = F.st; for (const x of F.G.ACCUEIL.deblocages) if (x.id !== 'avent') F.G.marquerDeblocage(st, x.id); st.pisteAnnonce = 'automne-2026'; st.tuto = 9; st.lifetime = 3e7; F.save(); }); // (sa piste ouverte et annoncée en automne : la bulle de l'Avent dit aussi la saison d'hiver)
   let bulle = null;
   for (let k = 0; k < 60 * LENT && !bulle; k++) {
     bulle = await T.ev(() => { const x = document.querySelector('#annonce-accueil'); return x && !x.hidden && /calendrier de l’Avent/.test(x.innerText) ? x.innerText : null; });
     if (!bulle) { await T.ev(() => { const f = document.querySelector('#feuille'); if (!f.hidden) { const b = f.querySelector('[data-a="pq-tard"], [data-a="close"], [data-a="pq-ok"]'); if (b) b.click(); } if (window.__fournil.tiroir) window.__fournil.tiroir('mi'); }); await sleep(1000); }
   }
-  const apres = await T.ev(() => { const F = window.__fournil, st = F.st; return { bit: F.G.accueilOuvert(st, 'avent'), an: st.aventAnnonce || null }; });
+  const apres = await T.ev(() => { const F = window.__fournil, st = F.st; return { bit: F.G.accueilOuvert(st, 'avent'), an: st.aventAnnonce || null, pi: st.pisteAnnonce || null, aa: F.piste.aAnnoncer() }; });
   check(!!bulle && apres.bit && apres.an === 'avent-2026', `débloqué (« avent ») : la bulle (« ${bulle && bulle.trim()} »), le bit, st.aventAnnonce`);
+  check(!!bulle && /saison d’hiver/.test(bulle) && /3 janvier/.test(bulle) && apres.pi === 'hiver-2026' && !apres.aa, `sa piste déjà ouverte en automne : la bulle dit aussi la saison d’hiver (jusqu’au 3 janvier), st.pisteAnnonce « ${apres.pi} » posé avec (rien d’autre à annoncer)`);
   c = await attendre(async () => { const x = await T.carte(); return x && x.vu ? x : null; }, 5000);
   check(!!c && c.pret, `la carte paraît, la case du jour et les oubliées à ouvrir (« ${c && c.txt} »)`);
   await T.shot('13-nouveau-joueur-bulle');
