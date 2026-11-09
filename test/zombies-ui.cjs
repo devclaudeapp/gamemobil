@@ -45,6 +45,9 @@ const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .pr
         if (!sec) return { pb: ['aucun écran visible'] };
         const pb = [];
         if (sec.scrollHeight > sec.clientHeight + 2) pb.push(`l'écran entier défile (${sec.clientHeight}/${sec.scrollHeight} px)`);
+        // en paysage, les Réglages tiennent en colonnes sans rien faire défiler (le OK ne dépend pas du pied collé)
+        const carteR = sec.querySelector('.carte-ecran.reglages');
+        if (carteR && carteR.scrollHeight > carteR.clientHeight + 2) pb.push(`les Réglages défilent (${carteR.clientHeight}/${carteR.scrollHeight} px)`);
         for (const bt of sec.querySelectorAll('button, a.moyen')) {
           if (!bt.offsetParent || bt.closest(LISTES)) continue;
           const q = bt.getBoundingClientRect(); if (q.width < 1) continue;
