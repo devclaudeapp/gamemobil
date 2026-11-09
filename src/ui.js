@@ -1062,8 +1062,8 @@ const UI = (() => {
     if (l.boost) r.push(`un boost ×${l.boost.mult} de ${G.fmtDuree(l.boost.secs)}, dans ta réserve`);
     if (l.vetement) r.push(`${nomVetAv(l.vetement)} pour la garde-robe du boulanger`);
     if (l.deco) r.push(`${NOMS_AVENT[l.deco] || 'une déco de Noël'} : dans « Mes décos », à poser où tu veux`);
-    if (l.compagnon) r.push('Grelot le petit renne t’attend dans Les compagnons');
-    if (l.aura) r.push('l’aura des flocons, dans la garde-robe : la tenue de Noël est complète !');
+    if (l.compagnon) r.push(TX_AV('renne') || 'Grelot le petit renne t’attend dans Les compagnons');
+    if (l.aura) r.push('l’aura des flocons, portée d’office (la garde-robe l’ôte) : la tenue de Noël est complète !');
     return r;
   }
   // tout ce que montrent la carte et la feuille, lu sur les règles (jamais d'exception : un état abîmé est réparé par AVENT.etat)
@@ -1076,10 +1076,10 @@ const UI = (() => {
     const cases = []; let ouvertes = 0;
     for (let n = 1; n <= N; n++) {
       const ouv = avOuverte(a, n), lot = (AVA.LOTS && AVA.LOTS[n - 1]) || { n }, f = friandiseDe(n); if (ouv) ouvertes++;
-      const etat = ouv ? 'ouverte' : n === o.du ? 'dujour' : ratt.includes(n) ? 'rattrapage' : D && n <= Math.min(D, N) ? 'oubliee' : 'future';
+      const etat = ouv ? 'ouverte' : !dedans ? 'rangee' : n === o.du ? 'dujour' : ratt.includes(n) ? 'rattrapage' : D && n <= Math.min(D, N) ? 'oubliee' : 'future';
       cases.push({ n, etat, ouverte: ouv, friandise: f.id, teinte: f.teinte, lot, speciale: !!lot.speciale });
     }
-    const restant = Math.max(0, Math.ceil((AVA.FIN - now) / 864e5));
+    const restant = D ? 32 - D : 0; // (les jours pour rattraper, celui-ci compris)
     return { id: AV_ID(), jour: D, du: o.du || 0, rattrapage: ratt.slice(), ouvertes, total: N, cases, retard: Dtel > D, fini: now >= AVA.FIN_CASES, range: now >= AVA.FIN, restant, dedans, ouvrables: (o.du ? 1 : 0) + ratt.length };
   }
   // la carte du tiroir : « Calendrier de l'Avent · 7/24 », « la case du jour t'attend » ; la pastille quand une case peut s'ouvrir
@@ -1095,6 +1095,7 @@ const UI = (() => {
     el.setAttribute('aria-label', `Calendrier de l’Avent : ${v.ouvertes} cases ouvertes sur ${v.total}${v.ouvrables ? `, ${v.ouvrables} à ouvrir` : ''}`);
   }
   // la feuille-calendrier ; lecture : la carte rangée (après le 31), depuis Mes récompenses
+  const TX_AV = (k, x) => { const t = AVA && AVA.TEXTES && AVA.TEXTES[k]; return typeof t === 'function' ? t(x) : t || ''; }; // les textes des règles (src/avent.js, TEXTES) : les tests les lisent là
   const REGLE_AVENT = 'Chaque jour, ouvre la case du jour. Tu en as oublié ? Tu peux en rattraper une par jour, jusqu’au 31 décembre.';
   function sheetAvent(lecture) {
     if (!AVA || !st) return;
@@ -1103,16 +1104,16 @@ const UI = (() => {
     const cases = ordre.map((c) => {
       const f = ICONS.AVENT.friandise(c.friandise, c.teinte), vient = c.n === avVient, lab = c.etat === 'ouverte' ? `Case ${c.n}, ouverte : ${NOMS_FRIANDISES[c.friandise] || 'une friandise'}${nomLotAv(c.lot) ? ` et ${nomLotAv(c.lot)}` : ''}` : c.etat === 'dujour' ? `Case ${c.n}, la case du jour : l’ouvrir` : c.etat === 'rattrapage' ? `Case ${c.n}, à rattraper : l’ouvrir` : c.etat === 'future' ? `Case ${c.n}, elle s’ouvre le ${MOIS_AV(c.n)}` : `Case ${c.n}, oubliée : à rattraper un autre jour`;
       const dedans = c.etat === 'ouverte' ? `<span class="av-dedans"><span class="av-fr">${f}</span>${icoLotAv(c.lot) ? `<span class="av-lot">${icoLotAv(c.lot)}</span>` : ''}</span>${vient ? '<i class="av-volet g" aria-hidden="true"></i><i class="av-volet d" aria-hidden="true"></i>' : ''}`
-        : `<span class="av-num">${c.n}</span>${c.etat === 'rattrapage' ? '<span class="av-ruban">À rattraper</span>' : ''}`;
+        : `<span class="av-num">${c.n}</span>${c.etat === 'rattrapage' ? `<span class="av-ruban">${esc(TX_AV('ruban') || 'À rattraper')}</span>` : ''}`;
       return `<button type="button" class="av-case ${c.etat}${c.speciale ? ' speciale' : ''}${vient ? ' vient' : ''}" data-av="${c.n}" aria-label="${esc(lab)}"${lecture ? ' disabled' : ''}>${dedans}</button>`;
     }).join('');
-    const boite = `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? 'plus de case du jour' : 'reviens demain'}`;
-    const msg = avMsg || (v.retard ? 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.' : '');
+    const boite = TX_AV('boite', v.ouvertes) || `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? 'plus de case du jour' : 'reviens demain'}`;
+    const msg = avMsg || (v.retard ? TX_AV('heure') || 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.' : '');
     openSheet(`<div class="av-feuille" id="av-feuille" data-avent="1"><div class="av-tete"><span class="pic">${ICONS.UI.avent || ''}</span><div><h2>Calendrier de l’Avent</h2><p class="sous">${esc(sous)}</p></div></div>
       <div class="av-carte"><div class="av-fond" aria-hidden="true">${ICONS.AVENT.fond}</div><i class="av-neige" aria-hidden="true"></i><div class="av-grille" role="list" aria-label="Les 24 cases">${cases}</div></div>
       <p class="av-msg" id="av-msg" aria-live="polite">${esc(msg)}</p>
-      <p class="encadre av-regle">${esc(REGLE_AVENT)}</p>
-      <p class="av-pied"><b>${esc(boite)}</b>${v.range ? '' : `<span>${v.restant > 1 ? `encore ${v.restant} j` : 'dernier jour'}</span>`}</p>
+      <p class="encadre av-regle">${esc(TX_AV('regle') || REGLE_AVENT)}</p>
+      <p class="av-pied"><b>${esc(boite)}</b>${v.range ? '' : `<span>${v.restant > 1 ? TX_AV('restant', v.restant) || `encore ${v.restant} j` : 'dernier jour'}</span>`}</p>
       ${btnRetour()}</div>`);
     avMsg = ''; avVient = 0; aventOuverte = true;
     if (!lecture) on('[data-av]', (b) => { audio(); ouvrirCase(+b.dataset.av, true); });
@@ -1121,10 +1122,10 @@ const UI = (() => {
   }
   // ouvrir une case : marquer et recevoir le lot (AVENT.ouvrir), le donner aussitôt (AVENT.verser), sauver ; puis l'écran (le son de la cloche, la case
   // qui s'ouvre, « +10 XP de saison » ; une spéciale : des flocons et la feuille du lot) ; un refus : sa phrase
-  const REFUS_AV = { rattrapage: 'Tu as déjà rattrapé une case aujourd’hui : la suivante demain.', deja: 'Cette case est déjà ouverte.', ferme: 'Le calendrier est rangé jusqu’à l’an prochain.', inconnue: 'Cette case n’existe pas.' };
+  const REFUS_AV = { heure: 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.', rattrapage: 'Tu as déjà rattrapé une case aujourd’hui : la suivante demain.', deja: 'Cette case est déjà ouverte.', ferme: 'Le calendrier est rangé jusqu’à l’an prochain.', inconnue: 'Cette case n’existe pas.' };
   function refusAv(n, raison) {
-    if (raison === 'future') { const v = vueAvent(); return v && v.retard && n === v.jour + 1 ? 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.' : `Patience ! Cette case s’ouvre le ${MOIS_AV(n)}.`; }
-    return REFUS_AV[raison] || 'Cette case ne s’ouvre pas maintenant.';
+    if (raison === 'future') { const v = vueAvent(); return v && v.retard && n === v.jour + 1 ? TX_AV('heure') || REFUS_AV.heure : TX_AV('future', n) || `Patience ! Cette case s’ouvre le ${MOIS_AV(n)}.`; }
+    return TX_AV(raison) || REFUS_AV[raison] || 'Cette case ne s’ouvre pas maintenant.';
   }
   function ouvrirCase(n, depuisFeuille) {
     if (!AVA || !st) return { ok: false, raison: 'ferme' };
@@ -1167,10 +1168,10 @@ const UI = (() => {
   function decembreAAnnoncer() { return !!(aventVisible() && st.aventAnnonce !== AV_ID() && !accueilActif()); }
   function sheetAnnonceDecembre() {
     if (!AVA || !st) return; st.aventAnnonce = AV_ID();
-    const f = SAI ? SAI.active(maintenantSai()) : null; if (f && pisteVisible()) st.pisteAnnonce = f.id;
+    const f0 = SAI ? SAI.active(maintenantSai()) : null, f = f0 && ouvertA('piste') ? f0 : null; if (f) st.pisteAnnonce = f.id; // (la piste pas encore créée au tout premier pas : elle compte quand même)
     save(); lastPiste = ''; majPiste(true);
     const v = vueAvent(), n = v ? v.du || v.rattrapage[0] || 0 : 0, nc = f ? saiCrans(f).length : 0;
-    const piste = f && pisteVisible() ? `<li><span class="av-an-ico">${icoPiste(f)}</span><div><b>${esc(f.nom || 'La saison d’hiver')}</b><small>${esc(`Une nouvelle piste gratuite de ${nc} crans jusqu’au ${dateFinSaison(f)} : le calendrier, les objectifs du jour, le défi de la semaine, ta série et le Marché de Noël la font avancer.`)}</small></div></li>` : '';
+    const piste = f ? `<li><span class="av-an-ico">${icoPiste(f)}</span><div><b>${esc(f.nom || 'La saison d’hiver')}</b><small>${esc(`Une nouvelle piste gratuite de ${nc} crans jusqu’au ${dateFinSaison(f)} : le calendrier, les objectifs du jour, le défi de la semaine, ta série et le Marché de Noël la font avancer.`)}</small></div></li>` : '';
     openSheet(`<div class="av-feuille av-annonce" data-avent-annonce="1"><div class="av-annonce-scene" aria-hidden="true">${ICONS.AVENT.fond}<span class="pic">${ICONS.UI.avent || ''}</span></div>
       <h2>Le calendrier de l’Avent${piste ? ' et la saison d’hiver' : ''}</h2>
       <ul class="av-an-points"><li><span class="av-an-ico">${ICONS.UI.avent || ''}</span><div><b>Le calendrier de l’Avent</b><small>Dès le 1er décembre, une case par jour : une friandise, des étoiles, des décos de Noël, une tenue de Noël et un petit renne. Une case oubliée ? Tu peux en rattraper une par jour, jusqu’au 31 décembre.</small></div></li>${piste}</ul>
@@ -1191,8 +1192,8 @@ const UI = (() => {
   }
   function aVerserAvent() {
     if (!AVA || !st || !AVA.aVerser) return 0;
-    let l = null; try { l = AVA.aVerser(st); } catch (e) { l = null; } if (!Array.isArray(l) || !l.length) return 0;
-    let k = 0; for (const x of l) { const lot = typeof x === 'string' ? { vetement: x } : x && typeof x === 'object' ? (x.lot || x) : null; if (!lot || !lot.vetement) continue; try { AVA.verser(st, { vetement: lot.vetement }, G); k++; } catch (e) { /* une pièce que la garde-robe ne connaît pas */ } }
+    let l = null; try { l = AVA.aVerser(st, G); } catch (e) { l = null; } if (!Array.isArray(l) || !l.length) return 0;
+    let k = 0; for (const x of l) { if (!x || !(x.vetement || x.aura)) continue; try { AVA.verser(st, { vetement: x.vetement, aura: x.aura }, G); k++; } catch (e) { /* une pièce que la garde-robe ne connaît pas */ } } // (seulement ce qui manque : jamais les étoiles ni les boosts)
     if (k) save(); return k;
   }
 
@@ -3477,7 +3478,7 @@ const UI = (() => {
       quartier: () => (EVT ? EVT.ouvrir() : false), evenement: EVT, Q: QT,
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT,
       marche: () => (MCE ? MCE.ouvrir() : false), fermerMarche: () => { if (MCE) MCE.fermer(); }, evMarche: MCE, MC, envoiEvenement,
-      avent: { actif: !!AVA, etat: () => (AVA && st ? st.avent || null : null), ouvrir: (n) => ouvrirCase(n, aventOuverte), vue: () => vueAvent(), feuille: (lecture) => sheetAvent(!!lecture), carte: () => majAvent(true), annonce: () => sheetAnnonceDecembre(), aAnnoncer: () => decembreAAnnoncer(), aVerser: () => aVerserAvent(), visible: () => aventVisible() },
+      avent: { actif: !!AVA, etat: () => (AVA && st ? st.avent || null : null), ouvrir: (n) => ouvrirCase(n, aventOuverte), vue: () => (AVA && AVA.vue ? AVA.vue(st, maintenantAv(), sureAv()) : vueAvent()), ecran: () => vueAvent(), feuille: (lecture) => sheetAvent(!!lecture), carte: () => majAvent(true), annonce: () => sheetAnnonceDecembre(), aAnnoncer: () => decembreAAnnoncer(), aVerser: () => aVerserAvent(), visible: () => aventVisible() },
       piste: { actif: !!SAI, etat: () => (SAI && st ? st.piste || null : null), pas: () => { pasSaison(); return st && st.piste ? st.piste.xp : null; }, recevoir: (n) => (n == null ? recevoirTout() : recevoirCran(n, true)), feuille: () => sheetPiste(), annonce: () => sheetAnnonceSaison(), aAnnoncer: () => saisonAAnnoncer(), carte: () => majPiste(true) }, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, boosts: () => st.boosts, lancerBoost, renderBoosts,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null),

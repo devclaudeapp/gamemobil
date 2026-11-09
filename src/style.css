@@ -2748,6 +2748,7 @@ a.essai-lien { margin-top: 8px; text-decoration: none; }
 .av-case.oubliee { background: #F4ECE6; color: #8C6E64; }
 .av-case.future { background: #E9E4EE; color: #9C93A8; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .5), 0 3px 0 rgba(30, 42, 74, .3); }
 .av-case.future .av-num { text-shadow: none; }
+.av-case.rangee { background: #EDE8EA; color: #A89CA0; }
 .av-case.ouverte { background: #FFFFFF; box-shadow: inset 0 0 0 2px #2E7D4F, 0 3px 0 rgba(30, 42, 74, .35); cursor: default; }
 .av-dedans { position: relative; display: grid; grid-auto-flow: column; place-items: center; gap: 2px; width: 100%; height: 100%; padding: 6px; }
 .av-fr { display: grid; place-items: center; width: 100%; height: 100%; max-width: 64px; }
