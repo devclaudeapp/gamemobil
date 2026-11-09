@@ -196,6 +196,15 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   await T.ouvrirCase(1); fe = await T.lire(); a = await T.avent();
   check(fe && fe.msg === AVENT.TEXTES.rattrapage && !(a.o & 1), 'pas deux rattrapages le même jour');
   await T.fermer();
+  // la tenue de Noël au complet (la 17 donnée ici : le pull), portée : la garde-robe, le boulanger chibi (8 appels de dessin, + l'aura : un sprite)
+  await T.ev(() => { const F = window.__fournil, G = F.G, st = F.st; G.donnerVetement(st, 'avent-pull'); G.equiperCollection(st, 'avent'); G.porterAura(st, 'flocons'); F.rafraichir(); F.garderobe('haut'); });
+  const gr = await attendre(() => T.ev(() => { const f = document.querySelector('#feuille-contenu [data-cl="garderobe"]'); if (!f) return null; const e = f.querySelector('.gr-ensemble.avent'); return { complet: window.__fournil.G.ensembleComplet(window.__fournil.st), ens: e ? e.innerText.replace(/\s+/g, ' ') : '', tete: f.querySelector('.gr-tete').innerText.replace(/\s+/g, ' ') }; }), 4000);
+  check(!!gr && gr.complet === 'avent' && /Tenue de Noël/.test(gr.ens) && /Aucun bonus porté/.test(gr.tete), `la garde-robe : la tenue de Noël au complet, sans bonus (« ${gr && gr.tete.slice(0, 60)} »)`);
+  await T.ev(() => { const b = document.querySelector('.gr-ensemble.avent'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('11b-garderobe-tenue-noel');
+  await T.fermer(); await T.ev(() => { window.__fournil.page('boutique'); window.__fournil.tiroir('ferme'); }); await sleep(1200);
+  const m = await T.ev(() => window.__fournil.SCENE.maillagesRecompenses.boulanger);
+  check(m <= 9, `le boulanger chibi en tenue de Noël et l’aura des flocons : ${m} appels de dessin (8 au plus, + l’aura)`);
+  await T.shot('11c-boulanger-tenue-noel');
 
   console.log('── le 1er janvier : le calendrier rangé ──');
   await T.allerA(P(1, 10, 1, 2027));
