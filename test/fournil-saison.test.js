@@ -202,7 +202,7 @@ const SIM = require('./fournil-saison-sim.js');
   check(L.ok, `aucun effet notable sur le rythme des boutiques, une fois ôté le bruit d’une seule étoile : étoiles ${(L.pire.etoiles * 100).toFixed(1)} % (6 % au plus), boutiques ${L.pire.boutiques} (1), première boutique ${L.pire.premiere} j (1), franchise ${L.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${L.horsCibles ? L.horsCibles + ' cas hors' : 'tous tenus'}`);
   // ─── l'hiver sur le vrai moteur (test/fournil-saison-sim.js : la logique de outils/noel/hiver.js), l'Avent compris, et la longévité sur
   //     plusieurs graines moyennées (FOURNIL_SAISON_GRAINES, 11,3,5,7 par défaut : § 8.3) ───
-  const t1 = Date.now(), GR = (process.env.FOURNIL_SAISON_GRAINES || '11,3,5,7').split(',').filter(Boolean).map(Number);
+  const t1 = Date.now(), GR = (process.env.FOURNIL_SAISON_GRAINES != null ? process.env.FOURNIL_SAISON_GRAINES : '11,3,5,7').split(',').filter(Boolean).map(Number);
   const H = await SIM.toutHiver([{ nom: 'quotidien' }, { nom: 'occasionnel' }, { nom: 'tresactif' }, { nom: 'assidu' }, { nom: 'occasionnel', o: { departParis: [2026, 12, 1, 0] } }], GR, ['1er déc.|occasionnel']);
   const [hq, ho, ht, ha, hn] = H.pistes;
   console.log(`── la piste d’hiver simulée (le joueur de test/longevite.js, là depuis le 1er nov. : l’automne puis l’hiver dans le même st.piste ; les récompenses versées ; ${((Date.now() - t1) / 1000).toFixed(0)} s avec la longévité) ──`);
