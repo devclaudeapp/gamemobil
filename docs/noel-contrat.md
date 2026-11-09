@@ -789,7 +789,7 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
     sa petite scène (sapin, chalet, flocons) est posée devant. Le flocon à six branches et le toit à quatre pans sont tournés dans leur géométrie.
   - `test/fournil-saison-sim.js` : `simulerHiver` (la logique de `outils/noel/hiver.js` sur le vrai moteur) rend **exactement** les chiffres de la
     conception (§ 8.2 : 31/46, 46/46 le 31 déc., le 27, le 24, 42/46, 28/46, le 1er janv., 18/46, 34/46 ; l'Avent 22/24 puis 24). La longévité
-    de l'hiver (4 graines, 252 parties) allonge `test/fournil-saison.test.js` d'environ 13 min sur 4 cœurs (`FOURNIL_SAISON_GRAINES` pour
+    de l'hiver (4 graines, 252 parties) porte `test/fournil-saison.test.js` à 16 min sur 4 cœurs (964 s, 90 vérifications, toutes vertes ; ≈ 30 min sur une machine chargée) (`FOURNIL_SAISON_GRAINES` pour
     en changer) ; le coup de pouce de l'occasionnel du 1er déc. y est une **exception mesurée à part** (étoiles au 30e jour ≤ +45 %, à la fin
     ≤ 6 %, franchise jamais plus tard, ses garde-fous tenus) : le joueur l'a gardé.
   - Tests ajustés (le moteur a changé, pas leur sens) : `test/fournil-accueil.test.js` (17 déblocages, `TOUS` = 2¹⁷ − 1, l'Avent hors de sa
