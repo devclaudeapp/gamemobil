@@ -1087,7 +1087,7 @@ const UI = (() => {
     const el = $('#avent'); if (!el) return;
     if (!aventVisible()) { if (!el.hidden) { el.hidden = true; lastAvent = ''; } return; }
     const v = vueAvent(); if (!v) return;
-    const sous = v.retard && !v.du ? 'ton téléphone retrouve l’heure…' : v.du ? 'la case du jour t’attend' : v.rattrapage.length ? `une case oubliée à rattraper${v.fini ? ` · encore ${v.restant} j` : ''}` : v.ouvertes >= v.total ? 'tout est ouvert : joyeux Noël !' : v.fini ? 'un rattrapage par jour, demain' : `reviens demain pour la case ${Math.min(v.total, v.jour + 1)}`;
+    const sous = v.retard && !v.du ? 'ton téléphone retrouve l’heure…' : v.du ? 'la case du jour t’attend' : v.rattrapage.length ? `une case oubliée à rattraper${v.fini ? ` · encore ${v.restant} j` : ''}` : v.ouvertes >= v.total ? 'tout est ouvert : joyeux Noël !' : v.fini ? (v.restant <= 1 ? 'le calendrier se range ce soir à minuit' : 'un rattrapage par jour, demain') : v.jour >= v.total ? 'une case oubliée à rattraper demain' : `reviens demain pour la case ${v.jour + 1}`; // (le 24, la 24 ouverte : il ne reste que des oubliées ; le 31 : plus de demain)
     const cle = `${v.ouvertes}|${v.du}|${v.rattrapage.length}|${sous}`; if (!force && cle === lastAvent && !el.hidden) return; lastAvent = cle;
     el.hidden = false; el.className = 'ticket avent' + (v.ouvrables ? ' pret' : '');
     el.innerHTML = `<i class="ico">${(ICONS.UI && ICONS.UI.avent) || ICONS.UI.calendrier || ''}</i><span class="tk-txt"><b>Calendrier de l’Avent · ${v.ouvertes}/${v.total}</b><small>${esc(sous)}</small></span>
@@ -1107,7 +1107,7 @@ const UI = (() => {
         : `<span class="av-num">${c.n}</span>${c.etat === 'rattrapage' ? `<span class="av-ruban">${esc(TX_AV('ruban') || 'À rattraper')}</span>` : ''}`;
       return `<button type="button" class="av-case ${c.etat}${c.speciale ? ' speciale' : ''}${vient ? ' vient' : ''}" data-av="${c.n}" aria-label="${esc(lab)}"${lecture ? ' disabled' : ''}>${dedans}</button>`;
     }).join('');
-    const boite = TX_AV('boite', v.ouvertes) || `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? 'plus de case du jour' : 'reviens demain'}`;
+    const boite = TX_AV('boite', v.ouvertes) || `Ta boîte à friandises : ${v.ouvertes}/${v.total}`, sous = v.range ? `Calendrier de l’Avent 2026 : ${v.ouvertes}/${v.total}` : `${v.ouvertes}/${v.total} · ${v.du ? 'la case du jour t’attend' : v.rattrapage.length ? 'une case oubliée à rattraper' : v.fini ? (v.restant <= 1 ? 'le calendrier se range ce soir à minuit' : 'plus de case du jour') : v.jour >= v.total ? (v.ouvertes >= v.total ? 'tout est ouvert : joyeux Noël !' : 'une case oubliée à rattraper demain') : 'reviens demain'}`;
     const msg = avMsg || (v.retard ? TX_AV('heure') || 'Ton téléphone n’a pas encore retrouvé l’heure : la case du jour s’ouvre dès qu’il est en ligne.' : '');
     openSheet(`<div class="av-feuille" id="av-feuille" data-avent="1"><div class="av-tete"><span class="pic">${ICONS.UI.avent || ''}</span><div><h2>Calendrier de l’Avent</h2><p class="sous">${esc(sous)}</p></div></div>
       <div class="av-carte"><div class="av-fond" aria-hidden="true">${ICONS.AVENT.fond}</div><i class="av-neige" aria-hidden="true"></i><div class="av-grille" role="list" aria-label="Les 24 cases">${cases}</div></div>

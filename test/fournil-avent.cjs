@@ -10,7 +10,8 @@
 //   seconde, une future (« Patience ! ») ; 360 × 640 sans défilement de côté, des cases d'au moins 72 px ;
 // · le 6 : le renne (la feuille du lot, Les compagnons) ; l'heure sûre en retard (le message, la case attend) ; aVerser (une pièce perdue
 //   redonnée au lancement) ; le 25 : un rattrapage, pas deux ; le 1er janvier : la carte disparaît, la feuille reste lisible (Mes récompenses),
-//   Mes décos (famille Avent) ;
+//   Mes décos (famille Avent) ; le 24 au soir (une oubliée : « à rattraper demain », tout ouvert : « joyeux Noël ») et le 31 au soir (« se range
+//   ce soir à minuit ») : la carte et le sous-titre de la feuille ;
 // · un nouveau joueur (window.__accueil = true) : la carte cachée, puis la bulle au déblocage « avent » (sa piste ouverte en automne :
 //   elle dit aussi la saison d’hiver, st.pisteAnnonce posé avec). Aucune erreur de page.
 // Captures dans test/shots/avent/ (et dans SHOTS_AVENT s'il est donné).
@@ -217,6 +218,29 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   check(!!fe && Object.values(fe.etats).every((e) => e === 'ouverte' || e === 'rangee') && await T.ev(() => /Calendrier de l’Avent 2026 : \d+\/24/.test(document.querySelector('#feuille-contenu').innerText)), 'la feuille reste lisible : « Calendrier de l’Avent 2026 : 7/24 »');
   await T.shot('12-range'); await T.fermer();
   await T.ctx.close();
+
+  console.log('── les derniers jours : le 24 au soir, le 31 au soir ──');
+  { // (les mots de la carte et du sous-titre de la feuille quand il n'y a plus rien à ouvrir aujourd'hui : pas de « case 25 », pas de « demain » le 31)
+    const preparer = (T, o, r) => T.ev(([o2, r2]) => { const F = window.__fournil, st = F.st; st.tuto = 9; st.lifetime = Math.max(st.lifetime, 5e9); st.aventAnnonce = 'avent-2026'; st.pisteAnnonce = 'hiver-2026'; st.avent = { v: 1, id: 'avent-2026', o: o2, r: r2 }; F.save(); }, [o, r]);
+    const sauf = (l) => { let o = 0; for (let n = 1; n <= 24; n++) if (!l.includes(n)) o += 2 ** (n - 1); return o; };
+    const lireFin = (T) => T.ev(async () => { const F = window.__fournil, f = document.querySelector('#feuille'); if (!f.hidden) { const b = f.querySelector('[data-a="close"], [data-a="pq-tard"], [data-a="pq-ok"]'); if (b) b.click(); }
+      if (F.tiroir) F.tiroir('mi'); F.avent.carte(); const carte = document.querySelector('#avent').innerText.replace(/\s+/g, ' ').trim();
+      F.avent.feuille(); await new Promise((ok) => setTimeout(ok, 300)); const s = document.querySelector('#feuille-contenu .av-tete .sous'); const sous = s ? s.textContent : ''; const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); return { carte, sous }; });
+    T = await ouvrir({ quand: P(24, 18) }); await T.charger();
+    await preparer(T, sauf([9, 10, 24]), '');
+    const r24 = await T.ev(() => [24, 9].map((n) => { const x = window.__fournil.avent.ouvrir(n); return x && x.ok; }));
+    await sleep(400); let x = await lireFin(T);
+    check(r24.every(Boolean) && /une case oubliée à rattraper demain/.test(x.carte) && !/case 25|case 24/.test(x.carte) && /une case oubliée à rattraper demain/.test(x.sous), `le 24 au soir, la 24 ouverte et le rattrapage pris, la 10 oubliée : « ${x.carte} » ; la feuille : « ${x.sous} »`);
+    await preparer(T, 2 ** 24 - 1, '2026-12-24'); await sleep(200); x = await lireFin(T);
+    check(/tout est ouvert : joyeux Noël !/.test(x.carte) && /tout est ouvert : joyeux Noël !/.test(x.sous), `le 24 au soir, tout ouvert : « ${x.carte} » ; la feuille : « ${x.sous} »`);
+    await T.allerA(P(31, 18));
+    await preparer(T, sauf([9, 10]), '');
+    const r31 = await T.ev(() => { const x2 = window.__fournil.avent.ouvrir(9); return x2 && x2.ok; });
+    await sleep(400); x = await lireFin(T);
+    check(r31 && /le calendrier se range ce soir à minuit/.test(x.carte) && !/demain/.test(x.carte) && /le calendrier se range ce soir à minuit/.test(x.sous), `le 31 au soir, le rattrapage pris : « ${x.carte} » ; la feuille : « ${x.sous} »`);
+    await T.shot('12b-le-31-au-soir');
+    await T.ctx.close();
+  }
 
   console.log('── un nouveau joueur (l’accueil), le 5 décembre ──');
   T = await ouvrir({ accueil: true });
