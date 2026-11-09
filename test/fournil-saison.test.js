@@ -202,7 +202,7 @@ const SIM = require('./fournil-saison-sim.js');
   check(L.ok, `aucun effet notable sur le rythme des boutiques, une fois ôté le bruit d’une seule étoile : étoiles ${(L.pire.etoiles * 100).toFixed(1)} % (6 % au plus), boutiques ${L.pire.boutiques} (1), première boutique ${L.pire.premiere} j (1), franchise ${L.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${L.horsCibles ? L.horsCibles + ' cas hors' : 'tous tenus'}`);
   // ─── l'hiver sur le vrai moteur (test/fournil-saison-sim.js : la logique de outils/noel/hiver.js), l'Avent compris, et la longévité sur
   //     plusieurs graines moyennées (FOURNIL_SAISON_GRAINES, 11,3,5,7 par défaut : § 8.3) ───
-  const t1 = Date.now(), GR = (process.env.FOURNIL_SAISON_GRAINES || '11,3,5,7').split(',').filter(Boolean).map(Number);
+  const t1 = Date.now(), GR = (process.env.FOURNIL_SAISON_GRAINES != null ? process.env.FOURNIL_SAISON_GRAINES : '11,3,5,7').split(',').filter(Boolean).map(Number);
   const H = await SIM.toutHiver([{ nom: 'quotidien' }, { nom: 'occasionnel' }, { nom: 'tresactif' }, { nom: 'assidu' }, { nom: 'occasionnel', o: { departParis: [2026, 12, 1, 0] } }], GR, ['1er déc.|occasionnel']);
   const [hq, ho, ht, ha, hn] = H.pistes;
   console.log(`── la piste d’hiver simulée (le joueur de test/longevite.js, là depuis le 1er nov. : l’automne puis l’hiver dans le même st.piste ; les récompenses versées ; ${((Date.now() - t1) / 1000).toFixed(0)} s avec la longévité) ──`);
@@ -216,8 +216,8 @@ const SIM = require('./fournil-saison-sim.js');
     console.log(`── la longévité de l’Avent et de l’hiver (graines ${GR.join(', ')}, résumés moyennés ; sans → avec l’Avent → avec tout) ──`);
     for (const l of H.longevite.lignes) console.log('  ' + l);
     const Lh = H.longevite, ex = Lh.exceptions['1er déc.|occasionnel'];
-    check(Lh.ok, `aucun effet notable pour les joueurs déjà là et le régulier et l’assidu du 1er déc., une fois ôté le bruit d’une étoile : étoiles ${(Lh.pire.etoiles * 100).toFixed(1)} % avec tout (6 % au plus), ${(Lh.pire.etoilesAvent * 100).toFixed(1)} % avec l’Avent seul ; boutiques ${Lh.pire.boutiques} (1) ; première boutique ${Lh.pire.premiere} j (1) ; franchise ${Lh.pire.franchise} j (2) ; garde-fous de test/longevite.js : ${Lh.horsCibles ? Lh.horsCibles + ' cas hors' : 'tous tenus'}`);
-    check(ex && ex.j30 >= 0 && ex.j30 <= 0.45 && Math.abs(ex.fin) <= 0.06 && ex.franchise <= 1, `le coup de pouce GARDÉ par le joueur (§ 15.1) : l’occasionnel arrivé le 1er décembre, étoiles au 30e jour ${ex ? (ex.j30 * 100).toFixed(1) : '?'} % (≤ 45 % ; + 35,6 % en conception), à la fin ${ex ? (ex.fin * 100).toFixed(1) : '?'} % (≤ 6 %), franchise ${ex ? ex.franchise.toFixed(1) : '?'} j (jamais plus tard), ses garde-fous tenus`);
+    check(Lh.ok, `aucun effet notable pour les joueurs déjà là et le régulier et l’assidu du 1er déc., une fois ôté le bruit d’une étoile : étoiles ${(Lh.pire.etoiles * 100).toFixed(1)} % avec tout (6 % au plus), ${(Lh.pire.etoilesAvent * 100).toFixed(1)} % avec l’Avent seul ; boutiques ${Lh.pire.boutiques.toFixed(1)} (1) ; première boutique ${Lh.pire.premiere.toFixed(1)} j (1) ; franchise ${Lh.pire.franchise.toFixed(1)} j (2) ; garde-fous de test/longevite.js : ${Lh.horsCibles ? Lh.horsCibles + ' cas hors' : 'tous tenus'}`);
+    check(ex && ex.j30 >= 0 && ex.j30 <= 0.45 && Math.abs(ex.fin) <= 0.06 && ex.dFranchise <= 1, `le coup de pouce GARDÉ par le joueur (§ 15.1) : l’occasionnel arrivé le 1er décembre, étoiles au 30e jour ${ex ? (ex.j30 * 100).toFixed(1) : '?'} % (≤ 45 % ; + 35,6 % en conception), à la fin ${ex ? (ex.fin * 100).toFixed(1) : '?'} % (≤ 6 %), franchise ${ex ? (ex.dFranchise > 0 ? '+' : '') + ex.dFranchise.toFixed(1) : '?'} j (jamais plus tard), ses garde-fous tenus`);
   }
   console.log(fails ? `\n${fails} échec(s) sur ${n}` : `\nTout passe (${n} vérifications).`);
   process.exitCode = fails ? 1 : 0;

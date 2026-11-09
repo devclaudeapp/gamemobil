@@ -202,7 +202,7 @@ function jugerLongeviteHiver(taches, res, exceptions) {
     const cle = `${quand}|${nom}`, e = { etoiles: 0, etoilesAvent: 0, boutiques: 0, premiere: 0, franchise: 0 };
     for (const [y, k] of [[b, 'etoiles'], [av.resume, 'etoilesAvent']]) e[k] = Math.max(ecart(a.etoilesFin, y.etoilesFin), ecart(a.etoilesJ30, y.etoilesJ30)) - Math.max(0.05, 1.5 * bruitE) + 0.05;
     e.boutiques = Math.abs(b.boutiques - a.boutiques) - Math.max(1, bruitB) + 1; e.premiere = Math.abs((b.premiere || 0) - (a.premiere || 0)); e.franchise = Math.abs((b.franchise || 0) - (a.franchise || 0)) - Math.max(2, Math.ceil(1.5 * bruitF)) + 2;
-    if ((exceptions || []).includes(cle)) { exc[cle] = Object.assign({ j30: b.etoilesJ30 / a.etoilesJ30 - 1, fin: b.etoilesFin / a.etoilesFin - 1, franchise: (b.franchise || 0) - (a.franchise || 0) }, e); lignes.push(`      (exception gardée par le joueur, § 15.1 : étoiles j30 ${pc(a.etoilesJ30, b.etoilesJ30)}, fin ${pc(a.etoilesFin, b.etoilesFin)})`); continue; }
+    if ((exceptions || []).includes(cle)) { exc[cle] = Object.assign({}, e, { j30: b.etoilesJ30 / a.etoilesJ30 - 1, fin: b.etoilesFin / a.etoilesFin - 1, dFranchise: (b.franchise || 0) - (a.franchise || 0) }); // (dFranchise < 0 : la franchise plus tôt) lignes.push(`      (exception gardée par le joueur, § 15.1 : étoiles j30 ${pc(a.etoilesJ30, b.etoilesJ30)}, fin ${pc(a.etoilesFin, b.etoilesFin)})`); continue; }
     for (const k of Object.keys(pire)) pire[k] = Math.max(pire[k], e[k]);
   }
   const ok = pire.etoiles <= 0.06 && pire.boutiques <= 1 && pire.premiere <= 1 && pire.franchise <= 2 && !horsCibles;

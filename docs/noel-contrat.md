@@ -765,6 +765,35 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
   `--longevite` (plusieurs réglages, § 8.3), `outils/noel/avent.js` (13/13), `outils/noel/sql-v70.cjs` (34/34), `outils/noel/poids.cjs`,
   `outils/noel/vignettes-budget.cjs`. Les résultats bruts sont à côté des outils (`*-resultats.*`).
 - (les constructeurs ajoutent ici leurs écarts au contrat, datés, et le poids mesuré de leur lot)
+- **9 nov., Livraison 1, A (règles et objets, branche `noel-r`)** — décisions du joueur appliquées telles quelles (coup de pouce gardé,
+  carnet recuit en 50/65, piste 46 × 45 XP, titre à 2 320, 10 XP la case).
+  - **Poids** (`outils/noel/poids.cjs 0981d63 HEAD`, A et B ensemble, B en cours) : **+68,7 Ko** (2 050,7 → 2 119,4), dont A ≈ 24,7 Ko
+    (`avent.js` 6,8, `meubles.js` +10,8, `saison-hiver.js` 2,6, `chaine.js` +2,0, `game.js` +1,5, `saison.js` +0,5, `vignettes.js` +0,5).
+  - **Vignettes** : tout le carnet recuit en qualité 50 / alpha 65 (`outils/vignettes/cuire.cjs`, `--alpha` ajouté ; le plafond de 12 Ko
+    descend jusqu'à alpha 50 / qualité 40 au besoin, jamais atteint) : **203 vignettes, 1 503,4 Ko → 221 vignettes (les 18 nouvelles), 1 138 Ko**
+    (5,1 Ko en moyenne ; la plus lourde : l'aura des flocons, 9,8 Ko) ; planche contrôlée à 44 et 64 px, sans différence visible.
+  - `AVENT.verser` donne **aussi l'aura** (`G.donnerAura`, portée d'office la première fois, comme les auras des paliers) : la garde-robe et le
+    carnet (`aura-flocons`) lisent `g.auras`, pas le masque ; `aVerser(st, G)` (il lui faut la garde-robe) redonne la pièce **ou l'aura** manquante.
+    Le renne et les décos : par `possede`, comme prévu.
+  - Le déblocage `avent` porte la fenêtre dans son seuil (`st.now` dans [1er déc., 1er janv.[, `AVENT_DEBUT`/`AVENT_FIN` de `game.js`, égaux à
+    `AVENT.DEBUT`/`FIN`, vérifié) : `ui.js` n'a pas besoin d'un `aventAttend`.
+  - `j.a` (§ 3.2) : **un** compteur du jour pour les lecteurs d'une fiche (la fiche d'hiver n'en a qu'un, l'Avent) ; `reparer` l'ajoute à 0 sur
+    une piste d'automne (rien d'autre ne change : les cinq compteurs d'avant ne sont pas recontrôlés).
+  - En plus du contrat : `AVENT.TEXTES` (la règle, « Patience ! … », le refus, le message de l'heure sûre : l'écran et les tests les lisent là),
+    `AVENT.NOMS`, `DECOS`, `VETEMENTS`, `XP_CASE`, `ouvert(now)`, `lotDe(n)`, `friandise(n)` ; `vue` rend `{ jour, jourJeu, attendHeure, actif,
+    cases (état 'ouverte' | 'du' | 'rattrapage' | 'fermee' | 'future' | 'rangee', friandise, teinte, lot, speciale, ouvrable, raison), ordre,
+    ouvertes, friandises, du, rattrapage, rattrapageLibre, pastille, restant }` ; la fiche d'hiver porte `flocons` (les 24 numéros) et
+    `textes.flocons(k)`.
+  - Les 12 décos (§ 7.1) : procédurales, ≤ 3 000 triangles (la plus lourde, la guirlande de chaussettes, ≈ 2 500), une seule part vive (la lueur)
+    pour les cinq qui en ont une, aucune pour les autres ; la boule à neige a un verre opaque bleu pâle (la fusion n'a pas de transparence) :
+    sa petite scène (sapin, chalet, flocons) est posée devant. Le flocon à six branches et le toit à quatre pans sont tournés dans leur géométrie.
+  - `test/fournil-saison-sim.js` : `simulerHiver` (la logique de `outils/noel/hiver.js` sur le vrai moteur) rend **exactement** les chiffres de la
+    conception (§ 8.2 : 31/46, 46/46 le 31 déc., le 27, le 24, 42/46, 28/46, le 1er janv., 18/46, 34/46 ; l'Avent 22/24 puis 24). La longévité
+    de l'hiver (4 graines, 252 parties) allonge `test/fournil-saison.test.js` d'environ 13 min sur 4 cœurs (`FOURNIL_SAISON_GRAINES` pour
+    en changer) ; le coup de pouce de l'occasionnel du 1er déc. y est une **exception mesurée à part** (étoiles au 30e jour ≤ +45 %, à la fin
+    ≤ 6 %, franchise jamais plus tard, ses garde-fous tenus) : le joueur l'a gardé.
+  - Tests ajustés (le moteur a changé, pas leur sens) : `test/fournil-accueil.test.js` (17 déblocages, `TOUS` = 2¹⁷ − 1, l'Avent hors de sa
+    fenêtre le 7 oct.), `test/fournil-saison.test.js` (une saison passée bornée à 50 crans au lieu de 30).
 - 9 nov., B (Livraison 1, écran et personnages, branche `noel-e`) : poids `outils/noel/poids.cjs 0981d63 HEAD` (A compris) **+68,9 Ko**
   (2 050,7 → 2 119,6) ; la part de B ≈ +44 Ko (`ui.js` +16,7, plus que les 8 prévus : la feuille-calendrier, l'annonce, la piste d'hiver ;
   `icons.js` +13,2, `style.css` +7,7, `persos.js` +3,3, `equipe3d.js` +2,1, le reste < 1). Écarts : (1) CI : `fournil-avent.cjs` dans une tâche
