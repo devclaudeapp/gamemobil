@@ -48,6 +48,7 @@ const LISTES = '.arenes, .col-liste, .defi-liste, .bunker-liste, .soc-corps, .pr
         // en paysage, les Réglages tiennent en colonnes sans rien faire défiler (le OK ne dépend pas du pied collé)
         const carteR = sec.querySelector('.carte-ecran.reglages');
         if (carteR && carteR.scrollHeight > carteR.clientHeight + 2) pb.push(`les Réglages défilent (${carteR.clientHeight}/${carteR.scrollHeight} px)`);
+        if (carteR && carteR.scrollWidth > carteR.clientWidth + 1) pb.push(`les Réglages débordent en largeur (${carteR.clientWidth}/${carteR.scrollWidth} px)`);
         for (const bt of sec.querySelectorAll('button, a.moyen')) {
           if (!bt.offsetParent || bt.closest(LISTES)) continue;
           const q = bt.getBoundingClientRect(); if (q.width < 1) continue;
