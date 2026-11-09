@@ -765,6 +765,20 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
   `--longevite` (plusieurs réglages, § 8.3), `outils/noel/avent.js` (13/13), `outils/noel/sql-v70.cjs` (34/34), `outils/noel/poids.cjs`,
   `outils/noel/vignettes-budget.cjs`. Les résultats bruts sont à côté des outils (`*-resultats.*`).
 - (les constructeurs ajoutent ici leurs écarts au contrat, datés, et le poids mesuré de leur lot)
+- 9 nov., B (Livraison 1, écran et personnages, branche `noel-e`) : poids `outils/noel/poids.cjs 0981d63 HEAD` (A compris) **+68,9 Ko**
+  (2 050,7 → 2 119,6) ; la part de B ≈ +44 Ko (`ui.js` +16,7, plus que les 8 prévus : la feuille-calendrier, l'annonce, la piste d'hiver ;
+  `icons.js` +13,2, `style.css` +7,7, `persos.js` +3,3, `equipe3d.js` +2,1, le reste < 1). Écarts : (1) CI : `fournil-avent.cjs` dans une tâche
+  à lui, **`fournil14`** (dans les `needs` du déploiement), pas dans `fournil2` (déjà près de ses 40 min avec la saison d'hiver ajoutée à
+  `fournil-saison.cjs`) : en Livraison 2, les activités du Chalet prendront `fournil15` ; (2) la nouveauté datée du **9 nov.**
+  (`2026-11-09-a`, le test refuse une date d'avance) : à re-dater le jour de la mise en ligne ; (3) l'annonce de décembre attend la fin de la
+  saison d'automne **et** l'annonce de la saison d'hiver attend celle de décembre (`finSaisonEnAttente`, `decembreDu`) : sans cela la saison
+  d'hiver s'annonçait avant la feuille de fin d'automne (vu par `fournil-saison.cjs`) ; l'ordre avec l'annonce du Marché de Noël (L2) reste à
+  régler par L2 (aujourd'hui : jamais deux à la fois) ; (4) la feuille rangée se relit depuis « Mes récompenses » (une entrée « Calendrier de
+  l'Avent 2026 : 7/24 ») et `__fournil.avent.feuille(true)` ; (5) `__fournil.avent.vue()` rend `AVENT.vue` (A), l'écran se sert de sa propre
+  lecture (`__fournil.avent.ecran()`, mêmes règles) ; (6) le son d'ouverture et le cri du renne sont de synthèse (ZzFX : `carillon`, `grelot`),
+  aucun fichier. Tests : `fournil-avent.cjs` (nouveau), `fournil-saison.cjs` (l'hiver), `fournil-compagnons.cjs` (le renne : 19 cartes),
+  `fournil-garderobe.cjs` (11 ensembles, le boulanger 3D en tenue de Noël), `fournil-equipe3d.cjs` (63 pièces, les kits de l'Avent),
+  `fournil-accueil.test.js` (l'entrée de décembre en tête).
 
 ## 15. Les questions pour le joueur (avec la recommandation)
 1. **Le coup de pouce du nouveau joueur occasionnel de décembre.** Avec les lots allégés (Avent : 8 ★ et 3 boosts ; hiver : 13 ★ et 4
