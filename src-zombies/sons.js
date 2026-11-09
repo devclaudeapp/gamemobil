@@ -6,11 +6,11 @@
 const ZSONS = (() => {
   'use strict';
   const P = typeof PSONS !== 'undefined' ? PSONS : null;
-  let actif = true, bus = null, busCtx = null, grogneT = 0;
+  let actif = true, bus = null, busCtx = null, grogneT = 0, volumeZ = 1;
   const CLASSE = { pistolet: 'pistolet', mitraillette: 'mitraillette', pompe: 'pompe', fusil: 'fusil', sniper: 'sniper', toxine: 'pistolet' };
   function sortie() {
     const ctx = P && P.contexte; if (!ctx || ctx.state !== 'running' || !actif) return null;
-    if (busCtx !== ctx) { bus = ctx.createGain(); bus.gain.value = 0.8; bus.connect(ctx.destination); busCtx = ctx; }
+    if (busCtx !== ctx) { bus = ctx.createGain(); bus.gain.value = 0.8 * volumeZ; bus.connect(ctx.destination); busCtx = ctx; }
     return ctx;
   }
   function env(ctx, g, t0, att, dur, vol) { g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t0 + att); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); }
@@ -177,6 +177,6 @@ const ZSONS = (() => {
       }
     }
   }
-  function regler(o) { if (o && o.son != null) actif = !!o.son; if (P) P.regler(o); }
+  function regler(o) { if (o && o.son != null) actif = !!o.son; if (o && o.volume != null) { volumeZ = Math.max(0, Math.min(1, +o.volume || 0)); if (bus) bus.gain.value = 0.8 * volumeZ; } if (P) P.regler(o); }
   return { jouer, evenements, regler, noms: Object.keys(SONS) };
 })();

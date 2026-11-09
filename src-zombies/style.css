@@ -775,3 +775,4 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .col-carte .comp-desc { font-size: 10.5px; line-height: 1.2; color: #6A6F7A; }
 @media (orientation: landscape) and (max-height: 430px) { .noel .resume { display: none; } .noel-piste li { padding: 4px 8px; } }
 .noel-piste span { text-align: left; }
+.regle input[type="range"] { width: min(170px, 36vw); height: 24px; flex: none; accent-color: #E0A030; } /* (Lot 6 : les volumes) */

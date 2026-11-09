@@ -177,7 +177,7 @@ console.log(`fournil/index.html ${(page.length / 1024).toFixed(0)} Ko · version
 // (reseau.js, canaux « rempart ») ; zombies/config.js porte l'adresse et la clé PUBLIQUE Supabase.
 // Three.js et ses outils (vendor/fournil-hd.min.js : GLTFLoader, SkeletonUtils, MeshoptDecoder) sont des fichiers à part, comme les modèles
 // (zombies/modeles/, faits par outils/zombies/faire-modeles.mjs), mis en cache par le service worker du jeu (zombies/sw.js) : le jeu marche hors ligne.
-const ZOMBIES = ['nav.js', 'psons.js', 'reseau.js', 'donnees.js', 'monde.js', 'jeu.js', 'modeles.js', 'rendu.js', 'controles.js', 'sons.js', 'hud.js', 'enligne.js', 'classement.js', 'infection.js', 'ui.js'];
+const ZOMBIES = ['nav.js', 'psons.js', 'reseau.js', 'donnees.js', 'monde.js', 'jeu.js', 'modeles.js', 'rendu.js', 'controles.js', 'sons.js', 'musique.js', 'hud.js', 'enligne.js', 'classement.js', 'infection.js', 'ui.js'];
 if (fs.existsSync(path.join(__dirname, 'src-zombies', 'ui.js'))) {
   const lireZ = (f) => fs.readFileSync(path.join(__dirname, 'src-zombies', f), 'utf8');
   const jsZ = ZOMBIES.map((f) => `/* ── ${f.startsWith('../') ? f.slice(3) : 'src-zombies/' + f} ── */\n${lireZ(f)}`).join('\n');

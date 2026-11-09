@@ -616,6 +616,19 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
     check(g.compagnons.length === 2 && g.compagnons.map((c) => c.type).join() === 'chien,robot' && g.joueurs[0].flocons === 7 && g.objets.some((x) => x.type === 'flocon') && g.objets.some((x) => x.type === 'cadeau'), 'à plusieurs : les compagnons, les flocons et les cadeaux arrivent chez les copains'); }
 }
+// ─── le Lot 6 : la musique (le moment et l'intensité, les couches, les grilles) ───
+{
+  const Z = require(path.join(__dirname, '..', 'src-zombies', 'musique.js')); global.ZDONNEES = D;
+  const jeu = J.creer({ arene: 'jardin', graine: 3, attente: 99 }), j = jeu.joueurs[0];
+  check(Z.moment(null, 'titre') === 'menu' && Z.moment(jeu, 'jeu') === 'pause' && Z.moment(jeu, 'fin') === 'fin', 'la musique : le menu, entre deux vagues, la fin');
+  jeu.phase = 'vague'; check(Z.moment(jeu, 'jeu') === 'vague', 'pendant une vague : la musique de la vague');
+  jeu.zombies.push({ id: 1, type: 'golem', x: 0, z: 0, vie: 100, vieMax: 100 }); check(Z.moment(jeu, 'jeu') === 'boss', 'un boss dans l’arène : sa musique à lui');
+  jeu.zombies.length = 0; const i0 = Z.intensite(jeu, j); for (let k = 0; k < 30; k++) jeu.zombies.push({ id: 10 + k, type: 'trainard', vie: 10 }); const i1 = Z.intensite(jeu, j); j.vie = j.vieMax * 0.2; const i2 = Z.intensite(jeu, j);
+  check(i0 < i1 && i1 < i2 && i2 <= 1, `l’intensité monte avec les zombies et quand la vie baisse (${i0.toFixed(2)} → ${i1.toFixed(2)} → ${i2.toFixed(2)})`);
+  const c0 = Z.couches('vague', 0.2, false), c1 = Z.couches('vague', 0.9, false), cb = Z.couches('boss', 0.5, false), cn = Z.couches('menu', 0.3, true);
+  check(c0.rythme < c1.rythme && c1.basse > c0.basse && cb.rythme === 1 && cn.cloches > 0 && Z.couches('menu', 0.3, false).cloches === 0, 'les couches : la batterie entre avec l’intensité, le boss a tout, Noël ajoute ses clochettes');
+  check(Object.values(Z.GRILLES).every((G) => G.bpm >= 70 && G.bpm <= 150 && G.accords.length >= 4 && G.accords.every((a) => a.length === 3)) && Z.TRANSPOSE.length >= D.ORDRE_ARENES.length && D.ORDRE_ARENES.every((a) => Z.AMBIANCES[a]), 'les grilles d’accords, une tonalité et une ambiance pour chaque arène');
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;
