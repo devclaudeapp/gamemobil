@@ -574,6 +574,9 @@
   const ecureuilDuMarche = (st) => { const q = st && st.marche; return !!q && typeof q === 'object' && q.ecureuil === true; };
   // le pigeon voyageur : un objet rare de « Ma chaîne de boutiques » (src/chaine.js), acheté en jetons de chaîne ; lu sur st.chaine.objets.
   // Sans aucun bonus (décision du joueur : les objets rares n'accélèrent pas la boulangerie)
+  // le petit renne « Grelot » : gagné à la case du 6 décembre du calendrier de l'Avent (src/avent.js, la Saint-Nicolas) ; lu sur le masque
+  // de st.avent (AVENT.possede), qui reste dans la sauvegarde après Noël (et dans une nouvelle boutique), comme l'écureuil
+  const renneDeLAvent = (st) => { let A = typeof AVENT !== 'undefined' ? AVENT : null; if (!A && typeof module === 'object' && module.exports && typeof require === 'function') { try { A = require('./avent.js'); } catch (e) { A = null; } } return !!A && A.possede(st, 'renne'); };
   const pigeonDeLaChaine = (st) => { const c = st && st.chaine; return !!c && typeof c === 'object' && Array.isArray(c.objets) && c.objets.includes('pigeon'); };
   const COMPAGNONS = [
     { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, bonus: { pourboire: 5 }, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
@@ -583,6 +586,7 @@
     { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', bonus: { gains: { pct: 5 } }, phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
     { id: 'chauve-souris', nom: 'Chauve-souris', espece: 'chauve-souris', prix: null, condition: chauveSourisDuManoir, gagne: 'Gagnée au bestiaire du Manoir', verrou: 'Les neuf monstres du bestiaire', nomDefaut: 'Myrtille', cri: 'couic', bonus: { absence: 1 }, phrase: 'Toute ronde, des oreilles immenses et deux petits crocs : elle tourne sous le plafond et veille sur la boutique la nuit.' },
     { id: 'ecureuil', nom: 'Écureuil roux', espece: 'ecureuil', prix: null, condition: ecureuilDuMarche, gagne: 'Gagné à l’album de la forêt', verrou: 'Les neuf déguisements de l’album', nomDefaut: 'Pirouette', cri: 'couic', bonus: { absence: 1 }, phrase: 'Il grimpe aux étagères et cache des noisettes dans les tiroirs.' },
+    { id: 'renne', nom: 'Petit renne', espece: 'renne', prix: null, condition: renneDeLAvent, gagne: 'Gagné au calendrier de l’Avent', verrou: 'La case du 6 décembre', nomDefaut: 'Grelot', cri: 'grelot', bonus: { absence: 1 }, phrase: 'Il fait tinter son grelot à chaque client.' }, // (le bonus de l'écureuil)
     { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', bonus: { gains: { pct: 2 } }, phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
     { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', bonus: { pourboire: 10 }, phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
     { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, bonus: { absence: 1 }, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
@@ -831,6 +835,13 @@
     ajouter(vet('automne-pull', 'Pull jacquard', 'haut', 'automne', 'sweat', {}, 'epique', 'La saison d’automne 2026, cran 13. Des feuilles et des glands tricotés en rang.'));
     ajouter(vet('automne-bottines', 'Bottines d’automne', 'pieds', 'automne', 'chaussures', {}, 'epique', 'La saison d’automne 2026, cran 17. Cuir fauve, lacets rouges.'));
     ajouter(vet('automne-echarpe', 'Écharpe tricotée', 'accessoire', 'automne', 'foulard', {}, 'epique', 'La saison d’automne 2026, cran 9. Assez longue pour deux tours de cou.'));
+    // le calendrier de l'Avent 2026 (src/avent.js, docs/noel-contrat.md § 2.3) : la tenue de Noël, aux cases 5, 11, 17 et 24 ; cosmétique, SANS
+    // aucun bonus, son ensemble non plus (comme la tenue de la saison d'automne). Formes pour persos.js : 'bonnet' (recoloré rouge, pompon blanc),
+    // 'foulard' (rayé), 'sweat' (aux flocons), 'chaussures' (de feutre)
+    ajouter(vet('avent-bonnet', 'Bonnet de Noël', 'tete', 'avent', 'bonnet', {}, 'rare', 'Le calendrier de l’Avent, case 5. Rouge, un pompon blanc tout doux.'));
+    ajouter(vet('avent-pull', 'Pull de Noël', 'haut', 'avent', 'sweat', {}, 'rare', 'Le calendrier de l’Avent, case 17. Des flocons et des sapins tricotés en rang.'));
+    ajouter(vet('avent-chaussons', 'Chaussons de feutre', 'pieds', 'avent', 'chaussures', {}, 'rare', 'Le calendrier de l’Avent, case 24. Bien chauds pour le réveillon.'));
+    ajouter(vet('avent-echarpe', 'Écharpe rayée', 'accessoire', 'avent', 'foulard', {}, 'rare', 'Le calendrier de l’Avent, case 11. Rouge et blanche, comme un sucre d’orge.'));
     // « Ma chaîne de boutiques » (src/chaine.js) : la tenue du patron, achetée pièce par pièce en jetons de chaîne (60 chacune) ; sans aucun
     // bonus et sans ensemble (décision du joueur : les objets rares n'accélèrent pas la boulangerie), comme la casquette néon
     ajouter(vet('chaine-toque', 'Toque à galon', 'tete', 'chaine', 'toque', {}, 'epique', 'Celle du patron de la chaîne.'));
@@ -853,6 +864,7 @@
       marche: { nom: 'Tenue d’automne', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'marche-or': { nom: 'Tenue d’automne en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       automne: { nom: 'Tenue de la saison d’automne', bonus: {} }, // cosmétique : sans bonus (la piste ne fait pas gagner plus vite)
+      avent: { nom: 'Tenue de Noël', bonus: {} }, // cosmétique : sans bonus (le calendrier de l'Avent ne fait pas gagner plus vite)
       parcours: { nom: 'Tenue du parcours', bonus: { gains: { produit: null, pct: 5 }, vitesse: 2, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
@@ -861,12 +873,14 @@
   // les auras (le 20e palier de la Maison hantée : l'aura phosphorescente) : une lueur douce autour du boulanger, sans bonus, gagnée à vie ;
   // elle se porte ou se retire dans la garde-robe (g.auras : celles gagnées, g.aura : celle portée, null : aucune), en plus des quatre pièces
   const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' },
-    feuilles: { id: 'feuilles', nom: 'Aura des feuilles d’or', couleur: '#E8B33A', desc: 'Le 20e palier de la Halle. Des feuilles d’or qui tournoient doucement autour du boulanger.' } }; // (le Marché d'automne)
+    feuilles: { id: 'feuilles', nom: 'Aura des feuilles d’or', couleur: '#E8B33A', desc: 'Le 20e palier de la Halle. Des feuilles d’or qui tournoient doucement autour du boulanger.' }, // (le Marché d'automne)
+    flocons: { id: 'flocons', nom: 'Aura des flocons', couleur: '#DCEBFA', desc: 'La case du 24 décembre du calendrier de l’Avent. Des flocons qui tombent doucement autour du boulanger.' } }; // (src/avent.js)
   // les distinctions gagnées, à vie (st.distinctions) : un titre montré à côté du pseudo dans le classement et dans la visite de sa boutique
   // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
   const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' },
     'legende-marche': { id: 'legende-marche', nom: 'Légende du Marché', desc: 'Le 20e palier du Marché d’automne.' }, // (src/marche.js)
-    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 240 XP).' } }; // (src/saison-automne.js)
+    'feuille-or-2026': { id: 'feuille-or-2026', nom: 'Feuille d’or 2026', desc: 'Le titre de la saison d’automne 2026 (1 240 XP).' }, // (src/saison-automne.js)
+    'flocon-or-2026': { id: 'flocon-or-2026', nom: 'Flocon d’or 2026', desc: 'Le titre de la saison d’hiver 2026 (2 320 XP).' } }; // (src/saison-hiver.js)
   DISTINCTIONS['main-de-velours'] = { id: 'main-de-velours', nom: 'Main de velours', desc: 'Dix victoires de suite dans l’arrière-salle.' }; // lot 7 : le trophée « Main de velours » du casino (src/casino.js)
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
   const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };
@@ -1003,6 +1017,7 @@
   //     du jeu. st.accueil = { v, o, r, d, t } : o les étapes faites (bits), r la récompense donnée, d les déblocages ouverts (bits, jamais
   //     effacés), t « tout ouvert » (une vieille sauvegarde). Les premiers pas restent st.tuto (src/ui.js, INDICES). Des règles pures, sans DOM ───
   const evReussis = (st) => (st.stats.commandes || 0) + (st.stats.critiques || 0) + (st.stats.petrissages || 0) + (st.stats.pannes || 0);
+  const AVENT_DEBUT = Date.UTC(2026, 10, 30, 23), AVENT_FIN = Date.UTC(2026, 11, 31, 23); // (le 1er déc. 2026 et le 1er janv. 2027 à 0 h de Paris : src/avent.js, DEBUT et FIN)
   const ACCUEIL = (() => {
     const etapes = [
       { id: 'painchoc', txt: 'Débloque les pains au chocolat', fait: (st) => !!st.stations[2] && st.stations[2].niv >= 1 },
@@ -1031,6 +1046,9 @@
       { id: 'casino', bit: 13, seuil: (st, a) => (a.r === 1 && st.lifetime >= 1e8) || st.boutiques >= 2 },
       { id: 'chaine', bit: 14, seuil: (st, a, o) => st.boutiques >= 2 || o.chaine > 0 },
       { id: 'piste', bit: 15, seuil: (st, a) => a.r === 1 || st.lifetime >= 1e6 }, // la saison gratuite (src/saison.js) : après « Ton premier jour » réussi, ou à 1 M€ (~12 min de jeu)
+      // le calendrier de l'Avent (src/avent.js) : le seuil de la piste, ET sa fenêtre ouverte (du 1er déc. 0 h au 1er janv. 0 h, Paris : un nouveau
+      // joueur qui passe 1 M€ le 30 novembre voit sa bulle le 1er décembre ; après le 1er janvier, plus rien à ouvrir)
+      { id: 'avent', bit: 16, seuil: (st, a) => (a.r === 1 || st.lifetime >= 1e6) && Number(st.now) >= AVENT_DEBUT && Number(st.now) < AVENT_FIN },
     ].map((d) => Object.freeze(d));
     const TOUS = deblocages.reduce((m, d) => m | (1 << d.bit), 0);
     return Object.freeze({ etapes: Object.freeze(etapes), deblocages: Object.freeze(deblocages), recompense: Object.freeze({ vetements: Object.freeze(['apprenti-tablier', 'apprenti-foulard']), boost: Object.freeze({ mult: 2, secs: 1800 }) }), TOUS, TOUTES: (1 << etapes.length) - 1 });
