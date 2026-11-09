@@ -34,6 +34,10 @@ const LENT = Number(process.env.FOURNIL_ATTENTE) || (process.env.CI ? 3 : 1);
 // (images/s, pas de jeu/s, les retours « gel » ou « saut ») aux moments clés. Sans elles, rien ne change
 const CPU = Number(process.env.FOURNIL_CPU) || 0, SONDE = !!process.env.FOURNIL_CADENCE;
 const attendre = async (fn, ms = 20000, pas = 150) => { ms *= LENT; for (let t = 0; t < ms; t += pas) { try { const r = await fn(); if (r) return r; } catch (e) { /* rien */ } await sleep(pas); } return null; };
+// une mesure prise juste après un geste (glisser, toucher, ouvrir, choisir, fermer, redimensionner) : reprise jusqu'à ce que sa condition
+// soit vraie, 6 s au plus (×LENT), au lieu d'une seule lecture après une pause fixe ; la condition ne change pas. Rend [la dernière mesure,
+// vraie ?] : le message du contrôle montre la dernière mesure (9 nov., GitHub : des contrôles tombés au hasard, mesurés une image trop tôt)
+const jusqua = async (mesure, cond, ms = 6000, pas = 150) => { let m = null; const ok = !!(await attendre(async () => { m = await mesure(); return !!cond(m); }, ms, pas)); return [m, ok]; };
 // une fausse heure du téléphone, qu'on peut avancer (Date et performance.now ensemble : l'horloge de confiance du jeu suit)
 function faux(d) {
   let plus = 0; const D = Date, pn = performance.now.bind(performance);
@@ -91,16 +95,23 @@ function faux(d) {
     check(await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.apprentis.length >= 3 && e.apprentis.every((a) => a.bati); }), 30000), 'l’icône citrouille ouvre la Maison hantée : la boutique hantée');
     if (qual === 'haute') check(!!(await attendre(() => ev(() => window.__fournil.SCENE.evenement.hd), 20000)), 'en haute, la HD de la boutique hantée');
     await sleep(1000); await sonde('la Halle ouverte');
-    let a = await act();
-    check(a.ouvert && a.mode === 'scene', `les activités sont reliées à la scène de la boutique hantée (mode ${a.mode})`);
-    const ouv = await ev(() => { const e = document.querySelector('#mc-eveil'); return { vu: !e.hidden && e.getBoundingClientRect().height > 0, txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#mc-taux').innerText }; });
-    check(ouv.vu && ouv.niveau === 'plein' && ouv.jauge === '100%' && /×6/.test(ouv.taux), `la jauge sous le ×6, pleine (« ${ouv.txt} », ${ouv.jauge}) ; « ${ouv.taux} »`);
+    let [a, okA] = await jusqua(act, (x) => x.ouvert && x.mode === 'scene');
+    check(okA, `les activités sont reliées à la scène de la boutique hantée (mode ${a && a.mode})`);
+    const [ouv, okOuv] = await jusqua(() => ev(() => { const e = document.querySelector('#mc-eveil'); return { vu: !e.hidden && e.getBoundingClientRect().height > 0, txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#mc-taux').innerText }; }), (o) => o.vu && o.niveau === 'plein' && o.jauge === '100%' && /×6/.test(o.taux));
+    check(okOuv, `la jauge sous le ×6, pleine (« ${ouv && ouv.txt} », ${ouv && ouv.jauge}) ; « ${ouv && ouv.taux} »`);
 
     // ─── la colonne des activités, en haut à droite de la scène ; le tiroir des cartes, qui monte au doigt (des touchers bruts : CDP) ───
     const cdp = await ctx.newCDPSession(page);
     const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
     // le tiroir posé : sa course finie (sa place est son cran, --pq-tiroir-y, sans translation de glisser) ; sous SwiftShader, une image peut prendre une seconde ou plus
     const pose = () => attendre(() => ev(() => { const t = document.querySelector('#marche .pq-tiroir'); return !t.style.transform && Math.abs(t.getBoundingClientRect().top - document.querySelector('#marche').getBoundingClientRect().top - parseFloat(t.style.getPropertyValue('--pq-tiroir-y'))) < 0.5; }), 15000, 50); // (le temps des animations n'avance qu'aux images : sous une machine chargée, en haute, une course de 0,28 s peut finir des secondes plus tard)
+    // après un changement de taille : le tiroir posé sur un cran de CET écran (ses crans suivis : le fermé à la barre près du bas de l'écran ;
+    // deux lectures identiques à 300 ms d'écart). 9 nov., GitHub : 1,5 s après le passage en 360 × 640, le tiroir était encore au cran mi
+    // de 390 × 844 (484 px) ; le glisser vers le bas, mesuré sur lui, allait trop loin et finissait au cran fermé
+    const poseIci = async () => { let avant = ''; return attendre(async () => { if (!(await pose())) return null;
+      const e = await ev(() => { const el = document.querySelector('#marche'), t = el.querySelector('.pq-tiroir'), T = window.__fournil.evMarche.tiroirEtat(), bas = el.clientHeight - (parseFloat(getComputedStyle(el).paddingBottom) || 0);
+        return JSON.stringify({ pos: T.pos, Y: T.Y, glisse: T.glisse, fin: T.fin, top: Math.round(t.getBoundingClientRect().top), ferme: Math.round(bas - t.querySelector('.pq-poignee').offsetHeight - el.querySelector('.pq-barre').offsetHeight) }); });
+      const k = JSON.parse(e), ok = e === avant && !k.glisse && !k.fin && Math.abs(k.Y.ferme - k.ferme) <= 1; avant = e; return ok; }, 6000, 300); };
     const glisser = async (x, y0, y1, n = 10, pas = 16, tenir = 0) => { await touche('touchStart', [[x, y0]]); for (let k = 1; k <= n; k++) { await touche('touchMove', [[x, y0 + (y1 - y0) * k / n]]); await sleep(pas); } if (tenir) await sleep(tenir); await touche('touchEnd', []); await sleep(600); await pose(); };
     const toucherA = async (x, y) => { await touche('touchStart', [[x, y]]); await sleep(40); await touche('touchEnd', []); await sleep(500); };
     const geo = () => ev(() => { const R = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { g: b.left, d: b.right, h: b.top, b: b.bottom, l: b.width, ht: b.height }; }, el = document.querySelector('#marche'), c = document.querySelector('#mc-cartes');
@@ -111,10 +122,12 @@ function faux(d) {
     const chevauche = (a, b) => !!a && !!b && a.g < b.d - 0.5 && b.g < a.d - 0.5 && a.h < b.b - 0.5 && b.h < a.b - 0.5;
     const centreDe = (sel) => ev((s2) => { const b = document.querySelector(s2).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, sel);
     const verifierColonne = async (ou) => {
-      const g = await geo(), [m, c, o] = g.act;
-      check(g.act.length === 3 && m.k === 'mini' && c.k === 'contrats' && o.k === 'operation' && /Mini-jeux/.test(m.txt) && /Contrats/.test(c.txt) && /Opération/.test(o.txt) && m.b <= c.h && c.b <= o.h && g.pastille,
+      const ordre = (g) => { const [m, c, o] = g.act; return g.act.length === 3 && m.k === 'mini' && c.k === 'contrats' && o.k === 'operation' && /Mini-jeux/.test(m.txt) && /Contrats/.test(c.txt) && /Opération/.test(o.txt) && m.b <= c.h && c.b <= o.h && g.pastille; };
+      const place = (g) => g.act.length > 0 && g.act.every((b) => b.ht >= 44 && b.l >= 44 && Math.abs(b.d - g.act[0].d) < 1 && b.g >= g.scene.g && b.d <= g.scene.d && b.d > g.scene.d - 20 && b.h >= g.solde.b && b.b <= g.tiroir.h);
+      const [g] = await jusqua(geo, (x) => ordre(x) && place(x));
+      check(ordre(g),
         `${ou} : Mini-jeux, Contrats (et sa pastille), Opération, de haut en bas (${g.act.map((b) => `« ${b.txt} »`).join(', ')})`);
-      check(g.act.every((b) => b.ht >= 44 && b.l >= 44 && Math.abs(b.d - m.d) < 1 && b.g >= g.scene.g && b.d <= g.scene.d && b.d > g.scene.d - 20 && b.h >= g.solde.b && b.b <= g.tiroir.h),
+      check(place(g),
         `${ou} : une colonne en haut à droite de la scène, sous le solde, au-dessus du tiroir, 44 px au moins (${g.act.map((b) => `${Math.round(b.g)}–${Math.round(b.d)} × ${Math.round(b.h)}–${Math.round(b.b)}`).join(', ')} ; scène visible ${Math.round(g.solde.b)}–${Math.round(g.tiroir.h)})`);
       return g;
     };
@@ -122,7 +135,9 @@ function faux(d) {
       await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); window.__evTimer0 = q.evTimer; q.ev = null; q.evTimer = 9999; F.evMarche.R.lancerEvenement(q, () => 0, 'grosclient'); });
       const g = await attendre(async () => { const x = await geo(); return x.ev && x.ev.ht > 0 ? x : null; }, 8000);
       if (!g) console.log('   (diagnostic)', JSON.stringify(await ev(() => { const F = window.__fournil, q = F.st.marche, e = document.querySelector('#mc-ev'); return { ev: q.ev, hidden: e.hidden, html: e.innerHTML.length, ecran: F.evMarche.ecran, mini: F.evMarche.mini().ouvert, tiroir: document.querySelector('#marche').dataset.tiroir }; })));
-      check(!!g && g.act.every((b) => !chevauche(b, g.ev) && !chevauche(b, g.bx)) && g.bx.b <= g.tiroir.h + 1, `${ou} : les bandeaux (le coup de pouce${g && g.cmdOu === 'pq-bandeaux' ? ', la commande' : ''}) ne touchent pas la colonne (bandeaux ${g && `${Math.round(g.bx.g)}–${Math.round(g.bx.d)} × ${Math.round(g.bx.h)}–${Math.round(g.bx.b)}`}, colonne jusqu’à ${g && Math.round(g.col.b)}${g && g.serre ? ', la bannière à sa gauche' : ''})`);
+      const loin = (x) => !!x && !!x.ev && x.act.every((b) => !chevauche(b, x.ev) && !chevauche(b, x.bx)) && x.bx.b <= x.tiroir.h + 1;
+      const [g2, okLoin] = g ? await jusqua(geo, loin) : [null, false];
+      check(okLoin, `${ou} : les bandeaux (le coup de pouce${g2 && g2.cmdOu === 'pq-bandeaux' ? ', la commande' : ''}) ne touchent pas la colonne (bandeaux ${g2 && `${Math.round(g2.bx.g)}–${Math.round(g2.bx.d)} × ${Math.round(g2.bx.h)}–${Math.round(g2.bx.b)}`}, colonne jusqu’à ${g2 && Math.round(g2.col.b)}${g2 && g2.serre ? ', la bannière à sa gauche' : ''})`);
       if (g) await shot(page, `${qual}-colonne-coup-${ou.replace(/\D+/g, 'x')}`);
       await ev(() => { const F = window.__fournil, q = F.st.marche; q.ev = null; q.evTimer = window.__evTimer0; }); await attendre(async () => !(await geo()).ev, 3000);
     };
@@ -133,16 +148,19 @@ function faux(d) {
     const c1 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.bulle && c.sid && c.etat === 'file') || null; }, 30000); // (arrivé au comptoir, il attend)
     check(!!c1, `un client-monstre de la file des règles entre dans la scène, sa bulle au-dessus de la tête (${c1 && `${c1.sorte}, ${c1.sid}, bulle ${Math.round(c1.bulle.l)}×${Math.round(c1.bulle.h)}`})`);
     const acteur = (sid) => ev((s) => BOUTIQUE_MARCHE.acteurs().find((x) => x.id === s) || null, sid);
-    const ac1 = await acteur(c1.sid);
-    check(ac1 && ac1.role === 'client' && ac1.sorte === c1.sorte && Math.abs(c1.bulle.x - ac1.x) < 3 && c1.bulle.y < ac1.y, `c'est un acteur de la scène (${ac1 && `${ac1.sorte}, ${ac1.etat}, tête à ${ac1.x},${ac1.y}`}), la bulle posée sur sa tête`);
+    const [p1, okP1] = await jusqua(async () => ({ c: (await act()).clients.find((x) => x.id === c1.id), ac: await acteur(c1.sid) }), ({ c, ac }) => c && c.bulle && ac && ac.role === 'client' && ac.sorte === c1.sorte && Math.abs(c.bulle.x - ac.x) < 3 && c.bulle.y < ac.y);
+    const ac1 = p1 && p1.ac;
+    check(okP1, `c'est un acteur de la scène (${ac1 && `${ac1.sorte}, ${ac1.etat}, tête à ${ac1.x},${ac1.y}`}), la bulle posée sur sa tête`);
     { // la colonne des activités ne cache ni la file (les têtes des clients qui attendent), ni leurs bulles
-      const gc = await geo(), e = await act(), tetes = await ev(() => BOUTIQUE_MARCHE.acteurs().filter((x) => x.role === 'client' && x.etat === 'file').map((x) => ({ x: x.x, y: x.y })));
-      const bulles = e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h }));
-      check(bulles.length > 0 && bulles.every((b) => !chevauche(b, gc.col)) && tetes.every((t) => !(t.x > gc.col.g && t.x < gc.col.d && t.y > gc.col.h && t.y < gc.col.b)),
+      const [mc, okMc] = await jusqua(async () => { const gc = await geo(), e = await act(), tetes = await ev(() => BOUTIQUE_MARCHE.acteurs().filter((x) => x.role === 'client' && x.etat === 'file').map((x) => ({ x: x.x, y: x.y })));
+        return { gc, tetes, bulles: e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h })) }; },
+      ({ gc, tetes, bulles }) => bulles.length > 0 && bulles.every((b) => !chevauche(b, gc.col)) && tetes.every((t) => !(t.x > gc.col.g && t.x < gc.col.d && t.y > gc.col.h && t.y < gc.col.b)));
+      const { gc, tetes, bulles } = mc;
+      check(okMc,
         `la colonne (${Math.round(gc.col.g)}–${Math.round(gc.col.d)} × ${Math.round(gc.col.h)}–${Math.round(gc.col.b)}) ne cache ni les têtes de la file (${tetes.map((t) => `${Math.round(t.x)},${Math.round(t.y)}`).join(' ')}) ni leurs bulles (${bulles.map((b) => `${Math.round(b.g)}–${Math.round(b.d)}`).join(', ')})`);
     }
-    const ic = await ev((id) => document.querySelectorAll(`.mh-bulle[data-client="${id}"] [data-p]`).length, c1.id);
-    check(ic === c1.commande.length && c1.reste > 0 && c1.reste <= 40000, `la bulle : les ${ic} friandises de sa commande, sa patience (${(c1.reste / 1000).toFixed(0)} s)`);
+    const [ic, okIc] = await jusqua(() => ev((id) => document.querySelectorAll(`.mh-bulle[data-client="${id}"] [data-p]`).length, c1.id), (n) => n === c1.commande.length);
+    check(okIc && c1.reste > 0 && c1.reste <= 40000, `la bulle : les ${ic} friandises de sa commande, sa patience (${(c1.reste / 1000).toFixed(0)} s)`);
     // le toucher (le milieu du corps) le choisit
     let choisi = null;
     // la bulle d'un client, une fois posée (deux lectures à 250 ms qui tombent au même pixel : il ne glisse plus vers sa place) ; null : parti
@@ -150,29 +168,32 @@ function faux(d) {
     const toucherClient = async (c) => { for (let k = 0; k < 4; k++) { const x = await acteur(c.sid); if (!x) return false; await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); const e = await act(); if (e.choisi === c.id) return true; if (e.choisi != null) { await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); } } return false; };
     if (await toucherClient(c1)) choisi = c1.id;
     if (choisi !== c1.id) console.log('   (diagnostic)', JSON.stringify(await act()), JSON.stringify(await ev(() => BOUTIQUE_MARCHE.acteurs())));
-    check(choisi === c1.id && await ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`).classList.contains('choisi'), c1.id), 'toucher le monstre le choisit : sa bulle s’allume');
+    check(choisi === c1.id && !!(await attendre(() => ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`).classList.contains('choisi'), c1.id), 6000)), 'toucher le monstre le choisit : sa bulle s’allume');
     const voulus = await attendre(() => ev(() => { const l = [...document.querySelectorAll('#mc-cartes .carte[data-mh~="voulu"]')].map((c) => +c.dataset.i); return l.length ? l : null; }), 5000);
     check(voulus && voulus.length === c1.commande.length && c1.commande.every((l) => voulus.includes(l.i)), `les cartes de sa commande sont marquées (${voulus})`);
     // une mauvaise carte : refusée (et le choix tombe) ; on le rechoisit
     const autre = [0, 1, 2, 3, 4].find((i) => !c1.commande.some((l) => l.i === i));
     if (autre != null) {
       await page.locator(`#mc-cartes .carte[data-i="${autre}"] h3`).tap(); await sleep(300);
-      check((await flottes()).some((t) => /pas sa commande/.test(t)) && (await regles()).file.find((c) => c.id === c1.id).commande.every((l) => !l.servi), `une carte qui n’est pas dans sa commande (${autre}) : « Ce n’est pas sa commande ! », rien de servi`);
+      check(!!(await attendre(async () => (await flottes()).some((t) => /pas sa commande/.test(t)), 6000)) && (await regles()).file.find((c) => c.id === c1.id).commande.every((l) => !l.servi), `une carte qui n’est pas dans sa commande (${autre}) : « Ce n’est pas sa commande ! », rien de servi`);
       await toucherClient(c1);
     }
     const b0 = (await regles()).billets, s0 = (await regles()).stats, v0 = await ev(() => window.__voles);
     for (const l of c1.commande) { await page.locator(`#mc-cartes .carte[data-i="${l.i}"] h3`).tap(); await sleep(300); }
-    R = await regles(); const vie1 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c1.sid);
-    check(!R.file.some((c) => c.id === c1.id) && R.stats.clientsServis === s0.clientsServis + 1 && R.billets > b0, `chaque carte sert une ligne ; la dernière : servi (${R.stats.clientsServis} servis), pourboire +${Math.round(R.billets - b0)}`);
-    check(vie1 && vie1.etat === 'sort' && vie1.humeur === 'content', `dans la scène, il repart content (${vie1 && `${vie1.etat}, ${vie1.humeur}`})`);
-    check((await ev(() => window.__voles)) > v0 && (await flottes()).some((t) => /Merci/.test(t)), 'son pourboire vole jusqu’au solde, « Merci ! »');
-    check(!(await act()).clients.some((c) => c.id === c1.id) && (await act()).choisi == null, 'sa bulle est partie, plus personne de choisi');
+    let okR1; [R, okR1] = await jusqua(regles, (r) => !r.file.some((c) => c.id === c1.id) && r.stats.clientsServis === s0.clientsServis + 1 && r.billets > b0);
+    const [vie1, okV1] = await jusqua(() => ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c1.sid), (v) => v && v.etat === 'sort' && v.humeur === 'content');
+    check(okR1, `chaque carte sert une ligne ; la dernière : servi (${R.stats.clientsServis} servis), pourboire +${Math.round(R.billets - b0)}`);
+    check(okV1, `dans la scène, il repart content (${vie1 && `${vie1.etat}, ${vie1.humeur}`})`);
+    check(!!(await attendre(async () => (await ev(() => window.__voles)) > v0 && (await flottes()).some((t) => /Merci/.test(t)), 6000)), 'son pourboire vole jusqu’au solde, « Merci ! »');
+    check(!!(await attendre(async () => { const e = await act(); return !e.clients.some((c) => c.id === c1.id) && e.choisi == null; }, 6000)), 'sa bulle est partie, plus personne de choisi');
     { // le bestiaire : sa sorte avance d'un, le petit mot sur la scène, la carte du tiroir
-      const e = await act(), b = e.bestiaire, s1 = b.sortes.find((x) => x.sorte === c1.sorte), court = await ev((k) => window.__fournil.MC.NOMS_COURTS[k], c1.sorte);
-      const mini = await ev((k) => { const i = document.querySelector(`#mc-bestiaire .mh-best-mini i[data-sorte="${k}"]`); return i ? i.className : null; }, c1.sorte);
-      check(s1 && s1.n === 1 && e.mot.startsWith(`${court} 1/10`) && mini === 'encours' && await ev(() => !document.querySelector('#mc-bestiaire').hidden), `servi, il fait avancer le bestiaire : « ${e.mot} » sur la scène, sa miniature passe de la silhouette à « en cours » dans la carte du tiroir`);
-      const tailles = await ev(() => [...document.querySelectorAll('#mc-bestiaire .mh-best-mini i')].map((i) => { const r = i.querySelector('svg').getBoundingClientRect(), c = i.getBoundingClientRect(); return { etat: i.className, k: Math.min(r.width, r.height) / c.width }; }));
-      const vides = tailles.filter((t) => t.etat === 'vide'), pire = Math.min(...tailles.map((t) => t.k));
+      const court = await ev((k) => window.__fournil.MC.NOMS_COURTS[k], c1.sorte);
+      const [be, okBe] = await jusqua(async () => { const e = await act(); return { e, s1: e.bestiaire.sortes.find((x) => x.sorte === c1.sorte), mini: await ev((k) => { const i = document.querySelector(`#mc-bestiaire .mh-best-mini i[data-sorte="${k}"]`); return i ? i.className : null; }, c1.sorte), vu: await ev(() => !document.querySelector('#mc-bestiaire').hidden) }; },
+        ({ e, s1, mini, vu }) => s1 && s1.n === 1 && e.mot.startsWith(`${court} 1/10`) && mini === 'encours' && vu);
+      check(okBe, `servi, il fait avancer le bestiaire : « ${be && be.e.mot} » sur la scène, sa miniature passe de la silhouette à « en cours » dans la carte du tiroir`);
+      const taillesDe = (t) => ({ vides: t.filter((x) => x.etat === 'vide'), pire: Math.min(...t.map((x) => x.k)) });
+      const [tailles] = await jusqua(() => ev(() => [...document.querySelectorAll('#mc-bestiaire .mh-best-mini i')].map((i) => { const r = i.querySelector('svg').getBoundingClientRect(), c = i.getBoundingClientRect(); return { etat: i.className, k: Math.min(r.width, r.height) / c.width }; })), (t) => { const x = taillesDe(t); return x.vides.length > 0 && x.pire > 0.7; });
+      const { vides, pire } = taillesDe(tailles || []);
       check(vides.length > 0 && pire > 0.7, `les silhouettes des monstres pas encore servis sont aussi grandes que les autres miniatures (${vides.length} silhouettes ; la plus petite : ${(pire * 100).toFixed(0)} % de sa case)`);
     }
     // un deuxième, servi en touchant sa bulle
@@ -196,17 +217,17 @@ function faux(d) {
       await ev((id) => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive = q.now - 30000; }, c3.id); // (il attend depuis 30 s tout juste : 10 s de patience, même s'il était entré bien avant)
       const bas = await attendre(() => ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`)?.classList.contains('presse'), c3.id), 4000, 100);
       const fin = await attendre(async () => { const r = await regles(); return !r.file.some((c) => c.id === c3.id) ? r : null; }, 15000);
-      const vie3 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid);
+      const [vie3] = await jusqua(() => ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid), (v) => v && v.humeur === 'fache' && v.etat === 'sort');
       check(!!bas, 'sa patience presque finie : la bulle presse (orange)');
       check(fin && fin.stats.clientsPartis === p0 + 1 && fin.billets - b3 < 1e9 && vie3 && vie3.humeur === 'fache' && vie3.etat === 'sort', `40 s sans être servi : il repart fâché (${vie3 && vie3.humeur}), rien de payé pour lui`);
-      await sleep(600); check(!(await act()).clients.some((c) => c.id === c3.id) && (await flottes()).some((t) => /reparti jouer dans les feuilles/.test(t)), '« Il est reparti jouer dans les feuilles. », sa bulle s’en va');
+      check(!!(await attendre(async () => !(await act()).clients.some((c) => c.id === c3.id) && (await flottes()).some((t) => /reparti jouer dans les feuilles/.test(t)), 6000)), '« Il est reparti jouer dans les feuilles. », sa bulle s’en va');
     } else check(false, 'un troisième client entre');
 
     // la capture : la file de monstres, chacun sa bulle
     for (let k = 0; k < 3; k++) { await pousser('client'); await sleep(700); }
     await attendre(async () => (await act()).clients.filter((c) => c.bulle).length >= 3, 20000);
     await sleep(800); await shot(page, `${qual}-file`);
-    a = await act(); check(a.clients.filter((c) => c.bulle).length >= 2, `la file des règles en scène : ${a.clients.filter((c) => c.bulle).length} monstres avec leur bulle`);
+    [a] = await jusqua(act, (x) => x.clients.filter((c) => c.bulle).length >= 2); check(a.clients.filter((c) => c.bulle).length >= 2, `la file des règles en scène : ${a.clients.filter((c) => c.bulle).length} monstres avec leur bulle`);
     { // les bulles écartées : chaque pointe montre la tête de SON monstre ; aucune ne passe sous l'en-tête du Manoir (le haut de la couche)
       let n = 0, ecartees = 0, pire = 0, marge = Infinity, mauvais = '';
       for (let k = 0; k < 25; k++) {
@@ -245,7 +266,7 @@ function faux(d) {
       await ev((s2) => { window.__vert = false; const t0 = performance.now(), voir = () => { if (document.querySelector(s2)) { window.__vert = true; return; } if (performance.now() - t0 < 20000) requestAnimationFrame(voir); }; requestAnimationFrame(voir); }, '#mc-cartes .carte[data-i="3"] .mh-fenetre.fait');
       await ev(() => { window.__garder = true; if (!window.__rm) { const rm = window.__rm = Element.prototype.remove; Element.prototype.remove = function () { if (window.__garder && this.classList && this.classList.contains('mh-flotte')) return; return rm.call(this); }; } }); // (pour la capture : « Parfait ! ×2 » reste)
       await page.touchscreen.tap(bb.x + bb.width * 0.5, bb.y + bb.height / 2); await sleep(250);
-      const r = await regles();
+      const [r] = await jusqua(regles, (x) => x.stats.parfaits > pf0); // (hors de la fenêtre, il n'y a rien à attendre : on recommence)
       if (r.stats.parfaits > pf0) { await ev(() => { for (const f of document.querySelectorAll('.mh-flotte')) { f.style.animation = 'none'; f.style.opacity = '1'; if (!/Parfait/.test(f.textContent)) f.style.display = 'none'; } }); await sleep(300); await shot(page, `${qual}-parfait`); }
       await ev(() => { window.__garder = false; for (const f of document.querySelectorAll('.mh-flotte')) f.remove(); });
       if (r.stats.parfaits > pf0) parfait = { brille: dedans, fl: await flottes(), vert: await attendre(() => ev(() => window.__vert || document.querySelector('#mc-cartes .carte[data-i="3"] .mh-fenetre.fait') !== null), 4000, 100) };
@@ -272,12 +293,12 @@ function faux(d) {
       if (!ap) { check(false, `l’apparition ${k} traverse la scène`); break; }
       const p = (await act()).apps.find((x) => x.id === ap.id) || ap;
       await page.touchscreen.tap(p.x, p.y); await sleep(300);
-      const r = await regles();
+      const [r] = await jusqua(regles, (x) => x.stats.apparitions === ap0 + k && x.serie === k);
       if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_MARCHE.apparitions())), await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return e ? `${e.tagName}.${e.className}#${e.id}` : '-'; }, p), JSON.stringify(await ev(() => window.__pd.slice(-3))));
       check(r.stats.apparitions === ap0 + k && r.serie === k && !(await ev((s) => BOUTIQUE_MARCHE.apparitions().some((x) => x.id === s), ap.sid)), `apparition ${k} (${ap.type}) attrapée au doigt : elle éclate, série ×${r.serie}`);
     }
-    const se = await ev(() => { const e = document.querySelector('#mc-serie'); return { vu: !e.hidden, txt: e.innerText.replace(/\s+/g, ' ') }; });
-    check(se.vu && /×3/.test(se.txt) && (await flottes()).some((t) => /Série de 3/.test(t)), `le compteur de série sur la scène (« ${se.txt} »), « Série de 3 : ×1,5 »`);
+    const [se, okSe] = await jusqua(async () => ({ ...(await ev(() => { const e = document.querySelector('#mc-serie'); return { vu: !e.hidden, txt: e.innerText.replace(/\s+/g, ' ') }; })), fl: await flottes() }), (x) => x.vu && /×3/.test(x.txt) && x.fl.some((t) => /Série de 3/.test(t)));
+    check(okSe, `le compteur de série sur la scène (« ${se.txt} »), « Série de 3 : ×1,5 »`);
 
     // ─── la commande de la nuit : sa carte, sa jauge, son bouton ───
     await pousser('commande');
@@ -285,16 +306,18 @@ function faux(d) {
     check(!!cm && (await toasts()).some((t) => /commande du marché/i.test(t)), `une commande du marché arrive : son bandeau (« ${cm} »)`);
     { // en bandeau sur la scène, juste au-dessus du tiroir (comme les coups de pouce) : il ne touche ni la colonne, ni les bulles de la file ;
       // tiroir en haut, il passe dans sa tête (toujours sous les yeux), puis revient
-      const g = await geo(), e = await act(), bulles = e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h }));
-      check(g.cmdOu === 'pq-bandeaux' && g.cmd.h >= g.solde.b && g.cmd.b <= g.tiroir.h && g.tiroir.h - g.cmd.b < 40 && !chevauche(g.cmd, g.col) && bulles.every((b) => !chevauche(b, g.cmd)),
+      const [mb, okMb] = await jusqua(async () => { const g = await geo(), e = await act(); return { g, bulles: e.clients.filter((c) => c.bulle).map((c) => ({ g: c.bulle.x - c.bulle.l / 2, d: c.bulle.x + c.bulle.l / 2, h: c.bulle.haut, b: c.bulle.haut + c.bulle.h })) }; },
+        ({ g, bulles }) => g.cmdOu === 'pq-bandeaux' && g.cmd.h >= g.solde.b && g.cmd.b <= g.tiroir.h && g.tiroir.h - g.cmd.b < 40 && !chevauche(g.cmd, g.col) && bulles.every((b) => !chevauche(b, g.cmd)));
+      const { g, bulles } = mb;
+      check(okMb,
         `la commande : un bandeau juste au-dessus du tiroir (${Math.round(g.cmd.h)}–${Math.round(g.cmd.b)}, tiroir à ${Math.round(g.tiroir.h)}), loin de la colonne et des ${bulles.length} bulle(s)`);
       await ev(() => window.__fournil.evMarche.tiroir('haut')); await sleep(400);
-      const g2 = await geo();
-      check(g2.cmdOu === 'pq-tiroir-tete' && g2.cmd.h >= g2.solde.b - 1 && g2.cmd.b <= g2.barre.h + 1 && g2.cmd.ht > 40, `tiroir en haut : la commande dans sa tête, sous la poignée (${Math.round(g2.cmd.h)}–${Math.round(g2.cmd.b)})`);
+      const [g2, okG2] = await jusqua(geo, (x) => x.cmdOu === 'pq-tiroir-tete' && x.cmd.h >= x.solde.b - 1 && x.cmd.b <= x.barre.h + 1 && x.cmd.ht > 40);
+      check(okG2, `tiroir en haut : la commande dans sa tête, sous la poignée (${Math.round(g2.cmd.h)}–${Math.round(g2.cmd.b)})`);
       await ev(() => window.__fournil.evMarche.tiroir('mi')); await sleep(400);
-      check((await geo()).cmdOu === 'pq-bandeaux', 'tiroir redescendu : la commande revient au-dessus de lui');
+      check((await jusqua(geo, (x) => x.cmdOu === 'pq-bandeaux'))[1], 'tiroir redescendu : la commande revient au-dessus de lui');
     }
-    check(await ev(() => !!document.querySelector('#mc-commande .mh-commande-temps b') && document.querySelector('#mc-commande .btn').classList.contains('non')), 'sa jauge de temps, son bouton pas encore prêt');
+    check(!!(await attendre(() => ev(() => !!document.querySelector('#mc-commande .mh-commande-temps b') && document.querySelector('#mc-commande .btn').classList.contains('non')), 6000)), 'sa jauge de temps, son bouton pas encore prêt');
     await page.locator('#mc-commande [data-a="mh-commande"]').tap(); await sleep(300);
     const fl = await attendre(async () => (await flottes()).find((t) => /Encore \S+ à vendre/.test(t)), 3000, 100), tt = await attendre(async () => (await toasts()).find((t) => /encore .* à vendre/.test(t)), 8000);
     check(!!fl && !!tt, `pas prête : le bouton dit tout de suite ce qu’il reste à vendre (« ${fl} »), le toast aussi (« ${tt} »)`);
@@ -304,8 +327,8 @@ function faux(d) {
     check(!!prete && /Livrer/.test(prete), `les ventes la remplissent ; prête : « ${prete} »`);
     const cmd0 = (await regles()).stats.commandes, bc = (await regles()).billets;
     await page.locator('#mc-commande [data-a="mh-commande"]').tap(); await sleep(400);
-    R = await regles();
-    check(R.stats.commandes === cmd0 + 1 && R.billets > bc && !R.commande && await ev(() => document.querySelector('#mc-commande').hidden) && (await toasts()).some((t) => /Commande livrée/.test(t)), `Livrer : payée (+${Math.round(R.billets - bc)}), la carte s’en va`);
+    let okLiv; [R, okLiv] = await jusqua(async () => Object.assign(await regles(), { cache: await ev(() => document.querySelector('#mc-commande').hidden), tt: await toasts() }), (r) => r.stats.commandes === cmd0 + 1 && r.billets > bc && !r.commande && r.cache && r.tt.some((t) => /Commande livrée/.test(t)));
+    check(okLiv, `Livrer : payée (+${Math.round(R.billets - bc)}), la carte s’en va`);
 
     // ─── le bestiaire : une sorte complétée (la sauvegarde préparée : quatre déjà faites, neuf servis partout) ───
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.file = []; q.manoir.prochainClient = HORLOGE.maintenant() - 1; q.manoir.prochaineApp = HORLOGE.maintenant() + 600e3; F.save(); });
@@ -316,20 +339,22 @@ function faux(d) {
       const avant = await ev(() => ({ et: window.__fournil.st.etoiles, decos: window.__fournil.st.marche.decos.slice(), vues: window.__fournil.SCENE.decosMarcheVues.slice() }));
       let mot = ''; for (let k = 0; k < cb.commande.length + 3; k++) { const c = await bullePosee(cb.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); mot = (await act()).mot || mot; }
       const fete = await attendre(() => ev(() => { const f = document.querySelector('#feuille'), x = f && !f.hidden && f.querySelector('[data-bestiaire-fete]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 8000);
-      const apres = await ev(() => { const F = window.__fournil, q = F.st.marche; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice() }; }); apres.mot = mot;
+      const [apres] = await jusqua(() => ev(() => { const F = window.__fournil, q = F.st.marche; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice() }; }), (x) => x.et === avant.et + 2 && x.aVerser === 0 && x.faits.length === 5 && x.decos.includes('album')); apres.mot = mot;
       check(!!fete && fete.sorte === cb.sorte && /rejoint l’album/.test(fete.txt) && /5\/9/.test(fete.txt), `le dixième ${cb.sorte} servi au doigt : la feuille de fête (« ${fete && fete.txt.slice(0, 70)}… »)`);
       check(apres.et === avant.et + 2 && apres.aVerser === 0 && apres.faits.length === 5, `la 5e sorte : +2 étoiles versées tout de suite dans la boulangerie (${avant.et} → ${apres.et}), une fois (plus rien à verser)`);
       check(!avant.decos.includes('album') && apres.decos.includes('album') && !!fete && /étagère aux peluches/.test(fete.txt) && await attendre(() => ev(() => window.__fournil.SCENE.decosMarcheVues.includes('album') || !!(window.__fournil.SCENE.evenement && window.__fournil.SCENE.evenement.hd)), 4000), 'et le décor : l’étagère aux bocaux de monstres, posée dans la boutique (q.decos ; la scène, en éco : en haute, le décor cuit de la boutique hantée la remplace, elle revient avec la boutique)');
       check(/10\/10/.test(apres.mot), `le petit mot sur la scène : « ${apres.mot} »`);
       await sleep(900); await shot(page, `${qual}-bestiaire-fete`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete.png`), path.join(out3, 'bestiaire-sorte-completee.png'));
       if (fete) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evMarche.act.feuilleBestiaire());
-      const fe = await ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, cls: c.className, txt: c.innerText.replace(/\s+/g, ' ') })), recomp: [...x.querySelectorAll('.mh-best-recomp li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })) } : null; });
-      check(fe && fe.cases.length === 9 && fe.cases.filter((c) => /fait/.test(c.cls)).length === 5 && fe.cases.filter((c) => /encours/.test(c.cls) && /9\/10/.test(c.txt)).length === 4, `« Le bestiaire » : la feuille, les neuf (${fe && fe.cases.map((c) => c.txt).join(' · ')})`);
-      check(fe && fe.recomp.length === 3 && !fe.recomp[0].fait && /6\/11/.test(fe.recomp[0].txt) && fe.recomp[1].fait && !fe.recomp[2].fait && /5\/9/.test(fe.recomp[2].txt) && /écureuil/.test(fe.recomp[2].txt), `les récompenses à venir : ${fe && fe.recomp.map((r) => (r.fait ? '✓ ' : '') + r.txt).join(' | ')}`);
+      const neuf = (fe) => fe && fe.cases.length === 9 && fe.cases.filter((c) => /fait/.test(c.cls)).length === 5 && fe.cases.filter((c) => /encours/.test(c.cls) && /9\/10/.test(c.txt)).length === 4;
+      const recompOk = (fe) => fe && fe.recomp.length === 3 && !fe.recomp[0].fait && /6\/11/.test(fe.recomp[0].txt) && fe.recomp[1].fait && !fe.recomp[2].fait && /5\/9/.test(fe.recomp[2].txt) && /écureuil/.test(fe.recomp[2].txt);
+      const [fe] = await jusqua(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, cls: c.className, txt: c.innerText.replace(/\s+/g, ' ') })), recomp: [...x.querySelectorAll('.mh-best-recomp li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })) } : null; }), (x) => neuf(x) && recompOk(x));
+      check(neuf(fe), `« Le bestiaire » : la feuille, les neuf (${fe && fe.cases.map((c) => c.txt).join(' · ')})`);
+      check(recompOk(fe), `les récompenses à venir : ${fe && fe.recomp.map((r) => (r.fait ? '✓ ' : '') + r.txt).join(' | ')}`);
       await sleep(400); await shot(page, `${qual}-bestiaire-feuille`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille.png`), path.join(out3, 'bestiaire-feuille.png'));
       await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(500);
       await page.locator('#mc-bestiaire [data-a="mh-bestiaire"]').scrollIntoViewIfNeeded(); await page.locator('#mc-bestiaire [data-a="mh-bestiaire"]').tap(); await sleep(500);
-      check(await ev(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille [data-bestiaire]')), 'la carte du bestiaire, dans le tiroir, ouvre la même feuille');
+      check(!!(await attendre(() => ev(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille [data-bestiaire]')), 6000)), 'la carte du bestiaire, dans le tiroir, ouvre la même feuille');
       if (out3 && qual === 'haute') { await ev(() => { document.querySelector('#feuille [data-a="mh-best-ok"]').click(); }); await sleep(500); await ev(() => document.querySelector('#mc-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte.png`), path.join(out3, 'bestiaire-carte.png')); }
       else await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); });
       await sleep(400);
@@ -338,8 +363,13 @@ function faux(d) {
           const id = 880001; q.manoir.file.push({ id, sorte: 'ourson', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); const e0 = F.st.etoiles, r = F.evMarche.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, cs: q.ecureuil }; });
         const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="ourson"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
         check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Pirouette/.test(f9 || ''), `la 9e sorte : +2 étoiles, l’écureuil ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
-        if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
-        check(await attendre(() => ev(() => window.__fournil.st.compagnon === 'ecureuil' && window.__fournil.G.aCompagnon(window.__fournil.st, 'ecureuil')), 4000), '« Choisir Pirouette tout de suite » : l’écureuil devient le compagnon de la boutique');
+        // (le bouton touché une fois la feuille posée : sa montée finie, comme un doigt qui vise un bouton immobile ; 9 nov., GitHub : touché
+        // pendant la montée de la feuille, sous une machine lente, le toucher tombait à côté du bouton)
+        if (f9) { await attendre(() => ev(() => { const f = document.querySelector('#feuille'); return !f.hidden && !f.getAnimations().length && !!f.querySelector('[data-a="mh-best-choisir"]'); }), 6000); await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
+        const choisie = () => ev(() => window.__fournil.st.compagnon === 'ecureuil' && window.__fournil.G.aCompagnon(window.__fournil.st, 'ecureuil'));
+        const okCo = !!(await attendre(choisie, 6000));
+        if (!okCo) console.log('   (diagnostic)', JSON.stringify(await ev(() => { const F = window.__fournil, b = document.querySelector('#feuille [data-a="mh-best-choisir"]'); return { compagnon: F.st.compagnon, a: F.G.aCompagnon(F.st, 'ecureuil'), chat: !!F.st.chat, bouton: b ? { off: b.disabled, txt: b.innerText } : null, feuille: !document.querySelector('#feuille').hidden, pd: window.__pd.slice(-3) }; })));
+        check(okCo, '« Choisir Pirouette tout de suite » : l’écureuil devient le compagnon de la boutique');
         await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
@@ -350,7 +380,7 @@ function faux(d) {
       await ev((sa) => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); const cpt = [29, 12, 25, 10, 17, 22, 14, 11, 19];
         F.MC.SORTES.forEach((k, i) => { q.bestiaire[k] = k === sa ? 29 : cpt[i]; }); q.bestiaireFaits = F.MC.SORTES.slice(); q.bestiaireArgent = []; q.bestiaireOr = []; q.bestiaireAVerser = 0;
         if (!q.decos.includes('album')) q.decos.push('album'); q.bestiaire.ecureuil = 28; F.save(); }, SA);
-      const carte0 = await attendre(() => ev(() => { const x = document.querySelector('#mc-bestiaire .mh-best-meds'); return x && /Bronze 9\/9/.test(x.textContent) ? x.textContent.replace(/\s+/g, ' ').trim() : null; }), 4000);
+      const carte0 = await attendre(() => ev(() => { const x = document.querySelector('#mc-bestiaire .mh-best-meds'); return x && /Bronze 9\/9 · Argent 0\/9/.test(x.textContent) ? x.textContent.replace(/\s+/g, ' ').trim() : null; }), 6000);
       check(carte0 === 'Bronze 9/9 · Argent 0/9 · Or 0/9', `la carte du tiroir : « ${carte0} »`);
       const r = await ev((sa) => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()), id = 880101; q.manoir.file = q.manoir.file.slice(0, 2); q.manoir.file.push({ id, sorte: sa, commande: [{ i: 0, n: 1, servi: false }], arrive: q.now });
         const e0 = F.st.etoiles, r = F.evMarche.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, argent: q.bestiaireArgent.slice(), mot: F.evMarche.act.etat().mot }; }, SA);
@@ -359,16 +389,18 @@ function faux(d) {
       check(!!fa && fa.sorte === SA && /médaille d’argent/.test(fa.txt) && /1\/9 déguisements en argent/.test(fa.txt) && /\+1 étoile/.test(fa.txt), `la fête d’argent : « ${fa && fa.txt.slice(0, 110)}… »`);
       await sleep(900); await shot(page, `${qual}-bestiaire-fete-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete-argent.png`), path.join(out3, 'bestiaire-fete-argent.png'));
       if (fa) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evMarche.act.feuilleBestiaire());
-      const fe = await ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { sous: x.querySelector('.sous').innerText.replace(/\s+/g, ' '), cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, med: c.dataset.medaille || '', txt: c.innerText.replace(/\s+/g, ' ').trim() })), paliers: [...x.querySelectorAll('.mh-best-paliers li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })), anciens: x.querySelectorAll('.mh-best-recomp li').length } : null; });
+      const medOk = (fe) => { const cm = fe && fe.cases.find((c) => c.sorte === SA), csq = fe && fe.cases.find((c) => c.sorte === 'ecureuil'); return !!(fe && cm && cm.med === 'argent' && /30\/140/.test(cm.txt) && csq && csq.med === 'bronze' && /28\/30/.test(csq.txt) && fe.cases.filter((c) => c.med === 'bronze').length === 8 && /Argent 1\/9/.test(fe.sous) && /30 pour l’argent, 140 pour l’or/.test(fe.sous)); };
+      const etageresOk = (fe) => !!(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /étagère d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait));
+      const [fe] = await jusqua(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { sous: x.querySelector('.sous').innerText.replace(/\s+/g, ' '), cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, med: c.dataset.medaille || '', txt: c.innerText.replace(/\s+/g, ' ').trim() })), paliers: [...x.querySelectorAll('.mh-best-paliers li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })), anciens: x.querySelectorAll('.mh-best-recomp li').length } : null; }), (x) => medOk(x) && etageresOk(x));
       const cm = fe && fe.cases.find((c) => c.sorte === SA), csq = fe && fe.cases.find((c) => c.sorte === 'ecureuil');
-      check(fe && cm && cm.med === 'argent' && /30\/140/.test(cm.txt) && csq && csq.med === 'bronze' && /28\/30/.test(csq.txt) && fe.cases.filter((c) => c.med === 'bronze').length === 8 && /Argent 1\/9/.test(fe.sous) && /30 pour l’argent, 140 pour l’or/.test(fe.sous),
+      check(medOk(fe),
         `la feuille : la momie en argent (« ${cm && cm.txt} »), le squelette en bronze vers l’argent (« ${csq && csq.txt} ») ; « ${fe && fe.sous} »`);
-      check(fe && fe.anciens === 3 && fe.paliers.length === 4 && /1\/9/.test(fe.paliers[0].txt) && /0\/9/.test(fe.paliers[1].txt) && /étagère d’argent/.test(fe.paliers[2].txt) && /étagère dorée/.test(fe.paliers[3].txt) && fe.paliers.every((l) => !l.fait),
+      check(etageresOk(fe),
         `les étagères : ${fe && fe.paliers.map((l) => l.txt).join(' | ')}`);
       await sleep(300); await shot(page, `${qual}-bestiaire-feuille-argent`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-argent.png`), path.join(out3, 'bestiaire-feuille-argent.png'));
       if (out3 && qual === 'haute') { await ev(() => { const l = document.querySelector('#feuille .mh-best-paliers'); if (l) l.scrollIntoView({ block: 'center' }); }); await sleep(400); await shot(page, `${qual}-bestiaire-feuille-etageres`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille-etageres.png`), path.join(out3, 'bestiaire-feuille-etageres.png')); }
       await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(500);
-      const carte1 = await attendre(() => ev((sa) => { const x = document.querySelector('#mc-bestiaire'), m = x && x.querySelector(`.mh-best-mini i[data-sorte="${sa}"]`); return x && m && /Argent 1\/9/.test(x.textContent) ? { meds: x.querySelector('.mh-best-meds').textContent.replace(/\s+/g, ' ').trim(), cls: m.className } : null; }, SA), 4000);
+      const carte1 = await attendre(() => ev((sa) => { const x = document.querySelector('#mc-bestiaire'), m = x && x.querySelector(`.mh-best-mini i[data-sorte="${sa}"]`); return x && m && /Argent 1\/9/.test(x.textContent) && /\bm-argent\b/.test(m.className) ? { meds: x.querySelector('.mh-best-meds').textContent.replace(/\s+/g, ' ').trim(), cls: m.className } : null; }, SA), 6000);
       check(carte1 && carte1.meds === 'Bronze 9/9 · Argent 1/9 · Or 0/9' && /\bm-argent\b/.test(carte1.cls), `la carte : « ${carte1 && carte1.meds} », la miniature de la momie cerclée d’argent (${carte1 && carte1.cls})`);
       if (out3 && qual === 'haute') { await ev(() => document.querySelector('#mc-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte-argent`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte-argent.png`), path.join(out3, 'bestiaire-carte-argent.png')); }
       await sleep(300); }
@@ -377,8 +409,8 @@ function faux(d) {
     //     comme un téléphone qui rame : ui.js plafonne son dt à 0,25 s) ; l'échéance recule d'autant, le temps restant ne bouge pas ───
     const coupMini = () => ev(() => { const F = window.__fournil, q = F.st.marche; return { type: q.ev && q.ev.type, reste: q.ev ? q.ev.fin - q.now : 0, mini: F.evMarche.mini().ouvert }; });
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); window.__evTimer = q.evTimer; q.ev = null; q.evTimer = 9999; F.evMarche.R.lancerEvenement(q, Math.random, 'descente'); F.evMarche.ouvrirMini('guet'); });
-    await sleep(300); const cm0 = await coupMini();
-    plus += 8000; await ev(() => window.__avancerParImage(8000, 800)); await sleep(300); const cm1 = await coupMini();
+    await sleep(300); const [cm0] = await jusqua(coupMini, (x) => x.type === 'descente' && x.mini);
+    plus += 8000; await ev(() => window.__avancerParImage(8000, 800)); await sleep(300); const [cm1] = await jusqua(coupMini, (x) => x.mini && x.type === 'descente' && Math.abs(x.reste - cm0.reste) < 300);
     check(cm0.type === 'descente' && cm0.mini && cm1.mini && cm1.type === 'descente' && Math.abs(cm1.reste - cm0.reste) < 300,
       `les chauves-souris attendent la fin de la partie : 8 s d’images espacées de 0,8 s, ${Math.round(cm0.reste / 100) / 10} s restantes avant, ${Math.round(cm1.reste / 100) / 10} s après`);
     await ev(() => { const F = window.__fournil; F.evMarche.fermerMini(); F.st.marche.ev = null; F.st.marche.evTimer = window.__evTimer; }); await sleep(300);
@@ -387,70 +419,73 @@ function faux(d) {
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(300); // (un dernier toucher : le plein)
     const amb0 = (await ev(() => window.__amb.length));
     let mi = null;
-    for (const k of [0, 1]) { plus += 120e3; await ev(() => window.__avancerParImage(120e3, 1500)); await sleep(500); if (k === 0) mi = await ev(() => ({ e: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), txt: document.querySelector('#mc-eveil').innerText, taux: document.querySelector('#mc-taux').innerText })); }
+    for (const k of [0, 1]) { plus += 120e3; await ev(() => window.__avancerParImage(120e3, 1500)); await sleep(500); if (k === 0) [mi] = await jusqua(() => ev(() => ({ e: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), txt: document.querySelector('#mc-eveil').innerText, taux: document.querySelector('#mc-taux').innerText })), (x) => x.e.eveil > 0 && x.e.eveil < 1 && /s’assoupit/.test(x.txt)); }
     await sleep(800);
     check(mi && mi.e.eveil > 0 && mi.e.eveil < 1 && /s’assoupit/.test(mi.txt), `au bout de 2 min : la jauge baisse (${mi && Math.round(mi.e.eveil * 100)} %, « ${mi && mi.txt.trim()} », ${mi && mi.taux})`);
-    const dort = await ev(() => { const e = document.querySelector('#mc-eveil'); return { p: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#mc-taux').innerText, amb: window.__amb.slice() }; });
-    const voile = await ev(() => { const c = document.querySelector('.mh-couche'), z = c && c.querySelector('.mh-dodo'); return { s: c && c.style.getPropertyValue('--mh-sommeil'), z: z && !z.hidden && z.getBoundingClientRect().width > 0 ? z.textContent : null }; });
+    const ambsDe = (d) => d.amb.slice(amb0);
+    const [dort] = await jusqua(() => ev(() => { const e = document.querySelector('#mc-eveil'); return { p: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#mc-taux').innerText, amb: window.__amb.slice() }; }),
+      (d) => { const am = ambsDe(d); return d.p.dort && d.p.mult === 1 && d.niveau === 'bas' && d.jauge === '0%' && /×1 /.test(d.taux + ' ') && /somnole/.test(d.txt) && am.length > 3 && am[am.length - 1] === 0; });
+    const [voile] = await jusqua(() => ev(() => { const c = document.querySelector('.mh-couche'), z = c && c.querySelector('.mh-dodo'); return { s: c && c.style.getPropertyValue('--mh-sommeil'), z: z && !z.hidden && z.getBoundingClientRect().width > 0 ? z.textContent : null }; }), (v) => v.s === '1.00' && /Zzz/.test(v.z || ''));
     check(voile.s === '1.00' && /Zzz/.test(voile.z || ''), `la scène se voile (--mh-sommeil ${voile.s}) et dit « ${voile.z} »`);
     check(dort.p.dort && dort.p.mult === 1 && dort.niveau === 'bas' && dort.jauge === '0%' && /×1 /.test(dort.taux + ' ') && /somnole/.test(dort.txt), `4 min sans toucher : le boss dort (« ${dort.txt.trim()} », jauge ${dort.jauge}), « ${dort.taux} »`);
-    const ambs = dort.amb.slice(amb0);
+    const ambs = ambsDe(dort);
     check(ambs.length > 3 && ambs[ambs.length - 1] === 0 && ambs.some((x) => x > 0 && x < 1), `la lumière de la scène baisse avec la jauge (ambiance ${ambs.slice(-4).map((x) => x.toFixed(2)).join(' → ')})`);
     await shot(page, `${qual}-boss-endormi`);
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(500);
     await attendre(() => ev(() => /×6/.test(document.querySelector('#mc-taux').innerText)), 3000);
-    const reveil = await ev(() => { const e = document.querySelector('#mc-eveil'); return { p: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), niveau: e.dataset.niveau, taux: document.querySelector('#mc-taux').innerText, amb: window.__amb[window.__amb.length - 1] }; });
-    check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1 && await ev(() => document.querySelector('.mh-dodo').hidden), `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
+    const [reveil] = await jusqua(() => ev(() => { const e = document.querySelector('#mc-eveil'); return { p: window.__fournil.MC.presence(window.__fournil.st.marche, HORLOGE.maintenant()), niveau: e.dataset.niveau, taux: document.querySelector('#mc-taux').innerText, amb: window.__amb[window.__amb.length - 1], dodo: document.querySelector('.mh-dodo').hidden }; }), (r) => r.p.eveil === 1 && r.niveau === 'plein' && /×6/.test(r.taux) && r.amb === 1 && r.dodo);
+    check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1 && reveil.dodo, `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
 
     // ─── la colonne des activités et le tiroir, au doigt (en fin de parcours : les clients de plus n'y dérangent rien) ───
-    const g0 = await verifierColonne('la colonne des activités');
+    let g0 = await verifierColonne('la colonne des activités'), okG0;
     await colonneEtCoup('390 × 844');
-    check(g0.pos === 'mi' && Math.abs(g0.tiroir.h - (g0.scene.b - 22)) < 2 && g0.cartes.b <= 844 + 1, `le tiroir à sa place, sous la scène (son haut à ${Math.round(g0.tiroir.h)} px, les cartes ${Math.round(g0.cartes.h)}–${Math.round(g0.cartes.b)})`);
+    [g0, okG0] = await jusqua(geo, (g) => g.pos === 'mi' && Math.abs(g.tiroir.h - (g.scene.b - 22)) < 2 && g.cartes.b <= 844 + 1);
+    check(okG0, `le tiroir à sa place, sous la scène (son haut à ${Math.round(g0.tiroir.h)} px, les cartes ${Math.round(g0.cartes.h)}–${Math.round(g0.cartes.b)})`);
     // la poignée tirée vers le haut : le tiroir monte par-dessus la scène, jusque sous le solde ; les cartes ont toute la hauteur
     const [px, py] = await centreDe('#marche .pq-poignee');
     await glisser(px, py, g0.solde.b + 30);
-    const g1 = await geo();
-    check(g1.pos === 'haut' && Math.abs(g1.tiroir.h - g1.solde.b) <= 2 && g1.cartes.ht > g0.cartes.ht + 150 && g1.cartes.h < g0.cartes.h - 150 && Math.abs(g1.cartes.b - g0.cartes.b) < 2,
+    const [g1, okG1] = await jusqua(geo, (g) => g.pos === 'haut' && Math.abs(g.tiroir.h - g.solde.b) <= 2 && g.cartes.ht > g0.cartes.ht + 150 && g.cartes.h < g0.cartes.h - 150 && Math.abs(g.cartes.b - g0.cartes.b) < 2);
+    check(okG1,
       `la poignée glissée vers le haut : le tiroir monte jusque sous le solde (${Math.round(g1.tiroir.h)} px, solde ${Math.round(g1.solde.b)}), les cartes passent de ${Math.round(g0.cartes.ht)} à ${Math.round(g1.cartes.ht)} px de haut`);
     await shot(page, `${qual}-tiroir-haut`);
-    check(await ev(() => { const e = document.elementFromPoint(300, 200); return !!e && !!e.closest('.pq-tiroir'); }), 'en haut, le tiroir passe par-dessus la scène et sa colonne');
+    check(!!(await attendre(() => ev(() => { const e = document.elementFromPoint(300, 200); return !!e && !!e.closest('.pq-tiroir'); }), 6000)), 'en haut, le tiroir passe par-dessus la scène et sa colonne');
     // un toucher sur ×10 : le mode change, le tiroir ne bouge pas
     const [x10, y10] = await centreDe('#marche .pq-modes [data-mode="10"]');
     await toucherA(x10, y10);
-    const g2 = await geo();
-    check(g2.mode === 10 && g2.actif === '10' && g2.pos === 'haut' && Math.abs(g2.tiroir.h - g1.tiroir.h) < 1, `un toucher sur ×10 (dans la barre, qui se tire aussi) : le mode passe à ×10 (${g2.mode}), le tiroir ne bouge pas (${g2.pos}, ${Math.round(g2.tiroir.h)} px)`);
+    const [g2, okG2] = await jusqua(geo, (g) => g.mode === 10 && g.actif === '10' && g.pos === 'haut' && Math.abs(g.tiroir.h - g1.tiroir.h) < 1);
+    check(okG2, `un toucher sur ×10 (dans la barre, qui se tire aussi) : le mode passe à ×10 (${g2.mode}), le tiroir ne bouge pas (${g2.pos}, ${Math.round(g2.tiroir.h)} px)`);
     // les feuilles passent par-dessus le tiroir monté (Sortilèges, touché)
     const [xs, ys] = await centreDe('#marche [data-pq="ameliorations"]');
     await toucherA(xs, ys); await attendre(() => ev(() => !document.querySelector('#feuille').hidden && !document.querySelector('#feuille').getAnimations().length), 3000);
-    check(await ev(() => { const f = document.querySelector('#feuille'), b = f.getBoundingClientRect(), e = document.elementFromPoint(b.left + b.width / 2, b.top + Math.min(b.height / 2, 120)); return !f.hidden && !!e && !!e.closest('#feuille'); }), 'Sortilèges, touché le tiroir en haut : sa feuille s’ouvre par-dessus');
+    check(!!(await attendre(() => ev(() => { const f = document.querySelector('#feuille'), b = f.getBoundingClientRect(), e = document.elementFromPoint(b.left + b.width / 2, b.top + Math.min(b.height / 2, 120)); return !f.hidden && !!e && !!e.closest('#feuille'); }), 6000)), 'Sortilèges, touché le tiroir en haut : sa feuille s’ouvre par-dessus');
     await ev(() => document.querySelector('#feuille [data-a="pq-retour"]').click()); await attendre(() => ev(() => document.querySelector('#feuille').hidden), 3000); await sleep(300);
     // le mini-jeu en plein écran aussi
     await ev(() => window.__fournil.evMarche.ouvrirMini('guet')); await sleep(300);
-    check(await ev(() => { const e = document.elementFromPoint(195, 300); return !!e && !!e.closest('.pq-mini'); }), 'un mini-jeu ouvert le tiroir en haut : il s’affiche par-dessus');
+    check(!!(await attendre(() => ev(() => { const e = document.elementFromPoint(195, 300); return !!e && !!e.closest('.pq-mini'); }), 6000)), 'un mini-jeu ouvert le tiroir en haut : il s’affiche par-dessus');
     await ev(() => window.__fournil.evMarche.fermerMini()); await sleep(300);
     // la barre glissée vers le bas, en partant de ×100 : le tiroir redescend à sa place, et ×100 n'a pas été touché
     const [x100, y100] = await centreDe('#marche .pq-modes [data-mode="100"]');
     await glisser(x100, y100, y100 + 320);
-    const g3 = await geo();
-    check(g3.pos === 'mi' && Math.abs(g3.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g3.cartes.ht - g0.cartes.ht) < 1 && g3.mode === 10, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
+    const [g3, okG3] = await jusqua(geo, (g) => g.pos === 'mi' && Math.abs(g.tiroir.h - g0.tiroir.h) < 1 && Math.abs(g.cartes.ht - g0.cartes.ht) < 1 && g.mode === 10);
+    check(okG3, `la barre glissée vers le bas : le tiroir redescend à sa place (${Math.round(g3.tiroir.h)} px), et le glisser parti de ×100 n’a rien changé (mode ×${g3.mode})`);
     // le tiroir au cran mi, la liste tout en haut : un glisser vers le haut sur les cartes fait défiler la liste (le joueur, 28 oct. : « à
     // mi-hauteur je ne peux pas naviguer dans les améliorations ») ; le tiroir reste à mi-hauteur, comme celui de la boutique
     await ev(() => { document.querySelector('#mc-cartes').scrollTop = 0; });
     const lx = 120, ly = Math.min(g3.cartes.b - 30, g3.cartes.h + 160);
     await glisser(lx, ly, ly - 160);
-    const g4 = await geo();
-    check(g4.pos === 'mi' && g4.defile > 50, `tiroir à mi-hauteur, un glisser vers le haut sur les cartes fait défiler la liste (${g4.pos}, la liste à ${Math.round(g4.defile)} px)`);
+    const [g4, okG4] = await jusqua(geo, (g) => g.pos === 'mi' && g.defile > 50);
+    check(okG4, `tiroir à mi-hauteur, un glisser vers le haut sur les cartes fait défiler la liste (${g4.pos}, la liste à ${Math.round(g4.defile)} px)`);
     await ev(() => { document.querySelector('#mc-cartes').scrollTop = 0; }); await ev(() => window.__fournil.evMarche.tiroir('haut')); await pose();
-    await glisser(lx, 700, 450); const g5 = await geo();
-    check(g5.pos === 'haut' && g5.defile > 50, `tiroir en haut, le même glisser fait défiler la liste (${Math.round(g5.defile)} px)`);
+    await glisser(lx, 700, 450); const [g5, okG5] = await jusqua(geo, (g) => g.pos === 'haut' && g.defile > 50);
+    check(okG5, `tiroir en haut, le même glisser fait défiler la liste (${Math.round(g5.defile)} px)`);
     await ev(() => { document.querySelector('#mc-cartes').scrollTop = 0; }); await sleep(200);
-    await glisser(lx, 420, 720); const g6 = await geo();
-    check(g6.pos === 'mi', `la liste revenue tout en haut, un glisser vers le bas sur les cartes redescend le tiroir (${g6.pos})`);
+    await glisser(lx, 420, 720); const [g6, okG6] = await jusqua(geo, (g) => g.pos === 'mi');
+    check(okG6, `la liste revenue tout en haut, un glisser vers le bas sur les cartes redescend le tiroir (${g6.pos})`);
     // une simple touche sur la poignée : il bascule (en haut, puis en bas)
-    const [qx, qy] = await centreDe('#marche .pq-poignee'); await toucherA(qx, qy); await pose(); const g7 = await geo();
-    const [qx2, qy2] = await centreDe('#marche .pq-poignee'); await toucherA(qx2, qy2); await pose(); const g8 = await geo();
-    const [qx3, qy3] = await centreDe('#marche .pq-poignee'); await toucherA(qx3, qy3); await pose(); const g9 = await geo();
-    const [qx4, qy4] = await centreDe('#marche .pq-poignee'); await toucherA(qx4, qy4); await pose(); const g10 = await geo();
+    const [qx, qy] = await centreDe('#marche .pq-poignee'); await toucherA(qx, qy); await pose(); const [g7] = await jusqua(geo, (g) => g.pos === 'haut');
+    const [qx2, qy2] = await centreDe('#marche .pq-poignee'); await toucherA(qx2, qy2); await pose(); const [g8] = await jusqua(geo, (g) => g.pos === 'ferme');
+    const [qx3, qy3] = await centreDe('#marche .pq-poignee'); await toucherA(qx3, qy3); await pose(); const [g9] = await jusqua(geo, (g) => g.pos === 'mi');
+    const [qx4, qy4] = await centreDe('#marche .pq-poignee'); await toucherA(qx4, qy4); await pose(); const [g10] = await jusqua(geo, (g) => g.pos === 'haut');
     check(g7.pos === 'haut' && g8.pos === 'ferme' && g9.pos === 'mi' && g10.pos === 'haut', `une touche sur la poignée le bascule comme celui de la boutique : mi → haut → fermé → mi → haut (${g7.pos}, ${g8.pos}, ${g9.pos}, ${g10.pos})`);
     await ev(() => window.__fournil.evMarche.tiroir('mi')); await pose();
     // ─── les crans, comme le tiroir de la boutique (src/tiroir.js) : haut (sous le solde), mi (sous la scène), fermé (la barre seule, la scène
@@ -462,9 +497,12 @@ function faux(d) {
       return { pos: el.dataset.tiroir, y: parseFloat(t.style.getPropertyValue('--pq-tiroir-y')), haut: R(t).top - r0.top, tr: t.style.transform, bas: R(c).bottom, H: window.innerHeight, ecran: R(el).bottom, fond: R(t).bottom, col: [R(a).top, R(a).bottom], solde: R(el.querySelector('.pq-solde')).bottom, barre: R(el.querySelector('.pq-barre')).bottom, scene: R(el.querySelector('.pq-scene')).bottom, defile: document.scrollingElement.scrollTop + el.scrollTop }; });
     const crans = {};
     const surCran = async (ou, attendu) => {
-      const k = await cran(), exact = ['haut', 'mi', 'ferme'].includes(k.pos) && !k.tr && Math.abs(k.haut - k.y) < 1 && (!crans[k.pos] || Math.abs(crans[k.pos] - k.y) < 1);
-      const liste = Math.abs(k.bas - k.H) <= 2 && k.fond >= k.H - 1, col = k.pos === 'haut' ? k.col[0] >= k.haut : k.col[1] <= k.haut, rien = !k.defile && Math.abs(k.ecran - k.H) < 1;
-      const lieu = k.pos === 'haut' ? Math.abs(k.haut - k.solde) <= 2 : k.pos === 'ferme' ? Math.abs(k.barre - k.H) <= 40 && k.scene > k.H - 120 : true;
+      const juge = (k) => { const exact = ['haut', 'mi', 'ferme'].includes(k.pos) && !k.tr && Math.abs(k.haut - k.y) < 1 && (!crans[k.pos] || Math.abs(crans[k.pos] - k.y) < 1);
+        const liste = Math.abs(k.bas - k.H) <= 2 && k.fond >= k.H - 1, col = k.pos === 'haut' ? k.col[0] >= k.haut : k.col[1] <= k.haut, rien = !k.defile && Math.abs(k.ecran - k.H) < 1;
+        const lieu = k.pos === 'haut' ? Math.abs(k.haut - k.solde) <= 2 : k.pos === 'ferme' ? Math.abs(k.barre - k.H) <= 40 && k.scene > k.H - 120 : true;
+        return { exact, liste, col, rien, lieu }; };
+      const [k] = await jusqua(cran, (x) => { const j = juge(x); return j.exact && j.liste && j.col && j.rien && j.lieu && (!attendu || x.pos === attendu); });
+      const { exact, liste, col, rien, lieu } = juge(k);
       check(exact && liste && col && rien && lieu && (!attendu || k.pos === attendu), `${ou} : sur le cran ${k.pos}${attendu && k.pos !== attendu ? ` (attendu : ${attendu})` : ''} (${Math.round(k.haut)} px${k.tr ? ', ' + k.tr : ''}), le bas de la liste à ${Math.round(k.bas)} px pour un écran de ${k.H}, la colonne ${Math.round(k.col[0])}–${Math.round(k.col[1])} ${k.pos === 'haut' ? 'toute couverte' : 'entière au-dessus'}${exact && liste && col && rien && lieu ? '' : ` (cran ${Math.round(k.y)}, noté ${crans[k.pos] != null ? Math.round(crans[k.pos]) : '–'}, solde ${Math.round(k.solde)}, barre ${Math.round(k.barre)}, scène ${Math.round(k.scene)}, défilé ${k.defile}, écran ${Math.round(k.ecran)})`}`);
       return k;
     };
@@ -513,14 +551,16 @@ function faux(d) {
     await ev(() => document.querySelector('#marche .pq-modes [data-mode="1"]').click()); await sleep(200);
     // ─── la boulangerie derrière : rien de son interface ne se voit (seul son canvas) ; la page ne défile pas : seule la liste bouge ───
     {
-      const vus = await ev(() => ['#haut', '#onglets', '#tiroir', '#coin', '#haut .solde'].map((s2) => { const e = document.querySelector(s2); if (!e) return null; const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { s: s2, vu: cs.visibility !== 'hidden' && cs.display !== 'none' && b.width > 0 && b.height > 0 }; }).filter((x) => x && x.vu));
+      const [vus] = await jusqua(() => ev(() => ['#haut', '#onglets', '#tiroir', '#coin', '#haut .solde'].map((s2) => { const e = document.querySelector(s2); if (!e) return null; const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { s: s2, vu: cs.visibility !== 'hidden' && cs.display !== 'none' && b.width > 0 && b.height > 0 }; }).filter((x) => x && x.vu)), (v) => v.length === 0);
       check(vus.length === 0, `pendant le Manoir, rien de l’interface de la boulangerie ne se voit (barre du haut, onglets, tiroir, coin)${vus.length ? ' : ' + vus.map((x) => x.s).join(', ') : ''}`);
       const avant = await geo();
       await ev(() => { document.querySelector('#mc-cartes').scrollTop = 500; window.scrollTo(0, 400); document.scrollingElement.scrollTop = 400; document.body.scrollTop = 400; });
       await page.mouse.move(200, 300); await page.mouse.wheel(0, 600); await glisser(200, 300, 120);
       await ev(() => { const l = document.querySelectorAll('#mc-cartes .carte'); l[l.length - 1].scrollIntoView({ block: 'end' }); }); await sleep(500); // (un scrollIntoView ne décale pas l'écran tout entier)
-      const apres = await geo(), page0 = await ev(() => ({ y: window.scrollY, s: document.scrollingElement.scrollTop, b: document.body.scrollTop, e: document.querySelector('#marche').scrollTop }));
-      check(Math.abs(apres.scene.h - avant.scene.h) < 1 && Math.abs(apres.solde.h - avant.solde.h) < 1 && Math.abs(apres.tiroir.h - avant.tiroir.h) < 1 && !page0.y && !page0.s && !page0.b && !page0.e && apres.defile > 0,
+      const [ld, okLd] = await jusqua(async () => ({ apres: await geo(), page0: await ev(() => ({ y: window.scrollY, s: document.scrollingElement.scrollTop, b: document.body.scrollTop, e: document.querySelector('#marche').scrollTop })) }),
+        ({ apres, page0 }) => Math.abs(apres.scene.h - avant.scene.h) < 1 && Math.abs(apres.solde.h - avant.solde.h) < 1 && Math.abs(apres.tiroir.h - avant.tiroir.h) < 1 && !page0.y && !page0.s && !page0.b && !page0.e && apres.defile > 0);
+      const { apres, page0 } = ld;
+      check(okLd,
         `la liste défile (${Math.round(apres.defile)} px), mais ni la page (${page0.y}, ${page0.s}, ${page0.b}, l’écran ${page0.e}), ni la scène (${Math.round(avant.scene.h)} → ${Math.round(apres.scene.h)}), ni le solde, ni le tiroir ne bougent`);
       await shot(page, `${qual}-liste-defilee`);
       await ev(() => { document.querySelector('#mc-cartes').scrollTop = 0; }); await sleep(200);
@@ -533,9 +573,9 @@ function faux(d) {
         const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout);
         return { vu: !p.hidden && p.getBoundingClientRect().width > 0, n: p.hidden ? 0 : +p.textContent, att: att.length, id: att.length ? att[0].id : null }; });
       await ev(() => { const F = window.__fournil; F.evMarche.R.etat(F.st, HORLOGE.maintenant()).billets = 1e30; });
-      let vuA = null; const a1 = await attendre(async () => { const x = await am(); vuA = x; return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 5000);
+      let vuA = null; const a1 = await attendre(async () => { const x = await am(); vuA = x; return x.vu && x.n > 0 && x.n === x.att ? x : null; }, 6000);
       await ev((id) => { const F = window.__fournil; F.evMarche.R.amelioration(F.evMarche.R.etat(F.st, HORLOGE.maintenant()), id); }, a1 && a1.id);
-      const a2 = await attendre(async () => { const x = await am(); vuA = x; return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 5000);
+      const a2 = await attendre(async () => { const x = await am(); vuA = x; return a1 && x.n === a1.n - 1 && x.n === x.att ? x : null; }, 6000);
       const a3 = await ev(() => new Promise((ok) => { const F = window.__fournil, R = F.evMarche.R, q = R.etat(F.st, HORLOGE.maintenant()), p = document.querySelector('#marche [data-pq="ameliorations"] .pq-am-n'), t0 = performance.now(); let n0 = q.now, pas = 0; q.billets = 0;
         const voir = () => { if (q.now !== n0) { n0 = q.now; pas++; } const att = R.AMELIORATIONS.filter((a) => (!a.apres || (R.combineOuverte ? R.combineOuverte(q, a) : false)) && !q.ameliorations[a.id] && q.billets >= a.cout).length;
           if (p.hidden && att === 0) ok({ n: 0 }); else if ((performance.now() - t0 > 1500 && pas >= 3) || performance.now() - t0 > 30000) ok(null); else { q.billets = 0; requestAnimationFrame(voir); } }; requestAnimationFrame(voir); })); // (remis à 0 à chaque image : une fournée vendue d'un coup rapporte de quoi en payer une ; 1,5 s et trois pas du jeu au moins : en haute, sur une machine lente, un pas par seconde)
@@ -544,17 +584,19 @@ function faux(d) {
     }
 
     // ─── en 360 × 640, la colonne et le tiroir restent justes ───
-    await page.setViewportSize({ width: 360, height: 640 }); await sleep(1500);
-    await sonde('en 360 × 640'); const gp = await verifierColonne('en 360 × 640');
-    check(gp.pos === 'mi' && gp.cartes.b <= 640 + 1 && gp.cartes.ht > 40 && gp.barre.d <= 360 + 1, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
+    await page.setViewportSize({ width: 360, height: 640 }); await sleep(1500); await poseIci(); // (le tiroir sur un cran de cet écran : le glisser vers le bas se mesure sur lui)
+    await sonde('en 360 × 640'); let gp = await verifierColonne('en 360 × 640'), okGp;
+    [gp, okGp] = await jusqua(geo, (g) => g.pos === 'mi' && g.cartes.b <= 640 + 1 && g.cartes.ht > 40 && g.barre.d <= 360 + 1);
+    check(okGp, `en 360 × 640, le tiroir en bas tient dans l’écran (cartes ${Math.round(gp.cartes.h)}–${Math.round(gp.cartes.b)})`);
     await colonneEtCoup('360 × 640');
     await shot(page, `${qual}-360-tiroir-bas`);
     const [sx, sy] = await centreDe('#marche .pq-poignee'); await glisser(sx, sy, gp.solde.b + 20);
-    const gq = await geo();
-    check(gq.pos === 'haut' && Math.abs(gq.tiroir.h - gq.solde.b) <= 2 && gq.cartes.b <= 640 + 1 && gq.cartes.ht > gp.cartes.ht + 120, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
+    const [gq, okGq] = await jusqua(geo, (g) => g.pos === 'haut' && Math.abs(g.tiroir.h - g.solde.b) <= 2 && g.cartes.b <= 640 + 1 && g.cartes.ht > gp.cartes.ht + 120);
+    check(okGq, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
     await shot(page, `${qual}-360-tiroir-haut`);
     const [bx, by] = await centreDe('#marche .pq-barre'); await glisser(bx, by, by + (gp.tiroir.h - gq.tiroir.h)); // (jusqu'au cran mi)
-    check((await geo()).pos === 'mi', 'en 360 × 640, glissé vers le bas : à sa place');
+    { const [gb, okGb] = await jusqua(geo, (g) => g.pos === 'mi');
+      check(okGb, `en 360 × 640, glissé vers le bas : à sa place${okGb ? '' : ` (${gb && gb.pos}, son haut à ${gb && Math.round(gb.tiroir.h)} px ; parti de ${Math.round(gq.tiroir.h)}, le cran mi mesuré à ${Math.round(gp.tiroir.h)} ; tiroir ${JSON.stringify(await ev(() => window.__fournil.evMarche.tiroirEtat()))})`}`); }
 
     await page.setViewportSize({ width: 390, height: 844 }); await sleep(800);
     // ─── le tiroir revient en bas à la réouverture de l'écran ───
@@ -597,15 +639,15 @@ function faux(d) {
     const { ctx, page, erreurs, ev } = await ouvrir('?qualite=eco&boutique=0');
     const act = () => ev(() => window.__fournil.evMarche.act.etat());
     await ev(() => document.querySelector('#b-marche').click()); await sleep(1500);
-    let a = await act(); check(a.ouvert && a.mode === 'dom', `sans la scène de la boutique, les activités passent en DOM (${a.mode})`);
+    const [a, okDom] = await jusqua(act, (x) => x.ouvert && x.mode === 'dom'); check(okDom, `sans la scène de la boutique, les activités passent en DOM (${a && a.mode})`);
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochainClient = HORLOGE.maintenant() - 1; });
     const c = await attendre(async () => { const e = await act(); return e.clients.find((x) => x.bulle) || null; }, 10000);
     check(!!c && await ev(() => !!document.querySelector('.mh-file .mh-monstre')), `la file en bas de la scène : le monstre et sa bulle (${c && c.sorte})`);
     if (c) {
       const bm = await page.locator('.mh-file .mh-monstre').first().boundingBox(); await page.touchscreen.tap(bm.x + bm.width / 2, bm.y + bm.height / 2); await sleep(250); // (il flotte : jamais « stable »)
-      check((await act()).choisi === c.id, 'toucher le monstre le choisit');
+      check(!!(await attendre(async () => (await act()).choisi === c.id, 6000)), 'toucher le monstre le choisit');
       for (const l of c.commande) { await page.locator(`#mc-cartes .carte[data-i="${l.i}"] h3`).tap(); await sleep(300); }
-      const r = await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); return { file: q.manoir.file.length, servis: q.stats.clientsServis }; });
+      const [r] = await jusqua(() => ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); return { file: q.manoir.file.length, servis: q.stats.clientsServis }; }), (x) => x.servis === 1);
       check(r.servis === 1, `servi avec les cartes (${r.servis} servi)`);
     }
     await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
@@ -616,7 +658,7 @@ function faux(d) {
       await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
       const ap2 = await attendre(async () => { const e = await act(); return e.apps.find((x) => x.dom && x.x > 40 && x.x < 350) || null; }, 15000, 100);
       const p = ap2 && ((await act()).apps.find((x) => x.id === ap2.id) || ap2); if (p) { await page.touchscreen.tap(p.x, p.y); await sleep(300); }
-      const n = await ev(() => window.__fournil.st.marche.stats.apparitions); check(n === 1, 'un toucher dessus l’attrape'); }
+      const [n] = await jusqua(() => ev(() => window.__fournil.st.marche.stats.apparitions), (x) => x === 1); check(n === 1, 'un toucher dessus l’attrape'); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();
   }
