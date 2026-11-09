@@ -103,7 +103,7 @@ for (const nom of Object.keys(L.PROFILS)) {
 }
 
 console.log('── 8. les nouveautés ──');
-{ const l = NV.NOUVEAUTES, x = l.find((n) => n.id === '2026-11-04-a'); check(!!x && x.date === '2026-11-04' && /accueil/i.test(x.titre) && l.indexOf(x) <= 1, 'l’entrée 2026-11-04-a, en tête ou juste après celle du Marché d’automne (2026-11-04-b)');
+{ const l = NV.NOUVEAUTES, x = l.find((n) => n.id === '2026-11-04-a'); check(!!x && x.date === '2026-11-04' && /accueil/i.test(x.titre) && l.indexOf(x) <= 2, 'l’entrée 2026-11-04-a, en tête ou juste après celles du Marché d’automne et de décembre (l’Avent et la saison d’hiver)');
   check(new Set(l.map((x) => x.id)).size === l.length && l.every((x, k) => k === 0 || l[k - 1].id > x.id), 'ids uniques et triés'); }
 
 console.log(fails ? `${fails} échec(s) sur ${n}` : `Tout passe (${n} vérifications).`);
