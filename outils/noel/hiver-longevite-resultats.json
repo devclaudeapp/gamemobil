@@ -1,0 +1,29 @@
+{
+ "fiche": {
+  "crans": 46,
+  "xpCran": 45,
+  "xpTitre": 2320
+ },
+ "longevite": {
+  "pire": {
+   "etoiles": 0.18946188340807174,
+   "boutiques": 0.8000000000000007,
+   "premiere": 0.7000000000000002,
+   "franchise": 3.3000000000000007,
+   "etoilesAvent": 0.1105381165919282
+  },
+  "horsCibles": 0,
+  "ok": false,
+  "lignes": [
+   "occasionnel départ 5 oct.   (91 j) Avent 24/24 (+8 ★), hiver 26 crans (+7 ★, 3 boosts) : boutiques 19.8 → 19.5 → 19.5 · 1re j4 → j4 · franchise j21.3 → j21.3 → j21.3 · étoiles j30 1399 → 1399 → 1399 (0.0 %), fin 16760 → 15887 → 15905 (Avent seul -5.2 %, tout -5.1 %) · bruit d’une étoile 5.3 %, franchise 0 j, boutiques 0.3000000000000007",
+   "regulier    départ 5 oct.   (91 j) Avent 24/24 (+8 ★), hiver 46 crans (+13 ★, 4 boosts) : boutiques 21.3 → 21.3 → 21.3 · 1re j4 → j4 · franchise j21 → j21 → j21 · étoiles j30 2471 → 2471 → 2471 (0.0 %), fin 18732 → 18710 → 18724 (Avent seul -0.1 %, tout -0.0 %) · bruit d’une étoile 0.1 %, franchise 0 j, boutiques 0",
+   "assidu      départ 5 oct.   (91 j) Avent 24/24 (+8 ★), hiver 46 crans (+13 ★, 4 boosts) : boutiques 22.3 → 22.3 → 22.3 · 1re j3 → j3 · franchise j18.5 → j18.5 → j18.5 · étoiles j30 4174 → 4174 → 4174 (0.0 %), fin 23310 → 23333 → 23368 (Avent seul 0.1 %, tout 0.2 %) · bruit d’une étoile 0.0 %, franchise 0 j, boutiques 0",
+   "occasionnel départ 1er nov. (60 j) Avent 24/24 (+8 ★), hiver 27 crans (+7 ★, 3 boosts) : boutiques 17 → 17 → 17 · 1re j4 → j4 · franchise j21.8 → j21.8 → j21.8 · étoiles j30 1440 → 1440 → 1440 (0.0 %), fin 8557 → 8480 → 8610 (Avent seul -0.9 %, tout 0.6 %) · bruit d’une étoile 5.4 %, franchise 0 j, boutiques 0.1999999999999993",
+   "regulier    départ 1er nov. (60 j) Avent 24/24 (+8 ★), hiver 44 crans (+11 ★, 4 boosts) : boutiques 18.3 → 18.5 → 18.3 · 1re j4.8 → j4.8 · franchise j20.5 → j20.5 → j20.5 · étoiles j30 2443 → 2443 → 2443 (0.0 %), fin 10842 → 11529 → 10916 (Avent seul 6.3 %, tout 0.7 %) · bruit d’une étoile 0.1 %, franchise 0 j, boutiques 0",
+   "assidu      départ 1er nov. (60 j) Avent 24/24 (+8 ★), hiver 46 crans (+13 ★, 4 boosts) : boutiques 20.5 → 20.5 → 20.5 · 1re j3 → j3 · franchise j18.8 → j18.8 → j18.8 · étoiles j30 3972 → 3972 → 3972 (0.0 %), fin 15904 → 15986 → 15960 (Avent seul 0.5 %, tout 0.4 %) · bruit d’une étoile 0.1 %, franchise 0 j, boutiques 0",
+   "occasionnel départ 1er déc. (60 j) Avent 24/24 (+8 ★), hiver 28 crans (+7 ★, 3 boosts) : boutiques 17.5 → 16.8 → 16.8 · 1re j4 → j4 · franchise j25.8 → j23.3 → j22.5 · étoiles j30 1115 → 1424 → 1512 (35.6 %), fin 8199 → 8056 → 8362 (Avent seul -1.7 %, tout 2.0 %) · bruit d’une étoile 14.4 %, franchise 1.3000000000000007 j, boutiques 0.5",
+   "regulier    départ 1er déc. (60 j) Avent 24/24 (+8 ★), hiver 46 crans (+13 ★, 4 boosts) : boutiques 19.5 → 20 → 19.5 · 1re j4 → j3.3 · franchise j19 → j19.5 → j19.3 · étoiles j30 2595 → 2380 → 2594 (-0.0 %), fin 12003 → 11664 → 11882 (Avent seul -2.8 %, tout -1.0 %) · bruit d’une étoile 5.5 %, franchise 0 j, boutiques 0.5",
+   "assidu      départ 1er déc. (60 j) Avent 24/24 (+8 ★), hiver 46 crans (+13 ★, 4 boosts) : boutiques 20.3 → 20 → 19.5 · 1re j3 → j3 · franchise j18.8 → j18.8 → j17.8 · étoiles j30 4392 → 4390 → 4468 (1.7 %), fin 14717 → 14681 → 15074 (Avent seul -0.2 %, tout 2.4 %) · bruit d’une étoile 4.7 %, franchise 0.1999999999999993 j, boutiques 0.3000000000000007"
+  ]
+ }
+}

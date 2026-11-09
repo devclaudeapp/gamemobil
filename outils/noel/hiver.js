@@ -9,7 +9,8 @@
 //     test/fournil-saison-sim.js (l'XP comptée par SAISONS.pas, plafonnée ; les crans reçus et VERSÉS : étoiles, boosts LANCÉS aussitôt, le
 //     pire cas) ; les paliers du Marché d'automne (outils/marche/rythme-reel-resultats.json) et du Marché de Noël (outils/noel/rythme-resultats.json)
 //     le soir de leur jour ; l'arrière-salle une fois ouverte ; l'Avent : à la première minute d'un jour joué, la case du jour et UNE oubliée.
-// Lancer : TZ=Europe/Paris node outils/noel/hiver.js [--piste] [--longevite] [--json fichier] [--crans N] [--titre X]
+// Lancer : TZ=Europe/Paris node outils/noel/hiver.js [--piste] [--longevite] [--json fichier] [--crans N] [--titre X] [--graines 11,3,5,7]
+//   [--departs "1er nov.,1er déc."] [--profils occasionnel,…] [--variantes sans,avent,tout,2,8,14,20] [--lots-avent f.json] [--lots-hiver f.json]
 //   --piste : les profils et les nouveaux joueurs (≈ 3 min sur 4 cœurs) ; --longevite : test/longevite.js sans / avec l'Avent / avec tout
 //   (≈ 10 min sur 4 cœurs) ; sans l'un ni l'autre : les deux.
 'use strict';

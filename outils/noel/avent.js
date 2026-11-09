@@ -49,8 +49,8 @@ const LOTS = [ // (chaque case : une friandise, FRIANDISES, et 10 XP de saison ;
 const FRIANDISES = ['sucre-orge', 'papillote', 'bonhomme-pain-epices', 'clementine', 'etoile-chocolat', 'guimauve', 'nougat', 'coeur-pain-epices'];
 // l'ordre des cases sur la feuille (mélangé, le même pour tous)
 const ORDRE_CASES = [12, 3, 19, 7, 22, 1, 15, 9, 6, 17, 2, 21, 10, 24, 5, 14, 20, 8, 13, 23, 4, 18, 11, 16];
-// (v1 du 9 nov., écartée : 19 ★ et 4 boosts, des étoiles aux cases 1, 4, 7, 10, 13, 16, 19, 21, 22, 23 et 2 ★ aux spéciales : +31 % d'étoiles au
-//  30e jour pour le nouveau joueur assidu du 1er décembre, une graine ; docs/noel-contrat.md § 8.3)
+// (v1 du 9 nov., écartée : 19 ★ et 4 boosts, des étoiles aux cases 1, 4, 7, 10, 13, 16, 19, 21, 22, 23 et 2 ★ aux spéciales : +30 % d'étoiles au
+//  30e jour pour le nouveau joueur occasionnel du 1er décembre (4 graines) ; docs/noel-contrat.md § 8.3)
 const objet = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 const JOUR_OK = /^\d{4}-\d{2}-\d{2}$/;
 const ouverte = (a, n) => n >= 1 && n <= CASES && Math.floor(a.o / 2 ** (n - 1)) % 2 === 1;

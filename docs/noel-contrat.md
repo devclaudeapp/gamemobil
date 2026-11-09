@@ -33,8 +33,8 @@ bûches, pain d'épices, sapin, boules, neige), sur le moteur exact de la Halle 
   un nouveau joueur du 15 décembre en ouvre 14 (quotidien : 24) ; jamais plus de deux le même jour.
 - **La saison d'hiver** : **46 crans de 45 XP** (2 070 XP), le titre **« Flocon d'or 2026 » à 2 320 XP** (+250). Sur le vrai moteur (prototypé :
   `outils/noel/saison-proto.js`), récompenses versées : quotidien 1 h → **finie le 31 déc.** ; assidu 2 h → le 27 (+ le titre) ; très actif →
-  le 24 (+ le titre) ; **occasionnel 4 j/7 → 28/46 (61 %)** ; occasionnel tous les jours 42/46 ; nouveau le 15 déc. : quotidien 34/46,
-  occasionnel 18/46. Récompenses : 13 ★, 4 petits boosts, 6 décos d'hiver, le trophée, une collection de flocons (cosmétique), le titre.
+  le 24 (+ le titre) ; **occasionnel 4 j/7 → 31/46 (67 %)** (28/46, 61 %, arrivé le 1er déc.) ; occasionnel tous les jours 42/46 ; nouveau le
+  15 déc. : quotidien 34/46, occasionnel 18/46. Récompenses : 13 ★, 4 petits boosts, 6 décos d'hiver, le trophée, une collection de flocons (cosmétique), le titre.
 - **L'enchaînement automne → hiver** est joué dans la simulation (le même `st.piste`) : l'automne archivé le 1er déc. à 0 h (`passees`,
   `finDue`), l'hiver ouvert au même pas, le défi de la semaine du 30 nov. jamais compté deux fois, aucun trou.
 - **Le Marché de Noël** : les chiffres du Marché d'automne (même fenêtre de 176 h, même moteur) : paliers 10 / 14 / 16 / 20 (occasionnel,
@@ -117,8 +117,8 @@ saison d'automne), le renne, l'aura, 24 friandises, 240 XP de saison. « — » 
 `FRIANDISES = ['sucre-orge', 'papillote', 'bonhomme-pain-epices', 'clementine', 'etoile-chocolat', 'guimauve', 'nougat', 'coeur-pain-epices']`,
 la case n montre `FRIANDISES[(n − 1) % 8]` dans sa teinte `(n − 1) / 8` (trois teintes) : un dessin (C : `ICONS.AVENT.friandise(id, teinte)`),
 aucun état, aucune vignette ; « Ta boîte à friandises : 9/24 » dans la feuille.
-Pourquoi si peu d'étoiles : la première version (19 ★, 4 boosts) faisait gagner jusqu'à +31 % d'étoiles au 30e jour au nouveau joueur
-arrivé le 1er décembre (§ 8.3).
+Pourquoi si peu d'étoiles : la première version (19 ★, 4 boosts) faisait gagner +30 % d'étoiles au 30e jour (l'Avent seul, 4 graines) au nouveau joueur
+occasionnel arrivé le 1er décembre ; +49 % avec la piste d'hiver de la v1 (27 ★, 8 boosts) (§ 8.3).
 
 ### 2.4 L'état : `st.avent` et la réparation
 ```js
@@ -229,8 +229,9 @@ deux : celle de l'Avent et celle du Chalet). **Le flocon** (`{ flocon: n }`) : u
 (symétrie d'ordre 6, branches tirées d'une graine `n`, C : `ICONS.flocon(n)`, ≈ 1 Ko de code, aucune vignette), collectionné dans la feuille
 (« Mes flocons : 12/24 — il n'y en a pas deux pareils ») ; rien à verser.
 Pourquoi 46 : le quotidien 1 h finit le 31 déc. (trois jours de marge, comme l'automne : fini le 25 pour une fin le 30) ; à 48, il finirait le
-2 janv., au moindre jour manqué jamais. L'occasionnel 4 j/7 est à 61 % (« vers la moitié » : l'Avent rattrapé lui rapporte autant qu'au
-quotidien, 240 XP) ; à 5 XP la case, il serait à 54 %, mais le quotidien ne finirait que le 2 janv. (§ 15.3).
+2 janv., au moindre jour manqué jamais. L'occasionnel 4 j/7 est à 61-67 % (plus que « vers la moitié » : l'Avent rattrapé lui rapporte
+autant qu'au quotidien, 240 XP, et la piste dure cinq défis de la semaine) ; à 5 XP la case, il perdrait 3 crans, mais le quotidien ne
+finirait que le 2 janv. (§ 15.3).
 
 ### 3.4 L'enchaînement avec l'automne (sans trou ni double compte)
 - Les fenêtres se touchent : automne `[13 nov. 12 h, 1er déc. 0 h[`, hiver `[1er déc. 0 h, 4 janv. 0 h[` ; `ajouter` refuse un chevauchement.
@@ -481,7 +482,7 @@ cours centré), la ligne « Calendrier de l'Avent » dans « D'où vient l'XP »
 | `rythme.js [--vite] [--reel] [--plancher] [--json f] [--table "{…}"]` | paliers des 4 profils (8 graines), enveloppe (12+12 marathons), marges | ~2 min 40 |
 | `avent.js` | la référence des règles de l'Avent et ses 13 scénarios (`node outils/noel/avent.js`) | < 1 s |
 | `saison-proto.js` | le moteur des saisons avec les deux changements du § 3.2, et la fiche d'automne dessus | < 1 s |
-| `hiver.js [--piste] [--longevite] [--crans N] [--titre X] [--graines …] [--departs …] [--variantes …] [--lots-avent f] [--lots-hiver f] [--json f]` | la piste d'hiver et l'Avent sur 5 profils et 4 nouveaux joueurs ; la longévité | 2 min ; 4 à 8 min |
+| `hiver.js [--piste] [--longevite] [--crans N] [--titre X] [--graines …] [--departs …] [--profils …] [--variantes …] [--lots-avent f] [--lots-hiver f] [--json f]` | la piste d'hiver et l'Avent sur 5 profils et 4 nouveaux joueurs ; la longévité | 2 min ; 4 à 8 min |
 | `sql-v70.cjs <pglite>` | le patch v7.0 dans PGlite | ~40 s |
 | `poids.cjs [A] [B]` | ce qu'un lot a coûté à la page, fichier par fichier, compressé comme build.js (terser 5.51.2) | ~30 s |
 | `vignettes-budget.cjs <brut> [n]` | la place restante des vignettes, le coût d'une vignette selon la qualité, sur de vrais rendus | ~5 s |
@@ -499,19 +500,52 @@ Le joueur de `test/longevite.js` parti le 1er nov. (déjà là ; il joue aussi l
 
 | Profil | XP d'hiver | crans | finie | titre | Avent (le 24 / le 31, au plus par jour) | automne |
 |---|---|---|---|---|---|---|
-| occasionnel 17 min, 4 j/7 | 1 265 | 28/46 (61 %) | — | non | 22 / 24, 2 | 16/22 |
+| occasionnel 17 min, 4 j/7 | 1 415 | 31/46 (67 %) | — | non | 22 / 24, 2 | 16/22 |
 | quotidien 1 h | 2 245 | 46/46 | **31 déc.** | non | 24 / 24, 1 | 22/22 le 25 nov. |
 | assidu 2 h | 2 475 | 46/46 | 27 déc. | oui | 24 / 24 | 22/22 le 23 nov. |
 | très actif 8 h | 2 705 | 46/46 | 24 déc. | oui | 24 / 24 | 22/22 le 21 nov. |
 | (repère) occasionnel 7 j/7 | 1 920 | 42/46 | — | non | 24 / 24 | 22/22 le 30 nov. |
 | occasionnel, nouveau le 1er déc. | 1 265 | 28/46 | — | non | 22 / 24, 2 | — |
-| quotidien, nouveau le 1er déc. | 2 245 | 46/46 | 31 déc. | non | 24 / 24 | — |
+| quotidien, nouveau le 1er déc. | 2 245 | 46/46 | 1er janv. | non | 24 / 24 | — |
 | occasionnel, nouveau le 15 déc. | 850 | 18/46 (39 %) | — | non | 10 / 14, 2 | — |
 | quotidien, nouveau le 15 déc. | 1 535 | 34/46 (74 %) | — | non | 20 / 24, 2 | — |
 
 Sources du quotidien : objectifs 510, journées 340, défis 375 (cinq semaines), série 330, paliers du Marché de Noël 280, arrière-salle 170,
-Avent 240. L'XP ne dépend presque pas de l'avancement du joueur (des sources plafonnées par jour) : le nouveau du 1er déc. fait la même piste.
-⟨LONGEVITE⟩
+Avent 240 ; de l'occasionnel 4 j/7 : objectifs 300, journées 200, défis 375, série 100, paliers 200, Avent 240. L'XP dépend peu de
+l'avancement du joueur (des sources plafonnées par jour), sauf le défi de la semaine : l'occasionnel en réussit 3 à 5 sur 5 selon sa
+partie (avec les lots de la v1, plus généreux, il n'en faisait que 3 : 28/46) ; d'où **61 à 67 %** (§ 15.3). Le quotidien arrivé le 1er déc.
+finit le 1er janv. (le 31 déc. pour celui arrivé en novembre).
+
+### 8.3 La longévité (`hiver-longevite-resultats.txt`, `hiver-longevite-occasionnel-8graines.txt`, les essais écartés : `hiver-longevite-essais.txt`)
+Les joueurs de `test/longevite.js` aux trois départs qui voient décembre : le 5 oct. (91 jours, jusqu'au 4 janv. ; ses garde-fous de fin de
+partie, réglés pour 60 jours, ne s'y lisent pas), le 1er nov. et le 1er déc. (60 jours, tous les garde-fous). Trois parties chacun : **sans**
+(la piste d'automne versée : le jeu d'aujourd'hui), **avec l'Avent**, **avec tout** (Avent + piste d'hiver) ; étoiles versées, boosts **lancés
+aussitôt** (le pire cas). Le joueur simulé ouvre une boutique sur des seuils : une partie seule est chaotique (une étoile de plus, un boost de
+30 min, décalent une ouverture et changent les étoiles de la fin de plusieurs pour cent). D'où, nouveau au point 7 : **chaque partie rejouée
+sur 4 graines du hasard de `test/longevite.js`, les résumés moyennés**, et le bruit mesuré (une étoile de plus le 2, 8, 14 ou 20 déc.).
+
+| Départ, profil | Avent / crans d'hiver | boutiques | franchise | étoiles j30 (sans → tout) | étoiles fin (sans → Avent → tout) | bruit d'1 ★ |
+|---|---|---|---|---|---|---|
+| 5 oct., occasionnel (91 j) | 24 / 26 | 19,8 → 19,5 | j21,3 → j21,3 | 1 399 → 1 399 | 16 760 → 15 887 → 15 905 (−5,1 %) | 5,3 % |
+| 5 oct., régulier (91 j) | 24 / 46 | 21,3 → 21,3 | j21 → j21 | 2 471 → 2 471 | 18 732 → 18 710 → 18 724 (−0,0 %) | 0,1 % |
+| 5 oct., assidu (91 j) | 24 / 46 | 22,3 → 22,3 | j18,5 → j18,5 | 4 174 → 4 174 | 23 310 → 23 333 → 23 368 (+0,2 %) | 0,0 % |
+| 1er nov., occasionnel | 24 / 27 | 17 → 17 | j21,8 → j21,8 | 1 440 → 1 440 | 8 557 → 8 480 → 8 610 (+0,6 %) | 5,4 % |
+| 1er nov., régulier | 24 / 44 | 18,3 → 18,3 | j20,5 → j20,5 | 2 443 → 2 443 | 10 842 → 11 529 → 10 916 (+0,7 %) | 0,1 % |
+| 1er nov., assidu | 24 / 46 | 20,5 → 20,5 | j18,8 → j18,8 | 3 972 → 3 972 | 15 904 → 15 986 → 15 960 (+0,4 %) | 0,1 % |
+| **1er déc., occasionnel** | 24 / 28 | 17,5 → 16,8 | **j25,8 → j22,5** | **1 115 → 1 512 (+35,6 %)** | 8 199 → 8 056 → 8 362 (+2,0 %) | 14,4 % |
+| 1er déc., régulier | 24 / 46 | 19,5 → 19,5 | j19 → j19,3 | 2 595 → 2 594 | 12 003 → 11 664 → 11 882 (−1,0 %) | 5,5 % |
+| 1er déc., assidu | 24 / 46 | 20,3 → 19,5 | j18,8 → j17,8 | 4 392 → 4 468 (+1,7 %) | 14 717 → 14 681 → 15 074 (+2,4 %) | 4,7 % |
+
+**Verdict.** Pour tous les joueurs déjà là (départs du 5 oct. et du 1er nov.) et pour le régulier et l'assidu arrivés le 1er déc. : **aucun
+effet notable** (au plus 2,4 %, sous le bruit ; boutiques, première boutique et franchise inchangées à la journée près), tous les garde-fous
+`CIBLES` de `test/longevite.js` tenus. **Une exception, voulue modeste** : l'occasionnel (17 min par jour) arrivé le 1er décembre a plus
+d'étoiles au 30e jour (+35,6 % sur 4 graines ; **+16,9 % sur 8 graines**, 1 251 → 1 462, `hiver-longevite-occasionnel-8graines.txt`), plus
+rien au 60e (+0,4 %), sa franchise 1,2 jour plus tôt (8 graines) : il partait plus lentement que les joueurs d'octobre et de novembre
+(franchise j21 à j22) et les rejoint ; garde-fous tenus. L'outil, qui garde les seuils du point 6 (6 % au-delà du bruit), écrit donc
+« À REVOIR » à cause de lui seul : au joueur de trancher (§ 15.1). Les essais écartés : la v1 (Avent 19 ★ 4 boosts, hiver 27 ★ 8 boosts) :
++49 % au 30e jour pour ce même joueur (4 graines), +17,8 % à la fin pour l'assidu du 1er déc. (1 graine) ; l'Avent de la v1 sans ses boosts ou
+sans ses étoiles : autant d'effet l'un que l'autre (le chaos des seuils), d'où l'allègement des deux.
+`node test/longevite.js --test` (inchangé) : vert (aucun fichier du jeu n'est touché).
 
 ---
 
@@ -733,4 +767,15 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
 - (les constructeurs ajoutent ici leurs écarts au contrat, datés, et le poids mesuré de leur lot)
 
 ## 15. Les questions pour le joueur (avec la recommandation)
-⟨QUESTIONS⟩
+1. **Le coup de pouce du nouveau joueur occasionnel de décembre.** Avec les lots allégés (Avent : 8 ★ et 3 boosts ; hiver : 13 ★ et 4
+   boosts), les joueurs déjà là ne bougent pas, mais l'occasionnel (17 min par jour) arrivé le 1er décembre a **+17 % d'étoiles au 30e jour**
+   (8 graines), qui s'effacent au 60e (+0,4 %), et sa dernière amélioration 1,2 jour plus tôt : il rejoint le rythme des joueurs arrivés en
+   octobre ou novembre (il partait plus lentement), tous les garde-fous de `test/longevite.js` tenus. **Recommandé : garder** (un calendrier de
+   l'Avent doit faire plaisir à qui arrive en décembre) ; sinon, l'Avent sans aucune étoile (les friandises, les décos, la tenue, le renne, les
+   boosts seulement).
+2. **Les vignettes du carnet** (il reste 32,6 Ko pour ≈ 195 Ko d'objets nouveaux). **Recommandé : recuire tout le carnet en qualité 50**
+   (≈ −450 Ko, sans différence visible à 44 et 64 px, vérifié sur la planche par A) et garder la borne de 1,5 Mo ; sinon, relever la borne à
+   2 Mo (le dossier n'est pas dans la page, il se charge à la vue).
+3. **L'occasionnel quatre jours sur sept à 61-67 % de la piste d'hiver** (et non « vers la moitié ») : l'Avent, rattrapé, lui rapporte autant
+   qu'au quotidien (240 XP). **Recommandé : garder 46 crans à 45 XP et 10 XP la case** (le quotidien finit le 31 déc., trois jours avant la
+   fin) ; sinon 5 XP la case (l'occasionnel perd 3 crans, ≈ 55-60 %, mais le quotidien ne finit que le 2 janvier, sans marge).
