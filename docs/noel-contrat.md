@@ -813,6 +813,10 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
   et `apresDeblocage('avent')` pose `st.pisteAnnonce` avec `st.aventAnnonce` (`test/fournil-avent.cjs`) ; (2) CI : la ligne Node du
   déploiement (et de l'essai) pose `FOURNIL_SAISON_GRAINES: ''` (88 vérifications, ≈ 4 min au lieu de 16) ; la longévité complète tourne en
   parallèle dans **`fournil16`** (Node seul, 45 min au plus, dans les `needs`) ; `fournil15` reste aux activités du Chalet (L2).
+- 9 nov., reprise (constats mineurs) : (1) la série locale au passage automne → hiver : `SAISONS.fin` (et l'ouverture d'une saison après une
+  piste vide) reprend `p.veille` comme le défi de la semaine ; un objectif le 30 nov. puis le 1er déc. donne la série du 1er déc. à l'hiver
+  (10 XP, une fois). Le joueur simulé là depuis le 1er nov. passe de 2 245 à **2 255 XP** (série 330 → 340), sans autre changement (46/46 le
+  31 déc.) ; les chiffres de conception (§ 8.2, `outils/noel/hiver.js`) perdaient ce jour-là, comme le moteur.
 
 ## 15. Les questions pour le joueur (avec la recommandation)
 1. **Le coup de pouce du nouveau joueur occasionnel de décembre.** Avec les lots allégés (Avent : 8 ★ et 3 boosts ; hiver : 13 ★ et 4

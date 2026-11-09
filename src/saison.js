@@ -86,10 +86,11 @@
   function neuve(id, passees) { return { v: 1, id: id || '', xp: 0, recus: 0, titre: 0, j: jVide(''), sem: '', veille: '', ev: {}, passees: passees || {}, dus: null }; }
   // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé comptera au premier pas, la même règle pour tous (j vide :
   // les objectifs du jour ; ev à 0 : les paliers reçus ; sem vide : le défi de cette semaine, comme outils/marche/saison.js, qui a réglé la
-  // piste) ; sem : celui de la saison d'avant, quand l'une enchaîne sur l'autre (le défi de la même semaine ne compte pas deux fois)
-  function ouvrir(st, F, now, passees, dus, sem) {
+  // piste) ; sem : celui de la saison d'avant, quand l'une enchaîne sur l'autre (le défi de la même semaine ne compte pas deux fois) ; veille :
+  // le dernier jour à objectif de la saison d'avant (la série locale continue : le 30 nov. puis le 1er déc. comptent, une fois, pour l'hiver)
+  function ouvrir(st, F, now, passees, dus, sem, veille) {
     const n = neuve(F.id, passees); n.dus = dus || null; n.j = jVide(dayKey(now)); for (const cle of F.evenements) n.ev[cle] = 0; for (const cle of Object.keys(F.lecteurs || {})) n.ev[cle] = 0;
-    n.sem = typeof sem === 'string' ? sem : ''; return n;
+    n.sem = typeof sem === 'string' ? sem : ''; n.veille = typeof veille === 'string' && JOUR_OK.test(veille) ? veille : ''; return n;
   }
   // ce que le jeu montre en ce moment (pour remettre d'aplomb sans rien compter deux fois)
   function constats(st, now, F) {
@@ -136,7 +137,7 @@
     const p = reparer(st, now); if (!p) return null;
     const F = active(now);
     if (p.id && (!F || p.id !== F.id)) fin(st, now); // la saison de la piste est finie (ou inconnue) : archivée, ses dus rangés
-    else if (!p.id && F && !p.passees[F.id]) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem); // une saison s'ouvre (jamais une saison déjà finie : une horloge reculée après la fin ne la rouvre pas)
+    else if (!p.id && F && !p.passees[F.id]) st.piste = ouvrir(st, F, now, p.passees, p.dus, p.sem, p.veille); // une saison s'ouvre (jamais une saison déjà finie : une horloge reculée après la fin ne la rouvre pas)
     return st.piste;
   }
 
@@ -249,7 +250,7 @@
     const res = { id: p.id, nom: F ? F.nom : p.id, lots, xp: p.xp, crans: F ? crans(st) : 0, titre: F && F.titre ? p.titre : 0 };
     const passees = Object.assign({}, p.passees), av = objet(passees[p.id]) ? passees[p.id] : null; // (une archive déjà là : fusionnée au plus haut, jamais écrasée)
     passees[p.id] = av ? { xp: Math.max(av.xp, res.xp), crans: Math.max(av.crans, res.crans), titre: av.titre || res.titre ? 1 : 0 } : { xp: res.xp, crans: res.crans, titre: res.titre };
-    const n = Fa && !passees[Fa.id] ? ouvrir(st, Fa, now, passees, null, p.sem) : neuve('', passees); if (!n.id) n.sem = p.sem; // (le défi de la semaine déjà compté suit)
+    const n = Fa && !passees[Fa.id] ? ouvrir(st, Fa, now, passees, null, p.sem, p.veille) : neuve('', passees); if (!n.id) { n.sem = p.sem; n.veille = typeof p.veille === 'string' && JOUR_OK.test(p.veille) ? p.veille : ''; } // (le défi de la semaine déjà compté suit, et la veille de la série locale)
     n.dus = lots.length ? res : (p.dus || null); // (des dus d'avant pas encore montrés : gardés)
     if (lots.length && p.dus && Array.isArray(p.dus.lots)) res.lots = p.dus.lots.concat(lots);
     st.piste = n;
