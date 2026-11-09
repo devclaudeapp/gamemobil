@@ -159,6 +159,12 @@ const ZSONS = (() => {
         // le Lot 5c : les capacités (la frappe qui part, le soin, la furie, le drone qui décolle), les tirs du drone
         case 'capacite': { const mien = e.id === idMoi; if (e.cap === 'artillerie') { jouer('roquette', mien ? 0.8 : 0.4, 0, 0.6); P.jouer('manche', mien ? 0.5 : 0.25); } else if (e.cap === 'soin') P.jouer('soin', mien ? 1 : 0.5); else if (e.cap === 'rage') { jouer('grogne', mien ? 1 : 0.5, 0, 1.5); jouer('serie', 0.8, 0, 0.7); } else if (e.cap === 'drone') { jouer('tesla', mien ? 0.6 : 0.3); jouer('serie', 0.6, 0, 1.6); } break; }
         case 'drone': { const t = performance.now(); if (t - droneT > 110) { droneT = t; const p0 = e.pts && e.pts[0], [k, p] = p0 ? ecoute(p0[0], p0[1], 22) : [0, 0]; if (k > 0.05) jouer(e.arc ? 'tesla' : 'laser', 0.3 * k, p); } break; }
+        // le Lot 5d : le train (la sonnerie, puis le passage), l'armoire à pharmacie
+        case 'trainAlerte': jouer('vague', 0.7, 0, 1.6); P.jouer('ding', 0.6, 0, 1.4); setTimeout(() => P.jouer('ding', 0.6, 0, 1.4), 400); P.vibrer([20, 80, 20]); break;
+        case 'train': { const [k, p] = moi ? ecoute(moi.x, e.z, 30) : [1, 0]; jouer('roquette', 0.6 + 0.4 * k, p, 0.5); jouer('boum', 0.5 * k + 0.2, p, 0.5); if (k > 0.5) P.vibrer(60); break; }
+        case 'renverse': if (e.id === idMoi) { jouer('casse', 1); P.vibrer([80, 40, 80]); } break;
+        case 'soigne': if (e.id === idMoi) P.jouer('soin', 0.35, 0, 1.3); break;
+        case 'pharmaPrete': { const [k, p] = ecoute(e.x, e.z, 22); if (k > 0.1) P.jouer('ding', 0.4 * k, p); break; }
         case 'roule': if (e.id === idMoi) { P.jouer('glissade', 0.7); } else { const [k, p] = ecoute(e.x, e.z, 20); if (k > 0.1) P.jouer('glissade', 0.4 * k, p); } break;
         case 'trou': { const [k, p] = ecoute(e.x, e.z, 30); jouer('trou', 0.3 + 0.7 * k, p); break; }
         case 'implose': { const [k, p] = ecoute(e.x, e.z, 36); jouer('implose', 0.4 + 0.6 * k, p); if (k > 0.4) P.vibrer(40); break; }

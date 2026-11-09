@@ -49,7 +49,7 @@ const BASE = `http://localhost:${PORT}/`;
   await page.waitForFunction(() => window.__zombies.stats().rendu.modeles === 'pret', null, { timeout: 30000 }).catch(() => {});
   const mod = await P(() => window.__zombies.stats().rendu);
   check(mod.modeles === 'pret' && mod.horde === 'kenney' && mod.survivant === 'kenney' && mod.defenses >= 1, `les modèles 3D sont chargés : horde et survivant Kenney, la tourelle de la démonstration en modèle Kenney (${mod.modeles}, ${mod.horde}, ${mod.defenses} défense)`);
-  check(titre.arenes.length === 12 && titre.arenes[0] === 'jardin:false:true' && titre.arenes.slice(1).every((a) => /:true:false$/.test(a)), `douze arènes : le Jardin ouvert et choisi, les onze autres verrouillées (${titre.arenes.slice(0, 4).join(', ')}…)`);
+  check(titre.arenes.length === 15 && titre.arenes[0] === 'jardin:false:true' && titre.arenes.slice(1).every((a) => /:true:false$/.test(a)), `quinze arènes : le Jardin ouvert et choisi, les onze autres verrouillées (${titre.arenes.slice(0, 4).join(', ')}…)`);
   await page.screenshot({ path: out + '/01-titre.png' });
 
   // ─── jouer ───

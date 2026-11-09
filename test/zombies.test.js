@@ -549,6 +549,43 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     J.capacite(h, 'a'); J.capacite(h, 'b'); ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
     check(g.joueurs[0].capacite.id === 'drone' && g.joueurs[0].capT > 20 && g.joueurs[1].rageT > 0 && g.drones.length === 2 && g.joueurs[0].capR === 30, 'à plusieurs : la capacité de chacun, sa recharge, la furie et les drones arrivent chez les copains'); }
 }
+// ─── le Lot 5d : le Métro (le train), l'Hôpital (les armoires à pharmacie), la Base (les barbelés) ───
+{
+  const mk = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: 0.001, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const sur = (arene, o) => { const jeu = J.creer(Object.assign({ arene, graine: 61, attente: 99 }, o || {})); const j = jeu.joueurs[0]; j.xp = -1e9; return jeu; };
+  check(['metro', 'hopital', 'base'].every((k) => D.ARENES[k] && D.ORDRE_ARENES.includes(k) && D.DEBLOCAGE[k] > 0) && D.ARENES.metro.voies.length === 2 && D.ARENES.hopital.pharmacies.length === 3 && D.ARENES.base.barbeles.length >= 4,
+    'trois arènes de plus (15) : le Métro et ses voies, l’Hôpital et ses armoires, la Base et ses barbelés');
+  // les arènes elles-mêmes : le départ libre, les sorties libres, les armoires et les voies sans obstacle dessus
+  for (const k of ['metro', 'hopital', 'base']) { const A = D.ARENES[k], m = M.creer(A); check(!m.bloque(A.depart[0], A.depart[1], 0.5) && A.sorties.every(([x, z]) => m.libreProche ? true : !m.bloque(x, z, 0.4)), `${A.nom} : le départ est libre`); }
+  { const A = D.ARENES.metro, m = M.creer(A); check(A.voies.every((V) => { for (let x = -A.taille / 2 + 1; x < A.taille / 2 - 1; x += 0.5) if (m.bloque(x, V.z, 0.3)) return false; return true; }), 'le Métro : rien ne barre les voies (le train passe d’un bout à l’autre)'); }
+  { const A = D.ARENES.hopital, m = M.creer(A); check(A.pharmacies.every(([x, z]) => !m.bloque(x, z, 0.5)), 'l’Hôpital : on peut se tenir devant chaque armoire'); }
+  // le train : l'alerte, puis le passage ; les zombies sur la voie sont écrasés, celui d'à côté non ; le survivant resté dessus est blessé et projeté hors des rails
+  { const jeu = sur('metro'), j = jeu.joueurs[0], T = jeu.train, V = D.ARENES.metro.voies[0]; j.vie = j.vieMax = 500;
+    const a = mk(1, 'costaud', -8, V.z), b = mk(2, 'trainard', 6, V.z + 0.6), c = mk(3, 'trainard', 0, V.z + 4); jeu.zombies.push(a, b, c);
+    T.t = 0.01; let evs = avancer(jeu, 3); T.voie = 0; T.sens = 1; const al = evs.find((e) => e.t === 'trainAlerte');
+    j.x = 2; j.z = V.z; evs = avancer(jeu, Math.round((D.TRAIN.alerte + D.TRAIN.duree) * 60) + 10, () => ({ mx: 0, mz: 0 }));
+    check(al && evs.some((e) => e.t === 'train') && !jeu.zombies.includes(a) && !jeu.zombies.includes(b) && jeu.zombies.includes(c) && j.vie < 500 && Math.abs(j.z - V.z) > V.largeur / 2 && T.phase === 'attente',
+      `le train : annoncé, il écrase les deux zombies sur la voie (pas celui du quai) et renverse le survivant hors des rails (${500 - j.vie} de dégâts)`); }
+  // la roulade fait passer le train
+  { const jeu = sur('metro'), j = jeu.joueurs[0], T = jeu.train, V = D.ARENES.metro.voies[0]; j.vie = j.vieMax = 500; T.phase = 'passe'; T.t = 0; T.voie = 0; T.sens = 1; T.n = 9; j.x = 0; j.z = V.z;
+    avancer(jeu, Math.round(D.TRAIN.duree * 30)); J.roulade(jeu, j.id); const v0 = j.vie; avancer(jeu, 10); check(j.vie === v0 || j.vie === 500, 'pendant la roulade, même le train ne touche pas'); }
+  // l'armoire à pharmacie : elle soigne jusqu'à son stock, puis se recharge
+  { const jeu = sur('hopital'), j = jeu.joueurs[0], p = jeu.pharmas[0]; j.vieMax = 300; j.vie = 100; j.x = p.x; j.z = p.z; const evs = avancer(jeu, 60 * 4);
+    check(j.vie === 100 + D.PHARMACIE.stock && p.stock === 0 && p.recharge > 0 && evs.some((e) => e.t === 'pharmaVide'), `l’armoire soigne ${j.vie - 100} points (son stock), puis se recharge`);
+    j.x = p.x + 8; p.recharge = 0.05; const e2 = avancer(jeu, 10); check(p.stock === D.PHARMACIE.stock && e2.some((e) => e.t === 'pharmaPrete'), 'rechargée, elle soigne de nouveau'); }
+  // les barbelés : les zombies y vont moins vite et s'y écorchent ; le survivant y est ralenti
+  { const pas = (dans) => { const jeu = sur('base'), j = jeu.joueurs[0], [bx, bz] = D.ARENES.base.barbeles[0]; const zb = mk(4, 'trainard', dans ? bx : bx, dans ? bz : bz + 5, 1000); zb.vitesse = 1.5; zb.repense = 0; jeu.zombies.push(zb); j.x = zb.x + 12; j.z = zb.z; const x0 = zb.x; avancer(jeu, 30); return [zb.x - x0, 1000 - zb.vie]; };
+    const [libre] = pas(false), [pris, mal] = pas(true); check(pris < libre * 0.7 && mal > 0, `les barbelés : le zombie y avance ${pris.toFixed(2)} m au lieu de ${libre.toFixed(2)} m, et s’y écorche (${mal.toFixed(1)})`); }
+  { const court = (dans) => { const jeu = sur('base'), j = jeu.joueurs[0], [bx, bz] = D.ARENES.base.barbeles[0]; j.x = bx - 3; j.z = dans ? bz : bz - 3; const x0 = j.x; avancer(jeu, 20, { mx: 1, mz: 0 }); return j.x - x0; };
+    const a = court(false), b = court(true); check(b < a * 0.8, `le survivant aussi est freiné dans les barbelés (${b.toFixed(2)} m au lieu de ${a.toFixed(2)} m)`); }
+  { const jeu = sur('metro'); check(jeu.pieges.every((p) => D.ARENES.metro.voies.every((V) => Math.abs(p.z - V.z) > V.largeur / 2 + 1)), 'les pièges électriques ne sont jamais posés sur les voies'); }
+  // à plusieurs : le train et les armoires arrivent chez les copains
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'metro', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h = J.creer(o), g = J.creer(o); h.train.phase = 'passe'; h.train.t = 0.7; h.train.voie = 1; h.train.sens = -1;
+    ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
+    const o2 = { arene: 'hopital', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h2 = J.creer(o2), g2 = J.creer(o2); h2.pharmas[1].stock = 0; h2.pharmas[1].recharge = 12; ctx.E.appliquer(g2, JSON.parse(JSON.stringify(ctx.E.instantane(h2))), 'b');
+    check(g.train.phase === 'passe' && g.train.voie === 1 && g.train.sens === -1 && Math.abs(J.trainX(g) - J.trainX(h)) < 0.5 && g2.pharmas[1].recharge === 12 && g2.pharmas[1].stock === 0, 'à plusieurs : le train et les armoires arrivent chez les copains'); }
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;

@@ -55,6 +55,8 @@ const ZENLIGNE = (() => {
       ob: jeu.obus.map((o) => [r2(o.x0), r2(o.z0), r2(o.x1), r2(o.z1), r2(o.t), r2(o.duree), o.grenade ? 1 : 0, o.droit ? 1 : 0, o.trou ? 1 : o.petite ? 2 : 0]),
       ch: jeu.crochets.map((c) => [c.id, c.de, r2(c.x), r2(c.z), r2(c.vx), r2(c.vz)]),
       di: jeu.disques.map((d) => [d.id, r2(d.x), r2(d.z), r2(d.vx), r2(d.vz)]),
+      tn: jeu.train ? [jeu.train.voie, ['attente', 'alerte', 'passe'].indexOf(jeu.train.phase), r2(jeu.train.t), jeu.train.sens, jeu.train.n] : null, // (Lot 5d : le train du Métro)
+      ph: (jeu.pharmas || []).map((p) => [Math.round(p.stock), r1(p.recharge)]), // (les armoires de l'Hôpital)
       dr: (jeu.drones || []).map((d) => [d.id, r2(d.x), r2(d.z), d.de, r1(d.t)]), // (les drones)
       tr: (jeu.trous || []).map((t) => [t.id, r2(t.x), r2(t.z), r2(t.t), t.duree, t.r]), // (Lot 5b : les singularités)
       zo: jeu.zones.map((z) => [z.id, r2(z.x), r2(z.z), r2(z.r), r1(z.vie), r1(z.duree), z.feu ? 1 : 0]),
@@ -93,6 +95,8 @@ const ZENLIGNE = (() => {
     if (e.pi && jeu.pieges) e.pi.forEach((q, i) => { const p = jeu.pieges[i]; if (p) { p.etat = q[0] === 1 ? 'actif' : q[0] === 2 ? 'recharge' : 'pret'; p.t = q[1]; } });
     jeu.crachats.length = 0; for (const c of e.cr) jeu.crachats.push({ x: c[0], z: c[1], vx: c[2], vz: c[3] });
     jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6], droit: !!o[7], trou: o[8] === 1 ? {} : null, petite: o[8] === 2 });
+    if (e.tn && jeu.train) { const T = jeu.train; T.voie = e.tn[0]; T.phase = ['attente', 'alerte', 'passe'][e.tn[1]] || 'attente'; T.t = e.tn[2]; T.sens = e.tn[3]; T.n = e.tn[4]; }
+    if (e.ph && jeu.pharmas) e.ph.forEach((q, i) => { const p = jeu.pharmas[i]; if (p) { p.stock = q[0]; p.recharge = q[1]; } });
     if (e.dr && jeu.drones) garder(jeu.drones, e.dr, (l) => ({ id: l[0], x: l[1], z: l[2] }), (d, l) => { d.tx = l[1]; d.tz = l[2]; d.de = l[3]; d.t = l[4]; });
     if (e.tr && jeu.trous) garder(jeu.trous, e.tr, (l) => ({ id: l[0] }), (t, l) => { t.x = l[1]; t.z = l[2]; t.t = l[3]; t.duree = l[4]; t.r = l[5]; });
     garder(jeu.crochets, e.ch || [], (l) => ({ id: l[0] }), (c, l) => { c.de = l[1]; c.x = l[2]; c.z = l[3]; c.vx = l[4]; c.vz = l[5]; });
@@ -107,6 +111,7 @@ const ZENLIGNE = (() => {
     for (const o of jeu.objets) if (o.vole && o.tx != null) { o.x += (o.tx - o.x) * k; o.z += (o.tz - o.z) * k; }
     for (const c of jeu.crachats) { c.x += c.vx * dt; c.z += c.vz * dt; }
     for (const o of jeu.obus) o.t = Math.min(o.duree, o.t + dt);
+    if (jeu.train && jeu.train.phase === 'passe') jeu.train.t = Math.min(D.TRAIN.duree, jeu.train.t + dt);
     for (const d of jeu.disques) { d.x += d.vx * dt; d.z += d.vz * dt; }
     for (const d of jeu.drones || []) if (d.tx != null) { d.x += (d.tx - d.x) * k; d.z += (d.tz - d.z) * k; }
     for (const c of jeu.crochets) { c.x += c.vx * dt; c.z += c.vz * dt; }
@@ -213,7 +218,7 @@ const ZENLIGNE = (() => {
         // la prédiction : son propre survivant bouge tout de suite (même vitesse que chez l'hôte, mêmes murs, mêmes défenses)
         if (moi && moi.vivant && entree) {
           let mx = +entree.mx || 0, mz = +entree.mz || 0; const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
-          const v = D.JOUEUR.vitesse * (1 + (moi.atouts.vitesse || 0) * D.ATOUTS.vitesse.par) * (moi.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (moi.vite > 0 ? 1.35 : 1);
+          const v = D.JOUEUR.vitesse * (1 + (moi.atouts.vitesse || 0) * D.ATOUTS.vitesse.par) * (moi.gele > 0 ? D.ZOMBIES.golemglace.attaque.ralenti : 1) * (moi.vite > 0 ? 1.35 : 1) * (J.dansBarbeles && jeu.A.barbeles && J.dansBarbeles(jeu.A, moi.x, moi.z, moi.rayon) ? D.BARBELES.joueur : 1);
           if (moi.gele > 0) moi.gele = Math.max(0, moi.gele - dt);
           if (moi.roule > 0) { mx = 0; mz = 0; }
           moi.vx = mx * v; moi.vz = mz * v; moi.x += moi.vx * dt; moi.z += moi.vz * dt; moi.bouge = l > 0.05 ? Math.min(1, l) : 0;

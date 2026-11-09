@@ -161,6 +161,9 @@ const ZHUD = (() => {
   function fondCarte(jeu) {
     const c = document.createElement('canvas'); c.width = c.height = 132; const g = c.getContext('2d'), k = 132 / jeu.A.taille, h = jeu.A.taille / 2;
     g.fillStyle = '#16202B'; g.fillRect(0, 0, 132, 132);
+    // le Lot 5d : les voies du Métro, les barbelés de la Base (sous les obstacles)
+    for (const V of jeu.A.voies || []) { g.fillStyle = '#3A2E2A'; g.fillRect(0, (V.z - V.largeur / 2 + h) * k, 132, V.largeur * k); }
+    for (const [x, z, w, d] of jeu.A.barbeles || []) { g.fillStyle = '#8A7A5A'; g.fillRect((x - w / 2 + h) * k, (z - d / 2 + h) * k, Math.max(2, w * k), Math.max(2, d * k)); }
     g.fillStyle = '#5E6E80';
     for (const r of jeu.monde.rects) g.fillRect((r.x0 + h) * k, (r.z0 + h) * k, Math.max(2, (r.x1 - r.x0) * k), Math.max(2, (r.z1 - r.z0) * k));
     for (const o of jeu.monde.cercles) { g.beginPath(); g.arc((o.x + h) * k, (o.z + h) * k, Math.max(1.5, o.r * k), 0, Math.PI * 2); g.fill(); }
@@ -170,6 +173,8 @@ const ZHUD = (() => {
     if (carteJeu !== jeu.A) fondCarte(jeu);
     const g = el.carte.getContext('2d'), k = 132 / jeu.A.taille, h = jeu.A.taille / 2;
     g.drawImage(carteFond, 0, 0);
+    for (const p of jeu.pharmas || []) { g.fillStyle = p.recharge > 0 ? '#6A6F78' : '#4FC36A'; const x = (p.x + h) * k, z = (p.z + h) * k; g.fillRect(x - 3.5, z - 1.2, 7, 2.4); g.fillRect(x - 1.2, z - 3.5, 2.4, 7); }
+    if (jeu.train && jeu.train.phase !== 'attente') { const V = jeu.A.voies[jeu.train.voie]; g.fillStyle = Math.floor(performance.now() / 200) % 2 ? '#FF4A3A' : '#FFD84A'; g.fillRect(0, (V.z - V.largeur / 2 + h) * k, 132, V.largeur * k); }
     for (const p of jeu.pieges || []) { g.strokeStyle = p.etat === 'actif' ? '#7FDBFF' : p.etat === 'pret' ? '#F2C230' : '#6A6F78'; g.lineWidth = 1.5; g.beginPath(); g.arc((p.x + h) * k, (p.z + h) * k, D.PIEGE.rayon * k + 1, 0, 7); g.stroke(); }
     if (jeu.largage && jeu.largage.pose) { const la = jeu.largage, pulse = 3 + (performance.now() / 160 % 4); g.strokeStyle = '#5BD16B'; g.lineWidth = 2; g.beginPath(); g.arc((la.x + h) * k, (la.z + h) * k, pulse, 0, 7); g.stroke(); }
     for (const o of jeu.objets) { if (o.type === 'caisse') { g.fillStyle = o.rare ? '#C79BFF' : '#F2C230'; g.fillRect((o.x + h) * k - 3, (o.z + h) * k - 3, 6, 6); } else if (o.type === 'bonus' && D.BONUS[o.bonus]) { g.fillStyle = D.BONUS[o.bonus].couleur; g.beginPath(); g.arc((o.x + h) * k, (o.z + h) * k, 2.6, 0, 7); g.fill(); } }
@@ -265,6 +270,8 @@ const ZHUD = (() => {
       else if (e.t === 'phase') annonce(`PHASE ${e.n}`, `${D.ZOMBIES[e.type] ? D.ZOMBIES[e.type].nom : 'Le boss'} ${e.n >= 3 ? 'enrage !' : 'se déchaîne !'}`, 1.8);
       else if (e.t === 'nouveau' && D.ZOMBIES[e.type] && (!A.nouvelEnnemi || A.nouvelEnnemi(e.type))) carteEnnemi(e.type);
       else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) toast(`${D.CAPACITES[e.cap].nom} !`);
+      else if (e.t === 'trainAlerte') annonce('TRAIN !', 'Dégage les voies', 2.2);
+      else if (e.t === 'renverse' && e.id === idMoi) toast('Renversé par le train !');
       else if (e.t === 'largage') annonce('LARGAGE !', 'Une caisse rare tombe : va la chercher', 2.2);
       else if (e.t === 'piegeCher' && e.id === idMoi) toast(`Il faut ${e.cout} de ferraille pour allumer le piège`);
       else if (e.t === 'piege' && e.de === idMoi) toast('Piège électrique allumé !');

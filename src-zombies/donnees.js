@@ -368,10 +368,63 @@
       laves: [[-6, -4, 3, 12], [9, 10, 14, 2.6], [-15, 18, 10, 2.4], [16, -18, 2.4, 10]],
       sorties: [[-26, -12], [26, -12], [-26, 14], [26, 14], [0, 26], [-14, 26], [14, 26], [-22, -24], [22, -24]],
     },
+    // ─── le Lot 5d : trois arènes, chacune son piège ou son aide ───
+    // voies (le Métro) : des rails le long de x ; un train passe de temps en temps (TRAIN), annoncé : il écrase les zombies et blesse qui reste dessus.
+    // pharmacies (l'Hôpital) : des armoires qui soignent le survivant tout près, puis se rechargent (PHARMACIE).
+    // barbeles (la Base) : des rectangles [x, z, l, p] de barbelés qui ralentissent et écorchent les zombies, et ralentissent le survivant (BARBELES).
+    metro: {
+      nom: 'Le Métro', desc: 'Les quais d’une station. Quand le train arrive, on ne reste pas sur les voies.', taille: 52,
+      sol: '#9EA3A8', sol2: '#949A9F', bord: '#3A3F48', ciel: '#2A2F38', brume: '#3A404A',
+      depart: [0, 0],
+      voies: [{ z: -10, largeur: 3.6 }, { z: 10, largeur: 3.6 }],
+      obstacles: [
+        ...[-15, -5, 5, 15].flatMap((x) => [{ type: 'pilier', c: [x, -3.6, 0.55], h: 4 }, { type: 'pilier', c: [x, 3.6, 0.55], h: 4 }]),
+        { type: 'banc', r: [-10, 0, 2.4, 0.7, 0.6] }, { type: 'banc', r: [10, 0, 2.4, 0.7, 0.6] },
+        { type: 'escalier', r: [0, -19, 6, 4, 3.2] }, { type: 'escalier', r: [0, 19, 6, 4, 3.2] },
+        { type: 'distributeur', r: [-19, -17, 1.4, 1.0, 2.0], couleur: '#D9534F' }, { type: 'distributeur', r: [19, 17, 1.4, 1.0, 2.0], couleur: '#4F7BD9' },
+        { type: 'portique', r: [-12, 17.5, 5, 0.6, 1.0] }, { type: 'portique', r: [12, -17.5, 5, 0.6, 1.0] },
+        { type: 'banc', r: [-17, 21, 0.7, 2.4, 0.6] }, { type: 'banc', r: [17, -21, 0.7, 2.4, 0.6] },
+      ],
+      sorties: [[-25, -10], [25, -10], [-25, 10], [25, 10], [-22, -23], [22, 23], [-23, 0], [23, 0], [12, 24], [-12, -24]],
+    },
+    hopital: {
+      nom: 'L’Hôpital', desc: 'Des couloirs, des chambres et des lits. Les armoires à pharmacie soignent, le temps qu’on reste devant.', taille: 50,
+      sol: '#DDE4E6', sol2: '#D2DADC', bord: '#8C9AA0', ciel: '#E6EEF0', brume: '#D8E2E4',
+      depart: [0, 2],
+      pharmacies: [[-17, -8.6], [17, 8.6], [0, -19.6]], // (devant chaque armoire)
+      obstacles: [
+        { type: 'cloison', r: [-14, -4, 14, 0.5, 2.6] }, { type: 'cloison', r: [14, 4, 14, 0.5, 2.6] },
+        { type: 'cloison', r: [-7, -14, 0.5, 10, 2.6] }, { type: 'cloison', r: [7, 14, 0.5, 10, 2.6] },
+        { type: 'cloison', r: [-14, 12, 10, 0.5, 2.6] }, { type: 'cloison', r: [14, -12, 10, 0.5, 2.6] },
+        { type: 'lit', r: [-17, -15, 2.0, 1.1, 0.8] }, { type: 'lit', r: [-12, -16, 2.0, 1.1, 0.8] }, { type: 'lit', r: [17, 15, 2.0, 1.1, 0.8] }, { type: 'lit', r: [12, 17, 2.0, 1.1, 0.8] },
+        { type: 'lit', r: [-17, 17, 1.1, 2.0, 0.8] }, { type: 'lit', r: [18, -17, 1.1, 2.0, 0.8] },
+        { type: 'comptoir', r: [0, 7, 5, 1.2, 1.1] }, { type: 'brancard', r: [6, -4, 2.0, 0.8, 0.9] }, { type: 'brancard', r: [-6, 5, 0.8, 2.0, 0.9] },
+        { type: 'plante', c: [-3, -8, 0.5] }, { type: 'plante', c: [10, 0, 0.5] },
+        { type: 'armoire', r: [-17, -9.8, 1.4, 0.6, 2.0] }, { type: 'armoire', r: [17, 9.8, 1.4, 0.6, 2.0] }, { type: 'armoire', r: [0, -20.8, 1.4, 0.6, 2.0] }, // (les armoires à pharmacie)
+      ],
+      sorties: [[0, -24], [-24, 0], [24, 0], [0, 24], [-22, -22], [22, 22], [22, -22], [-22, 22]],
+    },
+    base: {
+      nom: 'La Base militaire', desc: 'Un hangar, un char et des sacs de sable. Les barbelés freinent tout le monde.', taille: 56,
+      sol: '#9A9A6A', sol2: '#8E8E60', bord: '#5A5A3E', ciel: '#C8CCB0', brume: '#BFC2AA',
+      depart: [0, 6],
+      barbeles: [[-14, 8, 9, 1.4], [14, 8, 9, 1.4], [0, 18, 12, 1.4], [-21, -6, 1.4, 10], [21, -6, 1.4, 10], [0, -6, 8, 1.4]],
+      obstacles: [
+        { type: 'hangar', r: [0, -17, 14, 8, 5] }, { type: 'char', r: [-13, -4, 3.2, 5.2, 2.3] },
+        ...[[-6, 2, 4, 1, 0.9], [6, 2, 4, 1, 0.9], [-9, 14, 1, 4, 0.9], [9, 14, 1, 4, 0.9], [16, -3, 1, 4, 0.9]].map((r) => ({ type: 'sacs', r })),
+        { type: 'mirador', c: [20, 20, 1.3], h: 5 }, { type: 'mirador', c: [-21, 21, 1.3], h: 5 },
+        { type: 'tente', r: [15, -16, 5, 4, 2.6] }, { type: 'tente', r: [-16, -17, 4, 5, 2.6] },
+        { type: 'caisses', r: [11, 4, 3, 3, 0.9] }, { type: 'caisses', r: [-4, 22, 3, 3, 0.9] },
+      ],
+      sorties: [[-27, -12], [27, -12], [-27, 14], [27, 14], [0, 27], [-14, 27], [14, 27], [-24, -26], [24, -26]],
+    },
   };
-  const ORDRE_ARENES = ['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan'];
+  const TRAIN = { periode: [24, 34], alerte: 3.2, duree: 2.6, longueur: 16, degats: 45, boss: 300 };
+  const PHARMACIE = { stock: 60, debit: 30, rayon: 1.9, recharge: 40 };
+  const BARBELES = { zombie: 0.45, joueur: 0.6, dps: 8 };
+  const ORDRE_ARENES = ['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan', 'metro', 'hopital', 'base'];
   // une arène se débloque quand on a atteint cette vague sur la précédente (records de la sauvegarde)
-  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8, cimetiere: 8, port: 9, place: 9, plage: 10, chantier: 10, supermarche: 11, foret: 11, neon: 12, volcan: 13 };
+  const DEBLOCAGE = { jardin: 0, parking: 5, ferme: 8, cimetiere: 8, port: 9, place: 9, plage: 10, chantier: 10, supermarche: 11, foret: 11, neon: 12, volcan: 13, metro: 13, hopital: 14, base: 15 };
 
   // ─── le défi du jour : la même partie pour tout le monde ce jour-là (graine, arène et mutateur tirés de la date, heure de Paris),
   // sans les bonus du Bunker ; le meilleur score du jour part au classement (supabase/zombies-defi.sql)
@@ -502,5 +555,5 @@
   };
   const COFFRE = { medailles: [8, 25], serieBonus: 0.1, serieMax: 7 }; // le coffre du jour : 8 à 25 médailles, +10 % par jour de série (7 au plus)
 
-  return { CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
+  return { TRAIN, PHARMACIE, BARBELES, CAPACITES, ORDRE_CAPACITES, PALIERS_CAPACITE, specCapacite, ROULADE, PHASES, BONUS, BONUS_CHANCE, LARGAGE, PIEGE, MISSIONS, PASS, COFFRE, SURVIVANTS, FINITIONS, ORDRE_FINITIONS, EMOTES, ASCENSION, RARETE, DEFI, BOSS, XP, ATOUTS, CRITIQUE, GRENADE, MEDAILLES, BUNKER, JOUEUR, ARMES, ARME_DE_BASE, ZOMBIES, DEFENSES, AMELIORATIONS, VAGUES, SERIE, ARENES, ORDRE_ARENES, DEBLOCAGE };
 });
