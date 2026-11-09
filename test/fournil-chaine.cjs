@@ -7,7 +7,7 @@
 // La boulangerie n'a pas bougé (lifetime, lifetimeRun, points, jour, stats identiques). Le décor d'une boutique de la chaîne : ≤ 72 appels en
 // éco. Le bandeau est hors de la scène : aucune déco ni petit décor du mur ou de la fenêtre dessous ; à 360 × 640, ni le nom ni la ligne du
 // haut ne sont coupés. La déco d'office d'une boutique pendant une saison (c1 et c2 tenues) : le carnet dit « Pas de place ce mois-ci ».
-// Trois allers-retours planète → boutique → boulangerie : la mémoire GPU (renderer.info.memory, relue stable) stable. La version d'essai côté écran :
+// Quatre allers-retours planète → boutique → boulangerie : la mémoire GPU (renderer.info.memory, relue stable) ne grandit pas à chaque tour. La version d'essai côté écran :
 // la vraie partie copiée sous les clés de l'essai (la sienne intacte), le bandeau ; sans vraie partie, la feuille « coller le code ».
 // L'heure sûre en retard au lancement (12 h d'absence) : le gérant touche 8 h pour cette absence, pas plus, ni au saut d'heure, ni à
 // l'ouverture de « Ma chaîne », ni à l'encaissement d'une minute plus tard (≈ 70 s d'attente).
@@ -61,9 +61,11 @@ function vieille() {
   // ce qui ne doit jamais bouger dans la boulangerie quand on joue dans la chaîne (contrat § 1.7)
   const boulangerie = () => ev(() => { const s = window.__fournil.st; return JSON.stringify({ lifetime: s.lifetime, lifetimeRun: s.lifetimeRun, coins: s.coins, points: s.points, jour: s.jour, stats: s.stats, apprentis: s.apprentis, xp: s.xp, stations: s.stations.map((x) => x.niv), mobilier: s.mobilier, amenagement: s.amenagement || null, boutiques: s.boutiques, etoiles: s.etoiles }); });
 
-  // chaque mesure attend que renderer.info.memory ne bouge plus (deux lectures égales à 500 ms d'écart) : un modèle HD ou un décor fusionné
-  // encore en route au moment de la lecture faisait varier le compte d'un tour à l'autre (la borne, elle, ne change pas)
-  const memStable = async () => { let a = null; for (let k = 0; k < 24; k++) { const m = await ev(() => { const s = window.__fournil.SCENE.stats; return { g: s.geometries, t: s.textures }; }); if (a && a.g === m.g && a.t === m.t) return m; a = m; await sleep(500); } return a; };
+  // chaque mesure attend que renderer.info.memory ne bouge plus (trois lectures égales à 500 ms d'écart : une seconde sans changement) : un
+  // modèle HD ou un décor fusionné encore en route au moment de la lecture faisait varier le compte d'un tour à l'autre ; sur les machines
+  // lentes de GitHub (CI), trois fois plus longtemps au plus
+  const LENT = process.env.CI ? 3 : 1;
+  const memStable = async () => { let a = null, n = 0; for (let k = 0; k < 24 * LENT; k++) { const m = await ev(() => { const s = window.__fournil.SCENE.stats; return { g: s.geometries, t: s.textures }; }); if (a && a.g === m.g && a.t === m.t) { if (++n >= 2) return m; } else n = 0; a = m; await sleep(500); } return a; };
 
   console.log('── la vieille sauvegarde à la n°13 : la chaîne recréée une seule fois ──');
   await ouvrir('eco');
@@ -254,12 +256,16 @@ function vieille() {
     `le mode Déplacer : la statue prise au doigt, en vert sur s3 (${gd.place}, ${gd.ok}), lâchée : st.decos = ${JSON.stringify(gd2.poses)}, la scène suit`);
   await ev((t) => { const f = window.__fournil; f.amenager(false); delete f.st.decos; f.SCENE.decos(null); f.save(); f.tiroir(t); }, tiroirAvant); await sleep(400);
 
-  console.log('── trois allers-retours planète → boutique → boulangerie : la mémoire GPU stable ──');
+  console.log('── quatre allers-retours planète → boutique → boulangerie : la mémoire GPU stable ──');
   // la référence du premier tour : memBoucle, la boulangerie juste avant la boucle (et non plus memAvant, lue avant la n°10) : les contrôles
   // ajoutés entre les deux (six souvenirs au mur, la déco d'office, la statue) bâtissent des géométries que la scène garde en cache, 35 à 40
-  // de plus selon le tirage ; ce n'est pas la boucle. La borne du premier tour (+40) et celle des tours suivants (+2, +1) ne changent pas.
+  // de plus selon le tirage ; ce n'est pas la boucle (la borne du premier tour : +40).
+  // Après le premier tour, une fuite grandit à CHAQUE tour (la planète, la boutique ou leur décor jamais rendus) : c'est elle qu'on cherche,
+  // sur trois tours de plus. Un palier isolé de quelques géométries n'en est pas une : les clients et les décors de la boulangerie vont et
+  // viennent, et leurs géométries restent en cache (9 nov., GitHub : 79 → 79 → 81 → 82 ; 6 et 8 nov. : 75 → 80, 75 → 79). Un plafond
+  // absolu attrape aussi une fuite franche qui ne grandirait pas à chaque tour : +12 géométries et +3 textures au plus du 1er au 4e tour.
   const memBoucle = await memStable(), mem = [];
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < 4; k++) {
     await sleep(1100);
     await page.tap('#b-chaine'); await attendre(() => ev(() => window.__fournil.chaine.ecranOuvert && CHAINE_ECRAN.planete));
     await sleep(700);
@@ -273,7 +279,9 @@ function vieille() {
     await sleep(1500);
     mem.push(await memStable());
   }
-  check(mem[2].g <= mem[0].g + 2 && mem[2].t <= mem[0].t + 1 && mem[0].g <= memBoucle.g + 40, `géométries ${memAvant.g} (avant la n°10), ${memBoucle.g} → ${mem.map((m) => m.g).join(' → ')} ; textures ${memAvant.t}, ${memBoucle.t} → ${mem.map((m) => m.t).join(' → ')}`);
+  { const monte = (cle) => mem.slice(1).every((m, i) => m[cle] > mem[i][cle]); // (grandit à chaque tour, du 1er au 4e)
+    const fuiteG = monte('g'), fuiteT = monte('t'), dg = mem[3].g - mem[0].g, dt = mem[3].t - mem[0].t;
+    check(!fuiteG && !fuiteT && dg <= 12 && dt <= 3 && mem[0].g <= memBoucle.g + 40, `géométries ${memAvant.g} (avant la n°10), ${memBoucle.g} → ${mem.map((m) => m.g).join(' → ')} ; textures ${memAvant.t}, ${memBoucle.t} → ${mem.map((m) => m.t).join(' → ')} (du 1er au 4e tour : ${dg >= 0 ? '+' : ''}${dg} géométries, ${dt >= 0 ? '+' : ''}${dt} textures${fuiteG || fuiteT ? ` ; elles grandissent à chaque tour : une fuite (${[fuiteG && 'géométries', fuiteT && 'textures'].filter(Boolean).join(', ')})` : ''})`); }
   check(await ev(() => !PLANETE.ouvert), 'la planète refermée (son contexte WebGL rendu)');
 
   console.log('── une nouvelle boutique : l’ancienne rejoint la chaîne avec ses niveaux ──');
