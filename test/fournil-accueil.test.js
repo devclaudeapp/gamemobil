@@ -60,8 +60,8 @@ check(A.etapes.length === 7 && A.etapes.map((e) => e.id).join() === 'painchoc,ba
 
 console.log('── 4. les déblocages ──');
 const ids = A.deblocages.map((d) => d.id), bits = A.deblocages.map((d) => d.bit);
-check(ids.join() === 'boulanger,defis,modes,bonus,etoiles,journal,saison,classement,atelier,decos,evenements,garderobe,nouveautes,casino,chaine,piste', 'seize déblocages, dans l’ordre du contrat (la piste de saison, bit 15 : docs/marche-contrat.md § 7.6)');
-check(new Set(bits).size === bits.length && bits.every((b, k) => b === k) && A.TOUS === (1 << 16) - 1 && bits.every((b) => A.TOUS & (1 << b)), 'des bits uniques ; TOUS les couvre tous');
+check(ids.join() === 'boulanger,defis,modes,bonus,etoiles,journal,saison,classement,atelier,decos,evenements,garderobe,nouveautes,casino,chaine,piste,avent', 'dix-sept déblocages, dans l’ordre du contrat (la piste de saison, bit 15 : docs/marche-contrat.md § 7.6 ; le calendrier de l’Avent, bit 16 : docs/noel-contrat.md § 2.4)');
+check(new Set(bits).size === bits.length && bits.every((b, k) => b === k) && A.TOUS === (1 << 17) - 1 && bits.every((b) => A.TOUS & (1 << b)), 'des bits uniques ; TOUS les couvre tous');
 { const s = neuf(); s.lifetime = 1e9; s.boutiques = 3; s.etoiles = 5; s.xp = 1e6; s.stations[0].niv = 10;
   for (const t of [0, 1, 2, 3]) { s.tuto = t; if (G.deblocagesDus(s).length) check(false, `tuto ${t} : rien ne s'ouvre`); }
   check(G.deblocagesDus(s).length === 0, 'deblocagesDus vide tant que tuto < 4');

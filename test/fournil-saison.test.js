@@ -71,7 +71,7 @@ for (const mauvais of [null, [], 3, 'x', { xp: 'x', recus: -1, j: 3 }, { id: 'au
     `st.piste = ${JSON.stringify(mauvais)} : remise d’aplomb (xp ${p && p.xp}, recus ${p && p.recus}) ; les objectifs et le défi déjà là ne sont pas recomptés (${JSON.stringify(o && o.sources)})`);
 }
 { const t = P(18, 10), st = partie(t); st.piste = { v: 1, id: 'automne-2026', xp: 333, recus: (1 << 3) | (1 << 25), titre: 1, j: { d: dk(t), o: 0, c: 0, k: 0, s: 0, p: 0 }, sem: '', veille: '2026-11-17', ev: { marche: 2 }, passees: { 'x-2025': { xp: 10, crans: 99, titre: 'oui' }, bad: 3 } };
-  SA.etat(st, t); check(st.piste.xp === 333 && st.piste.recus === ((1 << 3) | (1 << 25)) && st.piste.titre === 1 && st.piste.ev.marche === 2 && JSON.stringify(st.piste.passees) === JSON.stringify({ 'x-2025': { xp: 10, crans: 30, titre: 1 } }), 'une piste saine se relit telle quelle (les bits au-delà des crans gardés) ; les saisons passées remises d’aplomb une à une'); }
+  SA.etat(st, t); check(st.piste.xp === 333 && st.piste.recus === ((1 << 3) | (1 << 25)) && st.piste.titre === 1 && st.piste.ev.marche === 2 && JSON.stringify(st.piste.passees) === JSON.stringify({ 'x-2025': { xp: 10, crans: 50, titre: 1 } }), 'une piste saine se relit telle quelle (les bits au-delà des crans gardés) ; les saisons passées remises d’aplomb une à une'); }
 
 console.log('── recevoir, le lot exact, le titre ──');
 const LOTS = { 1: { boost: [2, 1800] }, 2: { etoiles: 1 }, 3: { deco: 'couronne-feuilles' }, 4: { etoiles: 1 }, 5: { vetement: 'automne-gavroche' }, 6: { etoiles: 1 }, 7: { deco: 'guirlande-feuilles' }, 8: { etoiles: 1 }, 9: { vetement: 'automne-echarpe' },

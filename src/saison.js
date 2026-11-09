@@ -67,7 +67,7 @@
   const FICHES = [];
   function ajouter(f) { // une saison : { id, nom, debut, fin, sources, crans, xpCran, titre: { xp, distinction }, evenements, couleurs, textes }
     if (!f || typeof f.id !== 'string' || !f.id || !Number.isFinite(f.debut) || !Number.isFinite(f.fin) || !(f.fin > f.debut) || !Array.isArray(f.crans) || !f.crans.length || !(f.xpCran > 0)) throw new Error('SAISONS.ajouter : fiche invalide');
-    if (f.crans.length > 30) throw new Error('SAISONS.ajouter : 30 crans au plus (le masque des reçus)');
+    if (f.crans.length > 50) throw new Error('SAISONS.ajouter : 50 crans au plus (le masque des reçus)');
     if (FICHES.some((x) => x.id === f.id)) return fiche(f.id);
     if (FICHES.some((x) => f.debut < x.fin && x.debut < f.fin)) throw new Error('SAISONS.ajouter : deux saisons se chevauchent');
     const F = Object.assign({ sources: SOURCES, evenements: [], titre: null, couleurs: {}, textes: {} }, f);
@@ -82,13 +82,13 @@
   // ─── l'état ───
   const entier = (x) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
   const objet = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
-  const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0 });
+  const jVide = (d) => ({ d, o: 0, c: 0, k: 0, s: 0, p: 0, a: 0 }); // a : les ouvertures d'un lecteur du jour (l'Avent)
   function neuve(id, passees) { return { v: 1, id: id || '', xp: 0, recus: 0, titre: 0, j: jVide(''), sem: '', veille: '', ev: {}, passees: passees || {}, dus: null }; }
   // la piste d'une saison qui s'ouvre (ou créée pendant) : ce qui est déjà réclamé comptera au premier pas, la même règle pour tous (j vide :
   // les objectifs du jour ; ev à 0 : les paliers reçus ; sem vide : le défi de cette semaine, comme outils/marche/saison.js, qui a réglé la
   // piste) ; sem : celui de la saison d'avant, quand l'une enchaîne sur l'autre (le défi de la même semaine ne compte pas deux fois)
   function ouvrir(st, F, now, passees, dus, sem) {
-    const n = neuve(F.id, passees); n.dus = dus || null; n.j = jVide(dayKey(now)); for (const cle of F.evenements) n.ev[cle] = 0;
+    const n = neuve(F.id, passees); n.dus = dus || null; n.j = jVide(dayKey(now)); for (const cle of F.evenements) n.ev[cle] = 0; for (const cle of Object.keys(F.lecteurs || {})) n.ev[cle] = 0;
     n.sem = typeof sem === 'string' ? sem : ''; return n;
   }
   // ce que le jeu montre en ce moment (pour remettre d'aplomb sans rien compter deux fois)
@@ -98,33 +98,35 @@
     const ca = objet(st.arriere) && objet(st.arriere.casino) ? st.arriere.casino : null;
     const k = ca && Array.isArray(ca.objectifs) && (typeof ca.jour !== 'string' || ca.jour === auj || ca.jour === '') ? ca.objectifs.filter((x) => x && x.fait === true).length : 0;
     const sm = objet(st.semaine) && typeof st.semaine.key === 'string' ? st.semaine : null;
-    const ev = {}; for (const cle of (F ? F.evenements : [])) ev[cle] = paliersDe(st, cle);
+    const ev = {}; for (const cle of (F ? F.evenements : [])) ev[cle] = paliersDe(st, cle); for (const [cle, f] of Object.entries((F && F.lecteurs) || {})) ev[cle] = lireCompteur(f, st);
     return { auj, o, c, k, sem: sm && sm.reclame === true ? sm.key : null, ev };
   }
+  function lireCompteur(f, st) { let n = 0; try { n = f(st); } catch (e) { n = 0; } return entier(n) ? n : 0; } // un lecteur (fiche.lecteurs) qui jette ou rend autre chose qu’un entier ≥ 0 : 0
   function paliersDe(st, cle) { const q = st[cle]; return objet(q) && Array.isArray(q.paliers) ? new Set(q.paliers.filter((n) => Number.isInteger(n) && n >= 1 && n <= 99)).size : 0; }
   function nettoyerPassees(p) {
     const o = {}; if (!objet(p)) return o;
-    for (const [id, x] of Object.entries(p)) if (typeof id === 'string' && id && objet(x)) o[id] = { xp: Number.isFinite(x.xp) && x.xp >= 0 ? Math.floor(x.xp) : 0, crans: entier(x.crans) ? Math.min(x.crans, 30) : 0, titre: x.titre ? 1 : 0 };
+    for (const [id, x] of Object.entries(p)) if (typeof id === 'string' && id && objet(x)) o[id] = { xp: Number.isFinite(x.xp) && x.xp >= 0 ? Math.floor(x.xp) : 0, crans: entier(x.crans) ? Math.min(x.crans, 50) : 0, titre: x.titre ? 1 : 0 };
     return o;
   }
   function reparer(st, now) { // remet st.piste d'aplomb (jamais d'exception) ; rend st.piste, ou null (rien et pas de saison : rien n'est créé)
     let p = st.piste;
     const F = active(now);
     if (p === undefined) { if (!F) return null; return (st.piste = ouvrir(st, F, now)); } // créée pendant la saison (une vieille sauvegarde, un nouveau joueur)
-    if (!objet(p)) { p = st.piste = neuve(F ? F.id : ''); if (F) { const c = constats(st, now, F); p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0 }; p.sem = c.sem || ''; p.ev = c.ev; } return p; } // abîmée : neuve, avec les compteurs du moment
+    if (!objet(p)) { p = st.piste = neuve(F ? F.id : ''); if (F) { const c = constats(st, now, F); p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0, a: 0 }; p.sem = c.sem || ''; p.ev = c.ev; } return p; } // abîmée : neuve, avec les compteurs du moment
     p.v = 1;
     if (typeof p.id !== 'string') p.id = F ? F.id : ''; // (abîmée pendant une saison : c'est la sienne, ses compteurs repris plus bas, rien n'est recompté)
     if (!(typeof p.xp === 'number' && Number.isFinite(p.xp) && p.xp >= 0)) p.xp = 0; else p.xp = Math.floor(p.xp);
-    if (!(entier(p.recus) && p.recus <= 0x7fffffff)) p.recus = 0; // (les bits au-delà des crans sont gardés)
+    if (!(entier(p.recus) && p.recus < 2 ** 50)) p.recus = 0; // (les bits au-delà des crans sont gardés)
     p.titre = p.titre === 1 || p.titre === true ? 1 : 0;
     p.passees = nettoyerPassees(p.passees);
     const Fp = fiche(p.id), c = constats(st, now, Fp);
-    if (!objet(p.j) || typeof p.j.d !== 'string' || !(p.j.d === '' || JOUR_OK.test(p.j.d)) || !['o', 'c', 'k', 's', 'p'].every((k) => entier(p.j[k]))) p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0 }; // abîmée : les compteurs du moment
+    if (!objet(p.j) || typeof p.j.d !== 'string' || !(p.j.d === '' || JOUR_OK.test(p.j.d)) || !['o', 'c', 'k', 's', 'p'].every((k) => entier(p.j[k]))) p.j = { d: c.auj, o: c.o, c: c.c, k: c.k, s: 1, p: 0, a: 0 }; // abîmée : les compteurs du moment
+    if (!entier(p.j.a)) p.j.a = 0; // (une piste d'automne : pas de compteur des lecteurs)
     if (typeof p.sem !== 'string') p.sem = c.sem || '';
     if (!(typeof p.veille === 'string' && (p.veille === '' || JOUR_OK.test(p.veille)))) p.veille = '';
     if (!objet(p.ev)) p.ev = Object.assign({}, c.ev);
     for (const k of Object.keys(p.ev)) if (!entier(p.ev[k])) p.ev[k] = c.ev[k] != null ? c.ev[k] : 0;
-    if (Fp) for (const cle of Fp.evenements) if (!entier(p.ev[cle])) p.ev[cle] = c.ev[cle];
+    if (Fp) for (const cle of Fp.evenements.concat(Object.keys(Fp.lecteurs || {}))) if (!entier(p.ev[cle])) p.ev[cle] = c.ev[cle]; // (les lecteurs remis d'aplomb comme les paliers)
     if (p.dus != null && !(objet(p.dus) && typeof p.dus.id === 'string' && Array.isArray(p.dus.lots))) p.dus = null;
     if (p.dus === undefined) p.dus = null;
     return p;
@@ -141,7 +143,7 @@
   // ─── la piste ───
   const N = (F) => (F ? F.crans.length : 0);
   const crans = (st) => { const p = st && st.piste, F = p && fiche(p.id); return F ? Math.min(N(F), Math.floor(p.xp / F.xpCran)) : 0; }; // les crans atteints
-  const recu = (p, n) => n >= 1 && n <= 30 && (p.recus & (1 << (n - 1))) !== 0;
+  const recu = (p, n) => n >= 1 && n <= 50 && Math.floor(p.recus / 2 ** (n - 1)) % 2 === 1; // (arithmétique : jusqu’à 50 crans ; une piste d’automne, < 2 ** 22, se lit à l’identique)
   function titre(st) { // { xp (le seuil), atteint, recu, distinction, nom, reste }
     const p = st && st.piste, F = p && fiche(p.id);
     if (!F || !F.titre) return { xp: Infinity, atteint: false, recu: false, distinction: null, nom: '', reste: Infinity };
@@ -161,7 +163,7 @@
     const p = st && st.piste, F = p && fiche(p.id); if (!F || !Number.isInteger(n)) return null;
     if (n === N(F) + 1) { if (!F.titre || p.xp < F.xpTitre || p.titre === 1) return null; p.titre = 1; return lotDe(F, n); }
     if (n < 1 || n > crans(st) || recu(p, n)) return null;
-    p.recus |= 1 << (n - 1); return lotDe(F, n);
+    p.recus += 2 ** (n - 1); return lotDe(F, n);
   }
   const toutRecevoir = (st) => aRecevoir(st).map((n) => recevoir(st, n)).filter(Boolean); // « Tout recevoir » : les lots, dans l'ordre
   // verser un lot dans la boulangerie (G : GAME) ; rend ce qui a été donné, pour la feuille. Les décos et le trophée : rien à verser (possede)
@@ -210,6 +212,8 @@
     if (c.sem && p.sem !== c.sem) { crediter('defi', 1); p.sem = c.sem; }
     // les paliers d'événement
     for (const cle of F.evenements) { const n = c.ev[cle] || 0, avant = entier(p.ev[cle]) ? p.ev[cle] : 0; if (n > avant) { crediter('palier', n - avant); j.p += n - avant; } p.ev[cle] = Math.max(avant, n); }
+    // les lecteurs de la fiche (l'Avent en hiver) : l'augmentation du compteur, une fois (le marqueur p.ev[source]) ; ouverts aujourd'hui dans j.a
+    for (const cle of Object.keys(F.lecteurs || {})) { const n = c.ev[cle] || 0, avant = entier(p.ev[cle]) ? p.ev[cle] : 0; if (n > avant) { crediter(cle, n - avant); j.a += n - avant; } p.ev[cle] = Math.max(avant, n); }
     // l'arrière-salle
     if (c.k > j.k) { const n = Math.min(c.k, cap('casino')) - Math.min(j.k, cap('casino')); crediter('casino', n); j.k = c.k; }
     const apres = crans(st); for (let n = avantC + 1; n <= apres; n++) out.nouveaux.push(n);
@@ -220,10 +224,10 @@
   function restes(st, now) {
     const p = st && st.piste, F = p && fiche(p.id); if (!F) return [];
     const S = F.sources || SOURCES, auj = dayKey(now), j = p.j && p.j.d === auj ? p.j : jVide(auj);
-    return ORDRE.filter((k) => S[k]).map((k) => {
+    return ORDRE.concat(Object.keys(F.lecteurs || {})).filter((k) => S[k]).map((k) => {
       const s = S[k]; let fait = 0, max = null;
       if (k === 'objectif') { fait = Math.min(j.o, s.parJour); max = s.parJour; } else if (k === 'journee') { fait = j.c; max = 1; } else if (k === 'serie') { fait = j.s; max = 1; } else if (k === 'casino') { fait = Math.min(j.k, s.parJour); max = s.parJour; }
-      else if (k === 'defi') { const sm = objet(st.semaine) ? st.semaine : null; fait = sm && sm.key && p.sem === sm.key ? 1 : 0; max = 1; } else if (k === 'palier') { fait = j.p; max = null; }
+      else if (k === 'defi') { const sm = objet(st.semaine) ? st.semaine : null; fait = sm && sm.key && p.sem === sm.key ? 1 : 0; max = 1; } else if (k === 'palier') { fait = j.p; max = null; } else if (F.lecteurs && F.lecteurs[k]) { fait = entier(j.a) ? j.a : 0; max = null; }
       return { id: k, nom: s.nom, txt: s.txt, xp: s.xp, fait, max, reste: max == null ? null : Math.max(0, max - fait), parSemaine: !!s.parSemaine };
     });
   }
@@ -254,6 +258,6 @@
   const finDue = (st) => (st && objet(st.piste) && st.piste.dus) || null; // la feuille de fin à montrer (et ses lots à distribuer), ou null
   function recevoirFin(st) { const d = finDue(st); if (d) st.piste.dus = null; return d; } // montrée et distribuée : effacée
 
-  return { SOURCES, ORDRE, FICHES, PISTE: Object.freeze({ v: 1, cle: 'piste', maxCrans: 30 }), ajouter, fiche, active, etat, reparer, pas, crans, aRecevoir, recevoir, toutRecevoir,
+  return { SOURCES, ORDRE, FICHES, PISTE: Object.freeze({ v: 1, cle: 'piste', maxCrans: 50 }), ajouter, fiche, active, etat, reparer, pas, crans, aRecevoir, recevoir, toutRecevoir,
     verser, titre, fin, finDue, recevoirFin, possede, restes, vue, parisMs, dayKey, paris };
 });

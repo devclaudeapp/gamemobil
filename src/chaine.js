@@ -360,15 +360,22 @@
   const OBTENIR_TENUE = { base: 'Offerte dès le début', or: 'La 1re place du classement de la semaine', argent: 'La 2e place du classement de la semaine', bronze: 'La 3e place du classement de la semaine',
     quartier: 'Le Quartier, paliers 3, 6, 9 et 12', 'quartier-or': 'Le podium final du Quartier', 'quartier-neon': 'Le Quartier, palier 20', parcours: 'Le parcours du boulanger : boutiques n°11, 17, 23 et 29',
     hantee: 'La Maison hantée, paliers 3, 5, 7 et 9', 'hantee-or': 'Le podium final de la Maison hantée', 'hantee-lueur': 'La Maison hantée, palier 20', chaine: 'La boutique des jetons : 60 jetons', apprenti: 'L’objectif du premier jour',
-    marche: 'Le Marché d’automne, paliers 3, 5, 7 et 9', 'marche-or': 'Le podium final du Marché d’automne', 'marche-couronne': 'Le Marché d’automne, palier 20', automne: 'La saison d’automne 2026, crans 5, 9, 13 et 17' };
+    marche: 'Le Marché d’automne, paliers 3, 5, 7 et 9', 'marche-or': 'Le podium final du Marché d’automne', 'marche-couronne': 'Le Marché d’automne, palier 20', automne: 'La saison d’automne 2026, crans 5, 9, 13 et 17', avent: 'Le calendrier de l’Avent, cases 5, 11, 17 et 24' };
   const TITRES_PARCOURS = { 16: 'Boulanger de quartier', 22: 'Fournisseur officiel', 28: 'Grand maître du fournil', 30: 'Légende du Fournil' };
   const decosDe = (st, k) => { const q = st && st[k]; return q && typeof q === 'object' && Array.isArray(q.decos) ? q.decos : []; };
   // le moteur des saisons (src/saison.js, chargé après ce module dans la page : lu à l'appel ; dans Node, demandé avec sa fiche d'automne)
   let S_ = null;
   const saisons = () => {
     if (typeof SAISONS !== 'undefined') return SAISONS; // eslint-disable-line no-undef
-    if (!S_ && typeof module === 'object' && module.exports && typeof require === 'function') { try { S_ = require('./saison.js'); require('./saison-automne.js'); } catch (e) { S_ = null; } }
+    if (!S_ && typeof module === 'object' && module.exports && typeof require === 'function') { try { S_ = require('./saison.js'); require('./saison-automne.js'); require('./saison-hiver.js'); } catch (e) { S_ = null; } }
     return S_;
+  };
+  // le calendrier de l'Avent (src/avent.js, chargé après ce module dans la page : lu à l'appel ; dans Node, demandé)
+  let A_ = null;
+  const avent = () => {
+    if (typeof AVENT !== 'undefined') return AVENT; // eslint-disable-line no-undef
+    if (!A_ && typeof module === 'object' && module.exports && typeof require === 'function') { try { A_ = require('./avent.js'); } catch (e) { A_ = null; } }
+    return A_;
   };
   const FAMILLES = [
     { id: 'quartier', nom: 'Le Quartier', posable: true, items: [
@@ -434,6 +441,24 @@
       { id: 'lanterne-automne', nom: 'La lanterne d’automne', place: 'comptoir', mesure: 2, lueur: true, obtenir: 'La saison d’automne 2026, cran 15' },
       { id: 'epouvantail', nom: 'L’épouvantail', place: 'sol', mesure: 2, anime: true, obtenir: 'La saison d’automne 2026, cran 19' },
       { id: 'trophee-automne-2026', nom: 'Le trophée de la saison d’automne 2026', place: 'comptoir', mesure: 1, obtenir: 'La saison d’automne 2026, cran 22 : le trophée de fin de saison' },
+    ], possede: (st, id) => { const S = saisons(); return !!(S && S.possede(st, id)); } },
+    // le point 7 (docs/noel-contrat.md § 3.5, § 7.1) : le calendrier de l'Avent 2026 (src/avent.js : ses cases ; AVENT.possede, par le masque, à vie)
+    // et la saison d'hiver 2026 (src/saison-hiver.js : la piste ; SAISONS.possede). Ajoutées en dernier : le code des photos (ORDRE) ne change pas
+    { id: 'avent', nom: 'Le calendrier de l’Avent 2026', posable: true, items: [
+      { id: 'couronne-avent', nom: 'La couronne de l’Avent', place: 'comptoir', mesure: 2, lueur: true, obtenir: 'Le calendrier de l’Avent, case 2' },
+      { id: 'chaussettes', nom: 'La guirlande de chaussettes', place: 'rebord', mesure: 1, obtenir: 'Le calendrier de l’Avent, case 8' },
+      { id: 'village-noel', nom: 'Le village de Noël', place: 'comptoir', mesure: 2, lueur: true, obtenir: 'Le calendrier de l’Avent, case 12' },
+      { id: 'bonhomme-neige', nom: 'Le bonhomme de neige', place: 'sol', mesure: 1, obtenir: 'Le calendrier de l’Avent, case 15' },
+      { id: 'boule-neige', nom: 'La boule à neige', place: 'comptoir', mesure: 1, obtenir: 'Le calendrier de l’Avent, case 18' },
+    ], possede: (st, id) => { const A = avent(); return !!(A && A.possede(st, id)); } },
+    { id: 'piste-hiver', nom: 'La saison d’hiver 2026', posable: true, items: [
+      { id: 'luge', nom: 'La luge de bois', place: 'sol', mesure: 1, obtenir: 'La saison d’hiver 2026, cran 5' },
+      { id: 'lanterne-givre', nom: 'La lanterne givrée', place: 'comptoir', mesure: 2, lueur: true, obtenir: 'La saison d’hiver 2026, cran 11' },
+      { id: 'guirlande-givre', nom: 'La guirlande de flocons', place: 'rebord', mesure: 2, lueur: true, obtenir: 'La saison d’hiver 2026, cran 17' },
+      { id: 'traineau', nom: 'Le traîneau chargé de paquets', place: 'sol', mesure: 1, obtenir: 'La saison d’hiver 2026, cran 23' },
+      { id: 'cheminee', nom: 'La cheminée et ses bûches', place: 'mur', mesure: 2, lueur: true, obtenir: 'La saison d’hiver 2026, cran 29' },
+      { id: 'patins', nom: 'Les patins à glace', place: 'mur', mesure: 1, obtenir: 'La saison d’hiver 2026, cran 35' },
+      { id: 'trophee-hiver-2026', nom: 'Le trophée de la saison d’hiver 2026', place: 'comptoir', mesure: 1, obtenir: 'La saison d’hiver 2026, cran 46 : le trophée de fin de saison' },
     ], possede: (st, id) => { const S = saisons(); return !!(S && S.possede(st, id)); } },
   ];
   // (les trophées et les skins du casino s'ajoutent quand src/casino.js est chargé : CASINO.TROPHEES, CASINO.SKINS ; voir familleCasino)

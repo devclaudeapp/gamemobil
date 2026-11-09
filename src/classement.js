@@ -194,6 +194,7 @@
   TITRES['main-de-velours'] = 'Main de velours'; // lot 7 : dix victoires de suite dans l'arrière-salle (src/casino.js)
   TITRES['legende-marche'] = 'Légende du Marché'; // le 20e palier du Marché d'automne (src/marche.js)
   TITRES['feuille-or-2026'] = 'Feuille d’or 2026'; // le titre de la saison d'automne 2026 (src/saison-automne.js)
+  TITRES['flocon-or-2026'] = 'Flocon d’or 2026'; // le titre de la saison d'hiver 2026 (src/saison-hiver.js)
   const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
