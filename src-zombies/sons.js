@@ -72,7 +72,7 @@ const ZSONS = (() => {
   const estBoss = (t) => typeof ZDONNEES !== 'undefined' && !!(ZDONNEES.ZOMBIES[t] && ZDONNEES.ZOMBIES[t].boss);
   let moi = null;
   function ecoute(x, z, portee) { if (!moi) return [1, 0]; const dx = x - moi.x, dz = z - moi.z, d = Math.hypot(dx, dz); if (d > portee) return [0, 0]; const k = 1 - d / portee; return [k * k, Math.max(-1, Math.min(1, dx / 12))]; }
-  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0, droneT = 0;
+  let piecesT = 0, toucheT = 0, critT = 0, souffleT = 0, souffleZT = 0, zapT = 0, ricT = 0, droneT = 0, compT = 0;
   function evenements(evs, jeu, idMoi, dt) {
     moi = jeu.joueurs.find((j) => j.id === idMoi) || null;
     // un grognement de temps en temps, plus souvent quand ils sont nombreux et proches
@@ -103,6 +103,7 @@ const ZSONS = (() => {
         case 'tombe': if (e.id === idMoi) { P.jouer('mort', 0.9); P.vibrer([70, 40, 90]); } break;
         case 'ramasse':
           if (e.id !== idMoi) break;
+          if (e.quoi === 'flocon') { P.jouer('ding', 0.4, 0, 1.6); break; }
           if (e.quoi === 'ferraille') { const t = performance.now(); if (t - piecesT > 45) { piecesT = t; jouer('piece', 0.9, 0, 1 + Math.min(0.5, (e.valeur - 1) * 0.08)); } }
           else if (e.quoi === 'soin') P.jouer('soin', 0.9);
           else if (e.quoi === 'caisse') { P.jouer('munitions', 0.9); P.vibrer(20); }
@@ -160,6 +161,9 @@ const ZSONS = (() => {
         case 'capacite': { const mien = e.id === idMoi; if (e.cap === 'artillerie') { jouer('roquette', mien ? 0.8 : 0.4, 0, 0.6); P.jouer('manche', mien ? 0.5 : 0.25); } else if (e.cap === 'soin') P.jouer('soin', mien ? 1 : 0.5); else if (e.cap === 'rage') { jouer('grogne', mien ? 1 : 0.5, 0, 1.5); jouer('serie', 0.8, 0, 0.7); } else if (e.cap === 'drone') { jouer('tesla', mien ? 0.6 : 0.3); jouer('serie', 0.6, 0, 1.6); } break; }
         case 'drone': { const t = performance.now(); if (t - droneT > 110) { droneT = t; const p0 = e.pts && e.pts[0], [k, p] = p0 ? ecoute(p0[0], p0[1], 22) : [0, 0]; if (k > 0.05) jouer(e.arc ? 'tesla' : 'laser', 0.3 * k, p); } break; }
         // le Lot 5d : le train (la sonnerie, puis le passage), l'armoire à pharmacie
+        // le Lot 5e : les compagnons (une morsure, un coup de bec, un tir), le cadeau ouvert, le flocon ramassé
+        case 'compagnon': { const t = performance.now(); if (t - compT > 140) { compT = t; const [k, p] = ecoute(e.x, e.z, 18); if (k > 0.05) { if (e.type === 'robot') jouer('laser', 0.25 * k, p); else if (e.type === 'corbeau') P.jouer('ploc', 0.4 * k, p, 1.5); else jouer('splat', 0.3 * k, p, 1.4); } } break; }
+        case 'cadeau': if (e.id === idMoi) { jouer('serie', 1, 0, 1.3); P.jouer('mancheFin', 0.5); P.vibrer([20, 30, 20]); } break;
         case 'trainAlerte': jouer('vague', 0.7, 0, 1.6); P.jouer('ding', 0.6, 0, 1.4); setTimeout(() => P.jouer('ding', 0.6, 0, 1.4), 400); P.vibrer([20, 80, 20]); break;
         case 'train': { const [k, p] = moi ? ecoute(moi.x, e.z, 30) : [1, 0]; jouer('roquette', 0.6 + 0.4 * k, p, 0.5); jouer('boum', 0.5 * k + 0.2, p, 0.5); if (k > 0.5) P.vibrer(60); break; }
         case 'renverse': if (e.id === idMoi) { jouer('casse', 1); P.vibrer([80, 40, 80]); } break;

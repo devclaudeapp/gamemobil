@@ -376,6 +376,7 @@ const ZRENDU = (() => {
           const course = zb.type === 'coureur' && zb.bouge, clip = zb.attaque > 0 ? 'pick-up' : !zb.bouge ? 'idle' : course ? 'sprint' : 'walk';
           if (clip !== r.clip) { r.clip = clip; r.t = clip === 'pick-up' ? 0 : r.t; }
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
+          if (jeu.noel && nBonnet < MAX_Z && !(age < 0.7)) bonnet(nBonnet++, zb.x, y, zb.z, zb.angle, Zd.taille * (zb.elite ? 1.3 : 1), temps + zb.id); // (Noël : le bonnet rouge)
           if (ACC[zb.type] && zb.type !== 'fouisseur' && (zb.type !== 'blinde' || zb.bouclier > 0)) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
           if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.poison > 0 ? 5 : zb.excite > 0 ? 4 : 0);
           if (zb.etourdi > 0 && Math.random() < dt * 8) { const b = temps * 8 + zb.id; particule(zb.x + Math.cos(b) * 0.4, 2.3 * Zd.taille, zb.z + Math.sin(b) * 0.4, 0, 0.3, 0, 0.35, 0.09, '#FFE84A', 0); } // (étourdi : des étoiles)
@@ -392,6 +393,7 @@ const ZRENDU = (() => {
       }
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
       for (const k in ACC) { ACC[k].count = nAcc[k] || 0; ACC[k].instanceMatrix.needsUpdate = true; }
+      for (const m of BONNET) { m.count = nBonnet; m.instanceMatrix.needsUpdate = true; } nBonnet = 0;
       if (KZ) { const comptes = dessinerMorceaux(nk, dt); KZ.inst.forEach((m, p) => { m.count = comptes[p]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }); }
     }
 
@@ -433,6 +435,14 @@ const ZRENDU = (() => {
       else if (type === 'geolier') { _ao.set(x - sa * -0.5 * k + ca * 0.1, y + 0.35, z + ca * -0.5 * k + sa * 0.1); _q.setFromEuler(_e.set(temps, temps * 0.7, 0)); }
       else { _ao.set(x, 0.04, z); _q.setFromEuler(_e.set(0, temps * 1.5, 0)); }
       _s.set(1, 1, 1); _base.compose(_ao, _q, _s); m.setMatrixAt(i, _base);
+    }
+    // Noël (Lot 5e) : le bonnet rouge des zombies (un cône, son revers blanc, son pompon), posé sur la tête, un peu en avant
+    const mkBonnet = (geo, c) => { const m = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ color: c }), MAX_Z); m.frustumCulled = false; m.count = 0; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); return m; };
+    const BONNET = [mkBonnet(new T.ConeGeometry(0.2, 0.42, 8).translate(0, 0.21, 0).rotateZ(-0.35), '#D8283A'), mkBonnet(new T.CylinderGeometry(0.23, 0.23, 0.09, 10), '#F4F4F4'), mkBonnet(new T.SphereGeometry(0.075, 6, 5).translate(0.14, 0.4, 0), '#FFFFFF')];
+    let nBonnet = 0;
+    function bonnet(i, x, y, z, a, k, t) { const e = k * ECHELLE, ca = Math.cos(a), sa = Math.sin(a);
+      _ao.set(x + ca * 0.12 * e, y + 1.5 * e + Math.abs(Math.sin(t * 4)) * 0.02, z + sa * 0.12 * e); _q.setFromEuler(_e.set(0, -a, 0)); _s.set(e, e, e); _base.compose(_ao, _q, _s);
+      for (const m of BONNET) m.setMatrixAt(i, _base);
     }
     function poserKenney(i, type, x, y, z, a, clip, t, flash, etat) {
       const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille * (etat === 3 ? 1.3 : 1), large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
@@ -662,11 +672,65 @@ const ZRENDU = (() => {
       for (const [id, s] of survivants) if (!vus.has(id)) { scene.remove(s.g); survivants.delete(id); }
     }
 
+    // ─── les compagnons (Lot 5e) : des modèles faits main, tournés vers +x ; parties animées : pattes, queue, ailes, antenne ───
+    function compagnonMesh(type) {
+      const g = new T.Group(), F = new Fab(), parts = {}, mk = (geo, c, x, y, z) => { const m = new T.Mesh(geo, new T.MeshLambertMaterial({ color: c, flatShading: true })); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+      if (type === 'chien' || type === 'chat' || type === 'renne') {
+        const c = type === 'chien' ? '#B07A45' : type === 'chat' ? '#F2A65A' : '#A0703A', k = type === 'renne' ? 1.35 : type === 'chat' ? 0.8 : 1;
+        F.add(BOITE, c, mat(0, 0.45 * k, 0, 0, 0.7 * k, 0.3 * k, 0.3 * k), 0.05, 61); F.add(BOITE, c, mat(0.42 * k, 0.62 * k, 0, 0, 0.3 * k, 0.26 * k, 0.26 * k), 0.05, 62);
+        F.add(BOITE, type === 'chat' ? '#FFF2E0' : '#E8D2B0', mat(0.6 * k, 0.56 * k, 0, 0, 0.12 * k, 0.12 * k, 0.16 * k)); F.add(BOITE, type === 'renne' ? '#E0283A' : '#2A2A2A', mat(0.67 * k, 0.6 * k, 0, 0, 0.05 * k, 0.07 * k, 0.07 * k));
+        for (const sg of [-1, 1]) F.add(BOITE, '#1A1A1A', mat(0.55 * k, 0.68 * k, sg * 0.07 * k, 0, 0.03, 0.05 * k, 0.04 * k));
+        if (type === 'chien') for (const sg of [-1, 1]) F.add(BOITE, '#7A5030', mat(0.38 * k, 0.74 * k, sg * 0.12 * k, 0.3 * sg, 0.08, 0.18, 0.1));
+        if (type === 'chat') for (const sg of [-1, 1]) F.add(new T.ConeGeometry(0.06, 0.14, 4), c, mat(0.42 * k, 0.8 * k, sg * 0.08, 0));
+        if (type === 'renne') for (const sg of [-1, 1]) { F.add(BOITE, '#E8D8B0', mat(0.36 * k, 0.95 * k, sg * 0.12, 0, 0.04, 0.32, 0.04)); F.add(BOITE, '#E8D8B0', mat(0.42 * k, 1.05 * k, sg * 0.18, 0, 0.18, 0.04, 0.04)); F.add(BOITE, '#E8D8B0', mat(0.3 * k, 1.08 * k, sg * 0.16, 0, 0.04, 0.12, 0.04)); }
+        const corps = new T.Mesh(F.geo(), matVC); corps.castShadow = true; g.add(corps); parts.corps = corps;
+        parts.pattes = [[0.22, 0.12], [0.22, -0.12], [-0.22, 0.12], [-0.22, -0.12]].map(([x, z]) => { const m = mk(new T.BoxGeometry(0.08 * k, 0.32 * k, 0.08 * k).translate(0, -0.16 * k, 0), c, x * k, 0.34 * k, z * k); return m; });
+        parts.queue = mk(new T.BoxGeometry(0.06, type === 'chat' ? 0.34 : 0.22, 0.06).translate(0, type === 'chat' ? 0.17 : 0.11, 0), type === 'renne' ? '#F2EDE4' : c, -0.36 * k, 0.52 * k, 0); parts.queue.rotation.z = type === 'chat' ? 0.2 : 0.9;
+        g.userData.sol = true;
+      } else if (type === 'corbeau') {
+        F.add(BOITE, '#2E2E36', mat(0, 0, 0, 0, 0.42, 0.18, 0.18), 0.05, 63); F.add(BOITE, '#2E2E36', mat(0.25, 0.06, 0, 0, 0.16, 0.15, 0.14)); F.add(new T.ConeGeometry(0.04, 0.14, 4), '#E8B830', mat(0.38, 0.05, 0, 0, 1, 1, 1, 0, -Math.PI / 2)); F.add(BOITE, '#2E2E36', mat(-0.28, 0.02, 0, 0, 0.18, 0.04, 0.16));
+        F.add(BOITE, '#FFFFFF', mat(0.3, 0.1, 0.06, 0, 0.03, 0.03, 0.03)); F.add(BOITE, '#FFFFFF', mat(0.3, 0.1, -0.06, 0, 0.03, 0.03, 0.03));
+        const corps = new T.Mesh(F.geo(), matVC); corps.castShadow = true; g.add(corps); parts.corps = corps;
+        parts.ailes = [-1, 1].map((sg) => { const m = mk(new T.BoxGeometry(0.26, 0.03, 0.34).translate(0, 0, sg * 0.17), '#3A3A44', 0, 0.04, sg * 0.06); m.userData.sg = sg; return m; });
+      } else { // le petit robot
+        F.add(BOITE, '#7FA8C8', mat(0, 0, 0, 0, 0.42, 0.36, 0.42), 0.04, 64); F.add(BOITE, '#2A3440', mat(0.215, 0.04, 0, 0, 0.02, 0.16, 0.3)); F.add(BOITE, '#5AE0FF', mat(0.225, 0.04, 0, 0, 0.02, 0.06, 0.2));
+        F.add(BOITE, '#4A5A6A', mat(0.12, -0.12, 0.25, 0, 0.26, 0.08, 0.08)); F.add(BOITE, '#4A5A6A', mat(0.12, -0.12, -0.25, 0, 0.26, 0.08, 0.08)); F.add(BOITE, '#4A5A6A', mat(0, 0.24, 0, 0, 0.03, 0.14, 0.03));
+        const corps = new T.Mesh(F.geo(), matVC); corps.castShadow = true; g.add(corps); parts.corps = corps;
+        parts.voyant = mk(new T.SphereGeometry(0.05, 8, 6), '#FF5A4A', 0, 0.33, 0); parts.voyant.material = new T.MeshBasicMaterial({ color: '#FF5A4A' });
+      }
+      g.scale.setScalar(ECHELLE * 1.1); return { g, parts, type };
+    }
+    const compagnons3d = new Map();
+    function majCompagnons(jeu, dt) {
+      const t = performance.now() / 1000, vus = new Set();
+      for (const c of jeu.compagnons || []) {
+        vus.add(c.id); let o = compagnons3d.get(c.id);
+        if (!o || o.type !== c.type) { if (o) scene.remove(o.g); o = compagnonMesh(c.type); scene.add(o.g); o.ph = 0; compagnons3d.set(c.id, o); }
+        const P = o.parts; o.ph += dt * (c.bouge ? 14 : 3);
+        if (c.type === 'corbeau') { o.g.position.set(c.x, 2.0 + Math.sin(t * 3 + c.id) * 0.15 - (c.attaque > 0 ? 0.9 : 0), c.z); for (const a of P.ailes) a.rotation.x = a.userData.sg * Math.sin(t * 18) * 0.7; }
+        else if (c.type === 'robot') { o.g.position.set(c.x, 1.1 + Math.sin(t * 2.5 + c.id) * 0.1, c.z); P.voyant.material.color.set(c.attaque > 0 || Math.floor(t * 2) % 2 ? '#FF5A4A' : '#5A1A1A'); }
+        else { o.g.position.set(c.x, c.bouge ? Math.abs(Math.sin(o.ph)) * 0.06 : 0, c.z); P.pattes.forEach((p, i) => { p.rotation.z = c.bouge ? Math.sin(o.ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0; }); P.queue.rotation.x = Math.sin(t * (c.type === 'chien' ? 14 : 4)) * 0.5; if (c.attaque > 0) P.corps.rotation.z = -0.2; else P.corps.rotation.z = 0; }
+        o.g.rotation.y = -c.a;
+      }
+      for (const [id, o] of compagnons3d) if (!vus.has(id)) { scene.remove(o.g); compagnons3d.delete(id); }
+    }
+    // la neige de Noël : des flocons qui tombent doucement autour de la caméra
+    const neige = new T.InstancedMesh(new T.BoxGeometry(0.07, 0.07, 0.07), new T.MeshBasicMaterial({ color: '#FFFFFF' }), 260); neige.frustumCulled = false; neige.visible = false; scene.add(neige);
+    const flocons = []; for (let i = 0; i < 260; i++) flocons.push({ x: (Math.random() - 0.5) * 40, y: Math.random() * 14, z: (Math.random() - 0.5) * 30, v: 0.8 + Math.random() * 0.8, p: Math.random() * 6 });
+    function majNeige(jeu, dt) {
+      neige.visible = !!jeu.noel; if (!neige.visible) return; const t = performance.now() / 1000;
+      flocons.forEach((f, i) => { f.y -= f.v * dt; if (f.y < 0) { f.y += 14; f.x = (Math.random() - 0.5) * 40; f.z = (Math.random() - 0.5) * 30; } _base.makeTranslation(cam.x + f.x + Math.sin(t + f.p) * 0.5, f.y, cam.z + f.z); neige.setMatrixAt(i, _base); });
+      neige.instanceMatrix.needsUpdate = true;
+    }
+
     // ─── la ferraille au sol : un maillage instancié (écrous et plaques) ───
     const geoFerraille = (() => { const F = new Fab(); F.add(cyl(0.16, 0.16, 0.08, 6), '#9AA1AA', mat(0, 0.06, 0)); F.add(cyl(0.07, 0.07, 0.1, 6), '#59606A', mat(0, 0.07, 0)); F.add(BOITE, '#B07A45', mat(0.12, 0.05, 0.08, 0.6, 0.2, 0.05, 0.12)); return F.geo(); })();
     const ferraille = new T.InstancedMesh(geoFerraille, matVC, MAX_FERRAILLE); ferraille.instanceMatrix.setUsage(T.DynamicDrawUsage); ferraille.frustumCulled = false; ferraille.count = 0; ferraille.castShadow = true; scene.add(ferraille);
     // les objets rares (caisses d'armes, soins) : une petite réserve
     const geoCaisse = (() => { const F = new Fab(); F.add(BOITE, '#3F5E3A', mat(0, 0.32, 0, 0, 0.9, 0.62, 0.6), 0.04, 5); F.add(BOITE, '#F2C230', mat(0, 0.32, 0, 0, 0.92, 0.12, 0.62)); F.add(BOITE, '#2B3A28', mat(0, 0.66, 0, 0, 0.94, 0.08, 0.64)); return F.geo(); })();
+    // Noël (Lot 5e) : le cadeau (une boîte rouge, son ruban doré et son nœud), le flocon (une étoile bleutée qui luit)
+    const geoCadeau = (() => { const F = new Fab(); F.add(BOITE, '#D8283A', mat(0, 0.28, 0, 0, 0.56, 0.56, 0.56), 0.04, 51); F.add(BOITE, '#F2C230', mat(0, 0.28, 0, 0, 0.58, 0.58, 0.12)); F.add(BOITE, '#F2C230', mat(0, 0.28, 0, 0, 0.12, 0.58, 0.58)); F.add(BOITE, '#F2C230', mat(0.1, 0.62, 0, 0.6, 0.22, 0.12, 0.08)); F.add(BOITE, '#F2C230', mat(-0.1, 0.62, 0, -0.6, 0.22, 0.12, 0.08)); return F.geo(); })();
+    const geoFlocon = (() => { const g = new T.OctahedronGeometry(0.22, 0); g.translate(0, 0.45, 0); return g; })(), matFlocon = new T.MeshBasicMaterial({ color: '#CFEFFF' });
     const geoSoin = (() => { const F = new Fab(); F.add(BOITE, '#F4F1EA', mat(0, 0.25, 0, 0, 0.5, 0.4, 0.42)); F.add(BOITE, '#D9443B', mat(0, 0.46, 0, 0, 0.12, 0.03, 0.34)); F.add(BOITE, '#D9443B', mat(0, 0.46, 0, 0, 0.34, 0.03, 0.12)); F.add(BOITE, '#D9443B', mat(0.26, 0.25, 0, 0, 0.02, 0.28, 0.1)); return F.geo(); })();
     const matFaisceau = new T.MeshBasicMaterial({ color: '#FFE27A', transparent: true, opacity: 0.28, depthWrite: false, blending: T.AdditiveBlending });
     const geoFaisceau = cyl(0.35, 0.5, 6, 10, true).translate(0, 3, 0);
@@ -684,7 +748,7 @@ const ZRENDU = (() => {
         scene.add(g); o = { type, g, m, socle, pris: false }; reserveObjets.push(o);
       }
       if (!o) {
-        const g = new T.Group(), m = new T.Mesh(type === 'soin' ? geoSoin : geoCaisse, matVC); m.castShadow = true; g.add(m);
+        const g = new T.Group(), m = new T.Mesh(type === 'soin' ? geoSoin : type === 'cadeau' ? geoCadeau : type === 'flocon' ? geoFlocon : geoCaisse, type === 'flocon' ? matFlocon : matVC); m.castShadow = type !== 'flocon'; g.add(m);
         if (type === 'caisse' || type === 'caisseRare') { const f = new T.Mesh(geoFaisceau, type === 'caisseRare' ? matFaisceauRare : matFaisceau); if (type === 'caisseRare') f.scale.set(1.3, 1.6, 1.3); g.add(f); }
         scene.add(g); o = { type, g, m, pris: false }; reserveObjets.push(o);
       }
@@ -703,7 +767,7 @@ const ZRENDU = (() => {
           const r = objetRare('bonus:' + o.bonus); r.g.position.set(o.x, Math.sin(t * 3 + o.id) * 0.1, o.z); r.m.rotation.y = t * 2; r.socle.scale.setScalar(1 + Math.sin(t * 5) * 0.08);
           r.g.visible = !(o.age > D.BONUS_CHANCE.dure - 3 && Math.floor(o.age * 7) % 2 === 0);
         } else {
-          const r = objetRare(o.type === 'caisse' && o.rare ? 'caisseRare' : o.type); r.g.position.set(o.x, Math.sin(t * 2.5 + o.id) * 0.06, o.z); r.m.rotation.y = t * 0.8;
+          const r = objetRare(o.type === 'caisse' && o.rare ? 'caisseRare' : o.type); r.g.position.set(o.x, Math.sin(t * 2.5 + o.id) * 0.06 + (o.type === 'flocon' && o.vole ? 0.4 : 0), o.z); r.m.rotation.y = t * (o.type === 'flocon' ? 3 : 0.8);
         }
       }
       ferraille.count = n; ferraille.instanceMatrix.needsUpdate = true;
@@ -1291,6 +1355,11 @@ const ZRENDU = (() => {
           }
           case 'drone': { const p = e.pts || [], c = e.feu ? '#FFB03A' : e.arc ? '#BFF0FF' : '#9AE6FF'; for (let k = 0; k + 1 < p.length; k++) segment(p[k][0], k ? 1.0 : 2.1, p[k][1], p[k + 1][0], 1.0, p[k + 1][1], e.arc ? 0.06 : 0.045, c, 0.08); if (p.length > 1) particule(p[1][0], 1.0, p[1][1], 0, 1, 0, 0.2, 0.07, c, 0); break; }
           case 'finDrone': for (let n = 0; n < 8; n++) particule(e.x, 2.1, e.z, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 0.4, 0.08, '#9AA3AE', 0.4); break;
+          case 'compagnon':
+            if (e.type === 'robot') segment(e.x, 1.2, e.z, e.cx, 1.0, e.cz, 0.05, '#5AE0FF', 0.07);
+            else for (let n = 0; n < 4; n++) particule(e.cx, 0.9, e.cz, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.3, 0.07, e.type === 'renne' ? '#BFF0FF' : e.type === 'corbeau' ? '#2E2E36' : '#FFE07A', 0.3);
+            break;
+          case 'cadeau': onde(e.x, e.z, 1.6, '#F2C230'); for (let n = 0; n < 18; n++) { const b = Math.random() * 6.28, v = 2 + Math.random() * 3; particule(e.x, 0.6, e.z, Math.cos(b) * v, 2 + Math.random() * 3, Math.sin(b) * v, 0.6, 0.08, ['#D8283A', '#F2C230', '#FFFFFF', '#2EB85C'][n % 4], 0.3); } break;
           case 'train': secousse = Math.max(secousse, 0.35); break;
           case 'renverse': secousse = Math.max(secousse, 0.6); for (let n = 0; n < 12; n++) particule(e.x, 1, e.z, (Math.random() - 0.5) * 5, 2 + Math.random() * 2, (Math.random() - 0.5) * 5, 0.5, 0.1, '#FFE07A', 0.3); break;
           case 'soigne': for (let n = 0; n < 3; n++) particule(e.x + (Math.random() - 0.5) * 0.7, 0.4, e.z + (Math.random() - 0.5) * 0.7, 0, 2, 0, 0.7, 0.1, n % 2 ? '#7FE08A' : '#FFFFFF', 0); break;
@@ -1329,6 +1398,8 @@ const ZRENDU = (() => {
       majDefenses(jeu, dt);
       majProjectiles(jeu);
       majArene5d(jeu, dt);
+      majCompagnons(jeu, dt);
+      majNeige(jeu, dt);
       majTrous(jeu, dt);
       majDrones(jeu, dt);
       majDisquesZones(jeu, dt);
@@ -1398,6 +1469,8 @@ const ZRENDU = (() => {
         if (!MOD.armesPretes) return null;
         const o = MOD.arme(id, 1, opts.finition || null); if (!o) return null;
         objet = new T.Group(); objet.add(o); o.rotation.set(0.12, -Math.PI / 2 + 0.35, 0.18);
+      } else if (type === 'compagnon') { // (Lot 5e) le compagnon fait main, de trois quarts
+        if (!D.COMPAGNONS[id]) return null; const c = compagnonMesh(id); objet = new T.Group(); objet.add(c.g); c.g.rotation.y = -0.6; c.g.position.y = id === 'corbeau' ? 0 : 0;
       } else return null;
       if (!rtP) {
         rtP = new T.WebGLRenderTarget(L * 2, L * 2); if ('colorSpace' in rtP.texture) rtP.texture.colorSpace = T.SRGBColorSpace;

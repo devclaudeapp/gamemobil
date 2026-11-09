@@ -7,7 +7,7 @@
   'use strict';
   const D = ZDONNEES, PAS = 1 / 60, CLE = 'zombies.v1';
   const $ = (s) => document.querySelector(s);
-  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social'), capacites: $('#ecran-capacites') };
+  const ecrans = { titre: $('#ecran-titre'), arenes: $('#ecran-arenes'), pause: $('#ecran-pause'), fin: $('#ecran-fin'), reglages: $('#ecran-reglages'), bunker: $('#ecran-bunker'), salon: $('#ecran-salon'), defi: $('#ecran-defi'), ascension: $('#ecran-ascension'), collection: $('#ecran-collection'), progression: $('#ecran-progression'), modes: $('#ecran-modes'), social: $('#ecran-social'), capacites: $('#ecran-capacites'), noel: $('#ecran-noel') };
 
   // ─── la sauvegarde ───
   function lire() {
@@ -114,7 +114,7 @@
   }
   // ─── la vitrine : dans les menus, la caméra descend en plan rapproché sur ton survivant (la démonstration), posé dans la place libre
   // du titre (à gauche) ou à gauche de la Collection ; en partie, elle remonte au-dessus de l'arène ───
-  const MENUS = new Set(['titre', 'arenes', 'bunker', 'capacites', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
+  const MENUS = new Set(['titre', 'arenes', 'bunker', 'capacites', 'noel', 'collection', 'progression', 'modes', 'social', 'reglages', 'defi', 'ascension', 'salon']);
   function placerVitrine() {
     if (!MENUS.has(ecran) || (jeu && !jeu.fini)) { rendu.vitrine(false); return; }
     const W = window.innerWidth, H = window.innerHeight, paysage = W > H;
@@ -137,6 +137,7 @@
     $('.jouer-arene').textContent = `${A.nom}${r && r.vague ? ` · record : vague ${r.vague}` : ''}`;
     $('.arene-choix-img').style.backgroundImage = `url(vignettes/${arene}.webp)`;
     $('.vitrine-skin').textContent = (D.SURVIVANTS[C.skin] || D.SURVIVANTS.gardien).nom;
+    { const nb = $('#b-noel'); nb.hidden = !noelEnCours(); if (!nb.hidden) nb.querySelector('small').textContent = `${save.noel.flocons} flocon${save.noel.flocons > 1 ? 's' : ''} · la piste ›`; }
     { const cid = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', K = D.CAPACITES[cid]; $('.cap-nom').textContent = K.nom; $('#b-capacites .ico').innerHTML = ZHUD.ICO['cap_' + cid] || ''; $('#b-capacites').style.setProperty('--cc', K.couleur); }
     majBadges();
   }
@@ -180,7 +181,7 @@
   function armeVitrine() { if (!demo) return; const p = demo.joueurs[0], a = D.ARMES[save.collection.vitrine] ? save.collection.vitrine : 'fusil'; p.armes[1] = { id: a, mun: 9999 }; p.main = 1; }
   function demarrer(id, graine) {
     arene = D.ARENES[id] ? id : arene; defi = null; ascension = null; mode = null;
-    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene, graine: graine != null ? graine : (Math.random() * 1e9) | 0, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker), noel: noelEnCours() });
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -221,6 +222,8 @@
     $('.fin-record').textContent = nouvelle ? `${D.ARENES[nouvelle].nom} débloqué !` : 'Nouveau record !';
     if (nouvelle) { save['vu_' + nouvelle] = true; ecrire(); $('.fin-record').hidden = false; }
     finDefi(j);
+    const fl = j.flocons || 0, gainsNoel = fl ? ajouterFlocons(fl) : [];
+    $('.fin-noel').hidden = !fl; if (fl) $('.fin-noel').textContent = `Noël : +${fl} flocon${fl > 1 ? 's' : ''} (${save.noel.flocons} cette saison)${gainsNoel.length ? ' · ' + gainsNoel.join(', ') : ''}`;
     $('#b-rejouer').hidden = !!(partie && !partie.estHote); $('#b-rejouer').textContent = partie ? 'Rejouer ensemble' : 'Rejouer';
     finAscension(); finMode(); if (CL.etat().rejoint) publierProfil('menu').catch(() => {});
     const gainsProg = bilanProgression(j); if (gainsProg) setTimeout(() => ZHUD.toast(gainsProg), 2600);
@@ -262,7 +265,7 @@
     if (!creer && !PRESEAU.codeValide(code)) { erreurSalon('Le code a 4 lettres (des consonnes), par exemple « BRKT ».'); return; }
     save.pseudo = pseudo; ecrire(); erreurSalon(''); $('.salon-etat').hidden = false; $('.salon-etat').textContent = creer ? 'Création du salon…' : `Connexion au salon ${code}…`;
     try {
-      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, capacite: maCapacite(false), skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
+      salon = await ZENLIGNE.ouvrir({ code: creer ? null : code, creer, pseudo, bonus: save.meta.bunker, capacite: maCapacite(false), compagnon: moiJoueur().compagnon, noel: noelEnCours(), skin: save.collection.skin, config: window.ZOMBIES_CONFIG || window.PONCIN_CONFIG });
       salon.sur('maj', majSalon);
       salon.sur('debut', (p) => demarrerPartie(p));
       salon.sur('ferme', (r) => { const l = salon; salon = null; partie = null; if (l) try { l.quitter(); } catch (e) { /* rien */ } if (ecran === 'jeu' || ecran === 'fin' || document.body.dataset.ecran === 'salon') { quitter(); ZHUD.toast(r && r.raison === 'hote' ? 'L’hôte a quitté la partie' : 'Le salon est fermé'); } });
@@ -386,7 +389,7 @@
   }
   function demarrerDefi() {
     const d = defiActuel(); defi = d;
-    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [Object.assign(moiJoueur(), { capacite: maCapacite(true) })] }); // sans les bonus du Bunker ni les talents : la même partie pour tous
+    jeu = ZJEU.creer({ arene: d.arene, graine: d.graine, mod: d.mod, joueurs: [Object.assign(moiJoueur(), { capacite: maCapacite(true), compagnon: null })] }); // sans les bonus du Bunker, les talents ni le compagnon : la même partie pour tous
     demo = null; enPause = false; acc = 0; debut = Date.now();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -428,7 +431,7 @@
   }
   function demarrerAscension(n) {
     const e = ZJEU.echelon(n); ascension = e; defi = null;
-    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker) });
+    jeu = ZJEU.creer({ arene: e.arene, graine: e.graine, mod: e.mod, objectif: e.objectif, meteo: e.meteo, vedettes: e.vedettes, vagueDepart: e.vagueDepart, joueurs: [moiJoueur()], bonus: Object.assign({}, save.meta.bunker), noel: noelEnCours() });
     demo = null; enPause = false; acc = 0; debut = Date.now(); save.ascension.essais++; ecrire();
     ZHUD.reinit(); ZCONTROLES.reinit();
     montrer('jeu');
@@ -450,12 +453,17 @@
   }
 
   // ─── la collection : les survivants (skins), les finitions d'armes, les émotes ───
-  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [] }, save.collection || {});
-  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
-  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme, capacite: maCapacite(false) }; }
+  save.collection = Object.assign({ skin: 'gardien', skins: [], parArme: {}, emotes: [], compagnon: null, compagnons: [], finitionsNoel: [] }, save.collection || {});
+  // Noël (Lot 5e) : les flocons de la saison, les paliers reçus ; ZOMBIES_NOEL (les tests, l'aperçu) l'allume hors saison
+  const saisonNoel = () => { const d = new Date(), m = d.getMonth() + 1; return String(m === 1 ? d.getFullYear() - 1 : d.getFullYear()); };
+  const noelEnCours = () => !!(window.ZOMBIES_NOEL || /[?&]noel=1/.test(location.search) || D.noelActif());
+  save.noel = Object.assign({ saison: saisonNoel(), flocons: 0, recus: [] }, save.noel || {});
+  if (save.noel.saison !== saisonNoel()) save.noel = { saison: saisonNoel(), flocons: 0, recus: [] }; // (une nouvelle saison de Noël : la piste repart de zéro ; ce qu'on a gagné reste)
+  { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !D.EMOTES[k].noel && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
+  function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme, capacite: maCapacite(false), compagnon: C.compagnon && C.compagnons.includes(C.compagnon) ? C.compagnon : null }; }
   function maCapacite(sansTalents) { const id = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', t = (save.capacites.talents[id] || []).slice(0, 3); return { id, t: sansTalents ? [-1, -1, -1] : [0, 1, 2].map((i) => (palierOuvert(id, i) && (t[i] === 0 || t[i] === 1) ? t[i] : -1)) }; }
   const palierOuvert = (id, i) => (save.capacites.usages[id] || 0) >= D.PALIERS_CAPACITE[i];
-  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0));
+  const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0)).concat(save.collection.finitionsNoel || []);
   // où en est un exploit (pour le texte « 3 / 5 ») ; ceux qui sont atteints donnent leur survivant
   function progres(x) {
     const T = save.total; const v = { echelon: save.ascension ? save.ascension.echelon : 1, vague: T.vagueMax || Math.max(0, ...Object.values(save.records).map((r) => r.vague || 0)), boss: T.boss || 0, defis: (T.defisJours || []).length, coop: T.coop || 0, tues: T.tues || 0 };
@@ -505,26 +513,62 @@
       const fins = finitionsEues();
       $('.col-armes').hidden = true;
       $('.col-armes select').innerHTML = Object.keys(D.ARMES).map((a) => `<option value="${a}"${a === armeCol ? ' selected' : ''}>${echap(D.ARMES[a].nom)}${C.parArme[a] ? ' · ' + echap(D.FINITIONS[C.parArme[a]].nom) : ''}</option>`).join('');
-      box.innerHTML = `<div class="col-arme-tete"><button type="button" class="col-retour-armes" data-retour-armes>‹ Toutes les armes</button><b>${echap(D.ARMES[armeCol].nom)}</b></div><button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.map((f, i) => {
+      box.innerHTML = `<div class="col-arme-tete"><button type="button" class="col-retour-armes" data-retour-armes>‹ Toutes les armes</button><b>${echap(D.ARMES[armeCol].nom)}</b></div><button type="button" class="col-carte${!C.parArme[armeCol] ? ' porte' : ''}" data-fin=""><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|"><span class="nom">D’origine</span></button>` + D.ORDRE_FINITIONS.concat(Object.keys(D.FINITIONS).filter((k) => D.FINITIONS[k].noel)).map((f, i) => {
         const F = D.FINITIONS[f], eu = fins.includes(f), porte = C.parArme[armeCol] === f;
         return `<button type="button" class="col-carte${porte ? ' porte' : ''}${eu ? '' : ' verrou secret'}" data-fin="${f}"><img class="col-portrait arme" alt="" data-portrait="arme|${armeCol}|${f}"><span class="nom"><span class="pastille" style="background:${eu ? F.couleur : '#555'}"></span>${eu ? echap(F.nom) : '???'}</span><small>${eu ? (porte ? 'Portée' : 'Appliquer') : `Échelon ${(i + 1) * D.ASCENSION.finitionTous}`}</small></button>`;
       }).join('');
       box.querySelector('[data-retour-armes]').addEventListener('click', () => { vueArmes = 'grille'; PSONS.ui('tap'); remplirCollection(); $('.collection').scrollTop = 0; });
       box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => {
-        const f = b.dataset.fin; if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
+        const f = b.dataset.fin; if (f && !fins.includes(f) && D.FINITIONS[f].noel) { ZHUD.toast('Elle se gagne sur la piste de Noël'); return; }
+        if (f && !fins.includes(f)) { ZHUD.toast(`Se gagne à l’échelon ${(D.ORDRE_FINITIONS.indexOf(f) + 1) * D.ASCENSION.finitionTous} de l’Ascension`); return; }
         if (f) C.parArme[armeCol] = f; else delete C.parArme[armeCol]; C.vitrine = armeCol; ecrire(); apercuArme(); remplirCollection(); PSONS.ui('tap');
       }));
       apercuArme();
+    } else if (ongletCol === 'compagnons') { // les compagnons : sans, ceux qu'on a (choisir), ceux à acheter, le renne (la piste de Noël)
+      box.innerHTML = `<button type="button" class="col-carte${!C.compagnon ? ' porte' : ''}" data-comp=""><span class="signe">✕</span><span class="nom">Sans compagnon</span>${!C.compagnon ? '<b class="porte">Choisi</b>' : '<b>Choisir</b>'}</button>` + D.ORDRE_COMPAGNONS.map((k) => {
+        const K = D.COMPAGNONS[k], eu = C.compagnons.includes(k), pris = C.compagnon === k;
+        const etat = pris ? '<b class="porte">Choisi</b>' : eu ? '<b>Choisir</b>' : K.prix ? `<b class="prix">${ZHUD.ICO.medaille}${K.prix}</b>` : `<small>Piste de Noël (${K.noel} flocons)</small>`;
+        return `<button type="button" class="col-carte${pris ? ' porte' : ''}${eu ? '' : ' verrou'}" data-comp="${k}"><img class="col-portrait" alt="" data-portrait="compagnon|${k}|"><span class="nom">${echap(K.nom)}</span><small class="comp-desc">${echap(K.desc)}</small>${etat}</button>`;
+      }).join('');
+      box.querySelectorAll('[data-comp]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.comp, K = D.COMPAGNONS[k];
+        if (!k) C.compagnon = null;
+        else if (C.compagnons.includes(k)) C.compagnon = k;
+        else if (K.prix) { if (save.meta.medailles < K.prix) { ZHUD.toast('Pas assez de médailles (le Bunker les gagne en jouant)'); PSONS.jouer('refus', 0.6); return; } save.meta.medailles -= K.prix; C.compagnons.push(k); C.compagnon = k; PSONS.jouer('achat', 0.9); }
+        else { ZHUD.toast(`${K.nom} : il se gagne sur la piste de Noël (${K.noel} flocons)`); return; }
+        ecrire(); remplirCollection();
+      }));
     } else {
       box.innerHTML = Object.keys(D.EMOTES).map((k) => { const E = D.EMOTES[k], eu = C.emotes.includes(k); return `<button type="button" class="col-carte${eu ? '' : ' verrou'}" data-emo="${k}"><span class="signe">${E.signe}</span><span class="nom">${echap(E.nom)}</span>${eu ? '<small>À toi</small>' : E.pass ? `<small>Pass, palier ${E.pass}</small>` : `<b class="prix">${ZHUD.ICO.medaille}${E.prix}</b>`}</button>`; }).join('');
       box.querySelectorAll('[data-emo]').forEach((b) => b.addEventListener('click', () => {
         const k = b.dataset.emo, E = D.EMOTES[k]; if (C.emotes.includes(k)) { if (demo) ZJEU.emote(demo, 'moi', k); return; }
         if (E.pass) { ZHUD.toast(`Se gagne au palier ${E.pass} du pass de saison`); return; }
+        if (E.noel) { ZHUD.toast(`Se gagne sur la piste de Noël (${E.noel} flocons)`); return; }
         if (save.meta.medailles < E.prix) { ZHUD.toast('Pas assez de médailles'); PSONS.jouer('refus', 0.6); return; }
         save.meta.medailles -= E.prix; C.emotes.push(k); ecrire(); PSONS.jouer('achat', 0.9); remplirCollection();
       }));
     }
   }
+  // ─── Noël (Lot 5e) : la piste (des paliers de flocons cumulés dans la saison), ses récompenses ───
+  function ajouterFlocons(n) {
+    const N = save.noel, avant = N.flocons; N.flocons += n; const gains = [], C = save.collection;
+    D.NOEL.piste.forEach((P, i) => {
+      if (N.recus.includes(i) || N.flocons < P.flocons) return; N.recus.push(i);
+      if (P.finition && !C.finitionsNoel.includes(P.finition)) { C.finitionsNoel.push(P.finition); gains.push(`la finition ${D.FINITIONS[P.finition].nom}`); }
+      if (P.emote && !C.emotes.includes(P.emote)) { C.emotes.push(P.emote); gains.push(`l’émote ${D.EMOTES[P.emote].signe}`); }
+      if (P.medailles) { save.meta.medailles += P.medailles; gains.push(`${P.medailles} médailles`); }
+      if (P.compagnon && !C.compagnons.includes(P.compagnon)) { C.compagnons.push(P.compagnon); gains.push(D.COMPAGNONS[P.compagnon].nom); }
+    });
+    void avant; ecrire(); return gains;
+  }
+  function remplirNoel() {
+    const N = save.noel, max = D.NOEL.piste[D.NOEL.piste.length - 1].flocons;
+    $('.noel-flocons').textContent = `${N.flocons} flocon${N.flocons > 1 ? 's' : ''} cette saison`;
+    $('.noel-barre i').style.width = `${Math.min(100, N.flocons / max * 100)}%`;
+    $('.noel-piste').innerHTML = D.NOEL.piste.map((P, i) => `<li class="${N.recus.includes(i) ? 'recu' : N.flocons >= P.flocons ? 'pret' : ''}"><b>${P.flocons}</b><span>${echap(P.texte)}</span><small>${N.recus.includes(i) ? 'Reçu ✓' : `encore ${Math.max(0, P.flocons - N.flocons)}`}</small></li>`).join('');
+    $('.noel-etat').textContent = noelEnCours() ? 'Jusqu’au 6 janvier : la neige tombe, les zombies portent un bonnet, ils lâchent des flocons et parfois un cadeau.' : 'Noël revient le 1er décembre : la neige, les bonnets, les flocons et les cadeaux.';
+  }
+  function ouvrirNoel() { remplirNoel(); for (const k in ecrans) ecrans[k].hidden = true; montrer('noel'); }
   // les portraits des cartes (rendus par la 3D du jeu, gardés en cache) : trois par image pour ne rien saccader ; ceux dont le modèle ou
   // la texture arrive encore sont refaits un peu plus tard
   const RARETES = { commune: 'Commun', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
@@ -767,6 +811,8 @@
   clic('#b-salon-quitter', () => { quitterSalon(); for (const k in ecrans) ecrans[k].hidden = true; montrer('titre'); });
   clic('#b-bunker', () => { remplirBunker(); ecrans.titre.hidden = true; ecrans.bunker.hidden = false; document.body.dataset.ecran = 'bunker'; });
   clic('#b-capacites', ouvrirCapacites);
+  clic('#b-noel', ouvrirNoel);
+  clic('#b-noel-ok', () => { montrer('titre'); majTitre(); });
   clic('#b-capacites-ok', () => { montrer('titre'); majTitre(); majBadges(); });
   clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
@@ -848,7 +894,7 @@
   // ─── pour les tests (Playwright) ───
   window.__zombies = {
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
-    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, ouvrirCapacites, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
+    get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, ouvrirCapacites, ouvrirNoel, ajouterFlocons, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
     stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },

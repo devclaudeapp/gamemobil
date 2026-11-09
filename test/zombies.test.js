@@ -317,7 +317,7 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
 // ─── la collection : skins, finitions, émotes ───
 {
   check(Object.keys(D.SURVIVANTS).length >= 19 && Object.values(D.SURVIVANTS).every((S) => S.nom && (S.depart || S.prix > 0 || (S.exploit && S.texte)) && (!S.texture || /^[a-r]$/.test(S.texture))), `${Object.keys(D.SURVIVANTS).length} survivants à collectionner, chacun avec son prix ou son exploit`);
-  check(D.ORDRE_FINITIONS.length === Object.keys(D.FINITIONS).length && D.ORDRE_FINITIONS.every((f) => /^#[0-9A-F]{6}$/i.test(D.FINITIONS[f].couleur)), `${D.ORDRE_FINITIONS.length} finitions d’armes, dans leur ordre d’obtention`);
+  check(D.ORDRE_FINITIONS.length === Object.keys(D.FINITIONS).filter((k) => !D.FINITIONS[k].noel).length && D.ORDRE_FINITIONS.every((f) => /^#[0-9A-F]{6}$/i.test(D.FINITIONS[f].couleur)), `${D.ORDRE_FINITIONS.length} finitions d’armes, dans leur ordre d’obtention`);
   const jeu = J.creer({ arene: 'jardin', graine: 2, joueurs: [{ id: 'moi', skin: 'pirate', finitions: { revolver: 'or' } }, { id: 'toi', skin: 'nimporte' }] });
   check(jeu.joueurs[0].skin === 'pirate' && jeu.joueurs[0].finitions.revolver === 'or' && jeu.joueurs[1].skin === 'gardien', 'le skin et les finitions passent dans la partie (un skin inconnu : le Gardien)');
   const e1 = J.emote(jeu, 'moi', 'rire'), e2 = J.emote(jeu, 'moi', 'pouce'); J.pas(jeu, null, 1.3); const e3 = J.emote(jeu, 'moi', 'pouce');
@@ -585,6 +585,36 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
     ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
     const o2 = { arene: 'hopital', graine: 9, joueurs: [{ id: 'a' }, { id: 'b' }] }, h2 = J.creer(o2), g2 = J.creer(o2); h2.pharmas[1].stock = 0; h2.pharmas[1].recharge = 12; ctx.E.appliquer(g2, JSON.parse(JSON.stringify(ctx.E.instantane(h2))), 'b');
     check(g.train.phase === 'passe' && g.train.voie === 1 && g.train.sens === -1 && Math.abs(J.trainX(g) - J.trainX(h)) < 0.5 && g2.pharmas[1].recharge === 12 && g2.pharmas[1].stock === 0, 'à plusieurs : le train et les armoires arrivent chez les copains'); }
+}
+// ─── le Lot 5e : les compagnons, Noël ───
+{
+  const mk = (id, type, x, z, vie) => { const Z = D.ZOMBIES[type]; return { id, type, x, z, vie: vie || 1e5, vieMax: vie || 1e5, vitesse: 0.001, rayon: Z.rayon, angle: 0, chemin: null, ci: 0, repense: 9, coup: 9, crache: 9, flash: 0, rx: 0, rz: 0, bouge: 0, attaque: 0, naissance: -9, coinceT: 0, coince: 0, cx: x, cz: z }; };
+  const avec = (comp, o) => { const jeu = J.creer(Object.assign({ arene: 'jardin', graine: 71, attente: 99, joueurs: [{ id: 'moi', compagnon: comp }] }, o || {})); const j = jeu.joueurs[0]; j.xp = -1e9; j.vie = j.vieMax = 1e6; j.armes[0] = { id: 'pistolet', mun: Infinity }; return jeu; };
+  check(D.ORDRE_COMPAGNONS.length === 5 && D.ORDRE_COMPAGNONS.every((k) => D.COMPAGNONS[k].nom && D.COMPAGNONS[k].desc && (D.COMPAGNONS[k].prix || D.COMPAGNONS[k].noel)), 'cinq compagnons (chien, corbeau, chat, robot ; le renne de Noël), chacun son prix ou sa piste');
+  // le chien court mordre le zombie le plus proche (le survivant ne tire pas : un zombie loin de sa portée, près du chien)
+  const mord = (comp) => { const jeu = avec(comp), j = jeu.joueurs[0], zb = mk(1, 'costaud', j.x + 5, j.z + 4, 5000); jeu.zombies.push(zb); j.armes = [null, null]; j.main = 0; const evs = avancer(jeu, 60 * 4, () => ({ mx: 0, mz: 0 })); return { zb, evs, jeu }; };
+  { const { zb, evs, jeu } = mord('chien'), c = jeu.compagnons[0]; check(evs.filter((e) => e.t === 'compagnon' && e.type === 'chien' && Math.hypot(e.x - zb.x, e.z - zb.z) < 3).length >= 2 && zb.vie < 5000 && c, `le chien court mordre le zombie (${evs.filter((e) => e.t === 'compagnon').length} morsures en 4 s)`); }
+  { const { zb } = mord('renne'); check(zb.gel > 0 || zb.vie < 5000, 'le renne charge et gèle'); }
+  { const jeu = avec('robot'), j = jeu.joueurs[0], zb = mk(2, 'costaud', j.x + 6, j.z, 5000); jeu.zombies.push(zb); const evs = avancer(jeu, 60 * 2); check(evs.filter((e) => e.t === 'compagnon' && e.type === 'robot').length >= 4, 'le petit robot tire sur le plus proche'); }
+  { const jeu = avec('corbeau'), j = jeu.joueurs[0]; jeu.objets.push({ id: 900, type: 'ferraille', x: j.x + 8, z: j.z, valeur: 3, age: 0, vole: false }); avancer(jeu, 60 * 2); check(!jeu.objets.some((o) => o.id === 900), 'le corbeau rapporte la ferraille de loin (8 m)'); }
+  { const a = avec('chat').joueurs[0], b = avec(null).joueurs[0]; check(J.chanceCritique(a) > J.chanceCritique(b), 'le chat porte-bonheur : plus de coups critiques'); }
+  { const jeu = avec('chien'), c = jeu.compagnons[0], j = jeu.joueurs[0]; j.x += 20; avancer(jeu, 30); check(Math.hypot(c.x - j.x, c.z - j.z) < 3, 'le compagnon suit son survivant (il revient près de lui)'); }
+  check(avec(null).compagnons.length === 0 && avec('licorne').compagnons.length === 0, 'sans compagnon (ou un inconnu) : personne');
+  // Noël : les dates, les flocons, les cadeaux
+  check(D.noelActif(new Date('2026-12-01T09:00:00Z')) && D.noelActif(new Date('2027-01-06T12:00:00Z')) && !D.noelActif(new Date('2027-01-07T12:00:00Z')) && !D.noelActif(new Date('2026-11-30T12:00:00Z')), 'Noël : du 1er décembre au 6 janvier (heure de Paris)');
+  { let fl = 0, ca = 0, tues = 0; for (let g = 1; g <= 6; g++) { const jeu = J.creer({ arene: 'jardin', graine: g, attente: 0.1, noel: true }), j = jeu.joueurs[0]; j.vie = j.vieMax = 1e6; j.xp = -1e9; avancer(jeu, 60 * 40, () => ({ mx: 0, mz: 0 })); fl += j.flocons + jeu.objets.filter((o) => o.type === 'flocon').length; ca += jeu.objets.filter((o) => o.type === 'cadeau').length + (jeu.stats.cadeaux || 0); tues += jeu.stats.tues; }
+    check(fl > 0, `à Noël, les zombies lâchent des flocons (${fl} pour ${tues} abattus)`); }
+  { const jeu = J.creer({ arene: 'jardin', graine: 3, attente: 0.1 }), j = jeu.joueurs[0]; j.vie = j.vieMax = 1e6; j.xp = -1e9; avancer(jeu, 60 * 30, () => ({ mx: 0, mz: 0 })); check(!jeu.objets.some((o) => o.type === 'flocon' || o.type === 'cadeau') && !j.flocons, 'hors de Noël : ni flocon, ni cadeau'); }
+  { const jeu = J.creer({ arene: 'jardin', graine: 5, attente: 99, noel: true }), j = jeu.joueurs[0]; const f0 = j.ferraille, n0 = j.flocons; const gains = new Set();
+    for (let k = 0; k < 30; k++) { jeu.objets.push({ id: 1000 + k, type: 'cadeau', x: j.x + 0.3, z: j.z, valeur: 0, age: 0, vole: false }); const evs = avancer(jeu, 2); const e = evs.find((x) => x.t === 'cadeau'); if (e) gains.add(e.ferraille ? 'f' : e.flocons ? 'n' : 'b'); }
+    check(gains.size === 3 && j.ferraille > f0 && j.flocons > n0, `un cadeau donne de la ferraille, des flocons ou un bonus (${[...gains].join(', ')})`); }
+  check(J.creer({ arene: 'jardin', graine: 1, noel: true, mode: 'duel', joueurs: [{ id: 'a' }, { id: 'b' }] }).noel === false, 'pas de Noël en duel ni en chacun pour soi (les règles restent les mêmes)');
+  // à plusieurs : les compagnons de chacun, ses flocons, le Noël de l'hôte arrivent chez les copains
+  { const vm = require('vm'), fs = require('fs'), ctx = { ZDONNEES: D, ZJEU: J }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-zombies', 'enligne.js'), 'utf8') + ';this.E = ZENLIGNE;', ctx);
+    const o = { arene: 'jardin', graine: 9, noel: true, joueurs: [{ id: 'a', compagnon: 'chien' }, { id: 'b', compagnon: 'robot' }] }, h = J.creer(o), g = J.creer(Object.assign({}, o));
+    h.joueurs[0].flocons = 7; h.objets.push({ id: 5, type: 'flocon', x: 1, z: 1, valeur: 1, age: 0, vole: false }, { id: 6, type: 'cadeau', x: 2, z: 1, valeur: 0, age: 0, vole: false });
+    ctx.E.appliquer(g, JSON.parse(JSON.stringify(ctx.E.instantane(h))), 'b');
+    check(g.compagnons.length === 2 && g.compagnons.map((c) => c.type).join() === 'chien,robot' && g.joueurs[0].flocons === 7 && g.objets.some((x) => x.type === 'flocon') && g.objets.some((x) => x.type === 'cadeau'), 'à plusieurs : les compagnons, les flocons et les cadeaux arrivent chez les copains'); }
 }
 {
   function bot(jeu) {

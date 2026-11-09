@@ -19,7 +19,7 @@ const ZENLIGNE = (() => {
   'use strict';
   const PREFIXE = 'rempart', ETAT_MS = 66, EVTS_MS = 100, ENTREE_MS = 50, PAS = 1 / 60, MAX_JOUEURS = 4, MAX_EVTS = 90;
   const D = typeof ZDONNEES !== 'undefined' ? ZDONNEES : null, J = typeof ZJEU !== 'undefined' ? ZJEU : null;
-  const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse', 'bonus'];
+  const TZ = D ? Object.keys(D.ZOMBIES) : [], TD = D ? Object.keys(D.DEFENSES) : [], TO = ['ferraille', 'soin', 'caisse', 'bonus', 'flocon', 'cadeau'];
   const CLES_BONUS = ['vie', 'ferraille', 'degats', 'xp', 'grenade', 'arme'];
   // le skin, dans la présence (« am », 8 caractères au plus) : son rang dans ZDONNEES.SURVIVANTS
   const SKINS = D ? Object.keys(D.SURVIVANTS) : [];
@@ -31,6 +31,9 @@ const ZENLIGNE = (() => {
   const CAPS = D ? D.ORDRE_CAPACITES : [];
   const codeCap = (c) => (c && CAPS.includes(c.id) ? String(CAPS.indexOf(c.id)) + [0, 1, 2].map((i) => (c.t && (c.t[i] === 0 || c.t[i] === 1) ? c.t[i] : 9)).join('') : '');
   const lireCap = (s) => { s = String(s || ''); const id = CAPS[+s[0]]; return s.length >= 4 && id ? { id, t: [1, 2, 3].map((i) => (s[i] === '0' || s[i] === '1' ? +s[i] : -1)) } : null; };
+  const COMPS = D ? D.ORDRE_COMPAGNONS : [];
+  const codeComp = (c) => (COMPS.includes(c) ? String(COMPS.indexOf(c)) : '-'); // (le compagnon : un caractère de plus dans « eq »)
+  const lireComp = (s) => COMPS[+s] || null;
   const lireBonus = (s) => { const o = {}; CLES_BONUS.forEach((k, i) => { o[k] = Math.max(0, Math.min(9, +String(s || '')[i] || 0)); }); return o; };
   const aleaId = () => 'j' + Math.random().toString(36).slice(2, 10);
 
@@ -43,7 +46,7 @@ const ZENLIGNE = (() => {
       j: jeu.joueurs.map((p) => [p.id, r2(p.x), r2(p.z), r2(p.angle), Math.ceil(p.vie), p.vieMax, p.vivant ? 1 : 0, p.ferraille, p.score, p.tues, p.niveau, r1(p.xp), p.main,
         p.armes.map((a) => (a ? [a.id, a.mun === Infinity ? -1 : a.mun] : null)), r1(p.grenadeT), p.visee, r2(p.bouge), r2(p.invul), r1(p.releve), p.boss,
         p.choix ? [p.choix.niveau, p.choix.options] : null, p.atouts, p.niveaux, p.parti ? 1 : 0, p.tire ? p.tire.de : 0, p.emote ? p.emote.id : '', effetsCourts(p.effets), r1(p.gele || 0), r2(p.roule || 0), r1(p.rouleCd || 0), r2(p.rdx || 0), r2(p.rdz || 0),
-        p.capacite ? p.capacite.id : '', r1(p.capT || 0), r1(p.rageT || 0), r1(p.vite || 0), p.capacite ? Math.round(D.specCapacite(p.capacite.id, p.capacite.t).recharge) : 0]), // (Lot 5c : la capacité, sa recharge, la rage, l'adrénaline)
+        p.capacite ? p.capacite.id : '', r1(p.capT || 0), r1(p.rageT || 0), r1(p.vite || 0), p.capacite ? Math.round(D.specCapacite(p.capacite.id, p.capacite.t).recharge) : 0, p.flocons || 0]), // (Lot 5c : la capacité, sa recharge, la rage, l'adrénaline)
       z: jeu.zombies.map((z) => [z.id, TZ.indexOf(z.type), r2(z.x), r2(z.z), r2(z.angle), Math.ceil(z.vie), z.vieMax, z.flash > 0 ? 1 : 0, r2(z.attaque), z.bouge, r2(z.naissance), r2(z.vitesse), z.feu > 0 ? 1 : 0, z.gel > 0 ? 1 : 0, z.saut > 0 ? r2(z.saut) : 0,
         (z.terre ? 1 : 0) | (z.excite > 0 ? 2 : 0) | (z.bouclier > 0 ? 4 : 0) | (z.poison > 0 ? 8 : 0) | (z.etourdi > 0 ? 16 : 0), z.phase || 0]), // (le Lot 5 : sous terre, excité, le bouclier ; la phase du boss)
       d: jeu.defenses.map((d) => [d.id, TD.indexOf(d.type), r2(d.x), r2(d.z), r2(d.angle), Math.ceil(d.vie), d.vieMax, d.flash > 0 ? 1 : 0]),
@@ -57,6 +60,7 @@ const ZENLIGNE = (() => {
       di: jeu.disques.map((d) => [d.id, r2(d.x), r2(d.z), r2(d.vx), r2(d.vz)]),
       tn: jeu.train ? [jeu.train.voie, ['attente', 'alerte', 'passe'].indexOf(jeu.train.phase), r2(jeu.train.t), jeu.train.sens, jeu.train.n] : null, // (Lot 5d : le train du Métro)
       ph: (jeu.pharmas || []).map((p) => [Math.round(p.stock), r1(p.recharge)]), // (les armoires de l'Hôpital)
+      cp: (jeu.compagnons || []).map((c) => [c.id, c.de, COMPS.indexOf(c.type), r2(c.x), r2(c.z), r2(c.a), c.bouge ? 1 : 0, c.attaque > 0 ? 1 : 0]), // (Lot 5e : les compagnons)
       dr: (jeu.drones || []).map((d) => [d.id, r2(d.x), r2(d.z), d.de, r1(d.t)]), // (les drones)
       tr: (jeu.trous || []).map((t) => [t.id, r2(t.x), r2(t.z), r2(t.t), t.duree, t.r]), // (Lot 5b : les singularités)
       zo: jeu.zones.map((z) => [z.id, r2(z.x), r2(z.z), r2(z.r), r1(z.vie), r1(z.duree), z.feu ? 1 : 0]),
@@ -77,7 +81,7 @@ const ZENLIGNE = (() => {
       p.armes = a[13].map((x) => (x ? { id: x[0], mun: x[1] < 0 ? Infinity : x[1] } : null)); p.grenadeT = a[14]; p.visee = a[15]; if (p.id !== idMoi) p.bouge = a[16];
       p.invul = a[17]; p.releve = a[18]; p.boss = a[19]; p.choix = a[20] ? { id: p.id, niveau: a[20][0], options: a[20][1] } : null; p.atouts = a[21] || {}; p.niveaux = a[22] || {}; p.parti = !!a[23]; p.tire = a[24] ? { de: a[24], t: 0.5 } : null; p.emote = a[25] ? { id: a[25], t: (p.emote && p.emote.id === a[25] ? p.emote.t : 2.4) } : null; p.effets = a[26] || {}; p.gele = a[27] || 0;
       if (p.id !== idMoi || !(p.roule > 0)) { p.roule = a[28] || 0; p.rdx = a[30] || 0; p.rdz = a[31] || 0; } p.rouleCd = Math.max(p.id === idMoi ? p.rouleCd || 0 : 0, a[29] || 0);
-      p.capacite = a[32] ? { id: a[32], t: [] } : null; p.capT = a[33] || 0; p.rageT = a[34] || 0; p.vite = a[35] || 0; p.capR = a[36] || 0; // (sa propre roulade : prédite chez lui)
+      p.capacite = a[32] ? { id: a[32], t: [] } : null; p.capT = a[33] || 0; p.rageT = a[34] || 0; p.vite = a[35] || 0; p.capR = a[36] || 0; p.flocons = a[37] || 0; // (sa propre roulade : prédite chez lui)
       if (p.id === idMoi && !p.vivant) { p.x = a[1]; p.z = a[2]; }
     }
     const garder = (liste, lignes, faire, maj) => {
@@ -97,6 +101,7 @@ const ZENLIGNE = (() => {
     jeu.obus.length = 0; for (const o of e.ob) jeu.obus.push({ x0: o[0], z0: o[1], x1: o[2], z1: o[3], t: o[4], duree: o[5], grenade: !!o[6], droit: !!o[7], trou: o[8] === 1 ? {} : null, petite: o[8] === 2 });
     if (e.tn && jeu.train) { const T = jeu.train; T.voie = e.tn[0]; T.phase = ['attente', 'alerte', 'passe'][e.tn[1]] || 'attente'; T.t = e.tn[2]; T.sens = e.tn[3]; T.n = e.tn[4]; }
     if (e.ph && jeu.pharmas) e.ph.forEach((q, i) => { const p = jeu.pharmas[i]; if (p) { p.stock = q[0]; p.recharge = q[1]; } });
+    if (e.cp && jeu.compagnons) garder(jeu.compagnons, e.cp, (l) => ({ id: l[0], x: l[3], z: l[4] }), (c, l) => { c.de = l[1]; c.type = COMPS[l[2]]; c.tx = l[3]; c.tz = l[4]; c.a = l[5]; c.bouge = l[6]; c.attaque = l[7] ? 0.2 : 0; });
     if (e.dr && jeu.drones) garder(jeu.drones, e.dr, (l) => ({ id: l[0], x: l[1], z: l[2] }), (d, l) => { d.tx = l[1]; d.tz = l[2]; d.de = l[3]; d.t = l[4]; });
     if (e.tr && jeu.trous) garder(jeu.trous, e.tr, (l) => ({ id: l[0] }), (t, l) => { t.x = l[1]; t.z = l[2]; t.t = l[3]; t.duree = l[4]; t.r = l[5]; });
     garder(jeu.crochets, e.ch || [], (l) => ({ id: l[0] }), (c, l) => { c.de = l[1]; c.x = l[2]; c.z = l[3]; c.vx = l[4]; c.vz = l[5]; });
@@ -113,6 +118,7 @@ const ZENLIGNE = (() => {
     for (const o of jeu.obus) o.t = Math.min(o.duree, o.t + dt);
     if (jeu.train && jeu.train.phase === 'passe') jeu.train.t = Math.min(D.TRAIN.duree, jeu.train.t + dt);
     for (const d of jeu.disques) { d.x += d.vx * dt; d.z += d.vz * dt; }
+    for (const c of jeu.compagnons || []) if (c.tx != null) { c.x += (c.tx - c.x) * k; c.z += (c.tz - c.z) * k; }
     for (const d of jeu.drones || []) if (d.tx != null) { d.x += (d.tx - d.x) * k; d.z += (d.tz - d.z) * k; }
     for (const c of jeu.crochets) { c.x += c.vx * dt; c.z += c.vz * dt; }
     jeu.t += dt;
@@ -122,7 +128,7 @@ const ZENLIGNE = (() => {
     if (typeof PRESEAU === 'undefined') throw new Error('Le module des salons n’est pas chargé.');
     o = o || {};
     const idMoi = aleaId(), pseudo = String(o.pseudo || 'Survivant').slice(0, 16);
-    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) + codeCap(o.capacite), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
+    const s = await PRESEAU.salon({ via: o.via, code: o.code, creer: !!o.creer, moi: { id: idMoi, pseudo, couleur: '#E3B663', eq: codeBonus(o.bonus) + (codeCap(o.capacite) || '9999') + codeComp(o.compagnon), am: codeSkin(o.skin) }, config: o.config, prefixe: PREFIXE });
     const abonnes = new Map(), emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const f of Array.from(l)) { try { f(d); } catch (e) { console.warn('[Rempart en ligne]', e); } } };
     const Z = {
       code: s.code, idMoi, partie: null,
@@ -136,7 +142,7 @@ const ZENLIGNE = (() => {
         const liste = Z.joueurs().slice(0, MAX_JOUEURS);
         if (liste.length < 1) return 'personne';
         if (mode === 'duel' && liste.length !== 2) return 'duel-deux';
-        const debut = { mode: mode === 'cps' || mode === 'duel' ? mode : '', graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), capacite: lireCap(String(j.eq || '').slice(CLES_BONUS.length)), skin: lireSkin(j.am) })) };
+        const debut = { mode: mode === 'cps' || mode === 'duel' ? mode : '', graine: (Math.random() * 1e9) >>> 0, arene: D.ARENES[arene] ? arene : 'jardin', joueurs: liste.map((j) => ({ id: j.id, pseudo: j.pseudo, bonus: lireBonus(j.eq), capacite: lireCap(String(j.eq || '').slice(CLES_BONUS.length)), compagnon: lireComp(String(j.eq || '')[CLES_BONUS.length + 4]), skin: lireSkin(j.am) })), noel: !!o.noel };
         s.envoyer('debut', debut, { fiable: true });
         demarrer(debut);
         return true;
@@ -148,8 +154,8 @@ const ZENLIGNE = (() => {
     s.sur('debut', (d) => { if (!s.estHote) demarrer(d); });
 
     function demarrer(d) {
-      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, capacite: j.capacite || null, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
-      const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs, mode: d.mode || '' });
+      const joueurs = d.joueurs.map((j, i) => ({ id: j.id, pseudo: j.pseudo, bonus: j.bonus, capacite: j.capacite || null, compagnon: j.compagnon || null, skin: j.skin, couleur: COULEURS[i % COULEURS.length] }));
+      const jeu = J.creer({ arene: d.arene, graine: d.graine, joueurs, mode: d.mode || '', noel: !!d.noel });
       jeu.joueurs.forEach((p, i) => { p.couleur = COULEURS[i % COULEURS.length]; });
       Z.partie = s.estHote ? partieHote(jeu) : partieClient(jeu);
       emettre('debut', Z.partie);
