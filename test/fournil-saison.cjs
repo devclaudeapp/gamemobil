@@ -9,7 +9,10 @@
 //   « Feuille d'or 2026 » à 1 240 XP ;
 // · une vieille sauvegarde sans st.piste : la piste créée au premier pas, la carte tout de suite ;
 // · un nouveau joueur (window.__accueil = true) : l'XP compte, la carte cachée jusqu'au déblocage « piste », annoncée, ses crans à recevoir ;
-// · après le 30 novembre : la feuille de fin (« voici ce qui t'attendait »), les crans dus donnés d'office, la saison archivée ;
+// · le 1er décembre à 0 h (le point 7, docs/noel-contrat.md § 3.4) : la feuille de fin d'automne (« voici ce qui t'attendait »), les crans dus
+//   donnés d'office, l'automne archivé, l'hiver ouvert au même pas ; puis (l'Avent allumé : window.__avent) l'annonce de décembre, jamais en
+//   même temps ; la piste d'hiver (46 crans, la ligne « Le calendrier de l'Avent » et ses 10 XP, un flocon reçu, « Mes flocons »), le titre
+//   « Flocon d'or 2026 » ; le 4 janvier la feuille de fin d'hiver ;
 // · 360 × 640 : la carte et la feuille sans défilement de côté. Aucune erreur de page.
 // Ce qui dépend du constructeur A (src/game.js : la tenue de saison, le titre, le déblocage « piste ») est marqué « -- » tant qu'il manque.
 // Captures dans test/shots/saison/ (et dans SHOTS_SAISON s'il est donné).
@@ -21,7 +24,8 @@ const root = path.join(__dirname, '..'), PORT = +process.env.PORT_SAISON || 8885
 const out = path.join(__dirname, 'shots', 'saison'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_SAISON ? (fs.mkdirSync(process.env.SHOTS_SAISON, { recursive: true }), process.env.SHOTS_SAISON) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg' };
-const H = 3600e3, SAMEDI = new Date('2026-11-14T11:00:00+01:00').getTime(), DECEMBRE = new Date('2026-12-01T10:00:00+01:00').getTime();
+const H = 3600e3, SAMEDI = new Date('2026-11-14T11:00:00+01:00').getTime(), DECEMBRE = new Date('2026-12-01T00:00:30+01:00').getTime(), JANVIER = new Date('2027-01-04T00:00:30+01:00').getTime();
+const LENT = Number(process.env.FOURNIL_ATTENTE) || (process.env.CI ? 3 : 1); // les attentes de la partie d'hiver × LENT (elles s'arrêtent dès que c'est vrai)
 let decal = SAMEDI - Date.now();
 const server = http.createServer((req, res) => {
   res.setHeader('Date', new Date(Date.now() + decal).toUTCString());
@@ -38,7 +42,7 @@ const attendre = async (fn, ms = 10000, pas = 150) => { for (let t = 0; t < ms; 
 function telephone(o) { // avant tout script : la fausse heure (gardée d'un chargement à l'autre), la saison allumée, l'accueil si demandé
   let d = o.decal; try { const v = localStorage.getItem('test.tel'); if (v != null) d = +v; } catch (e) { /* about:blank */ }
   const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = FauxDate;
-  window.__saison = true; if (o.accueil) window.__accueil = true;
+  window.__saison = true; if (o.accueil) window.__accueil = true; try { if (localStorage.getItem('test.avent') === '1') window.__avent = true; } catch (e) { /* about:blank */ } // (l'Avent : la partie de décembre)
   window.__feuilles = []; // les feuilles ouvertes, dans l'ordre (leur première ligne) : l'ordre des annonces, quand il est faux
   new MutationObserver(() => { const f = document.querySelector('#feuille'), c = document.querySelector('#feuille-contenu'), t = f && !f.hidden && c ? c.innerText.split('\n')[0].slice(0, 60) : ''; if (t && window.__feuilles[window.__feuilles.length - 1] !== t) window.__feuilles.push(t); }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
   window.__toasts = []; new MutationObserver(() => { const t = document.querySelector('.toast'); if (t && window.__toasts[window.__toasts.length - 1] !== t.textContent) window.__toasts.push(t.textContent); }).observe(document, { childList: true, subtree: true, characterData: true });
@@ -173,17 +177,68 @@ function telephone(o) { // avant tout script : la fausse heure (gardée d'un cha
   check(await attendre(async () => { const x = await T.piste(); return x && x.id === 'automne-2026'; }, 5000), 'la piste est créée au premier pas');
   c = await attendre(async () => { const x = await T.carte(); return x && x.vu ? x : null; }, 5000); check(!!c, `la carte, tout de suite : « ${c && c.txt} »`);
 
-  console.log('── après le 30 novembre : la feuille de fin ──');
+  console.log('── le 1er décembre à 0 h : la fin d’automne, puis l’annonce de décembre ──');
   await T.ev(() => { const F = window.__fournil; F.st.piste.xp = 380; F.st.piste.recus = 1; F.save(); }); // (huit crans atteints, un seul reçu)
   const avantFin = await T.ev(() => ({ et: window.__fournil.st.etoiles, b: window.__fournil.st.boosts.reserve.length }));
-  decal = DECEMBRE - Date.now(); await T.ev((d) => localStorage.setItem('test.tel', String(d)), decal); await T.ev(() => window.__fournil.save());
+  decal = DECEMBRE - Date.now(); await T.ev((d) => { localStorage.setItem('test.tel', String(d)); localStorage.setItem('test.avent', '1'); }, decal); await T.ev(() => { delete window.__fournil.st.aventAnnonce; window.__fournil.save(); });
   await T.charger();
-  const fin = await attendre(async () => { const t = await T.feuille(); return /est finie/.test(t) ? t : null; }, 15000);
-  check(!!fin && /voici ce qui t’attendait/i.test(fin), `la feuille de fin : « ${fin && fin.split('\n')[0]} »`);
+  const fin = await attendre(async () => { const t = await T.feuille(); return /est finie/.test(t) ? t : null; }, 15000 * LENT);
+  check(!!fin && /voici ce qui t’attendait/i.test(fin) && /saison d’automne/i.test(fin.split('\n')[0]), `la feuille de fin d’automne : « ${fin && fin.split('\n')[0]} »`);
   const apresFin = await T.ev(() => ({ et: window.__fournil.st.etoiles, b: window.__fournil.st.boosts.reserve.length, p: JSON.parse(JSON.stringify(window.__fournil.st.piste)) }));
-  check(apresFin.et === avantFin.et + 4 && apresFin.p.passees['automne-2026'] && apresFin.p.passees['automne-2026'].crans === 8 && !apresFin.p.id, `les crans 2 à 8 donnés d’office (+4 ★ : ${avantFin.et} → ${apresFin.et}), la saison archivée (passees : ${JSON.stringify(apresFin.p.passees['automne-2026'])})`);
-  await sleep(300); await T.shot('09-fin-de-saison'); await T.fermer();
-  c = await T.carte(); check(!c.vu, 'la carte est partie (plus de saison active)');
+  check(apresFin.et === avantFin.et + 4 && apresFin.p.passees['automne-2026'] && apresFin.p.passees['automne-2026'].crans === 8 && apresFin.p.id === 'hiver-2026', `les crans 2 à 8 donnés d’office (+4 ★ : ${avantFin.et} → ${apresFin.et}), l’automne archivé (${JSON.stringify(apresFin.p.passees['automne-2026'])}), l’hiver ouvert au même pas (${apresFin.p.id})`);
+  check(!/calendrier de l’Avent/i.test(await T.feuille()), 'pas d’annonce de décembre en même temps');
+  await sleep(300); await T.shot('09-fin-de-saison');
+  await T.clic('#feuille [data-a="close"]');
+  const dec = await attendre(async () => { const t = await T.feuille(); return /Le calendrier de l’Avent et la saison d’hiver/.test(t) ? t : null; }, 20000 * LENT);
+  const ordre = await T.ev(() => window.__feuilles.slice());
+  check(!!dec && /46 crans/.test(dec) && /3 janvier/.test(dec), `puis l’annonce de décembre : « ${dec && dec.split('\n')[0]} » (les feuilles : ${JSON.stringify(ordre.slice(-3))})`);
+  check(ordre.findIndex((t) => /est finie/.test(t)) < ordre.findIndex((t) => /Le calendrier de l’Avent/.test(t)) && !ordre.some((t) => /Nouveau : la saison d’hiver/.test(t)), 'la fin d’automne d’abord, une seule annonce pour décembre (pas celle de la saison en plus)');
+  check(await T.ev(() => window.__fournil.st.pisteAnnonce === 'hiver-2026' && window.__fournil.st.aventAnnonce === 'avent-2026'), 'st.pisteAnnonce (« hiver-2026 ») et st.aventAnnonce posés ensemble');
+  await sleep(400); await T.shot('12-annonce-decembre');
+  await T.fermer();
+
+  console.log('── la piste d’hiver ──');
+  await T.ev(() => window.__fournil.tiroir && window.__fournil.tiroir('mi')); await sleep(300);
+  c = await attendre(async () => { const x = await T.carte(); return x && x.vu && /Saison d’hiver/.test(x.txt) ? x : null; }, 5000 * LENT);
+  check(!!c && /Saison d’hiver · cran 0\/46/.test(c.txt), `la carte : « ${c && c.txt} »`);
+  const NF = await T.ev(() => SAISONS.fiche('hiver-2026').crans.filter((x) => x.flocon).length);
+  // une case de l'Avent ouverte : 10 XP de saison (la fiche d'hiver lit l'Avent)
+  const xa = await T.ev(() => window.__fournil.st.piste.xp);
+  const ouv = await T.ev(() => window.__fournil.avent.ouvrir(1));
+  check(ouv && ouv.ok && !!(await attendre(async () => (await T.ev(() => window.__fournil.st.piste.xp)) === xa + 10, 4000 * LENT)), 'la case 1 de l’Avent ouverte : +10 XP de saison');
+  await T.fermer();
+  await T.ev(() => { window.__fournil.st.piste.xp = 4 * 45; window.__fournil.save(); }); await T.pas();
+  await T.clic('#piste'); await sleep(800);
+  fe = await lireFeuille();
+  const hv = await T.ev(() => { const f = document.querySelector('#feuille-contenu'); return { fl: [...f.querySelectorAll('.pi-cran.flocon')].length, mes: (([...f.querySelectorAll('h3')].find((h) => /Mes flocons/.test(h.textContent)) || {}).textContent || ''), style: (f.querySelector('.pi-feuille') || {}).getAttribute ? f.querySelector('.pi-feuille').getAttribute('style') : '' }; });
+  check(fe && fe.n === 46 && fe.etats.slice(0, 4).every((x) => x === 'attend') && fe.etats[4] === 'encours' && hv.fl === NF, `la piste d’hiver : ${fe && fe.n} crans (dont ${hv.fl} flocons), les quatre premiers à recevoir`);
+  check(fe && fe.sources.some((x) => /calendrier de l’Avent/.test(x) && /10 XP par case/.test(x) && /1\/2 aujourd’hui/.test(x)), `« D’où vient l’XP » : la ligne de l’Avent (« ${fe && (fe.sources.find((x) => /Avent/.test(x)) || '').slice(0, 80)} »)`);
+  check(/--pi-accent:#2B4C7E/i.test(hv.style || ''), 'les couleurs d’hiver de la fiche (--pi-*)');
+  await T.clic('#feuille [data-a="pi-tout"]'); await sleep(900);
+  const flo = await T.ev(() => { const f = document.querySelector('#feuille-contenu'); return { mes: ([...f.querySelectorAll('h3')].find((h) => /Mes flocons/.test(h.textContent)) || {}).textContent || '', recus: f.querySelectorAll('.pi-flocon.recu svg').length }; });
+  check(new RegExp(`Mes flocons : 2/${NF}`).test(flo.mes) && flo.recus === 2, `deux flocons reçus (les crans 3 et 4) : « ${flo.mes} »`);
+  await T.ev(() => { const b = document.querySelector('#feuille .pi-flocons'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('13-piste-hiver-flocons');
+  await T.fermer();
+  await T.ev(() => { window.__fournil.st.piste.xp = 2320; window.__fournil.save(); }); await T.pas();
+  await T.clic('#piste'); await sleep(800); await T.clic('#feuille [data-a="pi-tout"]'); await sleep(900);
+  p = await T.piste();
+  check(p.recus === 2 ** 46 - 1 && (p.titre === 1 || p.titre === true), `les 46 crans et le titre reçus (recus = 2⁴⁶ − 1 : ${p.recus === 2 ** 46 - 1})`);
+  check(await T.ev(() => { const F = window.__fournil; return F.G.distinctions(F.st).includes('flocon-or-2026'); }), 'le titre « Flocon d’or 2026 », à côté du pseudo au classement');
+  await T.ev(() => { const b = document.querySelector('#feuille .pi-titre'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(300); await T.shot('14-piste-hiver-titre');
+  await T.fermer();
+  c = await T.carte(); check(/46\/46/.test(c.txt) && /Flocon d’or 2026/.test(c.txt), `la carte : « ${c.txt} »`);
+  await T.ev(() => document.querySelector('#piste').scrollIntoView({ block: 'center' })); await sleep(300); await T.shot('15-carte-hiver');
+
+  console.log('── le 4 janvier : la fin de l’hiver ──');
+  await T.ev(() => { const F = window.__fournil; F.st.piste.recus = 2 ** 20 - 1; F.st.piste.titre = 0; F.st.piste.xp = 2320; F.save(); }); // (le titre et les crans 21 à 46 pas encore reçus)
+  decal = JANVIER - Date.now(); await T.ev((d) => localStorage.setItem('test.tel', String(d)), decal); await T.ev(() => window.__fournil.save());
+  await T.charger();
+  const finH = await attendre(async () => { const t = await T.feuille(); return /saison d’hiver est finie/i.test(t) ? t : null; }, 15000 * LENT);
+  check(!!finH && /voici ce qui t’attendait/i.test(finH), `la feuille de fin d’hiver : « ${finH && finH.split('\n')[0]} »`);
+  p = await T.piste();
+  check(p && !p.id && p.passees['hiver-2026'] && p.passees['hiver-2026'].crans === 46, `l’hiver archivé (${JSON.stringify(p && p.passees['hiver-2026'])}), plus de saison`);
+  await sleep(300); await T.shot('16-fin-hiver'); await T.fermer();
+  c = await T.carte(); check(!c.vu, 'la carte est partie (plus de saison active : pas de saison au printemps pour l’instant)');
   await T.ctx.close();
 
   console.log('── un nouveau joueur (l’accueil) ──');

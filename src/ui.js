@@ -984,7 +984,7 @@ const UI = (() => {
     if (!EVS || !ouvertA('evenements')) return false;
     return EVS.liste.some((E) => { try { return (E.visible() && !(st[E.cle] && st[E.cle].annonce)) || E.bilanEnAttente(); } catch (e) { return false; } });
   }
-  function saisonAAnnoncer() { const f = SAI && st && SAI.active(maintenantSai()); return !!(f && pisteVisible() && st.pisteAnnonce !== f.id && !accueilActif() && !evenementAAnnoncer() && !decembreAAnnoncer()); } // (en décembre, l'annonce du calendrier dit aussi la saison d'hiver)
+  function saisonAAnnoncer() { const f = SAI && st && SAI.active(maintenantSai()); return !!(f && pisteVisible() && st.pisteAnnonce !== f.id && !accueilActif() && !evenementAAnnoncer() && !(AVA && decembreDu()) && !finSaisonEnAttente()); } // (en décembre, l'annonce du calendrier dit aussi la saison d'hiver ; la fin de la saison d'avant passe d'abord)
   function sheetAnnonceSaison() {
     const f = saiFiche(); if (!f) return; st.pisteAnnonce = f.id; save();
     const T = f.textes || {}, C = saiCrans(f);
@@ -1165,7 +1165,14 @@ const UI = (() => {
   }
   // l'annonce de décembre : une seule, « Le calendrier de l'Avent et la saison d'hiver » ; une fois (st.aventAnnonce et st.pisteAnnonce posés
   // ensemble), après la feuille de fin d'automne (prochaineAnnonce), jamais à un nouveau joueur (il a les bulles de ses déblocages)
-  function decembreAAnnoncer() { return !!(aventVisible() && st.aventAnnonce !== AV_ID() && !accueilActif()); }
+  const decembreDu = () => !!(aventVisible() && st.aventAnnonce !== AV_ID() && !accueilActif()); // l'annonce de décembre reste à faire
+  function decembreAAnnoncer() { return decembreDu() && !finSaisonEnAttente(); }
+  // la saison d'automne pas encore close (sa fin due, ou sa feuille de fin à montrer) : l'annonce de décembre attend derrière elle
+  function finSaisonEnAttente() {
+    if (!SAI || !st) return false; if (pisteFin) return true;
+    const p = st.piste; if (p && p.id) { const f = SAI.fiche ? SAI.fiche(p.id) : null; if (f && maintenantSai() >= f.fin) return true; }
+    try { return !!(SAI.finDue && SAI.finDue(st)); } catch (e) { return false; }
+  }
   function sheetAnnonceDecembre() {
     if (!AVA || !st) return; st.aventAnnonce = AV_ID();
     const f0 = SAI ? SAI.active(maintenantSai()) : null, f = f0 && ouvertA('piste') ? f0 : null; if (f) st.pisteAnnonce = f.id; // (la piste pas encore créée au tout premier pas : elle compte quand même)
@@ -3188,8 +3195,8 @@ const UI = (() => {
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
     if (now - tChat > 500) { tChat = now; majChat(); majCoinChaine(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
-    if (AVA && now - tAvent > 1000) { tAvent = now; pasAvent(); } // le calendrier de l'Avent : la carte, l'annonce de décembre
     if (SAI && now - tSaison > 1000) { tSaison = now; pasSaison(); } // la saison (la piste) : l'XP par constat, la carte, la fin
+    if (AVA && now - tAvent > 1000) { tAvent = now; pasAvent(); } // le calendrier de l'Avent : la carte, l'annonce de décembre (après la saison : sa fin passe d'abord)
     if (ACC) { if (now - tAccueil > 1000) { tAccueil = now; pasAccueil(); } renderDebutant(); placerAnnonce(); }
     indices();
     if (now - lastSave > 5000) save();
