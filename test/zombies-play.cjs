@@ -174,6 +174,7 @@ const BASE = `http://localhost:${PORT}/`;
   const boss = await P(() => ({ v: window.__zombies.jeu.vague, rendu: window.__zombies.stats().rendu, barre: !document.querySelector('.h-boss').hidden, nom: document.querySelector('.h-boss span').textContent }));
   check(boss.v === 5 && boss.rendu.boss.includes('golem') && boss.barre && boss.nom === 'GOLEM SQUELETTE', `vague 5 : le Golem squelette arrive en modèle KayKit, sa barre de vie porte son nom (« ${boss.nom} »)`);
   check(boss.rendu.calls <= 70, `${boss.rendu.calls} appels de dessin avec le boss et la horde (≤ 70)`);
+  { const m = await P(() => window.__zombies.stats().musique); check(m.moment === 'boss', `la musique suit la partie : le boss a la sienne (« ${m.moment} »)`); }
   await page.screenshot({ path: out + '/02b-boss.png' });
   // le coup de grâce : le boss tombe au ralenti, la caméra plonge
   await P(() => { const j = window.__zombies.jeu, p = j.joueurs[0]; p.xp = -1e9; p.choixAttente = 0; j.choix = null; p.choix = null; for (const zb of j.zombies) if (zb.type !== 'golem') zb.vie = 0; j.zombies = j.zombies.filter((zb) => zb.vie > 0); const g = j.zombies.find((zb) => zb.type === 'golem'); if (g) { g.vie = 3; g.x = p.x + 4; g.z = p.z; g.naissance = -9; } });
@@ -221,6 +222,10 @@ const BASE = `http://localhost:${PORT}/`;
   check(await P(() => !window.__zombies.enPause && window.__zombies.jeu.t > 0.3), 'et la partie reprend');
   await page.setViewportSize({ width: 390, height: 844 }); await sleep(500);
   await page.screenshot({ path: out + '/05-portrait.png' });
+  // la musique (Lot 6) : chaque moment rendu hors ligne quelques secondes, audible et sans saturer ; avec les clochettes de Noël aussi
+  { const r = await P(async () => { const o = {}; for (const m of ['menu', 'pause', 'vague', 'boss']) o[m] = await ZMUSIQUE.rendre(m, 3, { intensite: 0.9 }); o.noel = await ZMUSIQUE.rendre('menu', 3, { noel: true }); return o; });
+    check(Object.values(r).every((x) => x && x.rms > 0.004 && x.pic < 1), `la musique : menu, entre les vagues, vague, boss et Noël, audibles et sans saturer (${Object.entries(r).map(([k, x]) => `${k} ${x ? x.pic.toFixed(2) : '—'}`).join(', ')})`);
+    check(r.boss.rms > r.menu.rms, 'le boss sonne plus fort que le menu'); }
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.slice(0, 3).join(' | ') : ''}`);
   await context.close();
 

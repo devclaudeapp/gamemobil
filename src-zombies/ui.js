@@ -15,7 +15,7 @@
     return { v: 1, records: {}, total: { parties: 0, tues: 0, temps: 0 }, derniere: 0, arene: 'jardin', reglages: { son: true, vibre: true, eco: false } };
   }
   const save = lire();
-  save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal' }, save.reglages || {});
+  save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal', musique: 0.6, effets: 1, ambiance: true }, save.reglages || {});
   save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
   save.capacites = Object.assign({ choisie: 'artillerie', usages: {}, talents: {} }, save.capacites || {}); // (Lot 5c : la capacité choisie, combien de fois chacune a servi, les talents gardés)
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
@@ -97,7 +97,7 @@
   // le son naît au premier geste (iOS, Chrome)
   const geste = () => { try { PSONS.debloquer(); } catch (e) { /* rien */ } };
   window.addEventListener('pointerdown', geste, true); window.addEventListener('keydown', geste, true);
-  function reglerSons() { try { PSONS.regler({ son: save.reglages.son, vibre: save.reglages.vibre }); ZSONS.regler({ son: save.reglages.son }); } catch (e) { /* rien */ } }
+  function reglerSons() { const R = save.reglages; try { PSONS.regler({ son: R.son, vibre: R.vibre, volume: R.effets }); ZSONS.regler({ son: R.son, volume: R.effets }); ZMUSIQUE.regler({ son: R.son, volume: R.musique, ambiance: R.ambiance }); } catch (e) { /* rien */ } }
   reglerSons();
 
   // ─── les écrans ───
@@ -774,7 +774,7 @@
   clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene, modeSalon); return; } ecrans.fin.hidden = true; if (mode === 'infection') demarrerInfection(); else if (ascension) demarrerAscension(save.ascension.echelon); else if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
-    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco; $('#r-joy').value = save.reglages.joy; $('#r-joyt').value = save.reglages.joyt;
+    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-musique').value = Math.round(save.reglages.musique * 100); $('#r-effets').value = Math.round(save.reglages.effets * 100); $('#r-ambiance').checked = save.reglages.ambiance; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco; $('#r-joy').value = save.reglages.joy; $('#r-joyt').value = save.reglages.joyt;
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
@@ -817,7 +817,7 @@
   clic('#b-bunker-ok', () => { ecrans.bunker.hidden = true; ecrans.titre.hidden = false; document.body.dataset.ecran = 'titre'; majMedailles(); majTitre(); });
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
-    save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked;
+    save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked; save.reglages.musique = (+$('#r-musique').value || 0) / 100; save.reglages.effets = (+$('#r-effets').value || 0) / 100; save.reglages.ambiance = $('#r-ambiance').checked;
     const eco = $('#r-eco').checked; if (eco !== save.reglages.eco) { save.reglages.eco = eco; rendu.qualite(eco ? 'eco' : 'haute'); }
     save.reglages.joy = $('#r-joy').value === 'fixe' ? 'fixe' : 'flottant'; save.reglages.joyt = ['petit', 'normal', 'grand'].includes($('#r-joyt').value) ? $('#r-joyt').value : 'normal'; reglerJoy();
     ecrire(); reglerSons(); ecrans.reglages.hidden = true;
@@ -849,7 +849,13 @@
       if (e.t === 'mort' && e.boss) { ralentiJusque = performance.now() + 1600; ZHUD.flash(); PSONS.vibrer([60, 40, 120]); }
       else if (e.t === 'capacite' && e.id === idMoi && D.CAPACITES[e.cap]) compterCapacite(e.cap);
       else if (e.t === 'phase') { ralentiJusque = Math.max(ralentiJusque, performance.now() + 700); PSONS.vibrer([40, 30, 80]); } // (un boss change de phase : un instant au ralenti)
-      else if (e.t === 'boum') arretJusque = Math.max(arretJusque, performance.now() + 45);
+      else if (e.t === 'boum') { arretJusque = Math.max(arretJusque, performance.now() + 45); if (!e.petite) ZMUSIQUE.baisser(0.35); }
+      // les jingles (Lot 6)
+      if (e.t === 'vagueFinie') ZMUSIQUE.jingle('vagueFinie');
+      else if (e.t === 'vague' && e.boss) ZMUSIQUE.jingle('bossArrive');
+      else if (e.t === 'phase') ZMUSIQUE.baisser(0.8);
+      else if (e.t === 'victoire') ZMUSIQUE.jingle('gagne');
+      else if (e.t === 'echec' || (e.t === 'fin' && !e.gagne)) ZMUSIQUE.jingle('perdu');
     }
   }
   function compterCapacite(id) {
@@ -859,10 +865,19 @@
     ecrire();
   }
   let fige = false, finVu = false;
+  // la musique (Lot 6) : le moment (menu, entre les vagues, vague, boss, fin), l'intensité, l'arène, Noël
+  function majMusique() {
+    try {
+      const enPartie = !!(jeu && (ecran === 'jeu' || ecran === 'fin' || ecran === 'pause' || (ecran === 'reglages' && retourReglages === 'pause')));
+      const M = !enPartie ? 'menu' : enPause ? 'pause' : ZMUSIQUE.moment(jeu, jeu.fini ? 'fin' : 'jeu');
+      ZMUSIQUE.maj({ moment: M, intensite: enPartie ? ZMUSIQUE.intensite(jeu, moi()) : 0.3, arene: enPartie ? jeu.arene : arene, noel: enPartie ? !!jeu.noel : noelEnCours() });
+    } catch (e) { /* la musique ne bloque jamais le jeu */ }
+  }
   function boucle(t) {
     requestAnimationFrame(boucle);
     const dt = derT ? Math.min(0.1, (t - derT) / 1000) : PAS; derT = t;
     if (document.hidden) return;
+    majMusique();
     if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (partie && jeu && (ecran === 'jeu' || ecran === 'fin')) { // la coop : l'hôte simule, le client suit ; la pause n'arrête rien
       const e = partie.etape(partie.estHote ? dt * facteurTemps() : dt, enPause || estPortrait ? null : ZCONTROLES.lire()); effetsTemps(e);
@@ -896,7 +911,7 @@
     get jeu() { return jeu; }, get demo() { return demo; }, get ecran() { return ecran; }, get enPause() { return enPause; }, get portrait() { return estPortrait; }, get save() { return JSON.parse(JSON.stringify(save)); },
     get modeSalon() { return modeSalon; }, set modeSalon(v) { modeSalon = v; }, ouvrirSocial, ouvrirCapacites, ouvrirNoel, ajouterFlocons, demarrerInfection, ouvrirModes, ouvrirCollection, verifierExploits, ouvrirProgression, ouvrirCoffre, demarrer, demarrerDefi, ouvrirDefi, demarrerAscension, ouvrirAscension, get ascension() { return ascension; }, get defi() { return defi; }, classement: CL, pause, reprendre, montrer, quitter, get salon() { return salon; }, get partie() { return partie; }, get idMoi() { return idMoi; }, entrerSalon,
     avancer(n, e) { for (let i = 0; i < n && jeu && !jeu.fini; i++) { ZJEU.pas(jeu, e || null, PAS); } return jeu && { vague: jeu.vague, zombies: jeu.zombies.length, fini: jeu.fini }; },
-    stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque }; },
+    stats() { return { rendu: rendu.stats(), ecran, arene, ralenti: performance.now() < ralentiJusque, musique: ZMUSIQUE.etat() }; },
     ecranDe: (x, z) => rendu.ecranDe(x, z), get rendu() { return rendu; },
   };
 })();
