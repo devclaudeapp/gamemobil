@@ -21,6 +21,9 @@ const SONS = (() => {
     coincoin: [1, 0.05, 340, 0.01, 0.07, 0.09, 3, 2, -3, 0, 0, 0, 0.17, 0.25, 28], // un cancan nasillard, deux fois
     couic: [1, 0.05, 1250, 0.005, 0.03, 0.05, 0, 1, 45], // un petit couinement qui monte
     couac: [1, 0.05, 280, 0.02, 0.09, 0.12, 2, 1.4, 6, 0, 0, 0, 0, 0.2, 12], // le pingouin klaxonne
+    grelot: [1, 0.05, 1760, 0, 0.02, 0.22, 0, 1, 0, 0, 0, 0, 0.07, 0, 0, 0, 0, 0.9, 0.04, 0.35], // le petit renne de l'Avent : son grelot qui tinte (trois coups rapides)
+    // le calendrier de l'Avent : la cloche d'une case qui s'ouvre (deux notes claires, un écho) ; de synthèse, sans fichier
+    carillon: [1, 0, 1046, 0.005, 0.05, 0.6, 0, 1.5, 0, 0, 262, 0.1, 0, 0, 0, 0, 0.18, 0.6, 0.1],
   };
   // ─── les jeux de sons des événements ───
   const JEUX = {

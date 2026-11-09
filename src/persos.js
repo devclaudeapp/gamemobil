@@ -72,8 +72,20 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // en Node (sans canvas), un sprite sans texture, propre lui aussi (jamais le matériau partagé : on l'anime)
   // l'aura des feuilles d'or (le 20e palier du Marché d'automne) : le halo doré et une ronde de feuilles d'érable peintes autour, que
   // animerBoulanger fait tourner doucement (la rotation du sprite) ; même budget : un sprite
-  const AURA = { lueur: '#7CFF6B', feuilles: '#E8B33A' };
-  let texFeuilles = null;
+  const AURA = { lueur: '#7CFF6B', feuilles: '#E8B33A', flocons: '#DCEBFA' };
+  let texFeuilles = null, texFlocons = null;
+  // l'aura des flocons (la case du 24 décembre du calendrier de l'Avent) : un halo bleu de glace et une ronde de flocons blancs à six branches
+  // peints autour, qui tourne très lentement (animerBoulanger) ; même budget : un sprite
+  function floconsTex() {
+    if (texFlocons) return texFlocons;
+    texFlocons = M.texture((c, w, h) => {
+      const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(230,242,255,.5)'); g.addColorStop(0.5, 'rgba(200,225,250,.22)'); g.addColorStop(1, 'rgba(220,235,250,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineCap = 'round';
+      for (let k = 0; k < 12; k++) { const a = k / 12 * TAU + (k % 2) * 0.2, r = w * (k % 2 ? 0.36 : 0.43), s = w * (k % 3 ? 0.035 : 0.05); c.save(); c.translate(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r * 1.12); c.rotate(a); c.lineWidth = Math.max(1, s * 0.28); c.beginPath();
+        for (let b = 0; b < 6; b++) { const ab = b / 6 * TAU, x = Math.cos(ab) * s, y = Math.sin(ab) * s; c.moveTo(0, 0); c.lineTo(x, y); c.moveTo(x * 0.55, y * 0.55); c.lineTo(x * 0.55 + Math.cos(ab + 0.9) * s * 0.35, y * 0.55 + Math.sin(ab + 0.9) * s * 0.35); c.moveTo(x * 0.55, y * 0.55); c.lineTo(x * 0.55 + Math.cos(ab - 0.9) * s * 0.35, y * 0.55 + Math.sin(ab - 0.9) * s * 0.35); }
+        c.stroke(); c.restore(); }
+    }, 128, 128); texFlocons.userData.partagee = true; return texFlocons;
+  }
   function feuillesTex() {
     if (texFeuilles) return texFeuilles;
     texFeuilles = M.texture((c, w, h) => {
@@ -82,7 +94,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       for (let k = 0; k < 11; k++) { const a = k / 11 * TAU, r = w * (k % 2 ? 0.38 : 0.44), s = w * (k % 3 ? 0.055 : 0.07); c.save(); c.translate(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r * 1.15); c.rotate(a + HP + (k % 2 ? 0.5 : -0.3)); c.scale(s, -s); c.beginPath(); c.moveTo(q[0][0], q[0][1]); for (const [x, y] of q.slice(1)) c.lineTo(x, y); c.closePath(); c.fillStyle = ['#FFD45A', '#E8A93A', '#F2C14A', '#D9822B'][k % 4]; c.fill(); c.restore(); }
     }, 128, 128); texFeuilles.userData.partagee = true; return texFeuilles;
   }
-  function auraMat(id) { if (id === 'feuilles' && typeof document !== 'undefined') return new THREE.SpriteMaterial({ map: feuillesTex(), color: '#FFFFFF', transparent: true, opacity: 0.9, depthWrite: false }); return new THREE.SpriteMaterial({ map: typeof document === 'undefined' ? null : haloTex(), color: AURA[id] || AURA.lueur, transparent: true, opacity: 0.44, depthWrite: false }); }
+  function auraMat(id) { if (id === 'flocons' && typeof document !== 'undefined') return new THREE.SpriteMaterial({ map: floconsTex(), color: '#FFFFFF', transparent: true, opacity: 0.9, depthWrite: false }); if (id === 'feuilles' && typeof document !== 'undefined') return new THREE.SpriteMaterial({ map: feuillesTex(), color: '#FFFFFF', transparent: true, opacity: 0.9, depthWrite: false }); return new THREE.SpriteMaterial({ map: typeof document === 'undefined' ? null : haloTex(), color: AURA[id] || AURA.lueur, transparent: true, opacity: 0.44, depthWrite: false }); }
   // ─── un personnage : jambes, buste, tête, visage, bras, accessoires ───
   // Hiérarchie : g (lacet par la scène) > racine (échelle ×1,25 du patron, saut) > jambes ; racine > haut (rebond, respiration, assise) >
   // corps, cou > (tête, visage), bras, accessoires. userData.parts = { racine, haut, jambes[2], corps, cou, tete, visage, bras[2], sac?, plateau?, cle?,
@@ -140,7 +152,8 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       corps.push(M.part(M.sphere(7, 10), c.tissu, { y: 47.5, z: -7.5, sx: 1.4, sy: 0.6, sz: 0.95 }), M.part(bande(9.6, 3), c.tissu, { y: 50.5 }), M.part(M.tore(9.4, 1.1, TAU, 6, 16), poche, { y: 51.6, rx: HP }));
       corps.push(M.part(M.capsule(0.55, 5, 5), c.clair, { x: -2.3, y: 45, z: 11, rz: 0.12 }), M.part(M.capsule(0.55, 5, 5), c.clair, { x: 2.3, y: 45, z: 11, rz: -0.12 }));
       corps.push(M.part(patchC(11.75, 5.5, 1.35), poche, { y: 25.5 }), M.part(patchC(11.85, 0.7, 1.35), c.fonce, { y: 30.6 }), M.part(patchS(11.75, 1.35, HP, 0.4), poche, { y: 30 }));
-      corps.push(M.part(etoile(2.4, 1, 0.8), c.fonce, ETOILE));
+      if (c.flocons) { corps.push(M.part(bande(11.6, 4.4), c.fonce, { y: 36.5 })); for (let k = 0; k < 7; k++) { const a = (k - 3) * 0.42; corps.push(M.part(M.sphere(0.95, 6), c.clair, { x: Math.sin(a) * 11.9, y: 36.5 + (k % 2 ? 0.9 : -0.9), z: Math.cos(a) * 11.9, sz: 0.5 })); } } // le pull de Noël : sa bande verte piquée de flocons blancs (à la place de l'étoile)
+      else corps.push(M.part(etoile(2.4, 1, 0.8), c.fonce, ETOILE));
     }
     if (cape) corps.push(...partsCape(tnC)); // la cape : dans le dos, évasée, doublée ; le col dressé et l'agrafe (fusionnés dans le buste)
     if (o.bandes) for (const [y, r] of [[27, 0.25], [32, -0.2], [37.5, 0.18], [43, -0.15]]) corps.push(M.part(bande(11.3, 2), o.bandes, { y, rz: r })); // les bandelettes de la momie
@@ -151,6 +164,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const foulardCol = acc && acc.forme === 'foulard' ? (tnA ? tnA.tissu : ROUGE) : acc && acc.forme !== 'lunettes' ? null : o.foulard ? ROUGE : null; // l'accessoire remplace le foulard du titre (les lunettes le laissent)
     if (foulardCol) corps.push(M.part(M.tore(9.2, 2.4, TAU, 8, 16), foulardCol, { y: 51, rx: HP }), M.part(M.sphere(2.6, 8), foulardCol, { y: 49, z: 9.6 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: -1.7, y: 46.3, z: 11.2, rz: 0.35 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: 1.9, y: 46.6, z: 11, rz: -0.3 })); // deux pans courts qui pendent du nœud, à plat sur le tablier
     if (acc && acc.forme === 'chaine') { const bijou = tnA ? tnA.bijou || tnA.fonce : OR; corps.push(M.part(M.tore(9.6, 0.75, TAU, 6, 20), bijou, { y: 50.2, rx: HP + 0.28 }), M.part(M.tore(10.1, 0.75, TAU, 6, 20), bijou, { y: 48.4, rx: HP + 0.5 }), M.part(M.cylindre(2.3, 2.3, 0.9, 12), bijou, { y: 42.2, z: 11.2, rx: HP + 0.18 }), M.part(M.cylindre(1.3, 1.3, 0.5, 10), tnA ? tnA.clair : '#FFF2C2', { y: 42.2, z: 12.05, rx: HP + 0.18 })); } // deux rangs qui tombent sur la poitrine, un médaillon
+    if (foulardCol && tnA && tnA.rayures) corps.push(M.part(M.tore(9.25, 2.45, 0.5, 6, 4), tnA.rayures, { y: 51, rx: HP, rz: 1.2 }), M.part(M.tore(9.25, 2.45, 0.5, 6, 4), tnA.rayures, { y: 51, rx: HP, rz: 1.9 }), M.part(M.boiteSimple(2.4, 0.8, 0.8), tnA.rayures, { x: -1.6, y: 46.6, z: 11.7, rz: 0.35 }), M.part(M.boiteSimple(2.4, 0.8, 0.8), tnA.rayures, { x: 1.8, y: 46.9, z: 11.5, rz: -0.3 })); // l'écharpe rayée de l'Avent : des rayures blanches sur le tour de cou et les pans
     if (o.echarpe) corps.push(...partsEcharpe(o.echarpe, o.echarpeRaye)); // le Marché : l'écharpe des enfants déguisés
     if (o.queueA) corps.push(...partsQueue(o.queueA)); // et la queue de leur déguisement (l'écureuil, le renard)
     P.corps = M.maille(corps); ht.add(P.corps);
@@ -337,6 +351,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (forme === 'baskets') { const c = tn || TENUES.quartier; return [M.part(M.boiteSimple(7.8, 1.5, 10.4), BLANC, { y: -17.5, z: 1.6 }), M.part(M.boite(7, 3.8, 9.4, 1.3), c.tissu, { y: -16.1, z: 1.4 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: -3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: 3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 3.4 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 4.8 })]; }
     if (forme === 'bottes' && tn && tn.pluie) return [M.part(M.boite(7.4, 4.6, 10.2, 2.2), tn.tissu, { y: -17.5, z: 1.8 }), M.part(M.boiteSimple(7.6, 1, 10.4), tn.fonce, { y: -17.5, z: 1.8 }), M.part(M.cylindre(4, 3.8, 9, 10), tn.tissu, { y: -15.4 }), M.part(M.cylindre(4.3, 4.3, 1.4, 10), tn.fonce, { y: -7.2 }), M.part(M.sphere(0.9, 6), tn.clair, { x: -3.6, y: -10, z: 1.6 })]; // les bottes de pluie du Marché : le bout rond, la tige droite, le revers
     if (forme === 'bottes') { const c = tn || TENUES.hantee; return [M.part(M.boite(7.2, 4.6, 9.6, 1.6), c.tissu, { y: -17.5, z: 1.6 }), M.part(M.cone(2.6, 4.6, 8), c.tissu, { y: -15.4, z: 6.4, rx: 1.15 }), M.part(M.sphere(1.1, 6), c.fonce, { y: -12.9, z: 8.6 }), M.part(M.cylindre(3.9, 3.6, 7, 10), c.tissu, { y: -14.5 }), M.part(M.cylindre(4.2, 4.2, 1.6, 10), c.fonce, { y: -8.6 }), M.part(M.boite(2.4, 2, 0.8, 0.3), c.bijou || OR, { y: -12.8, z: 3.8 })]; } // les bottes de sorcière : bout pointu relevé, tige, revers orange, boucle
+    if (tn && tn.chaussons) return [M.part(M.boite(7.6, 4.8, 10, 2.2), tn.tissu, { y: -17.3, z: 1.4 }), M.part(M.boiteSimple(7.8, 0.8, 10.2), tn.fonce, { y: -17.6, z: 1.4 }), M.part(bande(4, 1.8), tn.clair, { y: -14.4 }), M.part(M.sphere(1.3, 8), tn.bijou || tn.clair, { y: -14.6, z: 5.6 })]; // les chaussons de feutre de l'Avent : arrondis, le revers de laine blanche, un pompon sur le bout
     if (tn) return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), tn.tissu, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), tn.fonce, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(5, 0.8, 1.2), tn.lacet || tn.fonce, { y: -14.2, z: 3.2 })]; // (lacet : les bottines d'automne, aux lacets rouges)
     return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), '#C8864F', { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), '#8B5A3C', { y: -17.5, z: 1.4 })]; // les sabots
   }
@@ -346,7 +361,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: garde ? null : TENUES[tenue] || null, garde });
     const P = g.userData.parts;
     // l'aura (garde.aura) : un seul sprite dressé derrière le buste, un peu plus grand que le boulanger ; un appel de dessin de plus, au plus
-    if (garde && garde.aura && AURA[garde.aura]) { P.aura = new THREE.Sprite(auraMat(garde.aura)); P.aura.position.set(0, 38, -7); P.aura.scale.set(68, 90, 1); P.aura.renderOrder = -1; P.aura.castShadow = false; P.aura.userData.feuilles = garde.aura === 'feuilles'; P.racine.add(P.aura); }
+    if (garde && garde.aura && AURA[garde.aura]) { P.aura = new THREE.Sprite(auraMat(garde.aura)); P.aura.position.set(0, 38, -7); P.aura.scale.set(68, 90, 1); P.aura.renderOrder = -1; P.aura.castShadow = false; P.aura.userData.feuilles = garde.aura === 'feuilles' || garde.aura === 'flocons'; P.aura.userData.tourne = garde.aura === 'flocons' ? 0.12 : 0.35; P.racine.add(P.aura); }
     P.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
@@ -418,7 +433,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     bg.rotation._x = bgx; bd.rotation._x = bdx; bg.rotation._z = bgz; bd.rotation._z = bdz; tourner(bg); tourner(bd);
     cou.rotation._x = cx; cou.rotation._z = cz; tourner(cou);
     if (P.sueur) P.sueur.visible = !!o.rush;
-    if (P.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1), fe = P.aura.userData.feuilles; P.aura.material.opacity = (fe ? 0.82 : 0.44) + 0.1 * k + 0.04 * k2; P.aura.scale.x = 68 + 3 * k; P.aura.scale.y = 90 + 4 * k + 2 * k2; if (fe) P.aura.material.rotation = t * 0.35; } // l'aura respire, doucement (deux sinus : jamais tout à fait le même battement) ; les feuilles d'or tournoient
+    if (P.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1), fe = P.aura.userData.feuilles; P.aura.material.opacity = (fe ? 0.82 : 0.44) + 0.1 * k + 0.04 * k2; P.aura.scale.x = 68 + 3 * k; P.aura.scale.y = 90 + 4 * k + 2 * k2; if (fe) P.aura.material.rotation = t * P.aura.userData.tourne; } // l'aura respire, doucement (deux sinus : jamais tout à fait le même battement) ; les feuilles d'or tournoient
     visage(P, o.blink > 3.25 ? 3 : 1);
   }
   // ─── le chat de la boutique : un roux tigré, même grammaire que les personnages (volumes ronds, couleurs plates, petits yeux) ───
@@ -765,6 +780,22 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       q1: () => [M.part(M.sphere(3, 10), '#C8662B', { y: 3.4, sx: 0.8, sy: 1.5 })], q2: () => [M.part(M.sphere(3.4, 10), '#D97A3A', { y: 2.8, sx: 0.85, sy: 1.35 }), M.part(M.sphere(2.1, 8), '#E8945A', { y: 6.2, sx: 0.8 })],
       patte: () => pattePendue(1.15, 4.4, '#C8662B', '#7B4A2A', { rp: 1.25 }),
     },
+    // le petit renne « Grelot » (gagné à la case du 6 décembre du calendrier de l'Avent, la Saint-Nicolas) : la robe brun chaud, le ventre, le
+    // poitrail et le bout de la queue crème, de longues pattes fines aux sabots sombres, les bois de velours clair (deux branches et leurs
+    // andouillers), le gros nez rouge, les oreilles en feuille, le collier rouge et son grelot doré sous le menton (il tinte : son cri)
+    renne: {
+      lp: 8.4, py: -3, hanches: [[-2.4, 6.4], [2.4, 6.4], [-2.4, -6.4], [2.4, -6.4]], tp: [6.2, 11.6], queue: [2.6, -10.2, -0.6], lq1: 2.6, q2r: 0.3, R: 4.8, D: 10.8, demiH: 4.2, assis: 'couche', dort: 'couche',
+      corps: () => { const robe = '#9A6A42', creme = '#F4E3C6'; return [M.part(M.capsule(4.8, 11.6, 12), robe, { rx: HP }), M.part(arcCyl(4.92, 11.6, 1.9, 0), creme, { rx: HP }), M.part(patchS(5, 2.0, 1.3, 1.5), creme, { z: 6.4 }),
+        M.part(M.tore(3.3, 0.75, TAU, 6, 14), '#C8102E', { y: 3.6, z: 8.6, rx: 0.9 }), M.part(M.sphere(1.35, 10), '#E8B33A', { y: 1.5, z: 10.6 }), M.part(M.cylindre(0.5, 0.5, 0.3, 6), '#7A5A1A', { y: 1.1, z: 11.85, rx: HP })]; }, // (le collier rouge et son grelot)
+      tete: (f) => { const robe = '#9A6A42', bois = '#E2CBA0', p = [M.part(M.sphere(4.1, 14), robe, { sx: 1.02, sy: 0.98 }), M.part(M.sphere(2.6, 10), '#B98457', { y: -1.4, z: 3.4, sx: 1.05, sy: 0.8, sz: 1.15 }), M.part(M.sphere(1.45, 10), '#E0302E', { y: -0.9, z: 6.1 }), M.part(M.sphere(0.45, 6), '#FFB3A8', { x: -0.5, y: -0.4, z: 7.1 })];
+        for (const sx of [-1, 1]) {
+          p.push(M.part(M.sphere(1.9, 8), robe, { x: sx * 3.9, y: 1.6, z: -0.6, sx: 0.4, sy: 1.25, sz: 0.85, rz: sx * 1.1 }), M.part(M.sphere(1.05, 6), '#F4E3C6', { x: sx * 3.95, y: 1.6, z: -0.3, sx: 0.25, sy: 0.9, sz: 0.6, rz: sx * 1.1 })); // les oreilles en feuille
+          p.push(M.part(M.capsule(0.5, 5.4, 5), bois, { x: sx * 2.2, y: 5.6, z: -0.6, rz: -sx * 0.32, rx: -0.15 }), M.part(M.capsule(0.42, 2.6, 5), bois, { x: sx * 3.9, y: 8.8, z: -1.2, rz: -sx * 0.9 }), M.part(M.capsule(0.42, 2.2, 5), bois, { x: sx * 2.5, y: 7.1, z: 0.6, rz: -sx * 0.1, rx: 0.8 }), M.part(M.capsule(0.38, 1.8, 5), bois, { x: sx * 3.6, y: 10.2, z: -1.2, rz: sx * 0.15 })); // les bois et leurs andouillers
+        }
+        yeux(p, 1.7, 0.7, 3.65, 0.8, f); joues(p, 2.9, -0.8, 3.1, 0.75); return p; },
+      q1: () => [M.part(M.sphere(1.5, 8), '#9A6A42', { y: 1.2, sy: 1.2 })], q2: () => [M.part(M.sphere(1.25, 8), '#F4E3C6', { y: 0.6, sy: 1.1 })], // la petite queue, son dessous crème
+      patte: () => pattePendue(1.15, 7.4, '#9A6A42', '#4A3328', { court: 1.2, rp: 1.25 }),
+    },
   };
   const AILES_P = [0, 4, 1.5]; // la place des ailes sur la racine (le mini-dragon ; la chauve-souris a la sienne, ailesP)
   const VOL_CS = 105, CS_R = 9; // la chauve-souris en vol : sa hauteur au-dessus du sol (près du plafond) et le rayon de ses petits cercles
@@ -875,6 +906,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       else if (id === 'herisson') { h.rotation._x = -0.15 + Math.sin(t * 6) * 0.06; tourner(h); } // il renifle
       else if (id === 'dragon' && ai) { const k = Math.sin(t * 0.8); ai.scale.y = k > 0.6 ? 0.3 + 0.35 * (1 + Math.cos(t * 14)) : 1; } // de temps en temps, un battement d'ailes
       else if (id === 'pigeon') { let k = Math.max(0, Math.sin(t * 1.9)); k *= k; c.scale.x = c.scale.z = 1 + 0.06 * k; h.position.y += 0.7 * k; h.rotation._x = -0.25 * k; tourner(h); } // il roucoule : la gorge se gonfle, la tête se rengorge
+      else if (id === 'renne') { h.rotation._z = Math.sin(t * 6) * 0.09 * Math.max(0, Math.sin(t * 0.7)); tourner(h); } // il secoue la tête : le grelot tinte
       else if (id === 'paon') { const k = 0.88 + 0.12 * Math.max(0, Math.sin(t * 0.8)); q1.scale.x = q1.scale.y = k; } // il fait la roue : elle s'ouvre et se referme un peu
     } else if (e === 'saut') { // en l'air : la queue pour l'équilibre, les ailes battent
       q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);

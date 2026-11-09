@@ -753,7 +753,7 @@ const EQUIPE3D = (() => {
   //     poignets et de l'ourlet. En or : « noir et or, rien d'autre », l'or en grand pour qu'on le voie de la salle, d'en haut : le bord de la
   //     capuche, les côtes des poignets et de l'ourlet, les rebords de la poche, des cordons plus épais ───
   function* kitSweat(pr, o) { // (un générateur, comme le tablier)
-    const m = pr.m, u = m.u, v = o.v || 'quartier', or = v === 'quartier-or', laine = v === 'laine', jacquard = v === 'jacquard', f = facade(pr, 1), fd = facade(pr, -1), cx = m.tete.cx, parts = [], wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/), wF = poidsFacade(pr); // (laine : le gilet du Marché d'automne ; jacquard : le pull de la saison)
+    const m = pr.m, u = m.u, v = o.v || 'quartier', or = v === 'quartier-or', laine = v === 'laine', flocons = v === 'flocons', jacquard = v === 'jacquard' || flocons, f = facade(pr, 1), fd = facade(pr, -1), cx = m.tete.cx, parts = [], wC = poidsCorps(pr, /^(Torso|Neck|Shoulder|Abdomen)/), wF = poidsFacade(pr); // (laine : le gilet du Marché d'automne ; jacquard : le pull de la saison)
     const C = contour(pr, /^(Torso|Neck|Shoulder|Abdomen)/, 'haut'), cz = C.cz, yN = m.foulard.max.y - 0.02 * u, K = 22, PH = 2.3, pts = [], rr = [];
     const To = toit(pr), r0s = [];
     for (let k = 0; k <= K; k++) { const ph = -PH + 2 * PH * k / K, th = Math.PI + ph; r0s.push(Math.max(C.r(th, yN - 0.01 * u), 0.15 * u)); }
@@ -799,6 +799,8 @@ const EQUIPE3D = (() => {
     // filets verts), sous les pans d'une écharpe ou du foulard rouge du titre (ils descendent sur la poitrine jusqu'à 0,23 u sous le col)
     if (!laine && !jacquard) { const [ps, ns] = surFacade(pr, cx + 0.08 * u, m.buste.max.y - 0.17 * u, 0.006 * u); parts.push(pc(etoile(0.034 * u, 0.015 * u, 0.007 * u), or ? 'bijou' : 'fonce', surSurface(ps, ns, null, -0.15), (x, y) => wF(x, y))); }
     if (jacquard) { const yc = m.veste.min.y + 0.155 * u; parts.push(bandeCorps(pr, 'fonce', yc - 0.034 * u, yc + 0.034 * u, 0.005 * u), bandeCorps(pr, 'clair', yc + 0.022 * u, yc + 0.03 * u, 0.008 * u), bandeCorps(pr, 'clair', yc - 0.03 * u, yc - 0.022 * u, 0.008 * u)); }
+    // le pull de Noël (le calendrier de l'Avent) : la même bande, verte, et des flocons blancs à six branches semés sur la poitrine et dans la bande
+    if (flocons) { const yc = m.veste.min.y + 0.155 * u; for (const [dx, y, R] of [[-0.1, yc, 0.022], [0, yc, 0.022], [0.1, yc, 0.022], [-0.07, m.buste.max.y - 0.13 * u, 0.03], [0.09, m.buste.max.y - 0.2 * u, 0.026], [-0.02, m.buste.max.y - 0.27 * u, 0.02]]) { const yy = typeof y === 'number' ? y : yc, [p0, n0] = surFacade(pr, cx + dx * u, yy, 0.011 * u); parts.push(pc(etoile(R * u, R * u * 0.28, 0.005 * u, 6), 'clair', surSurface(p0, n0), (x, yv) => wF(x, yv))); } }
     parts.push(...poignets(pr, 'bord', 0.006 * u, 0.04 * u), ...ourlet(pr, 'bord', 0.034 * u));
     return { parts };
   }
@@ -971,6 +973,11 @@ const EQUIPE3D = (() => {
         parts.push(pc(nappe(an), 'tissu', null, tib), pc(nappe([anneau(ax1.x, yR - 0.012 * u, ax1.z, rT + 0.003 * u, (rT + 0.003 * u) * 1.04, 14), anneau(ax1.x, yR + 0.004 * u, ax1.z, rT + 0.004 * u, (rT + 0.004 * u) * 1.04, 14)]), 'fonce', null, tib));
         for (let k = 0; k < 3; k++) { const s = 0.4 + k * 0.08; parts.push(c.ruban(s, 1.0, s, 2.14, 0.0034 * u, 0.0022 * u, 'lacet', 3)); }
         for (let k = 0; k < 3; k++) { const t = 0.35 + k * 0.25, cc = ax0.clone().lerp(ax1, t), rk = 0.058 * u + (rT - 0.058 * u) * t; parts.push(pc(new T.BoxGeometry(0.05 * u, 0.006 * u, 0.006 * u), 'lacet', { x: cc.x, y: cc.y, z: cc.z + rk * 1.04 + 0.002 * u, rx: -0.3 }, tib)); }
+      } else if (v === 'chaussons') { // les chaussons de feutre de l'Avent : une coque ronde et douce, le revers de laine blanche roulé à la cheville, un pompon sur le bout
+        c = coque(pr, cote, { larg: 0.13, haut: 0.088, bout: 0.06, avance: 0.08, recul: 0.016, pointe: 1.3, bout0: 0.6, semelle: 0.012 }, os); c.os = os;
+        const tib = OS.tibias[cote > 0 ? 0 : 1], yR = m.chevilleY + 0.012 * u, jR = jambe(pr, cote, yR) || { x: c.x, z: 0, r: 0.09 * u }, rT = jR.r + 0.02 * u;
+        parts.push(pc(nappe([anneau(jR.x, yR - 0.02 * u, jR.z, rT, rT * 1.05, 14), anneau(jR.x, yR, jR.z, rT + 0.012 * u, (rT + 0.012 * u) * 1.05, 14), anneau(jR.x, yR + 0.02 * u, jR.z, rT + 0.004 * u, (rT + 0.004 * u) * 1.05, 14)]), 'clair', null, tib));
+        const [pp, np] = c.surCoque(0.78, HP, 0.012 * u); parts.push(pc(new T.IcosahedronGeometry(0.021 * u, 1), 'bijou', surSurface(pp, np), os));
       } else if (/^bottes/.test(v)) {
         c = coque(pr, cote, { larg: 0.11, haut: 0.095, bout: 0.04, avance: 0.118, pointe: 1.15, bout0: 0.16, releve: 0.05, semelle: 0.012 }, os); c.os = os;
         // le bout qui se recourbe : un petit fourreau qui part du bout et s'enroule vers le haut et l'arrière
@@ -1026,6 +1033,7 @@ const EQUIPE3D = (() => {
       parts.push(pc(plaque(feuille(w, L), 0.007 * u, 0.0015 * u), 'tissu', ma.clone().multiply(new T.Matrix4().makeTranslation(0, 0, 0.002 * u)), os), pc(plaque(feuille(w * 1.28, L * 1.075), 0.006 * u, 0.0015 * u), 'bord', ma, os));
       const sur = (t, dx) => new T.Vector3(dx || 0, -L * t, 0.0075 * u).applyMatrix4(ma);
       if (v === 'or' || v === 'parcours' || v === 'titre') for (const [t, dx] of [[0.2, -0.009], [0.38, 0.011], [0.56, -0.007], [0.74, 0.006]]) parts.push(pc(new T.SphereGeometry(0.0072 * u, 6, 4), v === 'parcours' ? 'bijou' : 'clair', new T.Matrix4().makeTranslation(...sur(t, dx * u).toArray()).multiply(new T.Matrix4().makeScale(1, 1, 0.4)), os));
+      if (v === 'rayee') for (const t of [0.16, 0.36, 0.56, 0.76]) { const a = sur(t, -w * 0.72), b = sur(t + 0.05, w * 0.72); parts.push(pc(baton(a, b, 0.012 * u, 0.0035 * u, nm), 'clair', null, os)); } // l'écharpe rayée de l'Avent : quatre rayures blanches par pan
       if (v === 'argent' || v === 'echarpe') for (const t of [0.34, 0.54]) { const a = sur(t, -w * 0.72), b = sur(t + 0.06, w * 0.72); parts.push(pc(baton(a, b, 0.011 * u, 0.0035 * u, nm), 'clair', null, os)); }
       if (v === 'parcours' && s > 0) { const h = 0.026 * u, wt = largeurTexte('29', h); for (const g of tracer('29', h, 0.0048 * u, 0.0025 * u, (uu, vv) => [new T.Vector3(-wt / 2 + uu, -L * 0.88 + vv, 0.0062 * u).applyMatrix4(ma), nm])) parts.push(pc(g, 'bijou', null, os)); }
     }
@@ -1181,12 +1189,12 @@ const EQUIPE3D = (() => {
     else if (h.tete === 'couronne') l.push(['couronne', 'T', (pr) => kitCouronne(pr)]);
     else if (h.tete === 'chapeau') { const v = c.tete === 'hantee-lueur' ? 'lueur' : c.tete === 'hantee-or' ? 'hantee-or' : 'hantee'; l.push([`chapeau|${v}`, 'T', (pr) => kitChapeau(pr, { v })]); }
     if (h.haut === 'tablier') { const v = app ? 'apprenti' : varTablier(c.haut), mono = PODIUM.includes(v) ? h.mono : ''; l.push([`tablier|${v}|${mono}`, 'H', (pr) => kitTablier(pr, { v, mono, biais: app })]); }
-    else if (h.haut === 'sweat') { const v = c.haut === 'quartier-or' ? 'quartier-or' : /^marche/.test(c.haut || '') ? 'laine' : c.haut === 'automne' ? 'jacquard' : 'quartier'; l.push([`sweat|${v}`, 'H', (pr) => kitSweat(pr, { v })]); }
+    else if (h.haut === 'sweat') { const v = c.haut === 'quartier-or' ? 'quartier-or' : /^marche/.test(c.haut || '') ? 'laine' : c.haut === 'automne' ? 'jacquard' : c.haut === 'avent' ? 'flocons' : 'quartier'; l.push([`sweat|${v}`, 'H', (pr) => kitSweat(pr, { v })]); }
     else if (h.haut === 'cape') l.push(['cape', 'H', (pr) => kitCape(pr, {})]);
     else if (h.haut === 'veste') l.push(['veste', 'H', (pr) => kitVeste(pr, {})]);
-    const vp = app ? 'apprenti' : h.pieds === 'souliers' ? 'souliers' : h.pieds === 'baskets' ? (c.pieds === 'quartier-or' ? 'baskets-or' : 'baskets-quartier') : h.pieds === 'bottes' ? (c.pieds === 'hantee-or' ? 'bottes-or' : /^marche/.test(c.pieds || '') ? 'bottes-pluie' : 'bottes-hantee') : c.pieds === 'base' || !c.pieds ? 'sabots' : PODIUM.includes(c.pieds) || c.pieds === 'parcours' ? c.pieds : c.pieds === 'automne' ? 'bottines' : 'bronze';
+    const vp = app ? 'apprenti' : h.pieds === 'souliers' ? 'souliers' : h.pieds === 'baskets' ? (c.pieds === 'quartier-or' ? 'baskets-or' : 'baskets-quartier') : h.pieds === 'bottes' ? (c.pieds === 'hantee-or' ? 'bottes-or' : /^marche/.test(c.pieds || '') ? 'bottes-pluie' : 'bottes-hantee') : c.pieds === 'base' || !c.pieds ? 'sabots' : PODIUM.includes(c.pieds) || c.pieds === 'parcours' ? c.pieds : c.pieds === 'automne' ? 'bottines' : c.pieds === 'avent' ? 'chaussons' : 'bronze';
     l.push([`pieds|${vp}`, 'P', (pr) => kitChaussures(pr, { v: vp })]);
-    if (h.acc === 'foulard') { const v = PODIUM.includes(c.acc) || c.acc === 'parcours' ? c.acc : c.acc === 'automne' ? 'echarpe' : 'bronze'; l.push([`foulard|${v}`, 'A', (pr) => kitFoulard(pr, { v })]); }
+    if (h.acc === 'foulard') { const v = PODIUM.includes(c.acc) || c.acc === 'parcours' ? c.acc : c.acc === 'automne' ? 'echarpe' : c.acc === 'avent' ? 'rayee' : 'bronze'; l.push([`foulard|${v}`, 'A', (pr) => kitFoulard(pr, { v })]); }
     else if (h.acc === 'chaine') { const v = c.acc === 'quartier-or' ? 'quartier-or' : 'quartier'; l.push([`chaine|${v}`, 'A', (pr) => kitChaine(pr, { v })]); }
     else if (h.acc === 'lanterne') l.push(['lanterne', 'A', () => kitLanterne()]);
     else if (h.acc === 'panier') l.push(['panier', 'A', () => kitPanier()]);
@@ -1613,8 +1621,18 @@ const EQUIPE3D = (() => {
   //     sprite, sa moitié basse passerait devant lui et le teindrait de vert). Il est dessiné parmi les objets opaques, juste avant lui, sans
   //     écrire la profondeur : ce qui est devant lui le cache, le boulanger passe par-dessus (rien de lui n'est jamais teint, pas même la
   //     visière, la cape ou le chapeau qui dépassent derrière), le mélange est celui d'un objet transparent ───
-  let TEX_AURA = null, TEX_AURA_F = null;
+  let TEX_AURA = null, TEX_AURA_F = null, TEX_AURA_N = null;
   function auraMat(id) {
+    if (id === 'flocons') { // l'aura des flocons (la case du 24 décembre du calendrier de l'Avent) : le même halo, bleu de glace, piqué de flocons à six branches
+      if (!TEX_AURA_N) {
+        TEX_AURA_N = M.texture((c, w, h) => {
+          const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,.7)'); g.addColorStop(0.4, 'rgba(255,255,255,.34)'); g.addColorStop(0.64, 'rgba(255,255,255,.4)'); g.addColorStop(0.78, 'rgba(255,255,255,.14)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+          c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineCap = 'round';
+          for (let k = 0; k < 10; k++) { const a = k * 2.399 + 0.4, r = w * (0.3 + 0.09 * ((k * 7) % 5) / 4), s = w * (0.035 + 0.01 * (k % 3)); c.save(); c.translate(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r); c.rotate(a); c.lineWidth = Math.max(1, s * 0.22); c.beginPath(); for (let b = 0; b < 6; b++) { const ab = b / 6 * TAU, x = Math.cos(ab) * s, y = Math.sin(ab) * s; c.moveTo(0, 0); c.lineTo(x, y); c.moveTo(x * 0.55, y * 0.55); c.lineTo(x * 0.55 + Math.cos(ab + 0.9) * s * 0.32, y * 0.55 + Math.sin(ab + 0.9) * s * 0.32); c.moveTo(x * 0.55, y * 0.55); c.lineTo(x * 0.55 + Math.cos(ab - 0.9) * s * 0.32, y * 0.55 + Math.sin(ab - 0.9) * s * 0.32); } c.stroke(); c.restore(); }
+        }, 128, 128); TEX_AURA_N.userData.partagee = true;
+      }
+      return new T.MeshBasicMaterial({ map: TEX_AURA_N, color: '#CFE4FA', opacity: 0.5, transparent: false, depthWrite: false, blending: T.CustomBlending, blendSrc: T.SrcAlphaFactor, blendDst: T.OneMinusSrcAlphaFactor, blendSrcAlpha: T.OneFactor, blendDstAlpha: T.OneMinusSrcAlphaFactor });
+    }
     if (id === 'feuilles') { // l'aura des feuilles d'or (le 20e palier du Marché d'automne) : le même halo, doré, piqué de petites feuilles d'érable
       if (!TEX_AURA_F) {
         TEX_AURA_F = M.texture((c, w, h) => {

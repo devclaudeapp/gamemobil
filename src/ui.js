@@ -149,6 +149,7 @@ const UI = (() => {
     carte: () => sf('carte', { vol: 0.4, vitesse: 0.95 + Math.random() * 0.1 }) || beep(520, 0.08, 'triangle', 0.06),
     non: () => sf('refus', { vol: 0.25 }) || beep(200, 0.12, 'square', 0.03),
     ronron: () => { beep(300, 0.25, 'sine', 0.05); beep(420, 0.28, 'sine', 0.04, 0.12); },
+    cloche: () => zf('carillon', { vol: 0.3 }) || [1047, 1319, 1568].forEach((f, i) => beep(f, 0.3, 'sine', 0.05, i * 0.11)), // une case de l'Avent qui s'ouvre
   };
   // des confettis (canvas-confetti, vendor/confetti.min.js, seulement sur la page du jeu) : couleurs du Fournil, rien si l'on préfère moins de mouvement
   function confettis(force) {
@@ -1683,11 +1684,11 @@ const UI = (() => {
   const modeleVu = () => (st && st.chat ? G.modeleCompagnon(st, chatNoirForce()) : 'chat-roux'); // l'animal montré dans la boutique
   function chatNoir() { return !!(st && st.chat) && modeleVu() === 'chat-noir'; }
   function majChat() { const id = modeleVu(); if (id !== dernierModele) { dernierModele = id; if (SCENE.compagnon) SCENE.compagnon(id); else if (SCENE.pelageChat) SCENE.pelageChat(id === 'chat-noir' ? 'noir' : 'roux'); } }
-  const CRIS = { wouf: 'Wouf !', woufgrave: 'WOUF.', cotcot: 'Cot cot !', coincoin: 'Coin coin !', couic: 'Couic !', couac: 'Couac !' };
+  const CRIS = { wouf: 'Wouf !', woufgrave: 'WOUF.', cotcot: 'Cot cot !', coincoin: 'Coin coin !', couic: 'Couic !', couac: 'Couac !', grelot: 'Ding ding !' };
   function criCompagnon(id) { // la caresse : le cri d'un animal simple (src/sons.js, sinon un bip à sa hauteur), le ronron pour les autres
     const c = G.compagnon(id), n = c && c.cri;
     if (!n) { son.ronron(); return id === 'dragon' ? 'Pfffouh…' : 'Rrrr…'; }
-    if (!zf(n, { vol: 0.3 })) { const f = { wouf: 220, woufgrave: 130, cotcot: 560, coincoin: 340, couic: 1250, couac: 280 }[n] || 440; beep(f, 0.09, n === 'couic' ? 'sine' : 'square', 0.035); beep(f * 0.9, 0.09, n === 'couic' ? 'sine' : 'square', 0.03, 0.13); }
+    if (!zf(n, { vol: 0.3 })) { const f = { wouf: 220, woufgrave: 130, cotcot: 560, coincoin: 340, couic: 1250, couac: 280, grelot: 1760 }[n] || 440; beep(f, 0.09, n === 'couic' || n === 'grelot' ? 'sine' : 'square', 0.035); beep(f * 0.9, 0.09, n === 'couic' ? 'sine' : 'square', 0.03, 0.13); }
     return CRIS[n] || 'Rrrr…';
   }
   // les animaux de la feuille : le chien du quartier seulement à qui l'a gagné, le Quartier écarté (QUARTIER.ECARTE) : plus de carte verrouillée « Au palier 11 du Quartier »
