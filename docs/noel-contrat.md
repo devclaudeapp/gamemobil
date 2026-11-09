@@ -808,6 +808,11 @@ de lutin, en or, la couronne · l'ourson blanc sur le comptoir · les décos pos
   aucun fichier. Tests : `fournil-avent.cjs` (nouveau), `fournil-saison.cjs` (l'hiver), `fournil-compagnons.cjs` (le renne : 19 cartes),
   `fournil-garderobe.cjs` (11 ensembles, le boulanger 3D en tenue de Noël), `fournil-equipe3d.cjs` (63 pièces, les kits de l'Avent),
   `fournil-accueil.test.js` (l'entrée de décembre en tête).
+- 9 nov., reprise (revue de la Livraison 1) : (1) un joueur venu par l'accueil (`accueilActif()` à vie) dont la piste est déjà ouverte
+  n'avait aucune annonce de la saison d'hiver : sa bulle `avent` la dit (« …et la saison d'hiver, une nouvelle piste jusqu'au 3 janvier ! »)
+  et `apresDeblocage('avent')` pose `st.pisteAnnonce` avec `st.aventAnnonce` (`test/fournil-avent.cjs`) ; (2) CI : la ligne Node du
+  déploiement (et de l'essai) pose `FOURNIL_SAISON_GRAINES: ''` (88 vérifications, ≈ 4 min au lieu de 16) ; la longévité complète tourne en
+  parallèle dans **`fournil16`** (Node seul, 45 min au plus, dans les `needs`) ; `fournil15` reste aux activités du Chalet (L2).
 
 ## 15. Les questions pour le joueur (avec la recommandation)
 1. **Le coup de pouce du nouveau joueur occasionnel de décembre.** Avec les lots allégés (Avent : 8 ★ et 3 boosts ; hiver : 13 ★ et 4
