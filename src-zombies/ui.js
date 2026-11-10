@@ -16,6 +16,8 @@
   }
   const save = lire();
   save.reglages = Object.assign({ son: true, vibre: true, eco: false, joy: 'flottant', joyt: 'normal', musique: 0.6, effets: 1, ambiance: true }, save.reglages || {});
+  // le Lot 7a : la qualité (auto, haute, moyenne, économe) ; l'ancien « graphismes économes » coché devient « économe »
+  if (!['auto', 'haute', 'moyenne', 'eco'].includes(save.reglages.qualite)) save.reglages.qualite = save.reglages.eco ? 'eco' : 'auto';
   save.meta = Object.assign({ medailles: 0, gagnees: 0, bunker: {} }, save.meta || {}); // le Bunker : les médailles et les crans achetés
   save.capacites = Object.assign({ choisie: 'artillerie', usages: {}, talents: {} }, save.capacites || {}); // (Lot 5c : la capacité choisie, combien de fois chacune a servi, les talents gardés)
   save.records = save.records || {}; save.total = Object.assign({ parties: 0, tues: 0, temps: 0 }, save.total || {});
@@ -24,7 +26,7 @@
 
   // ─── la 3D ───
   const canvas = $('#scene');
-  const rendu = ZRENDU.creer(canvas, { qualite: save.reglages.eco ? 'eco' : 'haute' });
+  const rendu = ZRENDU.creer(canvas, { qualite: save.reglages.qualite });
   if (!rendu) { $('#sans3d').hidden = false; return; }
   function taille() { rendu.taille(window.innerWidth, window.innerHeight); }
   window.addEventListener('resize', taille); taille();
@@ -67,7 +69,7 @@
     atout(k) { choisir(k); },
     projeter: (x, y, z) => rendu.ecranDe(x, z, y),
     iconeBonus: (k) => rendu.iconeBonus(k),
-    portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112 }), // (les emplacements d'arme : la vraie arme, dans sa finition)
+    portraitArme: (id, fin) => rendu.portrait('arme', id, { finition: fin || null, taille: 112, siPret: ecran === 'jeu' && !!jeu && jeu.phase !== 'pause' }), // (les emplacements d'arme : la vraie arme, dans sa finition)
     // un ennemi rencontré pour la première fois (sur cette sauvegarde) : vrai une seule fois, et c'est noté
     nouvelEnnemi(type) { const b = save.bestiaire || (save.bestiaire = {}); if (b[type]) return false; b[type] = 1; ecrire(); return true; },
   });
@@ -461,6 +463,22 @@
   if (save.noel.saison !== saisonNoel()) save.noel = { saison: saisonNoel(), flocons: 0, recus: [] }; // (une nouvelle saison de Noël : la piste repart de zéro ; ce qu'on a gagné reste)
   { const C = save.collection; for (const k in D.SURVIVANTS) if (D.SURVIVANTS[k].depart && !C.skins.includes(k)) C.skins.push(k); for (const k in D.EMOTES) if (!D.EMOTES[k].prix && !D.EMOTES[k].pass && !D.EMOTES[k].noel && !C.emotes.includes(k)) C.emotes.push(k); if (!D.SURVIVANTS[C.skin]) C.skin = 'gardien'; }
   function moiJoueur() { const C = save.collection, fins = finitionsEues(), parArme = {}; for (const a in C.parArme) if (fins.includes(C.parArme[a])) parArme[a] = C.parArme[a]; return { id: idMoi, pseudo: 'Moi', skin: C.skin, finitions: parArme, capacite: maCapacite(false), compagnon: C.compagnon && C.compagnons.includes(C.compagnon) ? C.compagnon : null }; }
+  // le Lot 7a : les portraits des armes (les emplacements du HUD) faits d'avance, un toutes les 150 ms, aux moments calmes (le titre, la fin,
+  // la pause entre deux vagues) ; pendant une vague, le HUD ne prend que ceux qui sont déjà faits (sinon l'icône de l'arme, le temps qu'il
+  // arrive) : ramasser une caisse en pleine vague ne fait plus faire (ni compiler) un portrait au milieu de l'action
+  (function portraitsDAvance() {
+    const ids = Object.keys(D.ARMES); let i = 0, essais = 0;
+    const etape = () => {
+      if (i >= ids.length || !rendu) return;
+      const st = rendu.stats(), calme = ecran === 'titre' || ecran === 'fin' || (ecran === 'jeu' && jeu && jeu.phase === 'pause' && !partie);
+      if (calme && st.modeles === 'pret' && st.armes !== 'attente' && st.armes !== 'charge') {
+        let u = null; try { u = rendu.portrait('arme', ids[i], { finition: moiJoueur().finitions[ids[i]] || null, taille: 112 }); } catch (e) { u = 'non'; }
+        if (u || ++essais > 10) { i++; essais = 0; } // (pas encore prête : on réessaie un peu, puis on passe à la suivante)
+      }
+      setTimeout(etape, 150);
+    };
+    setTimeout(etape, 300);
+  })();
   function maCapacite(sansTalents) { const id = D.CAPACITES[save.capacites.choisie] ? save.capacites.choisie : 'artillerie', t = (save.capacites.talents[id] || []).slice(0, 3); return { id, t: sansTalents ? [-1, -1, -1] : [0, 1, 2].map((i) => (palierOuvert(id, i) && (t[i] === 0 || t[i] === 1) ? t[i] : -1)) }; }
   const palierOuvert = (id, i) => (save.capacites.usages[id] || 0) >= D.PALIERS_CAPACITE[i];
   const finitionsEues = () => D.ORDRE_FINITIONS.slice(0, Math.min(D.ORDRE_FINITIONS.length, save.ascension ? save.ascension.finitions : 0)).concat(save.collection.finitionsNoel || []);
@@ -774,7 +792,7 @@
   clic('#b-rejouer', () => { if (salon && partie) { if (salon.estHote) salon.lancer(arene, modeSalon); return; } ecrans.fin.hidden = true; if (mode === 'infection') demarrerInfection(); else if (ascension) demarrerAscension(save.ascension.echelon); else if (defi) demarrerDefi(); else demarrer(arene); });
   clic('#b-menu', () => { ecrans.fin.hidden = true; quitter(); });
   const ouvrirReglages = (depuis) => {
-    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-musique').value = Math.round(save.reglages.musique * 100); $('#r-effets').value = Math.round(save.reglages.effets * 100); $('#r-ambiance').checked = save.reglages.ambiance; $('#r-vibre').checked = save.reglages.vibre; $('#r-eco').checked = save.reglages.eco; $('#r-joy').value = save.reglages.joy; $('#r-joyt').value = save.reglages.joyt;
+    retourReglages = depuis; $('#r-son').checked = save.reglages.son; $('#r-musique').value = Math.round(save.reglages.musique * 100); $('#r-effets').value = Math.round(save.reglages.effets * 100); $('#r-ambiance').checked = save.reglages.ambiance; $('#r-vibre').checked = save.reglages.vibre; $('#r-qualite').value = save.reglages.qualite; $('#r-joy').value = save.reglages.joy; $('#r-joyt').value = save.reglages.joyt;
     ecrans.reglages.hidden = false; if (depuis === 'titre') ecrans.titre.hidden = true; else ecrans.pause.hidden = true;
   };
   clic('#b-reglages', () => ouvrirReglages('titre'));
@@ -818,7 +836,7 @@
   clic('#b-pause-reglages', () => ouvrirReglages('pause'));
   clic('#b-reglages-ok', () => {
     save.reglages.son = $('#r-son').checked; save.reglages.vibre = $('#r-vibre').checked; save.reglages.musique = (+$('#r-musique').value || 0) / 100; save.reglages.effets = (+$('#r-effets').value || 0) / 100; save.reglages.ambiance = $('#r-ambiance').checked;
-    const eco = $('#r-eco').checked; if (eco !== save.reglages.eco) { save.reglages.eco = eco; rendu.qualite(eco ? 'eco' : 'haute'); }
+    { const q = $('#r-qualite').value; if (['auto', 'haute', 'moyenne', 'eco'].includes(q) && q !== save.reglages.qualite) { save.reglages.qualite = q; save.reglages.eco = q === 'eco'; rendu.qualite(q); } }
     save.reglages.joy = $('#r-joy').value === 'fixe' ? 'fixe' : 'flottant'; save.reglages.joyt = ['petit', 'normal', 'grand'].includes($('#r-joyt').value) ? $('#r-joyt').value : 'normal'; reglerJoy();
     ecrire(); reglerSons(); ecrans.reglages.hidden = true;
     if (retourReglages === 'pause') ecrans.pause.hidden = false; else ecrans.titre.hidden = false;
@@ -837,9 +855,11 @@
   // ─── la boucle ───
   function avancer(j, entrees, dt) {
     acc += dt; let n = 0; evs.length = 0;
-    while (acc >= PAS && n < 5) { const e = j.mode === 'infection' ? ZINFECTION.pas(j, entrees && entrees.moi, PAS) : ZJEU.pas(j, entrees, PAS); for (let i = 0; i < e.length; i++) evs.push(e[i]); acc -= PAS; n++; }
+    while (acc >= PAS && n < 5) { ZJEU.memoriser(j); const e = j.mode === 'infection' ? ZINFECTION.pas(j, entrees && entrees.moi, PAS) : ZJEU.pas(j, entrees, PAS); for (let i = 0; i < e.length; i++) evs.push(e[i]); acc -= PAS; n++; }
     if (n === 5) acc = 0;
   }
+  // le Lot 7a : l'image est dessinée entre les deux derniers pas (acc / PAS), puis la simulation est remise telle quelle
+  function dessiner(j, id, dt, e, a) { ZJEU.interpoler(j, a); try { rendu.image(j, id, dt, e); } finally { ZJEU.restaurer(); } }
   const entrees = { moi: null };
   // le coup de grâce sur un boss : 1,6 s au ralenti (×0,3), l'éclair blanc ; une explosion : une micro-pause de 45 ms
   let ralentiJusque = 0, arretJusque = 0;
@@ -873,15 +893,26 @@
       ZMUSIQUE.maj({ moment: M, intensite: enPartie ? ZMUSIQUE.intensite(jeu, moi()) : 0.3, arene: enPartie ? jeu.arene : arene, noel: enPartie ? !!jeu.noel : noelEnCours() });
     } catch (e) { /* la musique ne bloque jamais le jeu */ }
   }
+  // le Lot 7a : ?perf=1 affiche un compteur en haut de l'écran (images par seconde, la plus lente des dernières, le palier de qualité, la
+  // résolution, la carte d'ombre, les appels de dessin) : pour voir sur un vrai téléphone ce que les tests ne voient pas
+  const perf = /[?&]perf=1/.test(location.search) ? { el: Object.assign(document.createElement('div'), { className: 'perf' }), n: 0, t0: 0, pire: 0 } : null;
+  if (perf) document.body.appendChild(perf.el);
+  function majPerf(t, ms) {
+    perf.n++; perf.pire = Math.max(perf.pire, ms); if (!perf.t0) perf.t0 = t; if (t - perf.t0 < 500) return;
+    const ips = perf.n * 1000 / (t - perf.t0), r = rendu ? rendu.stats() : {};
+    perf.el.textContent = `${ips.toFixed(0)} i/s · pire ${perf.pire.toFixed(0)} ms · ${r.reglage || '?'} p${r.palier} ×${r.ratio} · ombre ${r.ombre} · ${r.calls} appels · ${((r.triangles || 0) / 1000).toFixed(0)}k tri`;
+    perf.n = 0; perf.t0 = t; perf.pire = 0;
+  }
   function boucle(t) {
     requestAnimationFrame(boucle);
+    if (perf && derT) majPerf(t, t - derT);
     const dt = derT ? Math.min(0.1, (t - derT) / 1000) : PAS; derT = t;
     if (document.hidden) return;
     majMusique();
     if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); // en portrait, la partie attend (« Tourne ton téléphone »)
     if (partie && jeu && (ecran === 'jeu' || ecran === 'fin')) { // la coop : l'hôte simule, le client suit ; la pause n'arrête rien
       const e = partie.etape(partie.estHote ? dt * facteurTemps() : dt, enPause || estPortrait ? null : ZCONTROLES.lire()); effetsTemps(e);
-      ZSONS.evenements(e, jeu, idMoi, dt); ZHUD.maj(jeu, idMoi, dt, e); rendu.image(jeu, idMoi, dt, e);
+      ZSONS.evenements(e, jeu, idMoi, dt); ZHUD.maj(jeu, idMoi, dt, e); dessiner(jeu, idMoi, dt, e, partie.estHote && partie.fraction ? partie.fraction() : 1);
       if (jeu.fini && !finVu) { finVu = true; finir(); }
       return;
     }
@@ -892,14 +923,14 @@
         entrees.moi = ZCONTROLES.lire(); avancer(jeu, entrees, dt * facteurTemps()); effetsTemps(evs);
         ZSONS.evenements(evs, jeu, idMoi, dt);
         if (jeu.mode === 'infection') majHudInfection(); else ZHUD.maj(jeu, idMoi, dt, evs);
-        rendu.image(jeu, idMoi, dt, evs);
+        dessiner(jeu, idMoi, dt, evs, jeu.fini ? 1 : acc / PAS);
         if (jeu.fini) { if (jeu.mode === 'infection') finirInfection(); else finir(); }
       } else rendu.image(jeu, idMoi, dt, null);
     } else if (demo) {
       const j = demo.joueurs[0]; j.invul = 99; j.vie = j.vieMax;
       if (demo.choix) ZJEU.choisirAtout(demo, demo.choix.id, demo.choix.options[0]); // la démonstration choisit seule ses atouts
       avancer(demo, null, dt);
-      rendu.image(demo, 'moi', dt, evs);
+      dessiner(demo, 'moi', dt, evs, acc / PAS);
       if (demo.vague > 3) nouvelleDemo();
     }
   }

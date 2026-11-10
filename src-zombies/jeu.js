@@ -1414,5 +1414,33 @@
     const arene = AR[Math.floor(r() * AR.length) % AR.length], m = L[Math.floor(r() * L.length) % L.length];
     return { jour, graine: h || 1, arene, mutateur: m.id, mod: Object.assign({}, m), nom: m.nom, texte: m.texte };
   }
-  return { dansBarbeles, trainX, capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
+  // ─── le Lot 7a : l'image entre deux pas ───
+  // la simulation avance par pas fixes de 1/60 s ; l'écran, lui, tourne à 60, 90 ou 120 images par seconde, et rate parfois une image : sans
+  // rien faire, une image montre deux pas d'un coup, la suivante aucun (la saccade). memoriser() garde les positions d'avant chaque pas ;
+  // interpoler(jeu, a) place chaque chose entre ses deux dernières positions (a : la fraction du pas en cours, de 0 à 1) le temps de dessiner
+  // l'image, et restaurer() remet la simulation exactement comme elle était (rien ne change pour les règles, la graine, la coop)
+  const MOBILES = ['joueurs', 'zombies', 'compagnons', 'crachats', 'disques', 'crochets', 'drones'];
+  function memoriser(jeu) {
+    for (let k = 0; k < MOBILES.length; k++) { const l = jeu[MOBILES[k]]; if (l) for (let i = 0; i < l.length; i++) { const e = l[i]; e._px = e.x; e._pz = e.z; } }
+    const o = jeu.obus || []; for (let i = 0; i < o.length; i++) o[i]._pt = o[i].t;
+  }
+  const _sauve = []; let _nSauve = 0;
+  function interpoler(jeu, a) {
+    _nSauve = 0; if (!(a > 0 && a < 1)) return;
+    for (let k = 0; k < MOBILES.length; k++) {
+      const l = jeu[MOBILES[k]]; if (!l) continue;
+      for (let i = 0; i < l.length; i++) {
+        const e = l[i]; if (e._px === undefined) continue; const dx = e.x - e._px, dz = e.z - e._pz;
+        if (dx * dx + dz * dz > 9) continue; // (un saut : le fouisseur qui surgit, la téléportation du vampire, un survivant relevé)
+        _sauve[_nSauve++] = e; _sauve[_nSauve++] = e.x; _sauve[_nSauve++] = e.z; e.x = e._px + dx * a; e.z = e._pz + dz * a;
+      }
+    }
+    const o = jeu.obus || []; for (let i = 0; i < o.length; i++) { const b = o[i]; if (b._pt === undefined) continue; _sauve[_nSauve++] = b; _sauve[_nSauve++] = b.t; _sauve[_nSauve++] = null; b.t = b._pt + (b.t - b._pt) * a; }
+  }
+  function restaurer() {
+    for (let i = 0; i < _nSauve; i += 3) { const e = _sauve[i]; if (_sauve[i + 2] === null) e.t = _sauve[i + 1]; else { e.x = _sauve[i + 1]; e.z = _sauve[i + 2]; } _sauve[i] = null; }
+    _nSauve = 0;
+  }
+
+  return { memoriser, interpoler, restaurer, dansBarbeles, trainX, capacite, roulade, appliquerBonus, emote, echelon, texteObjectif, tirer, defiDu, creer, pas, construire, ameliorer, changerArme, passer, grenade, choisirAtout, restants, multDegats, chanceCritique, rechargeGrenade, prixDefense, prixAmelioration, maxDefenses, compteDefenses, armeDe, mulberry32, DUREE_FERRAILLE };
 });

@@ -7,7 +7,7 @@
    en six maillages instanciés (une pièce du zombie Kenney chacun, posée avec ses matrices d'animation précalculées, une teinte par type) ;
    un boss à squelette à la fois ; la ferraille et les flaques instanciées ; les défenses, les caisses, les traçantes et les explosions en
    petites réserves d'objets réutilisés.
-   API : ZRENDU.creer(canvas, { qualite: 'haute' | 'eco' }) → r
+   API : ZRENDU.creer(canvas, { qualite: 'auto' | 'haute' | 'moyenne' | 'eco' }) → r
      r.charger(jeu)                  construit l'arène de la partie (et oublie l'ancienne)
      r.image(jeu, idMoi, dt, evs)    une image : suit l'état, joue les effets des événements du pas
      r.taille(w, h), r.qualite(q), r.stats() → { webgl, calls, triangles, modeles, horde, boss, survivant, defenses }, r.ecranDe(x, z) → [px, py] */
@@ -266,18 +266,26 @@ const ZRENDU = (() => {
   function creer(canvas, opts) {
     if (!T) return null;
     opts = opts || {};
-    let qualite = opts.qualite === 'eco' ? 'eco' : 'haute';
+    // le Lot 7a : la qualité, en paliers. « auto » (par défaut) commence au palier 0 et descend d'un cran quand les images tardent, remonte quand
+    // tout file ; « haute » et « moyenne » restent fixes ; « eco » coupe les ombres et les lumières des tirs. Chaque palier : la résolution
+    // maximale (points par pixel), la taille de la carte d'ombre, une ombre recalculée toutes les 1 ou 2 images, la part de particules gardées
+    const PALIERS = [{ ratio: 2, ombre: 2048, chaque: 1, part: 1 }, { ratio: 1.75, ombre: 2048, chaque: 1, part: 1 }, { ratio: 1.5, ombre: 1024, chaque: 1, part: 1 }, { ratio: 1.25, ombre: 1024, chaque: 2, part: 0.7 }, { ratio: 1, ombre: 512, chaque: 2, part: 0.5 }];
+    const ECO = { ratio: 1.25, ombre: 0, chaque: 1, part: 0.5 };
+    const choixQ = (q) => (q === 'eco' || q === 'haute' || q === 'moyenne' ? q : 'auto');
+    let reglage = choixQ(opts.qualite), qualite = reglage === 'eco' ? 'eco' : 'haute', palier = reglage === 'moyenne' ? 2 : 0;
+    const QP = () => (reglage === 'eco' ? ECO : PALIERS[palier]);
     let renderer;
     try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
     catch (e) { return null; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qualite === 'eco' ? 1.25 : 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, QP().ratio));
     renderer.shadowMap.enabled = qualite !== 'eco'; renderer.shadowMap.type = T.PCFSoftShadowMap; // (des ombres aux bords doux)
+    renderer.shadowMap.autoUpdate = false; let nImage = 0; // (le Lot 7a : l'ombre recalculée à la demande, toutes les QP().chaque images)
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.22; // (un rendu tonal de cinéma : les lumières vives restent lisibles, les flashs ne brûlent pas l'image)
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(38, 1, 0.5, 160);
     const hemi = new T.HemisphereLight('#FFFFFF', '#6E7F52', 1.15); scene.add(hemi);
     const soleil = new T.DirectionalLight('#FFF3DC', 1.9); soleil.position.set(-9, 22, 12); soleil.castShadow = true;
-    soleil.shadow.mapSize.set(2048, 2048); const sc = soleil.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 70; soleil.shadow.bias = -0.0008; soleil.shadow.normalBias = 0.02;
+    soleil.shadow.mapSize.set(QP().ombre || 1024, QP().ombre || 1024); const sc = soleil.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 70; soleil.shadow.bias = -0.0008; soleil.shadow.normalBias = 0.02;
     scene.add(soleil); scene.add(soleil.target);
     const matVC = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
     // ─── la météo (l'Ascension) : lumières, brume (comptée depuis la caméra, à 25 m du sol : pres > 22), la lampe du survivant, la torche du black-out, la pluie ───
@@ -489,22 +497,31 @@ const ZRENDU = (() => {
       return comptes;
     }
     // ─── les particules : douilles, gouttes, étincelles (un seul maillage instancié, une couleur par instance) ───
-    const particules = [], geoPart = new T.BoxGeometry(1, 1, 1);
+    // le Lot 7a : les particules vivent dans une réserve fixe (des tableaux de nombres, la plus ancienne remplacée quand tout est pris) et leurs
+    // couleurs sont gardées une fois lues : plus aucun objet créé par particule, donc plus de ramasse-miettes qui fait sauter une image
+    const geoPart = new T.BoxGeometry(1, 1, 1);
     const instPart = new T.InstancedMesh(geoPart, new T.MeshBasicMaterial({ color: '#FFFFFF' }), MAX_PARTICULES); instPart.frustumCulled = false; instPart.count = 0; instPart.setColorAt(0, BLANC); scene.add(instPart);
-    function particule(x, y, z, vx, vy, vz, vie, taille, couleur, rebond) {
-      if (particules.length >= MAX_PARTICULES) particules.shift();
-      particules.push({ x, y, z, vx, vy, vz, vie, t: 0, taille, c: new T.Color(couleur), rebond: rebond || 0, r: Math.random() * 6 });
+    const PK = 11, pv = new Float32Array(MAX_PARTICULES * PK), pc = new Array(MAX_PARTICULES).fill(null); let iPart = 0, nPart = 0; // x y z vx vy vz vie t taille rebond r
+    const coulParts = new Map(); const coulPart = (c) => { let o = coulParts.get(c); if (!o) { o = new T.Color(c); coulParts.set(c, o); } return o; };
+    const particules = { get length() { return nPart; } };
+    function particule(x, y, z, vx, vy, vz, vie, taille, coul, rebond) {
+      const part = QP().part; if (part < 1 && Math.random() > part) return;
+      const i = iPart, o = i * PK; iPart = (iPart + 1) % MAX_PARTICULES; if (!(pv[o + 7] < pv[o + 6])) nPart++;
+      pv[o] = x; pv[o + 1] = y; pv[o + 2] = z; pv[o + 3] = vx; pv[o + 4] = vy; pv[o + 5] = vz; pv[o + 6] = vie; pv[o + 7] = 0; pv[o + 8] = taille; pv[o + 9] = rebond || 0; pv[o + 10] = Math.random() * 6;
+      pc[i] = coulPart(coul);
     }
     function majParticules(dt) {
-      let n = 0;
-      for (let i = particules.length - 1; i >= 0; i--) { const p = particules[i]; p.t += dt; if (p.t >= p.vie) particules.splice(i, 1); }
-      for (const p of particules) {
-        p.vy -= 16 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.r += dt * 9;
-        if (p.y < 0.03) { p.y = 0.03; p.vy = -p.vy * p.rebond; p.vx *= 0.5; p.vz *= 0.5; }
-        const k = p.taille * (p.t > p.vie * 0.7 ? Math.max(0.05, (p.vie - p.t) / (p.vie * 0.3)) : 1);
-        _q.setFromEuler(_e.set(p.r, p.r * 0.7, 0)); _v.set(p.x, p.y, p.z); _s.set(k, k * 0.6, k * 1.6); _base.compose(_v, _q, _s);
-        instPart.setMatrixAt(n, _base); instPart.setColorAt(n, p.c); n++;
+      let n = 0, vivantes = 0;
+      for (let i = 0; i < MAX_PARTICULES; i++) {
+        const o = i * PK; if (!(pv[o + 7] < pv[o + 6])) continue;
+        pv[o + 7] += dt; const t = pv[o + 7], vie = pv[o + 6]; if (t >= vie) continue; vivantes++;
+        pv[o + 4] -= 16 * dt; pv[o] += pv[o + 3] * dt; pv[o + 1] += pv[o + 4] * dt; pv[o + 2] += pv[o + 5] * dt; pv[o + 10] += dt * 9;
+        if (pv[o + 1] < 0.03) { pv[o + 1] = 0.03; pv[o + 4] = -pv[o + 4] * pv[o + 9]; pv[o + 3] *= 0.5; pv[o + 5] *= 0.5; }
+        const k = pv[o + 8] * (t > vie * 0.7 ? Math.max(0.05, (vie - t) / (vie * 0.3)) : 1), r = pv[o + 10];
+        _q.setFromEuler(_e.set(r, r * 0.7, 0)); _v.set(pv[o], pv[o + 1], pv[o + 2]); _s.set(k, k * 0.6, k * 1.6); _base.compose(_v, _q, _s);
+        instPart.setMatrixAt(n, _base); instPart.setColorAt(n, pc[i]); n++;
       }
+      nPart = vivantes;
       instPart.count = n; instPart.instanceMatrix.needsUpdate = true; if (instPart.instanceColor) instPart.instanceColor.needsUpdate = true;
     }
     // la caméra de cinéma : elle plonge sur un point (le boss abattu) puis revient
@@ -1194,6 +1211,7 @@ const ZRENDU = (() => {
       }
       decor5d(jeu, A, demi);
       cam.init = false;
+      prechauffer(); // (le Lot 7a : tous les matériaux compilés au chargement de l'arène)
     }
     // ─── le Lot 5d : les voies et le train du Métro, les murs du tunnel ; les armoires de l'Hôpital ; les barbelés de la Base ───
     let train3d = null, feux = [], pharmas3d = [];
@@ -1415,30 +1433,60 @@ const ZRENDU = (() => {
       for (const o of segs) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / o.d); if (o.t <= 0) o.m.visible = false; }
       for (const o of boums) if (o.m.visible) { o.t -= dt; const k = 1 - o.t / 0.45; o.m.scale.setScalar(o.r * (0.3 + k * 0.9)); o.m.material.opacity = Math.max(0, 0.9 * (1 - k)); o.m.material.color.set(k < 0.3 ? '#FFE07A' : '#FF8A3A'); if (o.t <= 0) o.m.visible = false; }
       majCamera(jeu, idMoi, dt);
+      if (qualite !== 'eco' && nImage++ % QP().chaque === 0) renderer.shadowMap.needsUpdate = true; // (le Lot 7a : l'ombre, toutes les 1 ou 2 images)
       renderer.render(scene, camera);
       derniereT = performance.now();
     }
-    // la qualité automatique : si les images tardent (plus de 26 ms en moyenne sur 2 s), la résolution baisse d'un cran (jusqu'à 1 pixel par
-    // point) ; si tout file (moins de 17 ms), elle remonte, jusqu'à ce que permet l'écran (le réglage « économes » reste prioritaire)
-    const auto = { acc: 0, n: 0, der: 0, ratio: null };
+    // le Lot 7a : la qualité automatique. Sur des fenêtres de 1,5 s, la durée moyenne d'une image : au-delà de 21 ms (moins de 48 images par
+    // seconde), un palier de moins ; en dessous de 17,5 ms pendant 6 s d'affilée (et pas de baisse depuis 20 s), un palier de plus. Une image
+    // de plus de 250 ms (un chargement, l'onglet caché) ne compte pas. Après trois remontées suivies d'une rechute, on ne remonte plus.
+    const auto = { acc: 0, n: 0, der: 0, bon: 0, baisse: -1e9, rechutes: 0, monte: false };
+    let msMoy = 0;
     function ajusterQualite() {
-      const t = performance.now(), ms = auto.der ? Math.min(100, t - auto.der) : 0; auto.der = t; if (!ms) return;
-      auto.acc += ms; auto.n++; if (auto.acc < 2000) return;
-      const moy = auto.acc / auto.n; auto.acc = 0; auto.n = 0; if (qualite === 'eco') return;
-      const max = Math.min(window.devicePixelRatio || 1, 2); if (auto.ratio == null) auto.ratio = max;
-      const r = moy > 26 ? Math.max(1, auto.ratio - 0.25) : moy < 17 ? Math.min(max, auto.ratio + 0.25) : auto.ratio;
-      if (r !== auto.ratio) { auto.ratio = r; renderer.setPixelRatio(r); renderer.setSize(W, H, false); }
+      const t = performance.now(), ms = auto.der ? t - auto.der : 0; auto.der = t; if (!ms || ms > 250) return;
+      auto.acc += ms; auto.n++; if (auto.acc < 1500) return;
+      const moy = auto.acc / auto.n; auto.acc = 0; auto.n = 0; msMoy = moy; if (reglage !== 'auto') return;
+      if (moy > 21 && palier < PALIERS.length - 1) { if (auto.monte) auto.rechutes++; auto.monte = false; auto.bon = 0; auto.baisse = t; appliquer(palier + 1); }
+      else if (moy < 17.5) { auto.bon += 1.5; if (auto.bon >= 6 && palier > 0 && t - auto.baisse > 20000 && auto.rechutes < 3) { auto.bon = 0; auto.monte = true; appliquer(palier - 1); } }
+      else auto.bon = 0;
+    }
+    // un palier : la résolution, la carte d'ombre (refaite à sa nouvelle taille), le reste se lit à chaque image (QP().chaque, QP().part)
+    function appliquer(p) {
+      palier = Math.max(0, Math.min(PALIERS.length - 1, p)); const q = QP();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.ratio)); renderer.setSize(W, H, false);
+      if (q.ombre && soleil.shadow.mapSize.x !== q.ombre) { soleil.shadow.mapSize.set(q.ombre, q.ombre); if (soleil.shadow.map) { soleil.shadow.map.dispose(); soleil.shadow.map = null; } }
+      renderer.shadowMap.needsUpdate = true;
     }
     function taille(w, h) { W = Math.max(1, w); H = Math.max(1, h); renderer.setSize(W, H, false); camera.aspect = W / H; camera.fov = H > W ? 52 : 40; camera.updateProjectionMatrix(); }
+    // le réglage du joueur : 'auto' | 'haute' | 'moyenne' | 'eco' (l'ancien « graphismes économes » donne 'eco'). Seul le passage vers ou depuis
+    // « économe » refait les matériaux (les ombres et les lumières allumées ou coupées) ; entre les autres, rien n'est recompilé
     function regler(q) {
-      qualite = q === 'eco' ? 'eco' : 'haute';
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qualite === 'eco' ? 1.25 : 2)); renderer.setSize(W, H, false);
-      renderer.shadowMap.enabled = qualite !== 'eco'; soleil.castShadow = qualite !== 'eco'; for (const o of lumieres) o.l.visible = qualite !== 'eco';
-      scene.traverse((o) => { if (o.material) { const l = Array.isArray(o.material) ? o.material : [o.material]; for (const m of l) m.needsUpdate = true; } });
+      const avant = qualite; reglage = choixQ(q); qualite = reglage === 'eco' ? 'eco' : 'haute';
+      auto.bon = 0; auto.rechutes = 0; auto.monte = false; auto.baisse = -1e9;
+      appliquer(reglage === 'moyenne' ? 2 : reglage === 'haute' ? 0 : reglage === 'auto' ? palier : palier);
+      if (avant !== qualite) {
+        renderer.shadowMap.enabled = qualite !== 'eco'; soleil.castShadow = qualite !== 'eco'; for (const o of lumieres) o.l.visible = qualite !== 'eco';
+        scene.traverse((o) => { if (o.material) { const l = Array.isArray(o.material) ? o.material : [o.material]; for (const m of l) m.needsUpdate = true; } });
+        prechauffer();
+      }
+    }
+    // le préchauffage : tous les matériaux de la scène compilés d'un coup, y compris ceux des objets en réserve (cachés : explosions, ondes,
+    // traçantes, la horde de chaque type), plutôt qu'à leur première apparition, en pleine vague (l'image qui accroche)
+    function prechauffer() {
+      // (un boss à squelette, posé le temps du préchauffage sous le sol : son matériau à os est compilé maintenant, pas à son entrée en scène)
+      let bossTemp = null;
+      try { const t = Object.keys((MOD && MOD.M && MOD.M.boss) || {}).find((k) => bossPret(k)); if (t) { bossTemp = HD.SkeletonUtils.clone(MOD.M.boss[t].scene); bossTemp.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } }); bossTemp.position.set(0, -50, 0); scene.add(bossTemp); } } catch (e) { bossTemp = null; }
+      const caches = []; scene.traverse((o) => { if (o.visible === false) { caches.push(o); o.visible = true; } });
+      const comptes = []; scene.traverse((o) => { if (o.isInstancedMesh) { comptes.push(o, o.count); if (!o.count) o.count = 1; } });
+      // (une image entière, ombre comprise, dans le canevas : les matériaux de l'ombre ne sont faits qu'au premier rendu de l'ombre ; elle ne se
+      // voit pas, l'image de la partie est dessinée par-dessus dans la même trame)
+      try { renderer.compile(scene, camera); if (renderer.shadowMap.enabled) renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); } catch (e) { /* rien : la compilation se fera à la première image */ }
+      for (const o of caches) o.visible = false; for (let i = 0; i < comptes.length; i += 2) comptes[i].count = comptes[i + 1];
+      if (bossTemp) scene.remove(bossTemp);
     }
     const _p = T ? new T.Vector3() : null;
     function ecranDe(x, z, y) { _p.set(x, y || 0, z).project(camera); return [(_p.x + 1) / 2 * W, (1 - _p.y) / 2 * H]; }
-    function stats() { const i = renderer.info; return { ratio: renderer.getPixelRatio(), webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine, armes: MOD ? MOD.etatArmes : 'absent', tenues: [...survivants.values()].filter((x) => x.blaster).map((x) => x.armeId) }; }
+    function stats() { const i = renderer.info; return { reglage, palier, ombre: qualite === 'eco' ? 0 : soleil.shadow.mapSize.x, ms: +msMoy.toFixed(1), programmes: i.programs ? i.programs.length : 0, ratio: renderer.getPixelRatio(), webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine, armes: MOD ? MOD.etatArmes : 'absent', tenues: [...survivants.values()].filter((x) => x.blaster).map((x) => x.armeId) }; }
     // les modèles 3D arrivent : la horde passe en Kenney, le survivant, les défenses et l'arène (ses voitures) sont refaits avec eux
     if (MOD) MOD.charger().then((ok) => {
       if (!ok) return;
@@ -1456,6 +1504,7 @@ const ZRENDU = (() => {
       if (!MOD || !MOD.pret) return null;
       const L = opts.taille || 160, cle = `${type}|${id}|${opts.finition || ''}|${L}`;
       if (portraits.has(cle)) return portraits.get(cle);
+      if (opts.siPret) return null; // (le Lot 7a : en pleine vague, seulement ceux déjà faits)
       let objet = null;
       if (type === 'survivant') {
         const SD = D.SURVIVANTS[id]; if (SD && SD.texture && !MOD.persosPrets) return null;
