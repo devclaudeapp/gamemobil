@@ -1438,15 +1438,17 @@ const ZRENDU = (() => {
       derniereT = performance.now();
     }
     // le Lot 7a : la qualité automatique. Sur des fenêtres de 1,5 s, la durée moyenne d'une image : au-delà de 21 ms (moins de 48 images par
-    // seconde), un palier de moins ; en dessous de 17,5 ms pendant 6 s d'affilée (et pas de baisse depuis 20 s), un palier de plus. Une image
-    // de plus de 250 ms (un chargement, l'onglet caché) ne compte pas. Après trois remontées suivies d'une rechute, on ne remonte plus.
+    // seconde), un palier de moins (deux au-delà de 60 ms : un téléphone qui peine ne doit pas attendre) ; en dessous de 17,5 ms pendant 6 s
+    // d'affilée (et pas de baisse depuis 20 s), un palier de plus. Une image de plus d'une seconde (un chargement, l'onglet caché) ne compte
+    // pas, les autres comptent au plus 400 ms (sur un appareil très lent, toutes sont longues : elles doivent faire baisser la qualité).
+    // Après trois remontées suivies d'une rechute, on ne remonte plus.
     const auto = { acc: 0, n: 0, der: 0, bon: 0, baisse: -1e9, rechutes: 0, monte: false };
     let msMoy = 0;
     function ajusterQualite() {
-      const t = performance.now(), ms = auto.der ? t - auto.der : 0; auto.der = t; if (!ms || ms > 250) return;
-      auto.acc += ms; auto.n++; if (auto.acc < 1500) return;
+      const t = performance.now(), brut = auto.der ? t - auto.der : 0; auto.der = t; if (!brut || brut > 1000) return;
+      const ms = Math.min(400, brut); auto.acc += ms; auto.n++; if (auto.acc < 1500) return;
       const moy = auto.acc / auto.n; auto.acc = 0; auto.n = 0; msMoy = moy; if (reglage !== 'auto') return;
-      if (moy > 21 && palier < PALIERS.length - 1) { if (auto.monte) auto.rechutes++; auto.monte = false; auto.bon = 0; auto.baisse = t; appliquer(palier + 1); }
+      if (moy > 21 && palier < PALIERS.length - 1) { if (auto.monte) auto.rechutes++; auto.monte = false; auto.bon = 0; auto.baisse = t; appliquer(palier + (moy > 60 ? 2 : 1)); }
       else if (moy < 17.5) { auto.bon += 1.5; if (auto.bon >= 6 && palier > 0 && t - auto.baisse > 20000 && auto.rechutes < 3) { auto.bon = 0; auto.monte = true; appliquer(palier - 1); } }
       else auto.bon = 0;
     }
