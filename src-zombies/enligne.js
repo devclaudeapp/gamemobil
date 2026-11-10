@@ -188,10 +188,11 @@ const ZENLIGNE = (() => {
         return null;
       }
       P.action = (quoi, arg) => agir(idMoi, quoi, arg);
+      P.fraction = () => acc / PAS; // (le Lot 7a : l'hôte dessine entre ses deux derniers pas, comme en solo)
       P.etape = (dt, entree) => {
         entrees[idMoi] = entree ? { mx: entree.mx, mz: entree.mz } : null;
         const evs = []; acc += dt; let n = 0;
-        while (acc >= PAS && n < 5) { const e = J.pas(jeu, entrees, PAS); for (let i = 0; i < e.length; i++) { evs.push(e[i]); attente.push(e[i]); } acc -= PAS; n++; }
+        while (acc >= PAS && n < 5) { J.memoriser(jeu); const e = J.pas(jeu, entrees, PAS); for (let i = 0; i < e.length; i++) { evs.push(e[i]); attente.push(e[i]); } acc -= PAS; n++; }
         if (n === 5) acc = 0;
         const t = performance.now();
         if (t - tEtat >= ETAT_MS) { tEtat = t; s.envoyer('etat', instantane(jeu), { fiable: false }); }

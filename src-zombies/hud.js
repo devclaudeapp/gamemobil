@@ -239,7 +239,10 @@ const ZHUD = (() => {
     for (let i = 0; i < 2; i++) {
       const s = j.armes[i], b = el.slots[i], fin = s && j.finitions ? j.finitions[s.id] : null, img = s && A.portraitArme ? A.portraitArme(s.id, fin) : null;
       const cle = s ? `${s.id}|${s.mun === Infinity ? '∞' : s.mun}|${j.main === i}|${img ? 1 : 0}` : 'vide';
-      if (vu['s' + i] === cle) continue; vu['s' + i] = cle;
+      if (vu['s' + i] === cle) continue;
+      // (le Lot 7a : seules les munitions changent, à chaque tir : on ne réécrit que le chiffre, sans refaire l'image de l'arme)
+      const av = vu['s' + i], forme = (c) => c.replace(/^([^|]*)\|[^|]*\|/, '$1||'); vu['s' + i] = cle;
+      if (s && av && av !== 'vide' && forme(av) === forme(cle)) { const n = b.querySelector('b'); if (n) { n.textContent = s.mun === Infinity ? '∞' : s.mun; b.setAttribute('aria-label', `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}`); continue; } }
       b.classList.toggle('actif', !!s && j.main === i); b.disabled = !s;
       b.innerHTML = s ? `${img ? `<img class="h-slot-img" alt="" src="${img}">` : iconeArme(s.id)}<b>${s.mun === Infinity ? '∞' : s.mun}</b>` : '<small>vide</small>';
       b.setAttribute('aria-label', s ? `${D.ARMES[s.id].nom}${s.mun === Infinity ? '' : `, ${s.mun} munitions`}` : 'Emplacement vide');

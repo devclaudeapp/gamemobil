@@ -170,11 +170,14 @@ const BASE = `http://localhost:${PORT}/`;
   await P(() => { const j = window.__zombies.demarrer('jardin', 7); j.joueurs[0].vie = j.joueurs[0].vieMax = 1e6; j.vague = 4; j.phase = 'vague'; j.aSortir = 0; });
   await page.waitForFunction(() => window.__zombies.jeu.phase === 'pause', null, { timeout: 10000 }).catch(() => {});
   await page.tap('.h-lancer'); await sleep(300);
+  const prog0 = await P(() => window.__zombies.stats().rendu.programmes); // (le Lot 7a : les shaders, tous compilés au chargement ; la pause entre deux vagues peut faire des portraits)
   await page.waitForFunction(() => window.__zombies.stats().rendu.boss.includes('golem'), null, { timeout: 40000 }).catch(() => {});
   await sleep(600);
   const boss = await P(() => ({ v: window.__zombies.jeu.vague, rendu: window.__zombies.stats().rendu, barre: !document.querySelector('.h-boss').hidden, nom: document.querySelector('.h-boss span').textContent }));
   check(boss.v === 5 && boss.rendu.boss.includes('golem') && boss.barre && boss.nom === 'GOLEM SQUELETTE', `vague 5 : le Golem squelette arrive en modèle KayKit, sa barre de vie porte son nom (« ${boss.nom} »)`);
   check(boss.rendu.calls <= 70, `${boss.rendu.calls} appels de dessin avec le boss et la horde (≤ 70)`);
+  check(prog0 > 10 && boss.rendu.programmes === prog0, `le Lot 7a : l’entrée du boss ne compile aucun shader de plus (${prog0} → ${boss.rendu.programmes} : tout est préchauffé au chargement de l’arène, et aucun portrait n’est fait en pleine vague)`);
+  check(boss.rendu.reglage === 'auto' && boss.rendu.palier >= 0 && boss.rendu.palier <= 4 && boss.rendu.ombre >= 512, `la qualité Auto par défaut (palier ${boss.rendu.palier}, ombre ${boss.rendu.ombre}, ×${boss.rendu.ratio})`);
   { const m = await P(() => window.__zombies.stats().musique); check(m.moment === 'boss', `la musique suit la partie : le boss a la sienne (« ${m.moment} »)`); }
   await page.screenshot({ path: out + '/02b-boss.png' });
   // le coup de grâce : le boss tombe au ralenti, la caméra plonge
@@ -227,6 +230,9 @@ const BASE = `http://localhost:${PORT}/`;
   { const r = await P(async () => { const o = {}; for (const m of ['menu', 'pause', 'vague', 'boss']) o[m] = await ZMUSIQUE.rendre(m, 3, { intensite: 0.9 }); o.noel = await ZMUSIQUE.rendre('menu', 3, { noel: true }); return o; });
     check(Object.values(r).every((x) => x && x.rms > 0.004 && x.pic < 1), `la musique : menu, entre les vagues, vague, boss et Noël, audibles et sans saturer (${Object.entries(r).map(([k, x]) => `${k} ${x ? x.pic.toFixed(2) : '—'}`).join(', ')})`);
     check(r.boss.rms > r.menu.rms, 'le boss sonne plus fort que le menu'); }
+  // le Lot 7a : le compteur de ?perf=1
+  { const pp = await context.newPage(); pp.on('pageerror', (e) => errors.push(e.message)); await pp.goto(BASE + 'zombies/?perf=1'); await pp.waitForFunction(() => /i\/s/.test((document.querySelector('.perf') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
+    const txt = await pp.evaluate(() => (document.querySelector('.perf') || {}).textContent || ''); check(/\d+ i\/s · pire \d+ ms · auto p\d/.test(txt), `?perf=1 : le compteur d’images (« ${txt} »)`); await pp.close(); }
   check(errors.length === 0, `aucune erreur dans la page${errors.length ? ' : ' + errors.slice(0, 3).join(' | ') : ''}`);
   await context.close();
 

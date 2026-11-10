@@ -629,6 +629,29 @@ const avancer = (jeu, n, e) => { const evs = []; for (let i = 0; i < n && !jeu.f
   check(c0.rythme < c1.rythme && c1.basse > c0.basse && cb.rythme === 1 && cn.cloches > 0 && Z.couches('menu', 0.3, false).cloches === 0, 'les couches : la batterie entre avec l’intensité, le boss a tout, Noël ajoute ses clochettes');
   check(Object.values(Z.GRILLES).every((G) => G.bpm >= 70 && G.bpm <= 150 && G.accords.length >= 4 && G.accords.every((a) => a.length === 3)) && Z.TRANSPOSE.length >= D.ORDRE_ARENES.length && D.ORDRE_ARENES.every((a) => Z.AMBIANCES[a]), 'les grilles d’accords, une tonalité et une ambiance pour chaque arène');
 }
+// ─── le Lot 7a : l'image entre deux pas (memoriser, interpoler, restaurer) ───
+{
+  const jeu = J.creer({ arene: 'jardin', graine: 21 }); avancer(jeu, 60 * 14);
+  check(jeu.zombies.length > 3, `le Lot 7a : une vague en cours pour regarder (${jeu.zombies.length} zombies)`);
+  J.memoriser(jeu); J.pas(jeu, { moi: { mx: 1, mz: 0 } }, PAS);
+  const z = jeu.zombies.find((e) => Math.hypot(e.x - e._px, e.z - e._pz) > 1e-4), j = jeu.joueurs[0];
+  const apres = { zx: z.x, zz: z.z, jx: j.x, jz: j.z }, avant = { zx: z._px, zz: z._pz, jx: j._px };
+  J.interpoler(jeu, 0.25);
+  const mi = { zx: z.x, zz: z.z, jx: j.x };
+  check(Math.abs(mi.zx - (avant.zx + (apres.zx - avant.zx) * 0.25)) < 1e-9 && Math.abs(mi.zz - (avant.zz + (apres.zz - avant.zz) * 0.25)) < 1e-9 && Math.abs(mi.jx - (avant.jx + (apres.jx - avant.jx) * 0.25)) < 1e-9,
+    'interpoler(0,25) : chaque chose au quart du chemin entre ses deux dernières positions (zombie et survivant)');
+  J.restaurer();
+  check(z.x === apres.zx && z.z === apres.zz && j.x === apres.jx && j.z === apres.jz, 'restaurer() : la simulation exactement comme avant (au bit près)');
+  J.interpoler(jeu, 1); check(z.x === apres.zx, 'à 1 (ou 0), rien n’est déplacé'); J.restaurer();
+  // la même graine, avec ou sans l'image entre deux pas : la même partie
+  const a = J.creer({ arene: 'metro', graine: 5 }), b = J.creer({ arene: 'metro', graine: 5 });
+  for (let i = 0; i < 60 * 75; i++) {
+    for (const g of [a, b]) if (g.choix) J.choisirAtout(g, g.choix.id, g.choix.options[0]);
+    J.pas(a, null, PAS); J.memoriser(b); J.pas(b, null, PAS); J.interpoler(b, (i % 7) / 7 + 0.05); J.restaurer();
+  }
+  const etat = (g) => JSON.stringify([g.vague, g.t, g.zombies.map((e) => [e.x, e.z, e.vie]), g.joueurs.map((e) => [e.x, e.z, e.vie, e.score])]);
+  check(etat(a) === etat(b) && a.vague >= 2, `même graine, avec l’interpolation à chaque image : la même partie (vague ${a.vague}, ${a.zombies.length} zombies)`);
+}
 {
   function bot(jeu) {
     const j = jeu.joueurs[0]; let fx = 0, fz = 0;

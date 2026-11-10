@@ -3,7 +3,7 @@
 // La page et le manifeste passent par le réseau d'abord (une mise à jour arrive tout de suite, et hors ligne la copie en cache sert) ;
 // le reste (Three.js et ses outils, les modèles 3D, les icônes, les polices) est servi tout de suite depuis le cache et rafraîchi en arrière-plan.
 // Changer un fichier de SHELL : l'ajouter ici et passer CACHE à la version suivante.
-const CACHE = 'zombies-jeu-v8';
+const CACHE = 'zombies-jeu-v9';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', '../vendor/three.min.js', '../vendor/fournil-hd.min.js', '../vendor/supabase.min.js', '../icons/zombies.svg', '../icons/zombies-180.png', '../icons/zombies-192.png', '../icons/zombies-512.png'];
 // les vignettes des arènes et les modèles 3D (Kenney, KayKit) : mis en cache à l'installation, sans bloquer si l'un manque (le jeu garde alors ses formes faites main)
 const OPTIONNELS = [...['pistolet', 'revolver', 'jumeaux', 'mitraillette', 'vipere', 'pompe', 'doublecanon', 'pompeauto', 'fusil', 'rafale', 'precision', 'canon'].map((a) => `./modeles/armes/reel-${a}.glb`), ...['jardin', 'parking', 'ferme', 'cimetiere', 'port', 'place', 'plage', 'chantier', 'supermarche', 'foret', 'neon', 'volcan', 'metro', 'hopital', 'base'].map((a) => `./vignettes/${a}.webp`), './modeles/persos/blocky.glb', ...'abcdefghijklmnopqr'.split('').map((c) => `./modeles/persos/texture-${c}.png`), ...'abcdefghijklmnopqr'.split('').map((c) => `./modeles/armes/blaster-${c}.glb`), ...['zombie', 'survivant', 'tourelle', 'mortier', 'voiture-sedan', 'voiture-police', 'voiture-suv', 'voiture-taxi', 'voiture-van', 'voiture-hatchback-sports'].map((n) => `./modeles/kenney/${n}.glb`),
