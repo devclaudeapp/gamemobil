@@ -459,7 +459,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (orientation: landscape) and (max-height: 620px) {
   .pied { bottom: -14px; margin: 0 -16px -14px; padding: 10px 16px 14px; }
   .reglages { width: min(700px, 100%); grid-template-columns: 1fr 1fr; }
-  .reglages { gap: 6px; }
+  .reglages { gap: 6px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } /* (deux colonnes égales, même avec une police de secours plus large) */
+  .reglages .regle > span { min-width: 0; }
+  .reglages .regle select { min-width: 0; max-width: 62%; flex: 0 1 auto; text-overflow: ellipsis; }
   .reglages > h2 { grid-column: 1 / -1; }
   .reglages .regle { padding: 4px 10px; min-height: 38px; }
   .reglages .regle select { min-height: 32px; }
