@@ -291,8 +291,15 @@ function faux(d) {
       await pousser('app');
       const ap = await dansScene(30, 360);
       if (!ap) { check(false, `l’apparition ${k} traverse la scène`); break; }
-      const p = (await act()).apps.find((x) => x.id === ap.id) || ap;
-      await page.touchscreen.tap(p.x, p.y); await sleep(300);
+      // (comme un joueur : on vise sa position relue juste avant chaque touche, et on retouche tant qu'elle est là ; un raté ne casse pas la
+      // série dans les règles, seule une apparition qui s'échappe la remet à zéro. Sur la machine lente de la CI en qualité haute, l'image
+      // a parfois bougé entre la lecture et la touche)
+      let p = ap;
+      for (let essai = 0; essai < 6; essai++) {
+        const q = (await act()).apps.find((x) => x.id === ap.id); if (!q) break; p = q;
+        await page.touchscreen.tap(p.x, p.y); await sleep(300);
+        if ((await regles()).stats.apparitions >= ap0 + k) break;
+      }
       const [r] = await jusqua(regles, (x) => x.stats.apparitions === ap0 + k && x.serie === k);
       if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_MARCHE.apparitions())), await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return e ? `${e.tagName}.${e.className}#${e.id}` : '-'; }, p), JSON.stringify(await ev(() => window.__pd.slice(-3))));
       check(r.stats.apparitions === ap0 + k && r.serie === k && !(await ev((s) => BOUTIQUE_MARCHE.apparitions().some((x) => x.id === s), ap.sid)), `apparition ${k} (${ap.type}) attrapée au doigt : elle éclate, série ×${r.serie}`);
@@ -591,8 +598,10 @@ function faux(d) {
     await colonneEtCoup('360 × 640');
     await shot(page, `${qual}-360-tiroir-bas`);
     const [sx, sy] = await centreDe('#marche .pq-poignee'); await glisser(sx, sy, gp.solde.b + 20);
-    const [gq, okGq] = await jusqua(geo, (g) => g.pos === 'haut' && Math.abs(g.tiroir.h - g.solde.b) <= 2 && g.cartes.b <= 640 + 1 && g.cartes.ht > gp.cartes.ht + 120);
-    check(okGq, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
+    // (la liste gagne au moins la moitié de la montée du tiroir : le bandeau d'une commande du marché arrivée entre-temps peut prendre sa place
+    // en haut du tiroir, une soixantaine de pixels ; une liste qui ne grandirait pas resterait attrapée)
+    const [gq, okGq] = await jusqua(geo, (g) => g.pos === 'haut' && Math.abs(g.tiroir.h - g.solde.b) <= 2 && g.cartes.b <= 640 + 1 && gp.tiroir.h - g.tiroir.h > 120 && g.cartes.ht > gp.cartes.ht + (gp.tiroir.h - g.tiroir.h) / 2);
+    check(okGq, `en 360 × 640, glissé vers le haut : sous le solde (${Math.round(gq.tiroir.h)} px, monté de ${Math.round(gp.tiroir.h - gq.tiroir.h)} px), les cartes de ${Math.round(gp.cartes.ht)} à ${Math.round(gq.cartes.ht)} px`);
     await shot(page, `${qual}-360-tiroir-haut`);
     const [bx, by] = await centreDe('#marche .pq-barre'); await glisser(bx, by, by + (gp.tiroir.h - gq.tiroir.h)); // (jusqu'au cran mi)
     { const [gb, okGb] = await jusqua(geo, (g) => g.pos === 'mi');
