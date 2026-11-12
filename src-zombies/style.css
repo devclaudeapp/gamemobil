@@ -786,3 +786,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ─── le Lot 7a : le compteur de ?perf=1 ─── */
 .perf { position: fixed; top: max(4px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 99; padding: 2px 8px; border-radius: 8px; background: rgba(0, 0, 0, .62); color: #9DFF9D; font: 600 11px/1.4 ui-monospace, monospace; pointer-events: none; white-space: nowrap; }
+
+/* ─── le Lot 7b : la vignette (les bords de l'image un peu assombris : le regard va au centre, là où se joue la partie) ─── */
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, rgba(0, 0, 0, 0) 58%, rgba(12, 10, 24, .30) 100%); }
