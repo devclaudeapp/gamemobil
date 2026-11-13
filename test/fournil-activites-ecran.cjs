@@ -32,6 +32,12 @@ module.exports = async function parcoursActivites(o) {
   const shot = async (nom) => { const f = path.join(o.dirs[0], `${o.prefixe}${nom}.png`); await p.screenshot({ path: f }); for (const d of o.dirs.slice(1)) fs.copyFileSync(f, path.join(d, `${o.prefixe}${nom}.png`)); };
   const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 60) { try { if (await fn()) return true; } catch (e) { /* rien */ } await sleep(60); } return false; };
   const feuille = () => ev(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
+  // un bouton de la barre des activités qui ouvre sa feuille : touché, puis on attend la feuille (test : son texte) ; s'il n'a pas pris (une
+  // machine chargée : le toucher tombé pendant qu'une feuille se refermait, ou sur le voile), on attend que rien ne soit ouvert et on le retouche,
+  // comme un joueur (jusqu'à trois fois). Sans ça, « introuvable : #feuille … » sur la CI, une fois de temps en temps
+  const ouvrirFeuille = async (sel, re) => { const vu = async () => { const f = await feuille(); return re.every((x) => x.test(f)); };
+    for (let k = 0; k < 3; k++) { if (await vu()) return true; await attendre(async () => (await feuille()) === '', 2000); await toucherEl(sel); if (await attendre(vu, 3000)) return true; }
+    return vu(); };
   const mini = () => ev((e) => window.__fournil[e].mini(), o.ev);
   const qst = () => ev((c) => { const q = window.__fournil.st[c]; return { billets: q.billets, total: q.total, mini: JSON.parse(JSON.stringify(q.mini)), contrats: JSON.parse(JSON.stringify(q.contrats)), operation: q.operation && { ...q.operation }, stats: { ...q.stats }, boosts: q.boosts }; }, cle);
 
@@ -52,7 +58,7 @@ module.exports = async function parcoursActivites(o) {
 
   console.log(`── ${o.nom} : une partie de chaque mini-jeu, au doigt ──`);
   const lancerJeu = async (id) => {
-    await toucherEl(`${racine} .pq-act-btn[data-act="mini"]`); await attendre(async () => /Les mini-jeux/.test(await feuille()), 3000); await sleep(450); // la feuille monte (animation) : on attend qu'elle soit en place
+    await ouvrirFeuille(`${racine} .pq-act-btn[data-act="mini"]`, [/Les mini-jeux/]); await sleep(450); // la feuille monte (animation) : on attend qu'elle soit en place
     if (id === 'guet') { const f = await feuille(); check(/Le guet/.test(f) && /Le compte/.test(f) && /La tournée/.test(f) && /payée/.test(f), 'la feuille des mini-jeux : le guet, le compte, la tournée, et les parties payées qui attendent'); await shot('a2-minijeux'); }
     await toucherEl(`#feuille [data-jeu="${id}"]`); await attendre(async () => (await mini()).ecran === 'accueil', 3000);
     if (id === 'guet') await shot('a3-guet-accueil');
@@ -103,15 +109,17 @@ module.exports = async function parcoursActivites(o) {
   await attendre(() => ev((r2) => !document.querySelector(`${r2} .pq-pastille`).hidden, racine), 3000);
   check(await ev((r2) => document.querySelector(`${r2} .pq-pastille`).textContent, racine) === '1', `la pastille « 1 » sur Contrats : « ${c0.texte} » est rempli`);
   await shot('a8-contrat-pastille');
-  await toucherEl(`${racine} .pq-act-btn[data-act="contrats"]`); await attendre(async () => /Les contrats de la nuit/.test(await feuille()), 3000); await sleep(450);
+  await ouvrirFeuille(`${racine} .pq-act-btn[data-act="contrats"]`, [/Les contrats de la nuit/]); await sleep(450);
   await shot('a9-contrats');
   const b1 = (await qst()).billets; await toucherEl('#feuille .pq-ctr.pret [data-k="0"]'); await sleep(500); apres = await qst();
   check(apres.contrats.reclames[0] === true && apres.billets > b1 && apres.stats.contrats === 1 && /Réclamé/.test(await feuille()), `réclamé : +${Math.round(apres.billets - b1)} ; la ligne dit « Réclamé ✓ »`);
   check(!(await ev(() => !!document.querySelector('#feuille [data-k="0"]'))) && await ev((r2) => document.querySelector(`${r2} .pq-pastille`).hidden, racine), 'plus de bouton pour le réclamer deux fois ; la pastille s’éteint');
-  await toucherEl('#feuille [data-a="pq-retour"]'); await sleep(300);
+  // « Retour » : on attend la feuille fermée (et on le retouche s'il n'a pas pris)
+  for (let k = 0; k < 3 && (await feuille()) !== ''; k++) { if (await ev(() => !!document.querySelector('#feuille [data-a="pq-retour"]'))) await toucherEl('#feuille [data-a="pq-retour"]'); await attendre(async () => (await feuille()) === '', 2000); }
+  await sleep(300);
 
   console.log(`── ${o.nom} : une opération lancée, puis ramassée à l’ouverture suivante ──`);
-  await toucherEl(`${racine} .pq-act-btn[data-act="operation"]`); await attendre(async () => /5 min/.test(await feuille()) && /60 min/.test(await feuille()), 3000); await sleep(450);
+  await ouvrirFeuille(`${racine} .pq-act-btn[data-act="operation"]`, [/5 min/, /60 min/]); await sleep(450);
   await shot('a10-operations');
   await toucherEl('#feuille [data-op="court"]'); await sleep(500);
   apres = await qst();
