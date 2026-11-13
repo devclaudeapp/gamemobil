@@ -200,8 +200,16 @@ function faux(d) {
     await pousser('client');
     const c2 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && c.bulle && c.sid && c.etat === 'file') || null; }, 25000); // (arrivé au comptoir : sa bulle ne bouge plus)
     if (c2) {
-      // (une touche à la fois, et on s'arrête dès qu'il a quitté la file : une touche de trop pourrait servir le client suivant)
-      for (let k = 0; k < c2.commande.length + 2; k++) { if (!(await regles()).file.some((c) => c.id === c2.id)) break; const c = await bullePosee(c2.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
+      // (une touche à la fois, et on s'arrête dès qu'il a quitté la file : une touche de trop pourrait servir le client suivant. Comme un
+      // joueur : sa patience repart de zéro (sur la machine lente de la CI, il arrivait au comptoir presque à bout), on ne touche que si sa
+      // bulle est bien sous le doigt (une autre bulle écartée peut passer devant), et chaque touche attend sa ligne servie avant la suivante)
+      await ev((id) => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); if (c) c.arrive = q.now; }, c2.id);
+      const servies = async () => { const c = (await regles()).file.find((x) => x.id === c2.id); return c ? c.commande.filter((l) => l.servi).length : -1; };
+      for (let k = 0; k < c2.commande.length + 6; k++) {
+        const n0 = await servies(); if (n0 < 0) break; const c = await bullePosee(c2.id); if (!c) break;
+        if (!(await ev(([id, x, y]) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest(`.mh-bulle[data-client="${id}"]`)); }, [c2.id, c.bulle.x, c.bulle.y]))) { await sleep(300); continue; }
+        await page.touchscreen.tap(c.bulle.x, c.bulle.y); await attendre(async () => (await servies()) !== n0, 1500, 100);
+      }
       await attendre(async () => !(await regles()).file.some((c) => c.id === c2.id), 3000);
       R = await regles();
       const servi2 = !R.file.some((c) => c.id === c2.id) && R.stats.clientsServis >= s0.clientsServis + 2;
@@ -287,9 +295,13 @@ function faux(d) {
       if (ap) await shot(page, `${qual}-apparition`);
       await attendre(async () => (await regles()).apps.length === 0, 15000); }
     const ap0 = (await regles()).stats.apparitions;
+    // (une apparition qu'on vise : dans la scène ET avec de la marge devant elle, lue sur deux positions ; prise trop près du bord vers lequel
+    // elle file, elle s'échappait sur la machine lente de la CI avant la touche, et la série retombait à zéro : « apparition 3 … série ×0 »)
+    const aViser = () => attendre(async () => { const a1 = await dansScene(30, 360); if (!a1) return null; await sleep(150); const a2 = (await act()).apps.find((x) => x.id === a1.id); if (!a2 || a2.x === a1.x) return null;
+      const marge = a2.x > a1.x ? 390 - a2.x : a2.x; return marge >= 160 ? a2 : null; }, 20000, 50);
     for (let k = 1; k <= 3; k++) {
       await pousser('app');
-      const ap = await dansScene(30, 360);
+      const ap = await aViser();
       if (!ap) { check(false, `l’apparition ${k} traverse la scène`); break; }
       // (comme un joueur : on vise sa position relue juste avant chaque touche, et on retouche tant qu'elle est là ; un raté ne casse pas la
       // série dans les règles, seule une apparition qui s'échappe la remet à zéro. Sur la machine lente de la CI en qualité haute, l'image
@@ -301,7 +313,8 @@ function faux(d) {
         if ((await regles()).stats.apparitions >= ap0 + k) break;
       }
       const [r] = await jusqua(regles, (x) => x.stats.apparitions === ap0 + k && x.serie === k);
-      if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_MARCHE.apparitions())), await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return e ? `${e.tagName}.${e.className}#${e.id}` : '-'; }, p), JSON.stringify(await ev(() => window.__pd.slice(-3))));
+      if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_MARCHE.apparitions())), await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return e ? `${e.tagName}.${e.className}#${e.id}` : '-'; }, p), JSON.stringify(await ev(() => window.__pd.slice(-3))),
+        JSON.stringify({ ap0, apparitions: r.stats.apparitions, ratees: r.stats.apparitionsRatees, serie: r.serie, record: r.record }), JSON.stringify(await ev(() => { const F = window.__fournil, q = F.evMarche.R.etat(F.st, HORLOGE.maintenant()); return { now: q.now, apps: q.manoir.apps.map((a) => ({ id: a.id, reste: a.fin - q.now })) }; })), JSON.stringify((await flottes()).slice(-4)));
       check(r.stats.apparitions === ap0 + k && r.serie === k && !(await ev((s) => BOUTIQUE_MARCHE.apparitions().some((x) => x.id === s), ap.sid)), `apparition ${k} (${ap.type}) attrapée au doigt : elle éclate, série ×${r.serie}`);
     }
     const [se, okSe] = await jusqua(async () => ({ ...(await ev(() => { const e = document.querySelector('#mc-serie'); return { vu: !e.hidden, txt: e.innerText.replace(/\s+/g, ' ') }; })), fl: await flottes() }), (x) => x.vu && /×3/.test(x.txt) && x.fl.some((t) => /Série de 3/.test(t)));
