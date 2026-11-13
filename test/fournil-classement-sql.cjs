@@ -2997,8 +2997,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       let sortie = null;
       try { sortie = await coller9(P69); await horloge9(); check(true, `le patch v6.9 se colle par-dessus la v6.8 (${fois} fois ; rôle propriétaire non superutilisateur)`); } catch (err) { check(false, `le patch v6.9 se colle (${fois} fois) : ${err.message}`); continue; }
       const ctrl = sortie[sortie.length - 1] && sortie[sortie.length - 1].rows && sortie[sortie.length - 1].rows[0];
-      if (fois === 'une') check(!!ctrl && ctrl.evenements === 'hantee, marche' && ctrl.marche_valeurs === 31 && JSON.stringify(ctrl.marche) === JSON.stringify(TABLE69) && Number(ctrl.borne_marche) === 0 && Number(ctrl.borne_marche_fin_log10) === 18.17 && ctrl.titre === "le Marché d'automne",
-        `la requête de contrôle (le 13 à 9 h) : ${JSON.stringify(ctrl && { evenements: ctrl.evenements, valeurs: ctrl.marche_valeurs, borne: ctrl.borne_marche, borne_log10: ctrl.borne_marche_log10, fin_log10: ctrl.borne_marche_fin_log10, titre: ctrl.titre })}`);
+      if (fois === 'une') check(!!ctrl && ctrl.evenements === 'hantee, marche' && ctrl.marche_valeurs === 31 && JSON.stringify(ctrl.marche) === JSON.stringify(TABLE69) && (Date.now() < Date.parse('2026-11-13T11:00:00Z') ? Number(ctrl.borne_marche) === 0 : Number(ctrl.borne_marche) > 0 && Number(ctrl.borne_marche_log10) <= 18.17) && Number(ctrl.borne_marche_fin_log10) === 18.17 && ctrl.titre === "le Marché d'automne",
+        `la requête de contrôle (sa borne se lit à l’heure réelle, now() : 0 avant le 13 nov. à midi, positive ensuite) : ${JSON.stringify(ctrl && { evenements: ctrl.evenements, valeurs: ctrl.marche_valeurs, borne: ctrl.borne_marche, borne_log10: ctrl.borne_marche_log10, fin_log10: ctrl.borne_marche_fin_log10, titre: ctrl.titre })}`);
       check(await donnees9() === d0, `aucune donnée ne bouge (joueurs, scores, podiums, annonces… : ${TABLES9.length} tables)`);
       check(await fonctions9() === f0, 'aucune autre fonction ne change (définitions et droits comparés)');
       check(await contrat9() === k0, 'fournil_evts et fournil_evt_titre : les mêmes signatures, langage, volatilité, search_path, propriétaire, droits (internes)');
@@ -3255,7 +3255,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     r = await envoyer(Le, 'ménage');
     check(r.ok === true && await nbChat('fournil_chat_images', 'where n = $1', [nV]) === 0 && await nbChat('fournil_chat', 'where n = $1', [nV]) === 1 && await nbChat('fournil_chat_images', 'where n = $1', [n4]) === 1,
       'l’envoi suivant fait le ménage : l’image vieille de 7 jours est effacée, son message reste ; l’image récente reste');
-    await sup(`insert into public.fournil_chat (joueur, pseudo, texte, cree) select $1, 'Lectrice', 'vieux ' || g, now() - interval '2 hours' from generate_series(1, 2100) g`, [Le.id]);
+    await sup(`insert into public.fournil_chat (joueur, pseudo, texte, cree) select $1, 'Lectrice', 'vieux ' || g, public.fournil_maintenant() - interval '2 hours' from generate_series(1, 2100) g`, [Le.id]);
     const avantM = await nbChat(), plusVieux = (await sup('select min(n)::int as n from public.fournil_chat'))[0].n;
     l = await lire();
     check(l.messages.length === 50 && l.messages[49].n === l.dernier && l.messages.every((m, i) => i === 0 || m.n > l.messages[i - 1].n), `${avantM} messages : la lecture en rend les 50 derniers, dans l’ordre`);
