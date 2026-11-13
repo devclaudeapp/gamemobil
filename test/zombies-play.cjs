@@ -73,6 +73,8 @@ const BASE = `http://localhost:${PORT}/`;
   await page.waitForFunction(() => window.__zombies.jeu.stats.tues > 0, null, { timeout: 30000 }).catch(() => {});
   const vague = await P(() => ({ v: window.__zombies.jeu.vague, z: window.__zombies.jeu.zombies.length, tues: window.__zombies.jeu.stats.tues, rest: document.querySelector('.h-rest').textContent, tirs: window.__zombies.jeu.stats.tirs, calls: window.__zombies.stats().rendu.calls }));
   check(vague.v === 1 && /RESTANTS/.test(vague.rest) && vague.tirs > 0 && vague.tues > 0, `la vague 1 : « ${vague.rest} », le survivant tire seul (${vague.tirs} balles, ${vague.tues} zombies abattus)`);
+  { const L = await P(() => window.__zombies.stats().rendu.lot7b);
+    check(L.ombres >= Math.min(vague.z, 3) && L.douilles > 0 && L.parsemes > 100 && L.silhouettes === 1 && L.poussiere > 0, `le Lot 7b : une ombre douce sous chaque zombie (${L.ombres}), les douilles restent au sol (${L.douilles}), l’herbe du Jardin (${L.parsemes} brins), la silhouette du survivant, la poussière dans l’air (${L.poussiere})`); }
   check(vague.calls > 0 && vague.calls <= 60, `${vague.calls} appels de dessin avec ${vague.z} zombies à l’écran (≤ 60 : les zombies sont instanciés)`);
   await page.screenshot({ path: out + '/02-vague.png' });
   // l'atelier : une tourelle

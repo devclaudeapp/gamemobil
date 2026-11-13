@@ -372,8 +372,10 @@ const ZRENDU = (() => {
       let nk = 0;
       for (const zb of jeu.zombies) {
         const Zd = D.ZOMBIES[zb.type];
+        if (!zb.terre && jeu.t - zb.naissance > 0.35) ombreSous(zb.x, zb.z, 0.45 * Zd.taille * ECHELLE * (Zd.boss ? 1.4 : 1)); // (le Lot 7b : l'ombre douce)
         if (Zd.boss && bossPret(zb.type)) continue; // un boss KayKit : majBoss s'en charge
         const r = rendusZ.get(zb.id) || nouveauRZ(zb);
+        if (r.recul > 0) r.recul = Math.max(0, r.recul - dt * 7); // (le Lot 7b : le recul d'un coup reçu, qui se redresse)
         r.vu = true; r.ph += dt * zb.vitesse * 3.2 * (zb.bouge ? 1 : 0.15);
         // sortir de terre : les 0,7 premières secondes
         const age = jeu.t - zb.naissance, y = (age < 0.7 ? -1.6 * ECHELLE * Zd.taille * (1 - age / 0.7) : 0) + (zb.saut > 0 && Zd.saut ? Math.sin((1 - zb.saut / Zd.saut.duree) * Math.PI) * 1.8 : 0);
@@ -386,7 +388,7 @@ const ZRENDU = (() => {
           r.t += dt * (clip === 'walk' ? zb.vitesse / 1.25 : clip === 'sprint' ? zb.vitesse / 3.2 : clip === 'pick-up' ? 2.2 : 1);
           if (jeu.noel && nBonnet < MAX_Z && !(age < 0.7)) bonnet(nBonnet++, zb.x, y, zb.z, zb.angle, Zd.taille * (zb.elite ? 1.3 : 1), temps + zb.id); // (Noël : le bonnet rouge)
           if (ACC[zb.type] && zb.type !== 'fouisseur' && (zb.type !== 'blinde' || zb.bouclier > 0)) accessoire(zb.type, zb.x, y, zb.z, zb.angle, temps + zb.id, Zd);
-          if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.poison > 0 ? 5 : zb.excite > 0 ? 4 : 0);
+          reculK = r.recul || 0; if (nk < MAX_Z) poserKenney(nk++, zb.type, zb.x, y, zb.z, zb.angle, zb.saut > 0 ? 'sprint' : clip, r.t * (zb.gel > 0 ? 0.5 : 1), (zb.flash > 0 && !(zb.feu > 0)) || clignote, zb.elite ? 3 : zb.gel > 0 ? 2 : zb.feu > 0 ? 1 : zb.poison > 0 ? 5 : zb.excite > 0 ? 4 : 0);
           if (zb.etourdi > 0 && Math.random() < dt * 8) { const b = temps * 8 + zb.id; particule(zb.x + Math.cos(b) * 0.4, 2.3 * Zd.taille, zb.z + Math.sin(b) * 0.4, 0, 0.3, 0, 0.35, 0.09, '#FFE84A', 0); } // (étourdi : des étoiles)
           if (zb.poison > 0 && Math.random() < dt * 4) particule(zb.x + (Math.random() - 0.5) * 0.5, 1.6 * Zd.taille, zb.z + (Math.random() - 0.5) * 0.5, 0, 0.8, 0, 0.6, 0.1, '#8CF05A', 0);
         } else dessiner(zb.type, zb.x, y, zb.z, zb.angle, r.ph, zb.attaque > 0 ? Math.sin((0.3 - zb.attaque) / 0.3 * Math.PI) : 0, zb.flash > 0, 0, zb.id);
@@ -399,6 +401,7 @@ const ZRENDU = (() => {
         if (KZ && !D.ZOMBIES[c.type].boss) { if (nk < MAX_Z) poserKenney(nk++, c.type, c.x, y, c.z, c.a, 'die', c.t * 1.3, false); }
         else dessiner(c.type, c.x, y, c.z, c.a, 0, 0, false, Math.min(1, c.t / 0.35), 0);
       }
+      finOmbres();
       for (const k in Z) { const m = Z[k], c = k === 'bras' || k === 'jambe' ? 2 * n : n; m.count = c; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
       for (const k in ACC) { ACC[k].count = nAcc[k] || 0; ACC[k].instanceMatrix.needsUpdate = true; }
       for (const m of BONNET) { m.count = nBonnet; m.instanceMatrix.needsUpdate = true; } nBonnet = 0;
@@ -452,9 +455,11 @@ const ZRENDU = (() => {
       _ao.set(x + ca * 0.12 * e, y + 1.5 * e + Math.abs(Math.sin(t * 4)) * 0.02, z + sa * 0.12 * e); _q.setFromEuler(_e.set(0, -a, 0)); _s.set(e, e, e); _base.compose(_ao, _q, _s);
       for (const m of BONNET) m.setMatrixAt(i, _base);
     }
+    let reculK = 0; // (le Lot 7b : le recul du zombie que l'on pose, mis juste avant l'appel)
     function poserKenney(i, type, x, y, z, a, clip, t, flash, etat) {
       const Zd = D.ZOMBIES[type], s = KZ.k * Zd.taille * (etat === 3 ? 1.3 : 1), large = type === 'costaud' ? 1.22 : type === 'coureur' ? 0.9 : 1;
       _q.setFromEuler(_e.set(0, Math.PI / 2 - a, 0)); _v.set(x, y, z); _s.set(s * large, s, s * large); _base.compose(_v, _q, _s); // le modèle regarde vers +z
+      if (reculK > 0.01) { _r.makeRotationX(-reculK * 0.34 / Math.max(0.8, Zd.taille)); _base.multiply(_r); reculK = 0; } // (penché en arrière, le haut d'abord)
       const C = KZ.M.cuits[clip] || KZ.M.cuits.walk, np = KZ.M.pieces.length;
       let f = Math.floor(t * ZMODELES.FPS); f = C.boucle ? ((f % C.n) + C.n) % C.n : Math.min(C.n - 1, Math.max(0, f));
       const couleur = flash ? FLASH : etat === 3 ? OR : etat === 2 ? GEL : etat === 1 ? FEU : etat === 4 ? EXCITE : etat === 5 ? TOXIQUE : teintes[type];
@@ -524,6 +529,47 @@ const ZRENDU = (() => {
       nPart = vivantes;
       instPart.count = n; instPart.instanceMatrix.needsUpdate = true; if (instPart.instanceColor) instPart.instanceColor.needsUpdate = true;
     }
+    // ─── le Lot 7b : ce qui pose la scène ───
+    // l'ombre douce sous chaque zombie (un disque flou, toujours là, même en économe : la horde tient au sol), les douilles qui restent par
+    // terre (15 s, puis elles rapetissent), la poussière qui flotte dans l'air autour de la caméra (des braises au Volcan, des éclats au néon)
+    const texOmbre = texture2D((g, n) => { const m = n / 2, gr = g.createRadialGradient(m, m, 0, m, m, m); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(0.55, 'rgba(0,0,0,.32)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, n, n); }, 64);
+    const ombresZ = new T.InstancedMesh(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ map: texOmbre, transparent: true, depthWrite: false, opacity: 0.75 }), MAX_Z + 8);
+    ombresZ.frustumCulled = false; ombresZ.count = 0; ombresZ.renderOrder = -1; ombresZ.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(ombresZ);
+    let nOmbres = 0;
+    function ombreSous(x, z, r) { if (nOmbres >= MAX_Z + 8) return; _v.set(x, 0.025, z); _q.identity(); _s.set(r * 2, 1, r * 2); _base.compose(_v, _q, _s); ombresZ.setMatrixAt(nOmbres++, _base); }
+    function finOmbres() { ombresZ.count = nOmbres; ombresZ.instanceMatrix.needsUpdate = true; nOmbres = 0; }
+    const MAX_DOUILLES = 160, douilles = new Float32Array(MAX_DOUILLES * 4); let iDouille = 0; // x z angle âge
+    for (let i = 0; i < MAX_DOUILLES; i++) douilles[i * 4 + 3] = 99;
+    const instDouilles = new T.InstancedMesh(new T.CylinderGeometry(0.035, 0.035, 0.11, 6).rotateZ(Math.PI / 2), new T.MeshLambertMaterial({ color: '#D9A93A' }), MAX_DOUILLES);
+    instDouilles.frustumCulled = false; instDouilles.count = 0; instDouilles.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(instDouilles);
+    function douille(x, z) { const o = iDouille * 4; iDouille = (iDouille + 1) % MAX_DOUILLES; douilles[o] = x; douilles[o + 1] = z; douilles[o + 2] = Math.random() * 6.28; douilles[o + 3] = -0.45; } // (âge négatif : elle vole encore, la particule la montre)
+    function majDouilles(dt) {
+      let n = 0;
+      for (let i = 0; i < MAX_DOUILLES; i++) {
+        const o = i * 4; if (douilles[o + 3] > 15) continue; douilles[o + 3] += dt; const t = douilles[o + 3]; if (t < 0) continue;
+        const k = t > 13 ? Math.max(0.01, (15 - t) / 2) : 1; _v.set(douilles[o], 0.035, douilles[o + 1]); _q.setFromEuler(_e.set(0, douilles[o + 2], 0)); _s.set(k, k, k); _base.compose(_v, _q, _s); instDouilles.setMatrixAt(n++, _base);
+      }
+      instDouilles.count = n; instDouilles.instanceMatrix.needsUpdate = true;
+    }
+    const POUSSIERE = { volcan: ['#FF7A2A', 1.1, true], neon: ['#FF5AD8', 0.7, false], metro: ['#D8D0C0', 0.5, false], hopital: ['#F0F4F8', 0.5, false], cimetiere: ['#C8E8FF', 0.6, false], foret: ['#F8F0A0', 0.7, false], plage: ['#FFF4D0', 0.6, false] };
+    const NB_POUSS = 70, pouss = new Float32Array(NB_POUSS * 4); for (let i = 0; i < NB_POUSS; i++) { pouss[i * 4] = (Math.random() - 0.5) * 40; pouss[i * 4 + 1] = Math.random() * 6; pouss[i * 4 + 2] = (Math.random() - 0.5) * 30; pouss[i * 4 + 3] = Math.random() * 6.28; }
+    const matPouss = new T.MeshBasicMaterial({ color: '#FFF4D0', transparent: true, opacity: 0.55, depthWrite: false, blending: T.AdditiveBlending, fog: false });
+    const instPouss = new T.InstancedMesh(new T.OctahedronGeometry(0.045, 0), matPouss, NB_POUSS); instPouss.frustumCulled = false; instPouss.count = 0; instPouss.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(instPouss);
+    function majPoussiere(dt, id) {
+      const P0 = POUSSIERE[id] || ['#FFF4D0', 0.35, false]; if (qualite === 'eco') { instPouss.count = 0; return; }
+      matPouss.color.set(P0[0]); matPouss.opacity = P0[1] * 0.6;
+      const monte = P0[2], tps = performance.now() / 1000; let n = 0;
+      for (let i = 0; i < NB_POUSS; i++) {
+        const o = i * 4; let x = pouss[o], y = pouss[o + 1], z = pouss[o + 2];
+        y += dt * (monte ? 0.9 : 0.06 * Math.sin(tps + i)); x += dt * 0.25 * Math.sin(tps * 0.4 + i * 1.7); z += dt * 0.2 * Math.cos(tps * 0.33 + i);
+        // (autour de la caméra : ce qui sort du cadre revient de l'autre côté)
+        if (x - cam.x > 20) x -= 40; else if (x - cam.x < -20) x += 40; if (z - cam.z > 14) z -= 28; else if (z - cam.z < -16) z += 28;
+        if (y > 6) y = 0.2; else if (y < 0.1) y = 5.5;
+        pouss[o] = x; pouss[o + 1] = y; pouss[o + 2] = z;
+        const k = 0.7 + 0.5 * Math.sin(tps * 2 + i * 3); _v.set(x, y, z); _q.setFromEuler(_e.set(tps + i, tps * 0.7, 0)); _s.set(k, k, k); _base.compose(_v, _q, _s); instPouss.setMatrixAt(n++, _base);
+      }
+      instPouss.count = n; instPouss.instanceMatrix.needsUpdate = true;
+    }
     // la caméra de cinéma : elle plonge sur un point (le boss abattu) puis revient
     let cine = null;
     function cinema(x, z, duree) { cine = { x, z, t: 0, duree: duree || 1.8 }; }
@@ -574,6 +620,19 @@ const ZRENDU = (() => {
     }
     const rendusZ = new Map(); const nouveauRZ = (zb) => { const r = { ph: Math.random() * 6, t: Math.random() * 3, clip: '', vu: false }; rendusZ.set(zb.id, r); return r; }; // t : le temps dans le clip Kenney
 
+    // le Lot 7b : la silhouette du survivant à travers ce qui le cache (un mur, un tunnel, la horde) : chaque pièce dessinée une seconde
+    // fois, d'une couleur pleine, seulement là où quelque chose est devant elle (GreaterDepth) ; le survivant lui-même est dessiné juste
+    // après (renderOrder) et recouvre sa propre silhouette partout où on le voit
+    function silhouette(racine) {
+      const mat = new T.MeshBasicMaterial({ color: '#FFD84A', depthFunc: T.GreaterDepth, depthWrite: false, fog: false }), l = [];
+      racine.traverse((m) => { if (m.isMesh && !m.material.transparent) l.push(m); });
+      for (const m of l) {
+        m.renderOrder = 6; let x;
+        if (m.isSkinnedMesh) { x = new T.SkinnedMesh(m.geometry, mat); x.bind(m.skeleton, m.bindMatrix); } else x = new T.Mesh(m.geometry, mat);
+        x.renderOrder = 5; x.castShadow = false; x.frustumCulled = false; m.add(x);
+      }
+      return mat;
+    }
     // ─── le survivant (et ses copains) : des maillages simples, animés ───
     function nouveauSurvivant(couleur) {
       const g = new T.Group();
@@ -593,15 +652,16 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.42, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.5, 0.62, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       g.scale.setScalar(ECHELLE * 1.04);
+      const sil = silhouette(g);
       scene.add(g);
-      return { g, jg, jd, bg, bd, arme, anneau, ph: 0, armeId: '' };
+      return { g, jg, jd, bg, bd, arme, anneau, sil, ph: 0, armeId: '' };
     }
     // le survivant Kenney (le fossoyeur du Graveyard Kit) : les jambes jouent la marche ou le repos, le haut du corps tient l'arme ou tire
     // (deux demi-clips : les pistes des jambes d'un côté, celles du torse, des bras et de la tête de l'autre) ; l'arme est accrochée au torse
     function nouveauSurvivantK(skin) {
       const S = MOD.survivant(skin || 'gardien'), g = new T.Group(), o = S.gltf.scene.clone(true), cache = new Map();
       o.traverse((m) => { if (m.isMesh) { if (!cache.has(m.material)) cache.set(m.material, new T.MeshLambertMaterial({ map: S.map || m.material.map })); m.material = cache.get(m.material); m.castShadow = true; } });
-      const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o);
+      const k = (1.6 * ECHELLE * 1.04) / S.hauteur; o.scale.setScalar(k); g.add(o); const sil = silhouette(o);
       const mixer = new T.AnimationMixer(o), clip = (n) => S.gltf.animations.find((c) => c.name === n);
       const moitie = (n, re) => { const c = clip(n); return c ? mixer.clipAction(new T.AnimationClip(n + (re === JAMBES ? '-jambes' : '-haut'), c.duration, c.tracks.filter((t) => re.test(t.name.split('.')[0])))) : null; };
       const act = { marche: moitie('walk', JAMBES), repos: moitie('idle', JAMBES), tir: moitie('holding-both-shoot', HAUT), tenir: moitie('holding-both', HAUT), mort: clip('die') ? mixer.clipAction(clip('die')) : null };
@@ -611,7 +671,7 @@ const ZRENDU = (() => {
       const ombre = new T.Mesh(new T.CircleGeometry(0.55, 12), new T.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false })); ombre.rotation.x = -Math.PI / 2; ombre.position.y = 0.02; g.add(ombre);
       const anneau = new T.Mesh(new T.RingGeometry(0.62, 0.76, 24), new T.MeshBasicMaterial({ color: '#FFD84A', transparent: true, opacity: 0.85, depthWrite: false })); anneau.rotation.x = -Math.PI / 2; anneau.position.y = 0.03; g.add(anneau);
       scene.add(g);
-      const s = { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
+      const s = { g, o, k, mixer, act, jambes: '', haut: '', arme, anneau, sil, armeId: '', modele: true, mort: false, skin: S.id, emote: clip('emote-yes') ? mixer.clipAction(clip('emote-yes')) : null };
       s.mains = mesurerMains(s); return s;
     }
     // où sont les mains dans la pose « tenir à deux mains » (le bout de chaque bras, dans le repère du torse) : l'arme s'y pose, quel que
@@ -667,7 +727,7 @@ const ZRENDU = (() => {
         let s = survivants.get(j.id);
         const voulu = MOD && MOD.pret ? MOD.survivant(j.skin || 'gardien').id : '';
         if (s && s.modele && s.skin !== voulu) { scene.remove(s.g); s = null; } // un autre skin (ou ses textures enfin prêtes)
-        if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK(j.skin) : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); }
+        if (!s) { s = MOD && MOD.pret ? nouveauSurvivantK(j.skin) : nouveauSurvivant(j.id === idMoi ? '#E3B663' : '#7FB3E0'); survivants.set(j.id, s); s.anneau.material.color.set(j.id === idMoi ? '#FFD84A' : j.couleur || '#7FB3E0'); if (s.sil) s.sil.color.copy(s.anneau.material.color).multiplyScalar(0.85); }
         s.g.visible = !j.parti; s.anneau.visible = j.vivant && !j.parti; // en coop, chacun son anneau (le sien en jaune)
         if (s.modele) { majSurvivantK(s, j, dt); continue; }
         s.g.position.set(j.x, 0, j.z); s.g.rotation.set(0, -j.angle, 0);
@@ -1210,8 +1270,30 @@ const ZRENDU = (() => {
         const m = new T.Mesh(fusionner(objs), new T.MeshLambertMaterial({ map: premierMap(MOD.M.voitures[0].scene) })); m.castShadow = true; m.receiveShadow = true; scene.add(m); enArene.push(m);
       }
       decor5d(jeu, A, demi);
+      parsemer(jeu, A, demi);
       cam.init = false;
       prechauffer(); // (le Lot 7a : tous les matériaux compilés au chargement de l'arène)
+    }
+    // ─── le Lot 7b : le sol parsemé ─── des touffes d'herbe dans les arènes vertes, des débris ailleurs (papiers, gravats, cailloux), tirés
+    // d'une graine fixe par arène, jamais sur un obstacle ni sur une voie ; deux maillages instanciés, sans ombre portée
+    function parsemer(jeu, A, demi) {
+      const herbe = HERBE.has(A.id || jeu.arene); let g = 9137 + (jeu.arene || '').length * 101; const r = () => { g = (g * 16807) % 2147483647; return g / 2147483647; };
+      const libre = (x, z) => !(jeu.monde && jeu.monde.bloque && jeu.monde.bloque(x, z, 0.5)) && !(A.voies || []).some((v) => Math.abs(z - v.z) < v.largeur / 2 + 0.3);
+      const geo = herbe ? new T.ConeGeometry(0.07, 0.34, 4).translate(0, 0.17, 0) : new T.BoxGeometry(0.26, 0.025, 0.18).translate(0, 0.013, 0);
+      const n = herbe ? 260 : 140, m = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ color: '#FFFFFF', flatShading: true }), herbe ? n * 3 : n);
+      const base = new T.Color(herbe ? A.sol : A.sol2), clair = new T.Color(herbe ? '#C8E07A' : '#E8E4DA'), fonce = new T.Color(herbe ? '#4E7A2E' : '#5A5650'), c = new T.Color();
+      let k = 0;
+      for (let i = 0; i < n * 4 && k < (herbe ? n * 3 : n); i++) {
+        const x = (r() - 0.5) * (A.taille - 2), z = (r() - 0.5) * (A.taille - 2); if (!libre(x, z)) continue;
+        const brins = herbe ? 3 : 1;
+        for (let b = 0; b < brins && k < m.count; b++) {
+          const h = herbe ? 0.6 + r() * 0.9 : 0.6 + r() * 0.8; _v.set(x + (r() - 0.5) * 0.22, 0, z + (r() - 0.5) * 0.22);
+          _q.setFromEuler(_e.set(herbe ? (r() - 0.5) * 0.5 : 0, r() * 6.28, herbe ? (r() - 0.5) * 0.5 : 0)); _s.set(herbe ? 1 : h, herbe ? h : 1, herbe ? 1 : h); _base.compose(_v, _q, _s); m.setMatrixAt(k, _base);
+          c.copy(base).lerp(r() < 0.5 ? clair : fonce, 0.25 + r() * 0.45); m.setColorAt(k, c); k++;
+        }
+      }
+      m.count = k; m.receiveShadow = true; m.castShadow = false; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+      scene.add(m); enArene.push(m);
     }
     // ─── le Lot 5d : les voies et le train du Métro, les murs du tunnel ; les armoires de l'Hôpital ; les barbelés de la Base ───
     let train3d = null, feux = [], pharmas3d = [];
@@ -1325,7 +1407,7 @@ const ZRENDU = (() => {
               eclatBouche(bc, gros ? 1.2 : 0.8, laser ? '#FF9AC0' : '#FFE2A0'); if (gros || Math.random() < 0.5) lumiere(bc.x, bc.y, bc.z, laser ? '#FF6FA0' : '#FFC870', gros ? 9 : 5, 6, 0.07);
             } else if (e.cle === 'tourelle') eclatBouche(_bout.set(e.x + Math.cos(e.a) * 0.6, 1.05, e.z + Math.sin(e.a) * 0.6), 0.55, '#BFEFFF');
             effetTir(e, bc);
-            if (s) { s.recul = 1; if (!e.b) { const a = e.a + Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1) * 0.9; particule(e.x, 1.0, e.z, Math.cos(a) * 2.5, 2.5 + Math.random() * 1.5, Math.sin(a) * 2.5, 1.3, 0.07, '#E0B040', 0.4); } } // une douille
+            if (s) { s.recul = 1; if (!e.b) { const a = e.a + Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1) * 0.9; particule(e.x, 1.0, e.z, Math.cos(a) * 2.5, 2.5 + Math.random() * 1.5, Math.sin(a) * 2.5, 1.3, 0.07, '#E0B040', 0.4); if (!(A0 && (A0.famille === 'energie' || A0.famille === 'flamme' || A0.famille === 'lame'))) douille(e.x + Math.cos(a) * (0.9 + Math.random() * 0.5), e.z + Math.sin(a) * (0.9 + Math.random() * 0.5)); } } // une douille (le Lot 7b : elle reste par terre)
             break;
           }
           case 'mort':
@@ -1335,6 +1417,7 @@ const ZRENDU = (() => {
             else { corps.push({ type: e.type, x: e.x, z: e.z, a: e.a || 0, t: 0 }); if (corps.length > MAX_CORPS) corps.shift(); }
             break;
           case 'touche':
+            { const r = rendusZ.get(e.cible); if (r && !e.petit) r.recul = Math.min(1, (r.recul || 0) + (e.crit ? 0.9 : 0.45)); }
             if (Math.random() < 0.25) flaque(e.x + (Math.random() - 0.5) * 0.6, e.z + (Math.random() - 0.5) * 0.6, 0.35, '#6F9A38');
             if (!e.petit && impacts++ < 10) { for (let k = 0; k < (e.crit ? 5 : 2); k++) particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 5, 1.5 + Math.random() * 2.5, (Math.random() - 0.5) * 5, 0.22, 0.06, k % 2 ? '#FFF3C0' : '#FFD25A', 0); particule(e.x, 1.0, e.z, (Math.random() - 0.5) * 3, 2 + Math.random() * 2, (Math.random() - 0.5) * 3, 0.5, 0.09, '#6F9A38', 0.1); } // (étincelles et gouttes ; au plus 10 impacts par image)
             break;
@@ -1428,6 +1511,7 @@ const ZRENDU = (() => {
       majAlertes(dt);
       majFlaques(dt);
       majParticules(dt);
+      majDouilles(dt); majPoussiere(dt, jeu.arene); // (le Lot 7b)
       majEffets(dt);
       for (const o of tracantes) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / 0.06); if (o.t <= 0) o.m.visible = false; }
       for (const o of segs) if (o.m.visible) { o.t -= dt; o.m.material.opacity = Math.max(0, o.t / o.d); if (o.t <= 0) o.m.visible = false; }
@@ -1488,7 +1572,8 @@ const ZRENDU = (() => {
     }
     const _p = T ? new T.Vector3() : null;
     function ecranDe(x, z, y) { _p.set(x, y || 0, z).project(camera); return [(_p.x + 1) / 2 * W, (1 - _p.y) / 2 * H]; }
-    function stats() { const i = renderer.info; return { reglage, palier, ombre: qualite === 'eco' ? 0 : soleil.shadow.mapSize.x, ms: +msMoy.toFixed(1), programmes: i.programs ? i.programs.length : 0, ratio: renderer.getPixelRatio(), webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine, armes: MOD ? MOD.etatArmes : 'absent', tenues: [...survivants.values()].filter((x) => x.blaster).map((x) => x.armeId) }; }
+    function stats() { const i = renderer.info; let sil = 0; for (const [, x] of survivants) if (x.sil) sil++; const parse = enArene.find((o) => o.isInstancedMesh);
+      return { lot7b: { ombres: ombresZ.count, douilles: instDouilles.count, parsemes: parse ? parse.count : 0, silhouettes: sil, poussiere: instPouss.count }, reglage, palier, ombre: qualite === 'eco' ? 0 : soleil.shadow.mapSize.x, ms: +msMoy.toFixed(1), programmes: i.programs ? i.programs.length : 0, ratio: renderer.getPixelRatio(), webgl: true, calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, qualite, derniere: derniereT, modeles: MOD ? MOD.etat : 'absent', horde: KZ ? 'kenney' : 'faite-main', boss: [...bossVus.values()].map((b) => b.type), survivant: [...survivants.values()].some((x) => x.modele) ? 'kenney' : 'fait-main', defenses: [...defs.values()].filter((r) => r.modele).length, morceaux: morceaux.length, particules: particules.length, cinema: !!cine, armes: MOD ? MOD.etatArmes : 'absent', tenues: [...survivants.values()].filter((x) => x.blaster).map((x) => x.armeId) }; }
     // les modèles 3D arrivent : la horde passe en Kenney, le survivant, les défenses et l'arène (ses voitures) sont refaits avec eux
     if (MOD) MOD.charger().then((ok) => {
       if (!ok) return;
