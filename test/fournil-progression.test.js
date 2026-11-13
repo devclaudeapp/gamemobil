@@ -218,6 +218,10 @@ titre('les trophées secrets et « Tous ensemble »');
   check(st.secrets.aube === 1 && ids() === 'aube', 'ouvrir à 5 h 30 (Paris) : « Lève-tôt », compté une fois par matin');
   G.noterOuverture(st, Date.UTC(2027, 0, 1, 11), 0); G.noterOuverture(st, Date.UTC(2026, 10, 13, 11), 9 * 864e5);
   check(st.secrets.nouvelAn === 1 && st.secrets.vendredi13 === 1 && st.secrets.retours === 1 && ids() === 'nouvel-an,vendredi13,retour', 'un 1er janvier, un vendredi 13, un retour après 9 jours');
+  { // sansCalendrier (src/ui.js, sous un navigateur piloté) : ni l'aube, ni le 1er janvier, ni le vendredi 13 ; le retour, toujours
+    const s2 = neuf(); for (const t of [Date.UTC(2026, 10, 4, 4, 30), Date.UTC(2027, 0, 1, 11), Date.UTC(2026, 10, 13, 11)]) G.noterOuverture(s2, t, 9 * 864e5, true);
+    check(s2.secrets.aube === 0 && s2.secrets.nouvelAn === 0 && s2.secrets.vendredi13 === 0 && s2.secrets.retours === 3, 'sans le calendrier (les tests à l’heure réelle) : ni « Lève-tôt », ni « Bonne année ! », ni « Porte-bonheur » ; le retour compte');
+  }
   G.adopterChat(st, ''); for (let k = 0; k < 50; k++) { st.now += 1000; G.caresser(st); }
   check(st.secrets.caressesMax === 50 && ids() === 'caresses', '50 caresses en moins d’une minute : « Câlin express »');
   G.renommer(st, 'Chez Lou'); check(ids() === '', 'la boutique nommée : il manque le chat'); G.renommerChat(st, 'Pompon');

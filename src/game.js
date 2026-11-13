@@ -1572,11 +1572,13 @@
     s.visites = s.vus.length; // (les boutiques différentes : noterVisite)
     return s;
   }
-  function noterOuverture(st, nowMs, sortieMs) { // au démarrage et au retour d'une sortie (ui.js : boot, reprendre) ; sortieMs : la durée de l'absence
-    const s = secrets(st), d = paris(nowMs), jour = dayKey(nowMs);
-    if (d.getUTCHours() === 5 && s.jourAube !== jour) { s.jourAube = jour; s.aube++; }
-    if (d.getUTCMonth() === 0 && d.getUTCDate() === 1 && s.jourAn !== jour) { s.jourAn = jour; s.nouvelAn++; }
-    if (d.getUTCDay() === 5 && d.getUTCDate() === 13 && s.jour13 !== jour) { s.jour13 = jour; s.vendredi13++; }
+  // sansCalendrier : l'aube, le 1er janvier et le vendredi 13 ne sont pas notés (src/ui.js, sous un navigateur piloté : un test qui tourne
+  // à l'heure réelle ne gagne pas un secret selon le jour ou l'heure de son passage)
+  function noterOuverture(st, nowMs, sortieMs, sansCalendrier) { // au démarrage et au retour d'une sortie (ui.js : boot, reprendre) ; sortieMs : la durée de l'absence
+    const s = secrets(st), d = paris(nowMs), jour = dayKey(nowMs), cal = !sansCalendrier;
+    if (cal && d.getUTCHours() === 5 && s.jourAube !== jour) { s.jourAube = jour; s.aube++; }
+    if (cal && d.getUTCMonth() === 0 && d.getUTCDate() === 1 && s.jourAn !== jour) { s.jourAn = jour; s.nouvelAn++; }
+    if (cal && d.getUTCDay() === 5 && d.getUTCDate() === 13 && s.jour13 !== jour) { s.jour13 = jour; s.vendredi13++; }
     if (sortieMs >= 7 * 864e5) s.retours++;
     return s;
   }

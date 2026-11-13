@@ -3227,8 +3227,12 @@ const UI = (() => {
   // le lot « progression » au lancement et à chaque retour : les secrets (l'aube, le 1er janvier, le vendredi 13, le retour après une semaine),
   // la semaine du concours rangée (rivalesPas), puis les annonces (le résultat du concours, un chantier fini, le second) après la feuille du retour.
   // Un vrai retour seulement (le lancement, la feuille du retour montrée, ou une minute dehors) : un réveil d'une image lente n'ouvre rien
+  // Les secrets du calendrier (l'aube, le 1er janvier, le vendredi 13) : éteints sous navigator.webdriver (les tests, les outils de capture),
+  // comme l'accueil, la saison et l'Avent, sauf window.__secretsCalendrier === true : un test qui part de l'heure réelle ne gagne pas
+  // « Porte-bonheur » (son toast, ses confettis, un « ??? » de moins) parce qu'il passe un vendredi 13. Le retour après une semaine reste noté.
+  const SECRETS_CAL = (() => { try { if (window.__secretsCalendrier === true) return true; if (window.__secretsCalendrier === false) return false; return !navigator.webdriver; } catch (e) { return true; } })();
   function retourProgression(t, sortie, fort, lancement) {
-    if (G.noterOuverture) G.noterOuverture(st, t, Math.max(0, sortie || 0));
+    if (G.noterOuverture) G.noterOuverture(st, t, Math.max(0, sortie || 0), !SECRETS_CAL);
     // une sauvegarde déjà au-delà de la n°5 : un mot et le point « nouveau » sur son bouton, sans feuille qui couvre le jeu (rien ne s'ouvre tout
     // seul) ; toucher le bouton montre l'annonce, une fois
     if (lancement && secondNeuf()) setTimeout(() => { if (secondNeuf()) toast('Nouveau : un second t’attend ! Son bouton est à côté de « Bonus ».'); }, 2500);
