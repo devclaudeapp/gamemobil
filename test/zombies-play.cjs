@@ -219,6 +219,13 @@ const BASE = `http://localhost:${PORT}/`;
   await page.goto(BASE + 'zombies/'); await page.waitForFunction(() => window.__zombies && document.body.dataset.ecran === 'titre', null, { timeout: 20000 }).catch(() => {});
   await sleep(600);
   check(await P(() => getComputedStyle(document.querySelector('#tourne')).display !== 'none' && /Tourne ton téléphone/.test(document.querySelector('#tourne').innerText)), 'en portrait, l’écran « Tourne ton téléphone » couvre le jeu');
+  // Android (rotation automatique coupée, ou l'appli Salle de jeux fixée en portrait) : le bouton demande le plein écran, puis verrouille le paysage
+  { await P(() => { window.__appels = []; document.documentElement.requestFullscreen = function () { window.__appels.push('plein'); return Promise.resolve(); }; screen.orientation.lock = function (o) { window.__appels.push('verrou:' + o); return Promise.resolve(); }; });
+    const vis = await P(() => { const b = document.querySelector('#b-tourner'); return !!b && !b.hidden && b.getBoundingClientRect().height > 30; });
+    await page.tap('#b-tourner'); await sleep(300);
+    const appels = await P(() => window.__appels.join(','));
+    check(vis && appels === 'plein,verrou:landscape', `« Passer à l’horizontale » (Android) : plein écran puis paysage verrouillé (${appels || 'rien'})`);
+    await sleep(600); check(await P(() => !document.querySelector('.tourne-aide').hidden), 'l’écran n’a pas tourné : l’aide (rotation automatique, ouvrir dans le navigateur) s’affiche'); }
   await P(() => window.__zombies.demarrer('jardin', 5)); await sleep(800);
   check(await P(() => window.__zombies.enPause && window.__zombies.portrait), 'une partie lancée en portrait reste en pause');
   await page.setViewportSize({ width: 844, height: 390 }); await sleep(500);

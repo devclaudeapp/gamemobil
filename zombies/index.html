@@ -812,6 +812,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ─── le Lot 7b : la vignette (les bords de l'image un peu assombris : le regard va au centre, là où se joue la partie) ─── */
 .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, rgba(0, 0, 0, 0) 58%, rgba(12, 10, 24, .30) 100%); }
+
+/* ─── « Tourne ton téléphone » : le bouton pour passer à l'horizontale (Android), l'aide si l'écran ne tourne pas ─── */
+#tourne .gros { margin-top: 6px; }
+#tourne .tourne-aide { font-size: 13px; color: #AEB5C2; }
+#tourne .tourne-aide b { font: inherit; font-weight: 700; color: #FFD84A; }
 </style>
 </head>
 <body>
@@ -819,7 +824,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   <canvas id="scene" aria-hidden="true"></canvas>
   <div class="vignette" aria-hidden="true"></div>
   <div id="zone" class="joy-zone" aria-hidden="true"></div>
-<div id="tourne" role="alert"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="14" width="44" height="92" rx="9" fill="#2E3646" stroke="#FFD84A" stroke-width="5"/><circle cx="60" cy="94" r="4" fill="#FFD84A"/></svg><b>Tourne ton téléphone</b><p>Dernier Rempart se joue à l’horizontale. La partie t’attend en pause.</p></div>
+<div id="tourne" role="alert"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="14" width="44" height="92" rx="9" fill="#2E3646" stroke="#FFD84A" stroke-width="5"/><circle cx="60" cy="94" r="4" fill="#FFD84A"/></svg><b>Tourne ton téléphone</b><p>Dernier Rempart se joue à l’horizontale. La partie t’attend en pause.</p><button type="button" class="gros" id="b-tourner" hidden>Passer à l’horizontale</button><p class="tourne-aide" hidden>L’écran ne tourne pas ? Active la <b>rotation automatique</b> (en haut de l’écran, glisse vers le bas : « Rotation auto »), ou ouvre le jeu dans le navigateur plutôt que dans l’appli Salle de jeux.</p></div>
   <div id="hud" hidden></div>
   <div id="hud-inf" hidden>
     <div class="hi-haut"><div class="hi-vie"><i></i></div><span class="hi-reste contour">Survivants <b>6</b></span><span class="hi-chrono contour">2:30</span><span class="hi-mordus contour">Mordus <b>0</b></span><button type="button" class="hi-pause" aria-label="Pause">❚❚</button></div>
@@ -8577,8 +8582,23 @@ const ZENLIGNE = (() => {
   let estPortrait = portrait();
   const surOrientation = () => { estPortrait = portrait(); if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); };
   window.addEventListener('resize', surOrientation); window.addEventListener('orientationchange', surOrientation);
-  // sur Android, en plein écran, on peut verrouiller le paysage (iOS refuse : l'écran « Tourne ton téléphone » prend le relais)
-  const verrouiller = () => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
+  // sur Android, on peut verrouiller le paysage, mais seulement en plein écran ou dans une appli installée (iOS refuse : l'écran « Tourne ton
+  // téléphone » prend le relais). Sans ça, un Android à la rotation automatique coupée, ou ouvert dans l'appli « Salle de jeux » (fixée en
+  // portrait pour Le Fournil), restait bloqué derrière « Tourne ton téléphone » : le bouton « Passer à l'horizontale » demande le plein écran
+  // puis verrouille le paysage, et au lancement, dans une appli installée, on verrouille tout de suite.
+  const peutVerrouiller = !!(screen.orientation && screen.orientation.lock);
+  const verrouiller = () => { try { if (peutVerrouiller) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
+  async function passerPaysage() {
+    const el = document.documentElement, plein = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { if (plein && !(document.fullscreenElement || document.webkitFullscreenElement)) await plein.call(el, { navigationUI: 'hide' }); } catch (e) { /* refusé : on tente quand même le verrou */ }
+    try { if (peutVerrouiller) { await screen.orientation.lock('landscape'); return true; } } catch (e) { /* refusé */ }
+    return false;
+  }
+  { const b = $('#b-tourner'), aide = $('.tourne-aide');
+    if (b) { b.hidden = !peutVerrouiller; clic('#b-tourner', async () => { const ok = await passerPaysage(); setTimeout(() => { if (!ok || portrait()) aide.hidden = false; }, 700); }); }
+    if (aide && !peutVerrouiller) aide.hidden = false; // (pas de verrou possible, iOS : on explique)
+    const installee = window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches);
+    if (installee) verrouiller(); }
   document.addEventListener('visibilitychange', () => { if (document.hidden && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); });
 
   // ─── la boucle ───
