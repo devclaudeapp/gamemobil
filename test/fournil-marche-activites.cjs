@@ -307,9 +307,13 @@ function faux(d) {
       // série dans les règles, seule une apparition qui s'échappe la remet à zéro. Sur la machine lente de la CI en qualité haute, l'image
       // a parfois bougé entre la lecture et la touche)
       let p = ap;
-      for (let essai = 0; essai < 6; essai++) {
+      // (et on ne touche que là où le doigt tombe sur la scène elle-même : une apparition qui passe sous la colonne des activités, à droite,
+      // se touche une fois sortie de dessous ; sinon la touche ouvrait l'activité : « BUTTON.pq-act-btn » au diagnostic du run 154)
+      for (let essai = 0, touches = 0; essai < 40 && touches < 6; essai++) {
         const q = (await act()).apps.find((x) => x.id === ap.id); if (!q) break; p = q;
-        await page.touchscreen.tap(p.x, p.y); await sleep(300);
+        const libre = await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return !!e && !!e.closest('.pq-scene') && !e.closest('button'); }, { x: p.x, y: p.y });
+        if (!libre) { await sleep(100); continue; }
+        touches++; await page.touchscreen.tap(p.x, p.y); await sleep(300);
         if ((await regles()).stats.apparitions >= ap0 + k) break;
       }
       const [r] = await jusqua(regles, (x) => x.stats.apparitions === ap0 + k && x.serie === k);

@@ -396,7 +396,11 @@ const PERSONNAGES = ['Casual_Female', 'Casual2_Male', 'Doctor_Female_Old', 'OldC
     }
     for (let k = 0; k < 4; k++) await nouveau(ev);
     await sleep(6000);
-    const c = await ev(() => window.__fournil.SCENE.clients3d), n = await ev(() => VIE.clients.length), cl = demandes.filter((p) => /\/hd\/clients\//.test(p));
+    // (les clients et la scène lus ensemble, jusqu'à ce qu'ils s'accordent : un client qui arrive ou repart entre deux lectures faisait
+    // échouer le compte au run 154 ; ce qu'on vérifie ne change pas : tous en chibis, aucun fichier des clients)
+    let c = null, n = 0;
+    await attendre(async () => { ({ c, n } = await ev(() => ({ c: window.__fournil.SCENE.clients3d, n: VIE.clients.length }))); return n > 0 && (!c || (c.glb === 0 && c.chibis === n)); }, 10000);
+    const cl = demandes.filter((p) => /\/hd\/clients\//.test(p));
     check(cl.length === 0 && (!c || (c.glb === 0 && c.chibis === n)) && n > 0, `${n} clients en chibis, aucun fichier des clients demandé (${demandes.length} fichiers HD demandés${cl.length ? ', dont ' + cl.join(', ') : ''})`);
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
