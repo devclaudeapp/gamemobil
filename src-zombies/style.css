@@ -789,3 +789,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ─── le Lot 7b : la vignette (les bords de l'image un peu assombris : le regard va au centre, là où se joue la partie) ─── */
 .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, rgba(0, 0, 0, 0) 58%, rgba(12, 10, 24, .30) 100%); }
+
+/* ─── « Tourne ton téléphone » : le bouton pour passer à l'horizontale (Android), l'aide si l'écran ne tourne pas ─── */
+#tourne .gros { margin-top: 6px; }
+#tourne .tourne-aide { font-size: 13px; color: #AEB5C2; }
+#tourne .tourne-aide b { font: inherit; font-weight: 700; color: #FFD84A; }

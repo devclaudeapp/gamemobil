@@ -848,8 +848,23 @@
   let estPortrait = portrait();
   const surOrientation = () => { estPortrait = portrait(); if (estPortrait && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); };
   window.addEventListener('resize', surOrientation); window.addEventListener('orientationchange', surOrientation);
-  // sur Android, en plein écran, on peut verrouiller le paysage (iOS refuse : l'écran « Tourne ton téléphone » prend le relais)
-  const verrouiller = () => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
+  // sur Android, on peut verrouiller le paysage, mais seulement en plein écran ou dans une appli installée (iOS refuse : l'écran « Tourne ton
+  // téléphone » prend le relais). Sans ça, un Android à la rotation automatique coupée, ou ouvert dans l'appli « Salle de jeux » (fixée en
+  // portrait pour Le Fournil), restait bloqué derrière « Tourne ton téléphone » : le bouton « Passer à l'horizontale » demande le plein écran
+  // puis verrouille le paysage, et au lancement, dans une appli installée, on verrouille tout de suite.
+  const peutVerrouiller = !!(screen.orientation && screen.orientation.lock);
+  const verrouiller = () => { try { if (peutVerrouiller) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* rien */ } };
+  async function passerPaysage() {
+    const el = document.documentElement, plein = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { if (plein && !(document.fullscreenElement || document.webkitFullscreenElement)) await plein.call(el, { navigationUI: 'hide' }); } catch (e) { /* refusé : on tente quand même le verrou */ }
+    try { if (peutVerrouiller) { await screen.orientation.lock('landscape'); return true; } } catch (e) { /* refusé */ }
+    return false;
+  }
+  { const b = $('#b-tourner'), aide = $('.tourne-aide');
+    if (b) { b.hidden = !peutVerrouiller; clic('#b-tourner', async () => { const ok = await passerPaysage(); setTimeout(() => { if (!ok || portrait()) aide.hidden = false; }, 700); }); }
+    if (aide && !peutVerrouiller) aide.hidden = false; // (pas de verrou possible, iOS : on explique)
+    const installee = window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches);
+    if (installee) verrouiller(); }
   document.addEventListener('visibilitychange', () => { if (document.hidden && ecran === 'jeu' && jeu && !jeu.fini && !enPause) pause(); });
 
   // ─── la boucle ───
